@@ -1,6 +1,6 @@
 # Phone Agent 开发文档
 
-> 最后更新：2026-01-01
+> 最后更新：2026-01-02
 
 ## 0. 阅读指南（给 AI / 新同学）
 
@@ -9,7 +9,7 @@
 
 ## 目录
 
-- [1. 最新状态（2026-01-01）](#1-最新状态2026-01-01)
+- [1. 最新状态（2026-01-02）](#1-最新状态2026-01-02)
 - [2. 关键代码入口与数据流索引](#2-关键代码入口与数据流索引)
 - [3. 关键决策（待确认）](#3-关键决策待确认)
 - [4. 近期路线图（对齐 TODO）](#4-近期路线图对齐-todo)
@@ -19,9 +19,32 @@
 - [8. 知识库（Reference）](#8-知识库reference)
 - [9. 历史任务进度（旧）](#9-历史任务进度旧)
 
-## 1. 最新状态（2026-01-01）
+## 1. 最新状态（2026-01-02）
 
 ### 已完成
+
+- **语音识别体验优化（2026-01-02）**
+  - **完全移除 Vosk**：删除旧的 Vosk 模型文件目录（`assets/model/`）和相关依赖，清理代码。
+  - **按钮震动反馈**：点击语音按钮和发送按钮时触发轻微震动（30ms），提升交互体验。
+  - **语音输入动画**：按下语音按钮后，输入框显示"正在语音输入."并循环显示 1~3 个点的动画，有识别结果后切换为实际文字。
+  - 涉及文件：
+    - `app/src/main/java/com/ai/phoneagent/MainActivity.kt` - 添加震动反馈和动画逻辑
+    - `app/build.gradle.kts` - 清理 Vosk 注释
+    - 删除 `app/src/main/assets/model/` 目录
+
+- **语音识别引擎更换：Vosk → Sherpa-ncnn（2026-01-01）**
+  - 移除 Vosk 依赖，改用 Sherpa-ncnn（k2-fsa 开源项目）作为本地语音识别引擎。
+  - Sherpa-ncnn 相比 Vosk 更轻量、性能更好，更适合移动端实时流式识别。
+  - 支持中英文双语混合识别。
+  - 涉及文件：
+    - `app/src/main/java/com/k2fsa/sherpa/ncnn/SherpaNcnn.kt` - Sherpa JNI 封装
+    - `app/src/main/java/com/ai/phoneagent/speech/SherpaSpeechRecognizer.kt` - 语音识别器
+    - `app/src/main/java/com/ai/phoneagent/MainActivity.kt` - 集成更新
+    - `app/build.gradle.kts` - 依赖更新
+  - 资源部署说明：
+    - JNI 原生库：`libsherpa-ncnn-jni.so` 放入 `app/src/main/jniLibs/arm64-v8a/` 和 `armeabi-v7a/`
+    - 模型文件：`sherpa-ncnn-streaming-zipformer-bilingual-zh-en-2023-02-13` 放入 `app/src/main/assets/sherpa-models/`
+    - 详见 `app/src/main/jniLibs/README.md` 和 `app/src/main/assets/sherpa-models/README.md`
 
 - **统一权限引导（首次进入弹底部面板）**
   - 首次进入 App 弹出底部权限面板：无障碍 / 悬浮窗 / 录音。
@@ -52,6 +75,17 @@
     - `build.gradle.kts`
     - `app/build.gradle.kts`
     - `gradle/libs.versions.toml`
+
+- **自动化闭环可靠性增强（对齐 Open-AutoGLM/Operit）**
+  - 模型调用统一使用 `AutoGlmClient.sendChatResult(...)`，并增加有限次重试 + 指数退避（429/5xx/IO）。
+  - 解析失败修复循环：要求模型严格输出 `do(...) / finish(...)`，最多 N 次修复。
+  - 动作执行失败修复：把失败信息回传模型生成新动作，有限次重试。
+  - 上下文裁剪：记录 `observationUserIndex`，确保每步截图剥离对准当前观测消息。
+  - 自检：`:app:compileDebugKotlin` 通过。
+  - 涉及文件：
+    - `app/src/main/java/com/ai/phoneagent/UiAutomationAgent.kt`
+    - `app/src/main/java/com/ai/phoneagent/net/AutoGlmClient.kt`
+    - `app/src/main/java/com/ai/phoneagent/net/ChatModels.kt`
 
 ### 待确认（需要 1 句话）
 
@@ -96,7 +130,7 @@
   - 需要先确认「小窗模式 A/B」，再确定点击后恢复时的窗口策略。
 - **TODO#8（pending）**：自动化提速（本地优先 Launch + 减少不必要等待/重复采集）
 - **TODO#9（pending）**：抖音“点赞置顶评论”本地模板动作（降低模型不确定性）
-- **TODO#5（pending）**：本地编译/运行验证（Sync/Build、API 检查状态、IME 遮挡回归）
+- **TODO#5（in_progress）**：本地编译/运行验证（编译已通过；待真机回归 overlay/进度与重试日志）
 
 ## 5. 开发构想（DeepSeek 风格手机助手）
 
@@ -197,6 +231,13 @@
 - 工程构建
   - 移除 `ktlint` Gradle 插件引用，解决插件仓库解析失败导致的构建错误。
 
+- 自动化可靠性
+  - 模型调用统一使用 `AutoGlmClient.sendChatResult(...)`，对 429/5xx/IO 做有限次重试 + 指数退避。
+  - 输出解析加入修复循环：解析失败时要求模型严格输出 `do(...) / finish(...)`。
+  - 动作执行失败时回传失败信息请求模型修复动作，并做有限次重试。
+  - 修复“剥离截图”索引：记录 `observationUserIndex`，避免修复对话插入导致剥离错位。
+  - 自检：`:app:compileDebugKotlin` 通过。
+
 ### 更新记录 · 2025-12-31
 
 - **主对话页 UI 与 IME 适配（完成 t15）**
@@ -291,6 +332,13 @@ StorageService.unpack(
 
 ## 8. 知识库（Reference）
 
+### 参考代码（temp 目录 - 只读参考）
+
+- `temp/Open-AutoGLM-main`：智谱官方发布的参考实现。该项目需要通过 ADB 连接手机以实现自动化/模型联动功能，仅作参考和脚本借鉴，禁止修改 `temp` 目录中的内容到仓库中。
+- `temp/Operit-main`：成品安卓 App 示例（独立可运行）。该项目为参考实现，可用于对比 UI 与自动化流程实现，同样请勿在 `temp` 目录中直接修改文件。
+
+说明：若需要对参考代码做实验或修改，请在工作目录外另行复制一份（例如 `work/Open-AutoGLM/`），将改动保存在该复制目录，不要将更改提交到当前仓库 `temp/` 下。
+
 ### 常用应用包名映射（Kotlin Map 示例）
 
 以下是常用应用（如美团、12306、抖音等）包名的 Kotlin Map 映射示例，可用于快速查找应用包名：
@@ -364,18 +412,70 @@ val appMapping = mapOf(
 
 ---
 
-### Vosk 本地语音识别集成说明
-- 依赖：`com.alphacephei:vosk-android:0.3.32`，已在 `app/build.gradle.kts` 添加。
+### Sherpa-ncnn 本地语音识别集成说明（当前方案）
+
+> 已替换 Vosk，改用 Sherpa-ncnn 作为本地语音识别引擎。
+
+- **项目地址**：https://github.com/k2-fsa/sherpa-ncnn
+- **优势**：比 Vosk 更轻量、实时性更好、支持流式识别、中英文混合识别效果佳
+
+#### 依赖文件
+
+1. **JNI 原生库**（必需）
+   - 下载地址：https://github.com/k2-fsa/sherpa-ncnn/releases
+   - 放置位置：`app/src/main/jniLibs/arm64-v8a/libsherpa-ncnn-jni.so` 和 `armeabi-v7a/`
+
+2. **模型文件**（必需）
+   - 推荐模型：`sherpa-ncnn-streaming-zipformer-bilingual-zh-en-2023-02-13`（中英双语）
+   - 下载地址：https://huggingface.co/csukuangfj/sherpa-ncnn-streaming-zipformer-bilingual-zh-en-2023-02-13
+   - 放置位置：`app/src/main/assets/sherpa-models/sherpa-ncnn-streaming-zipformer-bilingual-zh-en-2023-02-13/`
+
+#### 核心文件
+
+- `app/src/main/java/com/k2fsa/sherpa/ncnn/SherpaNcnn.kt` - JNI 封装类
+- `app/src/main/java/com/ai/phoneagent/speech/SherpaSpeechRecognizer.kt` - 语音识别器封装
+
+#### 使用方式
+
+```kotlin
+// 初始化
+val recognizer = SherpaSpeechRecognizer(context)
+recognizer.initialize()
+
+// 开始识别
+recognizer.startListening(object : SherpaSpeechRecognizer.RecognitionListener {
+    override fun onPartialResult(text: String) { /* 中间结果 */ }
+    override fun onResult(text: String) { /* 完整结果 */ }
+    override fun onFinalResult(text: String) { /* 最终结果 */ }
+    override fun onError(exception: Exception) { /* 错误处理 */ }
+    override fun onTimeout() { /* 超时处理 */ }
+})
+
+// 停止识别
+recognizer.stopListening()
+
+// 释放资源
+recognizer.shutdown()
+```
+
+#### 排查步骤
+
+1. 确认 `libsherpa-ncnn-jni.so` 已放入 jniLibs 对应架构目录
+2. 确认模型文件完整（7 个文件：encoder/decoder/joiner 的 param+bin，以及 tokens.txt）
+3. Logcat 过滤 `SherpaSpeechRecognizer` 查看初始化日志
+4. 首次启动会将模型从 assets 拷贝到 filesDir，需要一定时间
+
+---
+
+### Vosk 本地语音识别集成说明（已弃用）
+
+> ⚠️ 已弃用，改用 Sherpa-ncnn。以下内容仅供参考。
+
+- 依赖：`com.alphacephei:vosk-android:0.3.32`
 - 模型：需下载中文模型（如 vosk-model-cn），放置于 `app/src/main/assets/model/` 目录。
 - 初始化：在 `MainActivity` 中通过 `Model` 和 `Recognizer` 初始化，建议异步加载模型，避免主线程阻塞。
 - 权限：需动态申请录音权限（Manifest.permission.RECORD_AUDIO）。
 - 监听：实现 `RecognitionListener`，处理 onResult/onPartialResult/onError 等回调。
-- 典型用法：
-```kotlin
-val model = Model(this, "model")
-val recognizer = Recognizer(model, 16000.0f)
-// 录音流输入并识别，回调处理结果
-```
 - 注意：如遇 PointerType 依赖冲突，仅保留 Android 版 vosk 依赖，避免多平台混用。
 
 ---

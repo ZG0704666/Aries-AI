@@ -1,0 +1,9 @@
+[submodule "terminal"]
+	path = terminal
+	url = https://github.com/AAswordman/OperitTerminalCore.git
+[submodule "mnn/src/main/cpp/MNN"]
+	path = mnn/src/main/cpp/MNN
+	url = https://github.com/alibaba/MNN.git
+[submodule "tools/hotbuild/OperitNightlyRelease"]
+	path = tools/hotbuild/OperitNightlyRelease
+	url = git@github.com:AAswordman/OperitNightlyRelease.git

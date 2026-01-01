@@ -15,6 +15,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 class PhoneAgentAccessibilityService : AccessibilityService() {
@@ -25,6 +26,9 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    @Volatile private var lastEventTimeMs: Long = 0L
+    @Volatile private var lastWindowEventTimeMs: Long = 0L
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
@@ -32,7 +36,17 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() {}
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event == null) return
+        lastEventTimeMs = event.eventTime
+        when (event.eventType) {
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
+                lastWindowEventTimeMs = event.eventTime
+            }
+        }
+    }
 
     override fun onDestroy() {
         instance = null
@@ -205,6 +219,17 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         dispatchGesture(gesture, null, null)
     }
 
+    suspend fun clickAwait(x: Float, y: Float, durationMs: Long = 60L): Boolean {
+        val p =
+                Path().apply {
+                    moveTo(x, y)
+                    lineTo(x, y)
+                }
+        val stroke = GestureDescription.StrokeDescription(p, 0, durationMs)
+        val gesture = GestureDescription.Builder().addStroke(stroke).build()
+        return dispatchGestureAwait(gesture)
+    }
+
     fun swipe(
             startX: Float,
             startY: Float,
@@ -220,6 +245,169 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         val stroke = GestureDescription.StrokeDescription(p, 0, durationMs)
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
         dispatchGesture(gesture, null, null)
+    }
+
+    suspend fun swipeAwait(
+            startX: Float,
+            startY: Float,
+            endX: Float,
+            endY: Float,
+            durationMs: Long = 300L,
+    ): Boolean {
+        val p =
+                Path().apply {
+                    moveTo(startX, startY)
+                    lineTo(endX, endY)
+                }
+        val stroke = GestureDescription.StrokeDescription(p, 0, durationMs)
+        val gesture = GestureDescription.Builder().addStroke(stroke).build()
+        return dispatchGestureAwait(gesture)
+    }
+
+    fun lastWindowEventTime(): Long = lastWindowEventTimeMs
+
+    suspend fun awaitWindowEvent(afterTimeMs: Long, timeoutMs: Long = 1500L): Boolean {
+        val start = android.os.SystemClock.uptimeMillis()
+        while (android.os.SystemClock.uptimeMillis() - start < timeoutMs) {
+            if (lastWindowEventTimeMs > afterTimeMs) return true
+            delay(60L)
+        }
+        return false
+    }
+
+    suspend fun clickElement(
+            resourceId: String? = null,
+            text: String? = null,
+            contentDesc: String? = null,
+            className: String? = null,
+            index: Int = 0,
+    ): Boolean {
+        val root = rootInActiveWindow ?: return false
+        val target = findNode(root, resourceId, text, contentDesc, className, index) ?: return false
+        val clickable = findClickableAncestor(target) ?: target
+        if (clickable.isClickable && clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+            return true
+        }
+        val r = Rect()
+        clickable.getBoundsInScreen(r)
+        if (r.isEmpty) return false
+        return clickAwait(r.centerX().toFloat(), r.centerY().toFloat())
+    }
+
+    suspend fun setTextOnElement(
+            text: String,
+            resourceId: String? = null,
+            elementText: String? = null,
+            contentDesc: String? = null,
+            className: String? = null,
+            index: Int = 0,
+    ): Boolean {
+        val root = rootInActiveWindow ?: return false
+        val target =
+                findNode(root, resourceId, elementText, contentDesc, className, index) ?: return false
+
+        if (!target.isFocused) {
+            target.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+        }
+        val args = Bundle()
+        args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+        val ok = target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        if (ok) return true
+
+        val r = Rect()
+        target.getBoundsInScreen(r)
+        if (!r.isEmpty) {
+            clickAwait(r.centerX().toFloat(), r.centerY().toFloat())
+            delay(120L)
+        }
+        if (!target.isFocused) {
+            target.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+        }
+        return target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+    }
+
+    private fun findClickableAncestor(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        var cur: AccessibilityNodeInfo? = node
+        var guard = 0
+        while (cur != null && guard < 10) {
+            guard++
+            if (cur.isClickable) return cur
+            cur = cur.parent
+        }
+        return null
+    }
+
+    private fun findNode(
+            root: AccessibilityNodeInfo,
+            resourceId: String?,
+            text: String?,
+            contentDesc: String?,
+            className: String?,
+            index: Int,
+    ): AccessibilityNodeInfo? {
+        fun matches(node: AccessibilityNodeInfo): Boolean {
+            val id = node.viewIdResourceName?.trim().orEmpty()
+            val clsFull = node.className?.toString()?.trim().orEmpty()
+            val clsShort = clsFull.substringAfterLast('.')
+            val t = node.text?.toString()?.trim().orEmpty()
+            val d = node.contentDescription?.toString()?.trim().orEmpty()
+
+            if (!resourceId.isNullOrBlank()) {
+                if (id.isBlank()) return false
+                if (!id.endsWith(resourceId)) return false
+            }
+            if (!className.isNullOrBlank()) {
+                if (clsFull != className && clsShort != className) return false
+            }
+            if (!text.isNullOrBlank()) {
+                if (t.isBlank()) return false
+                if (!t.contains(text, ignoreCase = true)) return false
+            }
+            if (!contentDesc.isNullOrBlank()) {
+                if (d.isBlank()) return false
+                if (!d.contains(contentDesc, ignoreCase = true)) return false
+            }
+            return true
+        }
+
+        val q = ArrayDeque<AccessibilityNodeInfo>()
+        q.add(root)
+        var seen = 0
+        var matched = 0
+        while (q.isNotEmpty() && seen < 2000) {
+            seen++
+            val n = q.removeFirst()
+            if (matches(n)) {
+                if (matched == index.coerceAtLeast(0)) return n
+                matched++
+            }
+            for (i in 0 until n.childCount) {
+                n.getChild(i)?.let { q.add(it) }
+            }
+        }
+        return null
+    }
+
+    private suspend fun dispatchGestureAwait(gesture: GestureDescription): Boolean {
+        return suspendCancellableCoroutine { cont ->
+            val accepted =
+                    dispatchGesture(
+                            gesture,
+                            object : GestureResultCallback() {
+                                override fun onCompleted(gestureDescription: GestureDescription?) {
+                                    if (cont.isActive) cont.resume(true)
+                                }
+
+                                override fun onCancelled(gestureDescription: GestureDescription?) {
+                                    if (cont.isActive) cont.resume(false)
+                                }
+                            },
+                            null
+                    )
+            if (!accepted) {
+                if (cont.isActive) cont.resume(false)
+            }
+        }
     }
 
     private fun swipeUp() {

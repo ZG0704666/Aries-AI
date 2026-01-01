@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #2b324d;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        #search-container {
+            display: flex;
+            align-items: center;
+            background-color: #1c2130;
+            border-radius: 24px;
+            padding: 5px 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            width: 80%;
+            max-width: 600px;
+        }
+
+        #search-input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 16px;
+            padding: 10px;
+            outline: none;
+        }
+
+        #search-button {
+            background: #4a90e2;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 18px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+            transition: background-color 0.2s;
+        }
+
+        #search-button:hover {
+            background: #357abd;
+        }
+
+        h1 {
+            font-weight: 300;
+            font-size: 4rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Browser</h1>
+    <div id="search-container">
+        <input type="text" id="search-input" placeholder="Search with Bing">
+        <button id="search-button">Search</button>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('search-input');
+        const searchButton = document.getElementById('search-button');
+
+        function performSearch() {
+            const query = searchInput.value.trim();
+            if (query) {
+                const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
+                window.location.href = searchUrl;
+            }
+        }
+
+        searchButton.addEventListener('click', performSearch);
+
+        searchInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                performSearch();
+            }
+        });
+    </script>
+</body>
+
+</html>

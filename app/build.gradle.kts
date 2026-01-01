@@ -38,6 +38,13 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 }
 
@@ -60,11 +67,6 @@ dependencies {
 
     // 后台任务（便于自动化/定时流程）
     implementation("androidx.work:work-runtime-ktx:2.9.1")
-
-    implementation("com.alphacephei:vosk-android:0.3.32")
-
-    // Fix for: Cannot access PointerType which is a supertype of Model/Recognizer (vosk uses JNA)
-    implementation("net.java.dev.jna:jna:5.13.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -157,12 +157,17 @@ class AutomationActivity : AppCompatActivity() {
         if (shortcut != null) {
             val (remaining, launchedLabel) = shortcut
             if (AutomationOverlay.canDrawOverlays(this)) {
-                AutomationOverlay.show(
-                        context = this,
-                        title = "执行中（0/12）",
-                        subtitle = "直开：$launchedLabel",
-                        maxSteps = 12,
-                )
+                val ok =
+                        AutomationOverlay.show(
+                                context = this,
+                                title = "执行中（0/12）",
+                                subtitle = "直开：$launchedLabel",
+                                maxSteps = 12,
+                        )
+                if (!ok) {
+                    Toast.makeText(this, "悬浮窗显示失败，将保持前台显示日志", Toast.LENGTH_SHORT)
+                            .show()
+                }
             } else {
                 Toast.makeText(this, "如需显示进度悬浮窗，请授予悬浮窗权限", Toast.LENGTH_SHORT).show()
             }
@@ -190,13 +195,19 @@ class AutomationActivity : AppCompatActivity() {
         appendLog("任务：$task")
 
         if (AutomationOverlay.canDrawOverlays(this)) {
-            AutomationOverlay.show(
-                    context = this,
-                    title = "执行中（0/12）",
-                    subtitle = task.take(34),
-                    maxSteps = 12,
-            )
-            moveTaskToBack(true)
+            val ok =
+                    AutomationOverlay.show(
+                            context = this,
+                            title = "执行中（0/12）",
+                            subtitle = task.take(34),
+                            maxSteps = 12,
+                    )
+            if (ok) {
+                moveTaskToBack(true)
+            } else {
+                Toast.makeText(this, "悬浮窗显示失败，将保持前台显示日志", Toast.LENGTH_SHORT)
+                        .show()
+            }
         } else {
             Toast.makeText(this, "如需显示进度悬浮窗，请授予悬浮窗权限", Toast.LENGTH_SHORT).show()
         }

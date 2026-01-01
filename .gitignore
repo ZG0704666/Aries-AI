@@ -19,7 +19,11 @@ local.properties
 
 build/
 
-temp/
+temp/*
+!temp/Open-AutoGLM-main/
+!temp/Open-AutoGLM-main/**
+!temp/Operit-main/
+!temp/Operit-main/**
 *.bak*
 *.jks
 *.keystore

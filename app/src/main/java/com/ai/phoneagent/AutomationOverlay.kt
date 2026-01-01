@@ -12,12 +12,14 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.provider.Settings
 import android.util.TypedValue
+import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
+import android.widget.Toast
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 
@@ -29,6 +31,7 @@ object AutomationOverlay {
     private var maxSteps: Int = 1
 
     fun canDrawOverlays(context: Context): Boolean {
+        if (PhoneAgentAccessibilityService.instance != null) return true
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Settings.canDrawOverlays(context)
         } else {
@@ -48,17 +51,17 @@ object AutomationOverlay {
             title: String,
             subtitle: String,
             maxSteps: Int,
-    ) {
+    ): Boolean {
         hide()
 
         this.maxSteps = maxSteps.coerceAtLeast(1)
 
         val appCtx = context.applicationContext
-        val w = appCtx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        wm = w
+        val svc = PhoneAgentAccessibilityService.instance
+        val windowCtx = svc ?: appCtx
+        val w = windowCtx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-        val view = OverlayContainer(appCtx)
-        container = view
+        val view = OverlayContainer(windowCtx)
         view.setTexts(title, subtitle)
         view.setProgress(0f)
         view.setOnClickListener {
@@ -70,44 +73,103 @@ object AutomationOverlay {
         val overlayW = dp(appCtx, 148)
         val overlayH = dp(appCtx, 148)
 
-        val lp =
-                WindowManager.LayoutParams(
-                        overlayW,
-                        overlayH,
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                        else
-                                @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE,
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-                        android.graphics.PixelFormat.TRANSLUCENT
-                )
-        lp.gravity = Gravity.TOP or Gravity.START
-        val dm = appCtx.resources.displayMetrics
-        lp.x = (dm.widthPixels - overlayW - dp(appCtx, 14)).coerceAtLeast(0)
-        lp.y = dp(appCtx, 88).coerceAtLeast(0)
+        val flags =
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
 
-        view.attachWindowManager(w, lp)
-        w.addView(view, lp)
-        view.startSpinner()
+        val dm = appCtx.resources.displayMetrics
+        val baseX = (dm.widthPixels - overlayW - dp(appCtx, 14)).coerceAtLeast(0)
+        val baseY = dp(appCtx, 88).coerceAtLeast(0)
+
+        val typeCandidates = buildList {
+            if (svc != null) add(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
+
+            val overlayPermOk =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        Settings.canDrawOverlays(appCtx)
+                    } else {
+                        true
+                    }
+            if (overlayPermOk) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    add(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+                } else {
+                    @Suppress("DEPRECATION") add(WindowManager.LayoutParams.TYPE_PHONE)
+                }
+            }
+        }
+
+        var lastError: Throwable? = null
+        for (type in typeCandidates.distinct()) {
+            val lp =
+                    WindowManager.LayoutParams(
+                            overlayW,
+                            overlayH,
+                            type,
+                            flags,
+                            android.graphics.PixelFormat.TRANSLUCENT
+                    )
+            lp.gravity = Gravity.TOP or Gravity.START
+            lp.x = baseX
+            lp.y = baseY
+
+            view.attachWindowManager(w, lp)
+            val ok =
+                    runCatching {
+                                w.addView(view, lp)
+                                true
+                            }
+                            .getOrElse {
+                                lastError = it
+                                false
+                            }
+            if (ok) {
+                wm = w
+                container = view
+                view.startSpinner()
+                return true
+            }
+        }
+
+        wm = null
+        container = null
+
+        if (lastError != null) {
+            Log.e("AutomationOverlay", "Overlay addView failed", lastError)
+            Toast.makeText(
+                            appCtx,
+                            "悬浮窗显示失败：${lastError?.javaClass?.simpleName}",
+                            Toast.LENGTH_SHORT
+                    )
+                    .show()
+        }
+        return false
+    }
+
+    fun isShowing(): Boolean = container != null && wm != null
+
+    fun updateStep(step: Int, maxSteps: Int? = null, subtitle: String? = null) {
+        val v = container ?: return
+        if (maxSteps != null) {
+            this.maxSteps = maxSteps.coerceAtLeast(1)
+        }
+        val s = step.coerceAtLeast(0)
+        val frac = s.toFloat() / this.maxSteps.toFloat()
+        v.setProgress(frac.coerceIn(0f, 1f))
+        val sub = subtitle?.trim().orEmpty()
+        if (sub.isNotBlank()) {
+            v.setTexts("执行中（$s/${this.maxSteps}）", sub.take(34))
+        } else {
+            v.setTexts("执行中（$s/${this.maxSteps}）", v.subtitleText().take(34))
+        }
     }
 
     fun updateFromLogLine(line: String) {
         val v = container ?: return
 
-        val step = parseStep(line)
-        if (step != null) {
-            val frac = step.toFloat() / maxSteps.toFloat()
-            v.setProgress(frac.coerceIn(0f, 1f))
-            v.setTexts("执行中（$step/$maxSteps）", simplifyLine(line).take(34))
-            return
-        }
-
         val trimmed = simplifyLine(line).trim()
-        if (trimmed.isNotBlank()) {
-            v.setTexts(v.titleText(), trimmed.take(34))
-        }
+        if (trimmed.isNotBlank()) v.setTexts(v.titleText(), trimmed.take(34))
     }
 
     fun complete(message: String) {
@@ -222,6 +284,8 @@ object AutomationOverlay {
         }
 
         fun titleText(): String = title.text?.toString().orEmpty()
+
+        fun subtitleText(): String = subtitle.text?.toString().orEmpty()
 
         fun setTexts(t: String, s: String) {
             title.text = t

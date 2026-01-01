@@ -4,14 +4,32 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.HttpException
 import retrofit2.http.Body
 import retrofit2.http.Header
 import retrofit2.http.POST
 import com.ai.phoneagent.BuildConfig
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /** 简化版 AutoGLM 客户端：仅用于单轮对话与 API 健康检查。 默认 BASE_URL 指向智谱官方 OpenAI 兼容接口，可根据需要调整。 */
 object AutoGlmClient {
+
+        class ApiException(
+                val code: Int,
+                val errorBody: String?,
+                cause: Throwable? = null,
+        ) : IOException(
+                        buildString {
+                            append("HTTP ")
+                            append(code)
+                            if (!errorBody.isNullOrBlank()) {
+                                append(": ")
+                                append(errorBody.take(400))
+                            }
+                        },
+                        cause
+                )
 
         // 如需替换其他网关，可修改此处
         private const val BASE_URL = "https://open.bigmodel.cn/api/paas/v4/"
@@ -73,21 +91,51 @@ object AutoGlmClient {
                 apiKey: String,
                 messages: List<ChatRequestMessage>,
                 model: String = DEFAULT_MODEL,
+                temperature: Float? = null,
+                maxTokens: Int? = null,
         ): String? =
-                runCatching {
-                                val res =
-                                        service.chat(
-                                                auth = "Bearer $apiKey",
-                                                request =
-                                                        ChatRequest(
-                                                                model = model,
-                                                                messages = messages,
-                                                                stream = false
-                                                        )
-                                        )
-                                res.choices?.firstOrNull()?.message?.content
-                        }
+                sendChatResult(
+                                apiKey = apiKey,
+                                messages = messages,
+                                model = model,
+                                temperature = temperature,
+                                maxTokens = maxTokens
+                        )
                         .getOrNull()
+
+        suspend fun sendChatResult(
+                apiKey: String,
+                messages: List<ChatRequestMessage>,
+                model: String = DEFAULT_MODEL,
+                temperature: Float? = null,
+                maxTokens: Int? = null,
+        ): Result<String> {
+                return try {
+                        val res =
+                                service.chat(
+                                        auth = "Bearer $apiKey",
+                                        request =
+                                                ChatRequest(
+                                                        model = model,
+                                                        messages = messages,
+                                                        stream = false,
+                                                        temperature = temperature,
+                                                        max_tokens = maxTokens
+                                                )
+                                )
+                        val content = res.choices?.firstOrNull()?.message?.content
+                        if (content.isNullOrBlank()) {
+                                Result.failure(IOException("Empty model response"))
+                        } else {
+                                Result.success(content)
+                        }
+                } catch (e: HttpException) {
+                        val body = runCatching { e.response()?.errorBody()?.string() }.getOrNull()
+                        Result.failure(ApiException(e.code(), body, e))
+                } catch (e: Exception) {
+                        Result.failure(e)
+                }
+        }
 }
 
 interface AutoGlmService {

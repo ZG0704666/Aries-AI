@@ -45,20 +45,19 @@ import androidx.recyclerview.widget.RecyclerView
 import com.ai.phoneagent.databinding.ActivityMainBinding
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
-import java.io.IOException
 import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import org.vosk.Model
-import org.vosk.Recognizer
-import org.vosk.android.RecognitionListener
-import org.vosk.android.SpeechService
-import org.vosk.android.StorageService
+import com.ai.phoneagent.speech.SherpaSpeechRecognizer
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 
-class MainActivity : AppCompatActivity(), RecognitionListener {
+class MainActivity : AppCompatActivity() {
 
     private data class UiMessage(
             val author: String,
@@ -81,9 +80,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener {
 
     private var activeConversation: Conversation? = null
 
-    private var model: Model? = null
-
-    private var speechService: SpeechService? = null
+    private var sherpaSpeechRecognizer: SherpaSpeechRecognizer? = null
 
     private var isListening = false
 
@@ -94,6 +91,9 @@ class MainActivity : AppCompatActivity(), RecognitionListener {
     private var micAnimator: ObjectAnimator? = null
 
     private var thinkingView: TextView? = null
+
+    private var voiceInputAnimJob: Job? = null
+    private var savedInputText: String = ""
 
     private val swipeTouchSlop by lazy { ViewConfiguration.get(this).scaledTouchSlop }
     private var swipeStartX = 0f
@@ -180,7 +180,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener {
 
         binding.btnVoice.isEnabled = true
 
-        initVoskModel()
+        initSherpaModel()
     }
 
     override fun onResume() {
@@ -488,9 +488,38 @@ class MainActivity : AppCompatActivity(), RecognitionListener {
         return if (raw.length <= 6) raw else raw.substring(0, 6) + "*".repeat(raw.length - 6)
     }
 
+    /** 轻微震动反馈 */
+    private fun vibrateLight() {
+        try {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = getSystemService(VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vibratorManager?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(VIBRATOR_SERVICE) as? Vibrator
+            } ?: return
+
+            // vibrate may throw SecurityException on some devices if permission/implementation differs;
+            // catch any throwable to avoid crashing the app when haptic feedback fails.
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(30)
+                }
+            } catch (_: Throwable) {
+                // ignore vibrate failures
+            }
+        } catch (_: Throwable) {
+            // defensively ignore any unexpected errors here to prevent UI crashes
+        }
+    }
+
     private fun setupInputBar() {
 
         binding.btnSend.setOnClickListener {
+            vibrateLight()
             val text = binding.inputMessage.text.toString().trim()
 
             if (text.isBlank()) {
@@ -505,6 +534,7 @@ class MainActivity : AppCompatActivity(), RecognitionListener {
         }
 
         binding.btnVoice.setOnClickListener {
+            vibrateLight()
             if (isListening) {
 
                 stopLocalVoiceInput()
@@ -830,113 +860,117 @@ class MainActivity : AppCompatActivity(), RecognitionListener {
         thinkingView = null
     }
 
-    private fun initVoskModel() {
-
-        val dstDir = java.io.File(filesDir, "model")
-
-        val confFile = java.io.File(dstDir, "conf/model.conf")
-
-        if (confFile.exists()) {
-
-            val loaded = runCatching { Model(dstDir.absolutePath) }.getOrNull()
-
-            if (loaded != null) {
-
-                this.model = loaded
-
-                binding.btnVoice.isEnabled = true
-
+    private fun initSherpaModel() {
+        sherpaSpeechRecognizer = SherpaSpeechRecognizer(this)
+        lifecycleScope.launch {
+            val success = sherpaSpeechRecognizer?.initialize() == true
+            if (success) {
                 offlineModelReady = true
                 updateStatusText()
-
-                Toast.makeText(this, "本地语音模型已就绪", Toast.LENGTH_SHORT).show()
-
-                return
+                Toast.makeText(this@MainActivity, "本地语音模型已就绪 (Sherpa-ncnn)", Toast.LENGTH_SHORT).show()
             } else {
-
-                dstDir.deleteRecursively()
+                Toast.makeText(this@MainActivity, "语音模型初始化失败", Toast.LENGTH_LONG).show()
             }
         }
+    }
 
-        StorageService.unpack(
-                this,
-                "model",
-                "model",
-                object : StorageService.Callback<Model> {
+    /** 启动"正在语音输入..."的点动画 */
+    private fun startVoiceInputAnimation() {
+        voiceInputAnimJob?.cancel()
+        savedInputText = binding.inputMessage.text?.toString().orEmpty()
+        voiceInputAnimJob = lifecycleScope.launch {
+            var dotCount = 1
+            while (true) {
+                val dots = ".".repeat(dotCount)
+                binding.inputMessage.setText("正在语音输入$dots")
+                binding.inputMessage.setSelection(binding.inputMessage.text?.length ?: 0)
+                dotCount = if (dotCount >= 3) 1 else dotCount + 1
+                delay(400)
+            }
+        }
+    }
 
-                    override fun onComplete(result: Model?) {
-
-                        if (result == null) {
-
-                            Toast.makeText(this@MainActivity, "模型解压失败", Toast.LENGTH_LONG).show()
-
-                            return
-                        }
-
-                        this@MainActivity.model = result
-
-                        binding.btnVoice.isEnabled = true
-
-                        offlineModelReady = true
-                        updateStatusText()
-
-                        Toast.makeText(this@MainActivity, "本地语音模型已就绪", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                object : StorageService.Callback<IOException> {
-
-                    override fun onComplete(result: IOException?) {
-
-                        Toast.makeText(
-                                        this@MainActivity,
-                                        "模型解压失败: ${result?.message}",
-                                        Toast.LENGTH_LONG
-                                )
-                                .show()
-                    }
-                }
-        )
+    /** 停止"正在语音输入..."动画 */
+    private fun stopVoiceInputAnimation() {
+        voiceInputAnimJob?.cancel()
+        voiceInputAnimJob = null
     }
 
     private fun startLocalVoiceInput() {
-
-        val loaded = model
-
-        if (loaded == null) {
-
+        val recognizer = sherpaSpeechRecognizer
+        if (recognizer == null || !recognizer.isReady()) {
             Toast.makeText(this, "模型加载中…", Toast.LENGTH_SHORT).show()
-
             return
         }
 
         if (isListening) return
 
-        voicePrefix =
-                binding.inputMessage.text?.toString().orEmpty().trim().let { prefix ->
-                    if (prefix.isBlank()) "" else if (prefix.endsWith(" ")) prefix else "$prefix "
+        voicePrefix = binding.inputMessage.text?.toString().orEmpty().trim().let { prefix ->
+            if (prefix.isBlank()) "" else if (prefix.endsWith(" ")) prefix else "$prefix "
+        }
+
+        // 开始"正在语音输入..."动画
+        startVoiceInputAnimation()
+
+        recognizer.startListening(object : SherpaSpeechRecognizer.RecognitionListener {
+            override fun onPartialResult(text: String) {
+                runOnUiThread {
+                    // 有识别结果时，停止动画并显示实际文字
+                    stopVoiceInputAnimation()
+                    val txt = (voicePrefix + text).trimStart()
+                    binding.inputMessage.setText(txt)
+                    binding.inputMessage.setSelection(binding.inputMessage.text?.length ?: 0)
                 }
+            }
 
-        val recognizer = Recognizer(loaded, 16000.0f)
+            override fun onResult(text: String) {
+                runOnUiThread {
+                    stopVoiceInputAnimation()
+                    val txt = (voicePrefix + text).trimStart()
+                    binding.inputMessage.setText(txt)
+                    binding.inputMessage.setSelection(binding.inputMessage.text?.length ?: 0)
+                }
+            }
 
-        speechService = SpeechService(recognizer, 16000.0f)
+            override fun onFinalResult(text: String) {
+                runOnUiThread {
+                    stopVoiceInputAnimation()
+                    val txt = (voicePrefix + text).trimStart()
+                    binding.inputMessage.setText(txt)
+                    binding.inputMessage.setSelection(binding.inputMessage.text?.length ?: 0)
+                    stopLocalVoiceInput()
+                }
+            }
 
-        speechService?.startListening(this)
+            override fun onError(exception: Exception) {
+                runOnUiThread {
+                    stopVoiceInputAnimation()
+                    // 恢复原来的文字
+                    binding.inputMessage.setText(savedInputText)
+                    Toast.makeText(this@MainActivity, "识别失败: ${exception.message}", Toast.LENGTH_SHORT).show()
+                    stopLocalVoiceInput()
+                }
+            }
+
+            override fun onTimeout() {
+                runOnUiThread {
+                    stopVoiceInputAnimation()
+                    // 恢复原来的文字
+                    binding.inputMessage.setText(savedInputText)
+                    Toast.makeText(this@MainActivity, "语音识别超时", Toast.LENGTH_SHORT).show()
+                    stopLocalVoiceInput()
+                }
+            }
+        })
 
         isListening = true
-
         startMicAnimation()
     }
 
     private fun stopLocalVoiceInput() {
-
-        speechService?.stop()
-
-        speechService?.shutdown()
-
-        speechService = null
-
+        stopVoiceInputAnimation()
+        sherpaSpeechRecognizer?.stopListening()
         isListening = false
-
         stopMicAnimation()
     }
 
@@ -1013,68 +1047,6 @@ class MainActivity : AppCompatActivity(), RecognitionListener {
             pendingStartVoice = false
 
             startLocalVoiceInput()
-        }
-    }
-
-    private fun extractVoskField(hypothesis: String?, key: String): String {
-
-        if (hypothesis.isNullOrBlank()) return ""
-
-        return runCatching { JSONObject(hypothesis).optString(key).orEmpty() }.getOrDefault("")
-    }
-
-    override fun onPartialResult(hypothesis: String?) {
-
-        val partial = extractVoskField(hypothesis, "partial")
-
-        if (partial.isBlank()) return
-
-        runOnUiThread {
-            val txt = (voicePrefix + partial).trimStart()
-
-            binding.inputMessage.setText(txt)
-
-            binding.inputMessage.setSelection(binding.inputMessage.text?.length ?: 0)
-        }
-    }
-
-    override fun onResult(hypothesis: String?) {
-
-        val text = extractVoskField(hypothesis, "text")
-
-        if (text.isBlank()) return
-
-        runOnUiThread {
-            val txt = (voicePrefix + text).trimStart()
-
-            binding.inputMessage.setText(txt)
-
-            binding.inputMessage.setSelection(binding.inputMessage.text?.length ?: 0)
-        }
-    }
-
-    override fun onFinalResult(hypothesis: String?) {
-
-        onResult(hypothesis)
-
-        runOnUiThread { stopLocalVoiceInput() }
-    }
-
-    override fun onError(exception: Exception?) {
-
-        runOnUiThread {
-            Toast.makeText(this, "识别失败: ${exception?.message}", Toast.LENGTH_SHORT).show()
-
-            stopLocalVoiceInput()
-        }
-    }
-
-    override fun onTimeout() {
-
-        runOnUiThread {
-            Toast.makeText(this, "语音识别超时", Toast.LENGTH_SHORT).show()
-
-            stopLocalVoiceInput()
         }
     }
 
@@ -1516,15 +1488,8 @@ class MainActivity : AppCompatActivity(), RecognitionListener {
 
         stopLocalVoiceInput()
 
-        model?.close()
+        sherpaSpeechRecognizer?.shutdown()
 
-        model = null
+        sherpaSpeechRecognizer = null
     }
 }
-
-
-
-
-
-
-
