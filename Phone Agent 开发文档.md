@@ -1,0 +1,415 @@
+# Phone Agent 开发文档
+
+> 最后更新：2026-01-01
+
+## 0. 阅读指南（给 AI / 新同学）
+
+- **文档目的**：让后来者（包括其他 AI）能快速理解 Phone Agent 当前实现到哪里、有哪些关键决策未定、以及遇到的问题是怎么定位/修复的。
+- **阅读顺序建议**：先看「最新状态」→「代码入口」→「关键决策」→「路线图」→「开发构想」→「问题记录」→「更新记录」→「知识库」。
+
+## 目录
+
+- [1. 最新状态（2026-01-01）](#1-最新状态2026-01-01)
+- [2. 关键代码入口与数据流索引](#2-关键代码入口与数据流索引)
+- [3. 关键决策（待确认）](#3-关键决策待确认)
+- [4. 近期路线图（对齐 TODO）](#4-近期路线图对齐-todo)
+- [5. 开发构想（DeepSeek 风格手机助手）](#5-开发构想deepseek-风格手机助手)
+- [6. 问题记录（定位 → 修复）](#6-问题记录定位--修复)
+- [7. 更新记录（Changelog）](#7-更新记录changelog)
+- [8. 知识库（Reference）](#8-知识库reference)
+- [9. 历史任务进度（旧）](#9-历史任务进度旧)
+
+## 1. 最新状态（2026-01-01）
+
+### 已完成
+
+- **统一权限引导（首次进入弹底部面板）**
+  - 首次进入 App 弹出底部权限面板：无障碍 / 悬浮窗 / 录音。
+  - 自动化开始前仅做快速检查；执行中不再弹权限引导/不强制跳转系统设置。
+  - 涉及文件：
+    - `app/src/main/java/com/ai/phoneagent/PermissionBottomSheet.kt`
+    - `app/src/main/java/com/ai/phoneagent/MainActivity.kt`
+    - `app/src/main/java/com/ai/phoneagent/AutomationActivity.kt`
+
+- **自动化页 UI 可用性修复**
+  - 任务输入框改为更易读的白底黑字。
+  - 修复 IME（软键盘）遮挡问题：`adjustResize + WindowInsets` 底部 padding。
+  - 自动化执行按钮在键盘弹出时可见。
+
+- **执行中悬浮窗（AutomationOverlay）第一版优化**
+  - 悬浮窗更小：`168dp -> 148dp`。
+  - 白底圆角卡片风格 + 阴影。
+  - 支持拖动（类似微信语音通话悬浮窗）。
+  - 点击可返回 `AutomationActivity`。
+  - 文案优化：副标题自动去掉 `[Step x]` 前缀，避免重复显示 step。
+  - 资源释放：Overlay 移除时取消环形动画，避免后台空转。
+  - 涉及文件：`app/src/main/java/com/ai/phoneagent/AutomationOverlay.kt`
+
+- **构建修复：移除 ktlint 插件**
+  - 现象：Gradle 无法解析 `org.jlleitschuh.gradle.ktlint` 插件导致同步/构建失败。
+  - 处理：移除顶层与 app 模块对 ktlint 插件的引用与配置，恢复可构建。
+  - 涉及文件：
+    - `build.gradle.kts`
+    - `app/build.gradle.kts`
+    - `gradle/libs.versions.toml`
+
+### 待确认（需要 1 句话）
+
+- **点击悬浮窗后应用以“小窗模式”打开：选择 A / B**
+  - **方案 A**：点击后正常全屏打开（最稳、所有机型一致）。
+  - **方案 B**：尽量用 `ActivityOptions.setLaunchBounds` 让 Activity 以小矩形打开（依赖系统/ROM 是否支持 freeform）。
+
+### 待完成（近期）
+
+- **丝滑非线性动画**：自动化开始时把主应用“缩小成悬浮窗”的过渡动画。
+- **自动化提速**：对“打开/启动/进入 应用”本地优先直开 + 减少每步不必要等待/重复采集。
+- **本地验证**：Gradle Sync/Build 通过；重进 App 不再显示“API未检查”（若之前已检查）。
+
+## 2. 关键代码入口与数据流索引
+
+- **主入口/对话页**：`app/src/main/java/com/ai/phoneagent/MainActivity.kt`
+- **自动化入口页**：`app/src/main/java/com/ai/phoneagent/AutomationActivity.kt`
+  - **启动自动化（模型驱动闭环）**：`startModelDrivenAutomation()`
+  - **无障碍启用检测**：`isAccessibilityEnabled()`
+- **无障碍能力（执行通道）**：`app/src/main/java/com/ai/phoneagent/PhoneAgentAccessibilityService.kt`
+  - 负责 `dumpUiTree()`、点击/滑动/返回等动作（以及 Android 11+ 的 `takeScreenshot`）。
+- **Agent 主循环（模型→动作→执行→再采集）**：`app/src/main/java/com/ai/phoneagent/UiAutomationAgent.kt`
+  - 负责 prompt/messages 组织、动作解析（`do(...) / finish(...)`）、延迟策略与日志。
+- **执行中悬浮窗（进度展示）**：`app/src/main/java/com/ai/phoneagent/AutomationOverlay.kt`
+  - 负责 `WindowManager` overlay 的显示/更新/拖动/点击返回。
+- **统一权限引导底部面板**：
+  - `app/src/main/java/com/ai/phoneagent/PermissionBottomSheet.kt`
+  - `app/src/main/res/layout/sheet_permissions.xml`
+- **参考实现（可拆解复用）**：`temp/Phone-Agent_app-main`（包含成品浮窗/窗口模式切换等）
+
+## 3. 关键决策（待确认）
+
+- **点击悬浮窗后应用以“小窗模式”打开：选择 A / B**
+  - **方案 A**：点击后正常全屏打开（最稳、所有机型一致）。
+  - **方案 B**：尽量用 `ActivityOptions.setLaunchBounds` 让 Activity 以小矩形打开（依赖系统/ROM 是否支持 freeform，小米/三星等可能行为不同）。
+
+## 4. 近期路线图（对齐 TODO）
+
+- **TODO#10（in_progress）**：悬浮窗交互与视觉继续打磨
+  - 更像微信语音通话：拖动吸边/停靠、点击回到应用、完成态光效/进度文案优化。
+- **TODO#13（pending）**：自动化开始时“主应用缩小成悬浮窗”的丝滑非线性动画
+  - 需要先确认「小窗模式 A/B」，再确定点击后恢复时的窗口策略。
+- **TODO#8（pending）**：自动化提速（本地优先 Launch + 减少不必要等待/重复采集）
+- **TODO#9（pending）**：抖音“点赞置顶评论”本地模板动作（降低模型不确定性）
+- **TODO#5（pending）**：本地编译/运行验证（Sync/Build、API 检查状态、IME 遮挡回归）
+
+## 5. 开发构想（DeepSeek 风格手机助手）
+
+- **模型接入**：集成智谱 AutoGLM-Phone-9B，封装推理接口（HTTP/WebSocket），添加 Token/密钥配置页。
+- **多模态/自动化能力**：
+  - ADB/Accessibility 自动化：模拟点击、输入、滚动，截图 OCR，结合策略自动完成 12306 订座、抖音评论等。
+  - 流程编排：任务脚本（YAML/JSON）描述场景，执行器按步骤调用自动化与模型。
+- **UI 设计**：
+  - DeepSeek 式对话主界面：消息流 + 卡片式工具结果（截图、表单、进度）。
+  - “任务”面板：展示正在运行的自动化流程、进度、日志。
+  - “插件/工具”面板：可视化开关 ADB、辅助功能权限、网络代理、模型端点配置。
+- **安全与合规**：
+  - 权限最小化，显式提示账号/支付操作风险；
+  - 可选沙盒/模拟器模式；
+  - 日志脱敏（移除手机号/订单号）。
+
+### 5.1 路线图补充说明（可选）
+
+> 这里保留更“工程化”的拆解口径，用于对齐阶段目标；近期以「4. 近期路线图」为准。
+
+1. **复用参考实现**：从 `temp/Phone-Agent_app-main` 拆解可复用的浮窗模式切换/动画与交互细节。
+2. **自动化体验**：把“模型闭环”过程中用户等待感降到最低（本地直开、少采集、少等待、少重复）。
+3. **稳定性模板化**：对高频复杂任务（例如抖音评论/点赞/置顶相关）用本地模板动作兜底。
+4. **可观测性**：统一日志、任务进度、错误收集与可复现材料（UI 树/截图/动作序列）。
+
+## 6. 问题记录（定位 → 修复）
+
+> 统一记录模板：**现象** → **影响** → **根因** → **修复/规避** → **涉及文件/备注**。
+
+### 6.1 Gradle 同步/构建失败：ktlint 插件解析失败（已修复）
+
+- **现象**：Gradle Sync 报错，无法解析 `org.jlleitschuh.gradle.ktlint` 插件。
+- **影响**：IDE 无法 Sync / 无法构建。
+- **根因**：插件版本/仓库解析不可用（CI/网络环境导致）。
+- **修复/规避**：移除工程和 app 模块对 ktlint 插件的引用与配置。
+- **涉及文件**：`build.gradle.kts`、`app/build.gradle.kts`、`gradle/libs.versions.toml`
+
+### 6.2 Drawer 沉浸式适配：状态栏文字/图标变白 & 灰遮罩残留（已规避）
+
+- **现象**：`WindowCompat.setDecorFitsSystemWindows(window, false)` + 手动 insets 时，部分设备状态栏文字/图标变白；Drawer 打开仍出现灰色背景；内容顶部下移。
+- **影响**：沉浸式体验不一致，影响观感/可用性。
+- **根因**：不同 ROM 对 edge-to-edge + status bar appearance + Drawer scrim 的处理差异。
+- **修复/规避**：
+  - 回滚为 `setDecorFitsSystemWindows(window, true)` + 透明状态栏/导航栏（保持 Light Status Bar），让系统托管 inset。
+  - Drawer `scrimColor` / `statusBarBackground` 保持透明，避免额外覆盖。
+- **备注**：若后续要继续深度沉浸式，需要按目标机型逐步验证。
+
+### 6.3 VSCode 状态栏显示 “Gradle: Build Error”（无需处理）
+
+- **现象**：VSCode 左下角显示 “Gradle: Build Error”。
+- **影响**：不影响实际 Android Studio 编译/运行，但会造成误判。
+- **根因**：VSCode/插件侧的 Gradle 集成能力有限或环境不一致。
+- **修复/规避**：以 Android Studio 的 Sync/Build 结果为准；VSCode 用于编辑即可。
+
+### 6.4 VSCode Kotlin Language Server 403：GitHub API rate limit exceeded（已解决）
+
+- **现象**：`Could not fetch from GitHub releases API: StatusCodeError: 403 - {"message":"API rate limit exceeded..."}`。
+- **影响**：Kotlin 语言服务无法下载/更新，影响代码提示。
+- **根因**：GitHub 匿名访问速率限制。
+- **修复/规避**：
+  1. 生成 GitHub Personal Access Token（无需特殊权限）。
+  2. Windows 环境变量添加 `GITHUB_TOKEN=<token>`。
+  3. 重启 VSCode。
+
+### 6.5 Vosk 语音模型解压失败/缓存损坏（已处理，详见知识库）
+
+- **现象**：Toast “模型解压失败”；按钮无响应。
+- **影响**：离线语音输入不可用。
+- **根因**：assets 打包不完整、目录名不一致、缓存目录残留半拷贝、存储空间不足等。
+- **修复/规避**：启动时做缓存有效性检测；失败时清理后重新解压；必要时卸载重装清理 `files/model`。
+
+### 6.6 API Key 掩码状态不即时刷新（待优化）
+
+- **现象**：保存 API Key 后 UI 的 `*` 掩码状态不会立刻刷新。
+- **影响**：不影响实际请求，但 UI 反馈滞后。
+- **计划**：保存成功后主动刷新状态 TextView / 或监听存储变更。
+
+### 6.7 Launch 别名不命中（待增强）
+
+- **现象**：`do(action=Launch, app="系统设置")` 可能找不到 Intent。
+- **影响**：模型动作执行失败，自动化中断。
+- **临时建议**：优先输出包名（如 `com.android.settings`），或使用更常见别名（`设置`/`Settings`）。
+- **计划**：补充别名映射并增强 label/包名匹配策略。
+
+## 7. 更新记录（Changelog）
+
+### 更新记录 · 2026-01-01
+
+- 权限体系
+  - 新增首次启动底部权限面板（无障碍/悬浮窗/录音）。
+  - 自动化执行中不再弹权限请求或强制跳转设置；缺权限时仅提示/跳过悬浮窗。
+
+- 自动化悬浮窗
+  - `AutomationOverlay` 调整为更小的白底圆角卡片，并加入拖动能力。
+  - 文案显示优化：副标题去掉 `[Step x]` 前缀。
+  - Overlay 移除时取消动画，减少后台资源占用。
+
+- 工程构建
+  - 移除 `ktlint` Gradle 插件引用，解决插件仓库解析失败导致的构建错误。
+
+### 更新记录 · 2025-12-31
+
+- **主对话页 UI 与 IME 适配（完成 t15）**
+  - Edge-to-edge：`WindowCompat.setDecorFitsSystemWindows(window, false)`。
+  - Insets 监听挂到 `drawerLayout` 根；将 `systemBars.top` 与 `max(systemBars.bottom, ime.bottom)` 应用到 `contentRoot` padding，IME 打开时消息区与输入栏一起上移；`navigationView` 仅应用 `systemBars`。
+  - 顶部位置优化：`contentRoot` 去掉额外 `paddingTop`（0dp），`ai_bar_margin_top` 改为 `6dp`，顶栏更贴近状态栏但不遮挡。
+  - 输入栏悬浮感：`inputBar` 背景用主题色；关闭裁剪以呈现阴影/光效；`inputContainer` 提升圆角与阴影；关闭 `cardUseCompatPadding` 让光效贴边。
+
+- **灵动光效改造（完成 tGlow）**
+  - 统一为整圈连续渐变：`亮蓝 → 青蓝 → 亮蓝 → 粉色 → 亮蓝 → 青蓝 → 亮蓝` 循环，取消高亮头/拖尾段，不再出现“伸缩/呼吸”观感。
+  - 旋转更稳：周期 `~5200ms`；发光描边与核心描边双层叠加，但用 `maxHalf` 内缩避免被裁剪导致厚度变化。
+  - 坐标稳定：边框光效的 bounds 计算改为 `ViewGroup.offsetDescendantRectToMyCoords` 并挂载到父视图 overlay，避免因平移/滚动导致错位。
+  - 崩溃修复：修正 `SweepGradient` 颜色与位置数组不等长导致的启动崩溃。
+  - 涉及文件：`MainActivity.kt`（`attachAnimatedRing`/`attachAnimatedBorderRing`）。
+
+### 更新记录 · 2025-12-30
+
+- Drawer/手势
+  - Drawer 打开时主内容区域平移+缩放（DeepSeek 风格），并关闭 scrim（透明遮罩）。
+  - 支持全屏右滑打开 Drawer、左滑关闭。
+
+- 顶部栏
+  - 顶部栏新增“新对话”按钮：创建新会话并清空 UI。
+
+- 历史对话（多会话）
+  - 历史弹窗升级为 `RecyclerView` 列表：点击加载会话；左滑删除会话。
+  - 数据结构从简单 Q/A 列表升级为 `Conversation + UiMessage`（内存态）。
+
+- 自动化入口
+  - 侧边栏“自动化”可进入 `AutomationActivity`。
+  - 自动化页面使用 `WindowInsets` 为根布局添加 `systemBars` padding，避免被状态栏/手势条遮挡。
+  - 新增 `AccessibilityService` MVP：可在系统开启无障碍后执行示例动作（主页/滑动/返回）。
+  - 新增模型驱动闭环：输入任务与模型 ID 后，`UiAutomationAgent` 多步调用 API 输出动作并执行。
+  - 协议升级：对齐 Open-AutoGLM 官方输出格式（`do(...) / finish(...)`）与多模态 messages。
+  - 截图能力：Android 11+ 通过 `AccessibilityService.takeScreenshot` 每步采集截图并以 base64 PNG 发送给模型（失败时自动退化为纯文本/UI 树）。
+  - 构建约束：`minSdk` 提升至 30（Android 11+），确保截图 API 可用。
+  - Launch 稳定性：已移植 `Open-AutoGLM-main/phone_agent/config/apps.py` 常用应用名→包名映射，执行 Launch 时优先走映射，再回退已安装应用 label 匹配。
+
+### 更新记录 · 2025-12-29
+
+- 核心环境与构建
+  - 在 Windows 配置 JDK 17：`JAVA_HOME=C:\Users\30989\.jdks\ms-17.0.17`，并将 `%JAVA_HOME%\bin` 加入 `Path`。
+  - Android Studio 的 Gradle JDK 设为本地 JDK 17 或 Embedded JDK 17。
+  - 命令行构建验证：`.\gradlew.bat :app:assembleDebug` 成功。
+
+- Vosk 集成修复（与 `com.alphacephei:vosk-android:0.3.32` 对齐）
+  - 旧接口 `UnpackListener/ExceptionListener` 已被替换为 `StorageService.Callback<T>`。
+  - 正确的初始化片段如下：
+
+```kotlin
+StorageService.unpack(
+    this,
+    "model",
+    "model",
+    object : StorageService.Callback<Model> {
+        override fun onComplete(result: Model?) {
+            if (result == null) {
+                Toast.makeText(this@MainActivity, "模型解压失败", Toast.LENGTH_LONG).show()
+                return
+            }
+            this@MainActivity.model = result
+            binding.btnVoice.isEnabled = true
+            Toast.makeText(this@MainActivity, "本地语音模型已就绪", Toast.LENGTH_SHORT).show()
+        }
+    },
+    object : StorageService.Callback<IOException> {
+        override fun onComplete(result: IOException?) {
+            Toast.makeText(this@MainActivity, "模型解压失败: ${result?.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+)
+```
+
+- 资源与权限
+  - 中文模型目录已放置：`app/src/main/assets/model/`。
+  - Manifest 已声明录音权限：`android.permission.RECORD_AUDIO`。
+
+- 语音按钮交互与动画
+  - 启动时按钮保持可点击；模型未就绪时点击会提示“模型加载中…”。
+  - 首次点击会触发系统录音权限弹窗，授权后自动开始识别。
+  - 识别开始时麦克风按钮出现“呼吸动画”，停止后恢复。
+  - 识别的部分/最终文本会实时回填到输入框（保留原始前缀）。
+
+- UI 调整
+  - 输入框文字颜色设为黑色：在 `activity_main.xml` 的 `EditText` 上设置 `android:textColor="@android:color/black"`。
+
+- 快速验证步骤
+  1. 首次点击麦克风按钮 → 授权录音（如已授权则直接进入识别）。
+  2. 说出一段中文 → 输入框实时出现黑色文字（部分/最终结果）。
+  3. 再点一次麦克风按钮 → 识别停止，动画消失。
+
+
+## 8. 知识库（Reference）
+
+### 常用应用包名映射（Kotlin Map 示例）
+
+以下是常用应用（如美团、12306、抖音等）包名的 Kotlin Map 映射示例，可用于快速查找应用包名：
+
+```kotlin
+val appMapping = mapOf(
+  "美团" to "com.sankuai.meituan",
+  "12306" to "com.MobileTicket",
+  "抖音" to "com.ss.android.ugc.aweme",
+  "微信" to "com.tencent.mm",
+  "支付宝" to "com.eg.android.AlipayGphone",
+  "QQ" to "com.tencent.mobileqq"
+  // ...可继续补充
+)
+```
+
+如需扩展，请在 map 中继续添加应用名称与包名的对应关系。
+
+### Launch 融合与映射迁移说明
+
+目前 Launch 功能采用“按已安装应用 label/包名模糊匹配”，但稳定性有限。
+
+官方 `apps.py` 已维护常用应用包名映射（如美团、12306、抖音等），建议将 `Open-AutoGLM-main/phone_agent/config/apps.py` 的映射移植为 Kotlin Map。
+
+这样，未来可直接通过 `Launch app="美团"` 等指令稳定启动目标应用，无需依赖模糊匹配。
+
+迁移后，映射将更丰富、更稳定，推荐逐步完善和同步官方映射。
+
+---
+
+### 语音模型交互问题记录（解压失败/缓存损坏/路径不匹配）
+
+- 现象
+  - 首次启动或点击麦克风时弹出 Toast：“模型解压失败”。
+  - 语音按钮看似无反应（实为模型未就绪或解压失败）。
+
+- 常见根因
+  - APK 中 `assets/model/**` 未完整打包或目录名/大小写不一致（必须为 `model`）。
+  - 设备私有目录 `files/model` 残留半拷贝/损坏，导致后续加载 `Model` 失败。
+  - 设备存储空间不足（中文模型解压后可达上百 MB）。
+  - 模型目录缺关键文件（如 `conf/model.conf`）。
+
+- 排查步骤（推荐顺序）
+  1. 设备端清理缓存：卸载 App 重新安装，或用 Device File Explorer 删除 `data/data/com.ai.phoneagent/files/model`。
+  2. 验证 APK 资源：Build APK → Analyze APK… → 展开 `assets/model/`，确认包含 `conf/model.conf` 等关键文件。
+  3. 看 Logcat：过滤 `StorageService|Vosk|IOException|unpack`，关注 `Caused by` 根因（如 ENOSPC 空间不足、ENOENT 路径不存在）。
+  4. 确认设备可用存储空间充足，再次启动。
+
+- 代码层处理（已实现）
+  - 启动时优先检测 `files/model/conf/model.conf`：若存在则直接从缓存目录创建 `Model`，跳过解压；
+  - 若缓存存在但加载失败，自动 `deleteRecursively()` 清理后再解压；
+  - 解压成功后更新状态文案“离线模型已就绪”，并启用麦克风按钮；
+  - 模型未就绪时点击麦克风会提示“模型加载中…”。
+
+- 建议
+  - 首次发布建议使用体积较小的中文模型以缩短首次解压时间；
+  - 为模型下载/更新加入进度提示与失败重试逻辑（后续可扩展为在线下载）。
+
+---
+
+### Android Studio 代理设置（解决依赖无法同步/下载慢问题）
+
+1. 打开 Android Studio，点击右上角搜索图标左边的“犀牛”图标（或依次进入 File > Settings > Appearance & Behavior > System Settings > HTTP Proxy）。
+2. 选择 “Manual proxy configuration”，填写：
+  - Host name: `127.0.0.1`
+  - Port: `7897`（如使用 Clash Verge，端口为 7897，不同代理软件端口可能不同，请以实际为准）
+3. 点击 “Check connection”，可输入 `github.com` 测试代理是否可用。
+4. 设置完成后，点击右下角“应用”，重启 IDE 并重试同步。
+
+> ⚠️ 如依赖同步失败、无法访问外网资源，优先检查代理设置。
+
+---
+
+### Vosk 本地语音识别集成说明
+- 依赖：`com.alphacephei:vosk-android:0.3.32`，已在 `app/build.gradle.kts` 添加。
+- 模型：需下载中文模型（如 vosk-model-cn），放置于 `app/src/main/assets/model/` 目录。
+- 初始化：在 `MainActivity` 中通过 `Model` 和 `Recognizer` 初始化，建议异步加载模型，避免主线程阻塞。
+- 权限：需动态申请录音权限（Manifest.permission.RECORD_AUDIO）。
+- 监听：实现 `RecognitionListener`，处理 onResult/onPartialResult/onError 等回调。
+- 典型用法：
+```kotlin
+val model = Model(this, "model")
+val recognizer = Recognizer(model, 16000.0f)
+// 录音流输入并识别，回调处理结果
+```
+- 注意：如遇 PointerType 依赖冲突，仅保留 Android 版 vosk 依赖，避免多平台混用。
+
+---
+
+### UI/交互优化与依赖说明
+- 顶部栏悬浮：通过 `ViewCompat.setOnApplyWindowInsetsListener` 适配状态栏，提升沉浸感。
+- 输入框自适应高度：`EditText` 配合 `addTextChangedListener` 实现多行自动扩展。
+- 打字机动画：`ObjectAnimator` 或自定义协程逐字显示，提升消息流动感。
+- API 配置栏：支持动态切换模型端点、Token，便于开发调试。
+- 依赖建议：
+  - Kotlin 协程、ViewBinding、Retrofit/OkHttp、Vosk SDK
+  - 推荐 minSdk 24 及以上，便于兼容新特性
+
+---
+
+### 常见问题与环境配置经验
+- Gradle 下载失败/SSL 问题：优先使用国内镜像或本地分发包，必要时配置代理。
+- JDK 版本：强制使用 JDK 17，避免 8/11/21 版本兼容性问题。
+- SDK/NDK 缺失：用 sdkmanager 安装指定版本（如 ndk;25.1.8937393），并接受所有 license。
+- 语音识别无响应：检查模型路径、录音权限、设备兼容性。
+- Clean/Rebuild：推荐用 `./gradlew clean build` 或 IDE 菜单操作，排查依赖冲突。
+
+---
+
+### 问题记录与持续补充
+- 按模板记录开发中遇到的 bug、现象、定位与解决方案，便于团队协作与知识沉淀。
+
+> 文档持续更新，建议每次大改动/新特性开发后补充说明。
+
+## 9. 历史任务进度（旧）
+
+- **t15 主对话页输入栏/键盘适配 + 光效贴合 + 悬浮感**：completed
+- **tGlow 灵动光效统一风格**（整圈连续渐变：亮蓝/青蓝/粉色，慢速旋转，无伸缩感）：completed
+- **t14 API 配置区密钥掩码即时刷新 + 动态光效错位修复**：completed
+- **t16 历史对话持久化**（退出后恢复会话与消息）：pending
+- **t17 自动化闭环稳定性复核**（Launch/截图/解析/等待等）：pending
+- **t12 敏感操作确认/接管机制**（敏感 Tap 确认、暂停/继续/接管）：pending

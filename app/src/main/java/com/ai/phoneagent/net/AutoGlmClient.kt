@@ -1,0 +1,99 @@
+package com.ai.phoneagent.net
+
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
+import retrofit2.http.Header
+import retrofit2.http.POST
+import com.ai.phoneagent.BuildConfig
+import java.util.concurrent.TimeUnit
+
+/** 简化版 AutoGLM 客户端：仅用于单轮对话与 API 健康检查。 默认 BASE_URL 指向智谱官方 OpenAI 兼容接口，可根据需要调整。 */
+object AutoGlmClient {
+
+        // 如需替换其他网关，可修改此处
+        private const val BASE_URL = "https://open.bigmodel.cn/api/paas/v4/"
+        private const val DEFAULT_MODEL = "glm-4-flash"
+        const val PHONE_MODEL = "autoglm-phone"
+
+        private val service: AutoGlmService by lazy {
+                val logger =
+                        HttpLoggingInterceptor().apply {
+                                level =
+                                        if (BuildConfig.DEBUG)
+                                                HttpLoggingInterceptor.Level.BASIC
+                                        else
+                                                HttpLoggingInterceptor.Level.NONE
+                        }
+                val client =
+                        OkHttpClient.Builder()
+                                .addInterceptor(logger)
+                                .retryOnConnectionFailure(true)
+                                .connectTimeout(20, TimeUnit.SECONDS)
+                                .readTimeout(60, TimeUnit.SECONDS)
+                                .writeTimeout(60, TimeUnit.SECONDS)
+                                .callTimeout(90, TimeUnit.SECONDS)
+                                .build()
+
+                Retrofit.Builder()
+                        .baseUrl(BASE_URL)
+                        .client(client)
+                        .addConverterFactory(GsonConverterFactory.create())
+                        .build()
+                        .create(AutoGlmService::class.java)
+        }
+
+        suspend fun checkApi(apiKey: String, model: String = DEFAULT_MODEL): Boolean =
+                runCatching {
+                                val res =
+                                        service.chat(
+                                                auth = "Bearer $apiKey",
+                                                request =
+                                                        ChatRequest(
+                                                                model = model,
+                                                                messages =
+                                                                        listOf(
+                                                                                ChatRequestMessage(
+                                                                                        role =
+                                                                                                "user",
+                                                                                        content =
+                                                                                                "ping"
+                                                                                )
+                                                                        ),
+                                                                stream = false
+                                                        )
+                                        )
+                                !res.choices.isNullOrEmpty()
+                        }
+                        .getOrDefault(false)
+
+        suspend fun sendChat(
+                apiKey: String,
+                messages: List<ChatRequestMessage>,
+                model: String = DEFAULT_MODEL,
+        ): String? =
+                runCatching {
+                                val res =
+                                        service.chat(
+                                                auth = "Bearer $apiKey",
+                                                request =
+                                                        ChatRequest(
+                                                                model = model,
+                                                                messages = messages,
+                                                                stream = false
+                                                        )
+                                        )
+                                res.choices?.firstOrNull()?.message?.content
+                        }
+                        .getOrNull()
+}
+
+interface AutoGlmService {
+        @POST("chat/completions")
+        suspend fun chat(
+                @Header("Authorization") auth: String,
+                @Body request: ChatRequest
+        ): ChatResponse
+}

@@ -1,6 +1,9 @@
 *.iml
 .gradle
 /local.properties
+/.idea/
+/.kotlin/
+/.vscode/
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
@@ -13,3 +16,15 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+build/
+
+temp/
+*.bak*
+*.jks
+*.keystore
+*.apk
+*.aab
+
+app/src/main/assets/model/*
+!app/src/main/assets/model/README

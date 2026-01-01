@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="none">
+        <item
+            android:id="@+id/nav_automation"
+            android:title="自动化（预留）" />
+        <item
+            android:id="@+id/nav_about"
+            android:title="关于" />
+    </group>
+</menu>

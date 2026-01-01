@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="48dp"
+    android:paddingBottom="16dp"
+    android:paddingStart="24dp"
+    android:paddingEnd="24dp"
+    android:clipToPadding="false">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="API 配置"
+        android:textStyle="bold"
+        android:textSize="18sp"
+        android:textColor="@color/blue_glass_text"
+        android:paddingBottom="8dp" />
+
+    <EditText
+        android:id="@+id/apiInput"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="输入你的 API Key"
+        android:background="@drawable/rounded_input_bg"
+        android:paddingHorizontal="12dp"
+        android:inputType="textNoSuggestions"
+        android:textColor="@android:color/black"
+        android:textColorHint="@android:color/black"
+        android:layout_marginTop="12dp" />
+
+    <Button
+        android:id="@+id/btnCheckApi"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="检查 API 连接"
+        android:textColor="@color/blue_glass_text"
+        android:layout_marginTop="14dp" />
+
+    <TextView
+        android:id="@+id/apiStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="未检查"
+        android:textColor="@color/blue_glass_text"
+        android:paddingTop="6dp" />
+
+</LinearLayout>
