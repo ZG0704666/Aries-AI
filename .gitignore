@@ -21,7 +21,7 @@ build/
 /app/build/
 
 # Ignore all temp assets and tool copies
-temp/
+/temp/
 
 # Local environment / secrets
 .env
