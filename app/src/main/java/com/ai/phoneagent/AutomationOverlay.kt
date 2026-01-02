@@ -1,5 +1,6 @@
 package com.ai.phoneagent
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
@@ -46,12 +47,13 @@ object AutomationOverlay {
         context.startActivity(intent)
     }
 
-    fun show(
+        fun show(
             context: Context,
             title: String,
             subtitle: String,
             maxSteps: Int,
-    ): Boolean {
+            activity: Activity? = null,
+        ): Boolean {
         hide()
 
         this.maxSteps = maxSteps.coerceAtLeast(1)

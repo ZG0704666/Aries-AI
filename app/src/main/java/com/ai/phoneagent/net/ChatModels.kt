@@ -5,7 +5,9 @@ data class ChatRequest(
         val messages: List<ChatRequestMessage>,
         val stream: Boolean = false,
         val temperature: Float? = null,
-        val max_tokens: Int? = null
+        val max_tokens: Int? = null,
+        val top_p: Float? = null,
+        val frequency_penalty: Float? = null,
 )
 
 data class ChatRequestMessage(val role: String, val content: Any)

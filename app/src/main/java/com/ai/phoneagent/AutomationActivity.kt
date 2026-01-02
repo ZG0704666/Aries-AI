@@ -1,5 +1,8 @@
 package com.ai.phoneagent
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
@@ -15,6 +18,8 @@ import androidx.lifecycle.lifecycleScope
 import com.ai.phoneagent.databinding.ActivityAutomationBinding
 import com.ai.phoneagent.net.AutoGlmClient
 import com.google.android.material.button.MaterialButton
+import android.view.HapticFeedbackConstants
+import android.view.animation.OvershootInterpolator
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -75,6 +80,8 @@ class AutomationActivity : AppCompatActivity() {
         btnStartAgent = binding.root.findViewById(R.id.btnStartAgent)
         btnPauseAgent = binding.root.findViewById(R.id.btnPauseAgent)
         btnStopAgent = binding.root.findViewById(R.id.btnStopAgent)
+
+        setupLogCopy()
 
         binding.topAppBar.setNavigationOnClickListener { finish() }
 
@@ -153,17 +160,46 @@ class AutomationActivity : AppCompatActivity() {
             return
         }
 
+        run {
+            val match = AppPackageMapping.bestMatchInText(taskRaw)
+            if (match == null || match.start > 10) return@run
+
+            val pm = packageManager
+            fun buildLaunchIntent(pkgName: String): Intent? {
+                val direct = pm.getLaunchIntentForPackage(pkgName)
+                if (direct != null) return direct
+                val query = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                val ri =
+                        runCatching { pm.queryIntentActivities(query, 0) }
+                                .getOrNull()
+                                ?.firstOrNull { it.activityInfo?.packageName == pkgName }
+                                ?: return null
+                val ai = ri.activityInfo ?: return null
+                return Intent(Intent.ACTION_MAIN)
+                        .addCategory(Intent.CATEGORY_LAUNCHER)
+                        .setClassName(ai.packageName, ai.name)
+            }
+
+            val intent = buildLaunchIntent(match.packageName)
+            if (intent == null) {
+                Toast.makeText(this, "暂未在手机中找到${match.appLabel}应用", Toast.LENGTH_SHORT)
+                        .show()
+                return
+            }
+        }
+
         val shortcut = tryLocalLaunchShortcut(taskRaw)
         if (shortcut != null) {
             val (remaining, launchedLabel) = shortcut
             if (AutomationOverlay.canDrawOverlays(this)) {
                 val ok =
-                        AutomationOverlay.show(
-                                context = this,
-                                title = "执行中（0/12）",
-                                subtitle = "直开：$launchedLabel",
-                                maxSteps = 12,
-                        )
+                    AutomationOverlay.show(
+                        context = this,
+                        title = "分析中",
+                        subtitle = launchedLabel,
+                        maxSteps = 12,
+                        activity = this,
+                    )
                 if (!ok) {
                     Toast.makeText(this, "悬浮窗显示失败，将保持前台显示日志", Toast.LENGTH_SHORT)
                             .show()
@@ -195,15 +231,19 @@ class AutomationActivity : AppCompatActivity() {
         appendLog("任务：$task")
 
         if (AutomationOverlay.canDrawOverlays(this)) {
-            val ok =
-                    AutomationOverlay.show(
+                    val ok =
+                        AutomationOverlay.show(
                             context = this,
-                            title = "执行中（0/12）",
-                            subtitle = task.take(34),
+                            title = "分析中",
+                            subtitle = task.take(20),
                             maxSteps = 12,
-                    )
+                            activity = this,
+                        )
             if (ok) {
-                moveTaskToBack(true)
+                // 延迟一点让动画播放
+                window.decorView.postDelayed({
+                    moveTaskToBack(true)
+                }, 100)
             } else {
                 Toast.makeText(this, "悬浮窗显示失败，将保持前台显示日志", Toast.LENGTH_SHORT)
                         .show()
@@ -328,6 +368,42 @@ class AutomationActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupLogCopy() {
+        tvLog.isClickable = true
+        tvLog.isLongClickable = true
+        tvLog.setOnLongClickListener {
+            val text = tvLog.text?.toString().orEmpty()
+            if (text.isBlank()) {
+                Toast.makeText(this, "暂无可复制的日志", Toast.LENGTH_SHORT).show()
+                return@setOnLongClickListener true
+            }
+            val clipboard =
+                    getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("Automation Log", text))
+            tvLog.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            playLogCopyAnim(tvLog)
+            Toast.makeText(this, "日志已复制（长按可再次复制）", Toast.LENGTH_SHORT).show()
+            true
+        }
+    }
+
+    private fun playLogCopyAnim(target: TextView) {
+        target.animate().cancel()
+        target.animate()
+                .scaleX(0.97f)
+                .scaleY(0.97f)
+                .setDuration(90L)
+                .withEndAction {
+                    target.animate()
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .setDuration(220L)
+                            .setInterpolator(OvershootInterpolator(1.4f))
+                            .start()
+                }
+                .start()
+    }
+
     private fun tryLocalLaunchShortcut(task: String): Pair<String, String>? {
         val t = task.trim()
         if (t.isBlank()) return null
@@ -339,6 +415,7 @@ class AutomationActivity : AppCompatActivity() {
         if (match.start > 10) return null
 
         val pm = packageManager
+        val svc = PhoneAgentAccessibilityService.instance
 
         fun buildLaunchIntent(pkgName: String): Intent? {
             val direct = pm.getLaunchIntentForPackage(pkgName)
@@ -356,8 +433,17 @@ class AutomationActivity : AppCompatActivity() {
         }
 
         val intent = buildLaunchIntent(match.packageName) ?: return null
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        runCatching { startActivity(intent) }.getOrElse { return null }
+        intent.addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_NO_ANIMATION or
+                        Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+        )
+        // 统一通过透明跳板拉起，最大化减少后台启动弹窗
+        val launched = runCatching { LaunchProxyActivity.launch(this, intent) }.isSuccess
+        if (!launched && svc != null) {
+            runCatching { LaunchProxyActivity.launch(svc, intent) }
+        }
+        if (!launched) return null
         appendLog("本地直开：${match.appLabel}（${match.packageName}）")
 
         var rest = t.substring(match.end)

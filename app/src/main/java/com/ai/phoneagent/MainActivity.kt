@@ -95,6 +95,8 @@ class MainActivity : AppCompatActivity() {
     private var voiceInputAnimJob: Job? = null
     private var savedInputText: String = ""
 
+    private var pendingSendAfterVoice: Boolean = false
+
     private val swipeTouchSlop by lazy { ViewConfiguration.get(this).scaledTouchSlop }
     private var swipeStartX = 0f
     private var swipeStartY = 0f
@@ -520,6 +522,13 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnSend.setOnClickListener {
             vibrateLight()
+            if (isListening || voiceInputAnimJob != null) {
+                pendingSendAfterVoice = true
+                hideKeyboard()
+                stopLocalVoiceInput(triggerRecognizerStop = true)
+                return@setOnClickListener
+            }
+
             val text = binding.inputMessage.text.toString().trim()
 
             if (text.isBlank()) {
@@ -936,9 +945,22 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     stopVoiceInputAnimation()
                     val txt = (voicePrefix + text).trimStart()
-                    binding.inputMessage.setText(txt)
+                    binding.inputMessage.setText(if (txt.isBlank()) savedInputText else txt)
                     binding.inputMessage.setSelection(binding.inputMessage.text?.length ?: 0)
-                    stopLocalVoiceInput()
+
+                    val shouldSend = pendingSendAfterVoice
+                    pendingSendAfterVoice = false
+                    stopLocalVoiceInput(triggerRecognizerStop = false)
+
+                    if (shouldSend) {
+                        val toSend = binding.inputMessage.text.toString().trim()
+                        if (toSend.isBlank()) {
+                            Toast.makeText(this@MainActivity, "请输入内容", Toast.LENGTH_SHORT).show()
+                            return@runOnUiThread
+                        }
+                        hideKeyboard()
+                        sendMessage(toSend)
+                    }
                 }
             }
 
@@ -948,7 +970,8 @@ class MainActivity : AppCompatActivity() {
                     // 恢复原来的文字
                     binding.inputMessage.setText(savedInputText)
                     Toast.makeText(this@MainActivity, "识别失败: ${exception.message}", Toast.LENGTH_SHORT).show()
-                    stopLocalVoiceInput()
+                    pendingSendAfterVoice = false
+                    stopLocalVoiceInput(triggerRecognizerStop = false)
                 }
             }
 
@@ -958,7 +981,8 @@ class MainActivity : AppCompatActivity() {
                     // 恢复原来的文字
                     binding.inputMessage.setText(savedInputText)
                     Toast.makeText(this@MainActivity, "语音识别超时", Toast.LENGTH_SHORT).show()
-                    stopLocalVoiceInput()
+                    pendingSendAfterVoice = false
+                    stopLocalVoiceInput(triggerRecognizerStop = false)
                 }
             }
         })
@@ -967,9 +991,26 @@ class MainActivity : AppCompatActivity() {
         startMicAnimation()
     }
 
-    private fun stopLocalVoiceInput() {
+    private fun stopLocalVoiceInput(triggerRecognizerStop: Boolean = true) {
+        val recognizer = sherpaSpeechRecognizer
         stopVoiceInputAnimation()
-        sherpaSpeechRecognizer?.stopListening()
+
+        val currentText = binding.inputMessage.text?.toString().orEmpty()
+        if (currentText.startsWith("正在语音输入")) {
+            binding.inputMessage.setText(savedInputText)
+            binding.inputMessage.setSelection(binding.inputMessage.text?.length ?: 0)
+        }
+
+        if (triggerRecognizerStop) {
+            if (recognizer?.isListening() == true) {
+                recognizer.stopListening()
+            } else {
+                recognizer?.cancel()
+                pendingSendAfterVoice = false
+            }
+        } else {
+            recognizer?.cancel()
+        }
         isListening = false
         stopMicAnimation()
     }

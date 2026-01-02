@@ -36,6 +36,11 @@ object AutoGlmClient {
         private const val DEFAULT_MODEL = "glm-4-flash"
         const val PHONE_MODEL = "autoglm-phone"
 
+        private const val DEFAULT_TEMPERATURE = 0.0f
+        private const val DEFAULT_TOP_P = 0.85f
+        private const val DEFAULT_FREQUENCY_PENALTY = 0.2f
+        private const val DEFAULT_MAX_TOKENS = 3000
+
         private val service: AutoGlmService by lazy {
                 val logger =
                         HttpLoggingInterceptor().apply {
@@ -50,9 +55,9 @@ object AutoGlmClient {
                                 .addInterceptor(logger)
                                 .retryOnConnectionFailure(true)
                                 .connectTimeout(20, TimeUnit.SECONDS)
-                                .readTimeout(60, TimeUnit.SECONDS)
-                                .writeTimeout(60, TimeUnit.SECONDS)
-                                .callTimeout(90, TimeUnit.SECONDS)
+                                .readTimeout(75, TimeUnit.SECONDS)
+                                .writeTimeout(75, TimeUnit.SECONDS)
+                                .callTimeout(120, TimeUnit.SECONDS)
                                 .build()
 
                 Retrofit.Builder()
@@ -91,15 +96,19 @@ object AutoGlmClient {
                 apiKey: String,
                 messages: List<ChatRequestMessage>,
                 model: String = DEFAULT_MODEL,
-                temperature: Float? = null,
-                maxTokens: Int? = null,
+                temperature: Float? = DEFAULT_TEMPERATURE,
+                maxTokens: Int? = DEFAULT_MAX_TOKENS,
+                topP: Float? = DEFAULT_TOP_P,
+                frequencyPenalty: Float? = DEFAULT_FREQUENCY_PENALTY,
         ): String? =
                 sendChatResult(
                                 apiKey = apiKey,
                                 messages = messages,
                                 model = model,
                                 temperature = temperature,
-                                maxTokens = maxTokens
+                                maxTokens = maxTokens,
+                                topP = topP,
+                                frequencyPenalty = frequencyPenalty,
                         )
                         .getOrNull()
 
@@ -107,8 +116,10 @@ object AutoGlmClient {
                 apiKey: String,
                 messages: List<ChatRequestMessage>,
                 model: String = DEFAULT_MODEL,
-                temperature: Float? = null,
-                maxTokens: Int? = null,
+                temperature: Float? = DEFAULT_TEMPERATURE,
+                maxTokens: Int? = DEFAULT_MAX_TOKENS,
+                topP: Float? = DEFAULT_TOP_P,
+                frequencyPenalty: Float? = DEFAULT_FREQUENCY_PENALTY,
         ): Result<String> {
                 return try {
                         val res =
@@ -120,7 +131,9 @@ object AutoGlmClient {
                                                         messages = messages,
                                                         stream = false,
                                                         temperature = temperature,
-                                                        max_tokens = maxTokens
+                                                        max_tokens = maxTokens,
+                                                        top_p = topP,
+                                                        frequency_penalty = frequencyPenalty,
                                                 )
                                 )
                         val content = res.choices?.firstOrNull()?.message?.content

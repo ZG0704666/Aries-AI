@@ -18,12 +18,14 @@
 local.properties
 
 build/
+/app/build/
 
-temp/*
-!temp/Open-AutoGLM-main/
-!temp/Open-AutoGLM-main/**
-!temp/Operit-main/
-!temp/Operit-main/**
+# Ignore all temp assets and tool copies
+temp/
+
+# Local environment / secrets
+.env
+.env.local
 *.bak*
 *.jks
 *.keystore
