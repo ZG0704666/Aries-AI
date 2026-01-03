@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- 轻微振动反馈需要声明 VIBRATE 权限（normal 权限，安装时授予） -->
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- 前台服务权限（Android 14+ 要求） -->
@@ -60,7 +61,11 @@
         <service
             android:name=".FloatingChatService"
             android:exported="false"
-            android:foregroundServiceType="specialUse" />
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="phoneagent_floating_chat" />
+        </service>
 
         <activity
             android:name=".MainActivity"

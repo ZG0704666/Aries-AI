@@ -20,6 +20,8 @@ local.properties
 build/
 /app/build/
 
+release/
+
 # Ignore all temp assets and tool copies
 /temp/
 
