@@ -3,6 +3,7 @@ package com.ai.phoneagent
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 
 /**
@@ -13,7 +14,12 @@ class LaunchProxyActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val target: Intent? = intent?.getParcelableExtra(EXTRA_TARGET_INTENT)
+        val target: Intent? =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent?.getParcelableExtra(EXTRA_TARGET_INTENT, Intent::class.java)
+                } else {
+                    @Suppress("DEPRECATION") intent?.getParcelableExtra(EXTRA_TARGET_INTENT)
+                }
         if (target != null) {
             target.addFlags(
                     Intent.FLAG_ACTIVITY_NEW_TASK or
