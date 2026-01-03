@@ -426,12 +426,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun offsetTopBarIcons() {
-        val offsetPx = -2f * resources.displayMetrics.density
+        // 只将小窗按钮下移1dp，其余上移7dp
+        val upOffsetPx = -7f * resources.displayMetrics.density
+        val floatWinOffsetPx = -6f * resources.displayMetrics.density
         binding.topAppBar.post {
             for (i in 0 until binding.topAppBar.childCount) {
                 val child = binding.topAppBar.getChildAt(i)
-                when (child) {
-                    is ActionMenuView, is ImageButton -> child.translationY = offsetPx
+                if (child is ActionMenuView) {
+                    // ActionMenuView 里有所有右侧菜单按钮
+                    for (j in 0 until child.childCount) {
+                        val menuChild = child.getChildAt(j)
+                        val tag = menuChild.contentDescription?.toString() ?: ""
+                        if (tag.contains("小窗") || tag.contains("floating", true)) {
+                            menuChild.translationY = floatWinOffsetPx
+                        } else {
+                            menuChild.translationY = upOffsetPx
+                        }
+                    }
+                } else if (child is ImageButton) {
+                    // 左侧导航按钮
+                    child.translationY = upOffsetPx
                 }
             }
         }
@@ -717,6 +731,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         btnCheck.setOnClickListener {
+            vibrateLight()
             val textRaw = apiInput.text.toString()
             val tagKey = (apiInput.tag as? String).orEmpty()
             val key =
@@ -844,13 +859,13 @@ class MainActivity : AppCompatActivity() {
     private fun updateStatusText() {
         val text =
                 when {
-                    remoteApiChecking && offlineModelReady -> "已配置离线模型 | API 检查中..."
+                    remoteApiChecking && offlineModelReady -> "已配置语音模型 | API 检查中..."
                     remoteApiChecking -> "检查中..."
-                    remoteApiOk == true && offlineModelReady -> "已连接模型 | 离线模型已就绪"
+                    remoteApiOk == true && offlineModelReady -> "已连接模型 | 语音模型已就绪"
                     remoteApiOk == true -> "已连接模型"
-                    remoteApiOk == false && offlineModelReady -> "未连接 | 离线模型已就绪"
+                    remoteApiOk == false && offlineModelReady -> "未连接 | 语音模型已就绪"
                     remoteApiOk == false -> "未连接"
-                    offlineModelReady -> "离线模型已就绪"
+                    offlineModelReady -> "语音模型已就绪"
                     else -> getString(R.string.status_disconnected)
                 }
         binding.statusText.text = text
