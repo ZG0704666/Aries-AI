@@ -36,7 +36,7 @@ app/src/main/assets/model/*
 !app/src/main/assets/model/README
 
 # Exclude sherpa model binaries (too large for GitHub)
-app/src/main/assets/sherpa-models/
+app/src/main/assets/sherpa-models/*
 !app/src/main/assets/sherpa-models/README.md
 
 # 忽略所有日志文件

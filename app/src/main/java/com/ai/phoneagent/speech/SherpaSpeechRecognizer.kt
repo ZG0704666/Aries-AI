@@ -16,12 +16,15 @@ import com.k2fsa.sherpa.ncnn.getFeatureExtractorConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * 基于sherpa-ncnn的本地语音识别实现
@@ -57,11 +60,24 @@ class SherpaSpeechRecognizer(private val context: Context) {
     private var recognizer: SherpaNcnn? = null
     private var audioRecord: AudioRecord? = null
     private var recordingJob: Job? = null
-    private val scope = CoroutineScope(Dispatchers.Default)
+    private val scopeJob = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.Default + scopeJob)
 
     private var listener: RecognitionListener? = null
     private var isInitialized = false
     private var isListening = false
+    private val finalResultEmitted = AtomicBoolean(false)
+
+    private fun releaseAudioRecord() {
+        val ar = audioRecord ?: return
+        audioRecord = null
+        runCatching {
+            if (ar.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                ar.stop()
+            }
+        }
+        runCatching { ar.release() }
+    }
 
     /**
      * 初始化语音识别引擎
@@ -187,39 +203,82 @@ class SherpaSpeechRecognizer(private val context: Context) {
         }
 
         this.listener = listener
+        finalResultEmitted.set(false)
         recognizer?.reset(false)
 
         val channelConfig = AudioFormat.CHANNEL_IN_MONO
         val audioFormat = AudioFormat.ENCODING_PCM_16BIT
         val minBufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, channelConfig, audioFormat)
 
-        audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-            SAMPLE_RATE,
-            channelConfig,
-            audioFormat,
-            minBufferSize * 2
-        )
-        audioRecord?.startRecording()
+        if (minBufferSize <= 0) {
+            listener.onError(IllegalStateException("AudioRecord.getMinBufferSize failed: $minBufferSize"))
+            return
+        }
+
+        val ar =
+            try {
+                AudioRecord(
+                    MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                    SAMPLE_RATE,
+                    channelConfig,
+                    audioFormat,
+                    minBufferSize * 2
+                )
+            } catch (e: Exception) {
+                listener.onError(e)
+                return
+            }
+
+        if (ar.state != AudioRecord.STATE_INITIALIZED) {
+            runCatching { ar.release() }
+            listener.onError(IllegalStateException("AudioRecord init failed, state=${ar.state}"))
+            return
+        }
+
+        audioRecord = ar
+
+        val started = runCatching {
+            ar.startRecording()
+            true
+        }.getOrElse {
+            listener.onError(it as? Exception ?: RuntimeException(it))
+            false
+        }
+
+        if (!started) {
+            releaseAudioRecord()
+            return
+        }
+
         isListening = true
         Log.d(TAG, "Started recording")
 
         recordingJob = scope.launch {
-            val bufferSize = minBufferSize
-            val audioBuffer = ShortArray(bufferSize)
-            var lastText = ""
+            try {
+                val bufferSize = minBufferSize
+                val audioBuffer = ShortArray(bufferSize)
+                var lastText = ""
 
-            while (isActive && isListening) {
-                val ret = audioRecord?.read(audioBuffer, 0, audioBuffer.size) ?: 0
-                if (ret > 0) {
-                    val samples = FloatArray(ret) { i -> audioBuffer[i] / 32768.0f }
-                    recognizer?.let {
-                        it.acceptSamples(samples)
-                        while (it.isReady()) {
-                            it.decode()
+                while (isActive && isListening) {
+                    val ret = audioRecord?.read(audioBuffer, 0, audioBuffer.size) ?: 0
+                    if (ret < 0) {
+                        withContext(Dispatchers.Main) {
+                            listener.onError(IOException("AudioRecord.read failed: $ret"))
                         }
-                        val isEndpoint = it.isEndpoint()
-                        val text = it.text
+                        isListening = false
+                        break
+                    }
+                    if (ret > 0) {
+                        val samples = FloatArray(ret) { i -> audioBuffer[i] / 32768.0f }
+                        val currentRecognizer = recognizer ?: break
+
+                        currentRecognizer.acceptSamples(samples)
+                        while (currentRecognizer.isReady()) {
+                            currentRecognizer.decode()
+                        }
+
+                        val isEndpoint = currentRecognizer.isEndpoint()
+                        val text = currentRecognizer.text
 
                         if (text.isNotBlank() && lastText != text) {
                             lastText = text
@@ -233,19 +292,22 @@ class SherpaSpeechRecognizer(private val context: Context) {
                         }
 
                         if (isEndpoint) {
-                            it.reset(false)
-                            // 达到端点，发送最终结果
-                            withContext(Dispatchers.Main) {
-                                listener.onFinalResult(lastText)
-                            }
+                            currentRecognizer.reset(false)
                             isListening = false
-                            return@launch
+                            if (finalResultEmitted.compareAndSet(false, true)) {
+                                withContext(Dispatchers.Main) {
+                                    listener.onFinalResult(lastText)
+                                }
+                            }
+                            break
                         }
                     }
                 }
-            }
 
-            Log.d(TAG, "Recording loop ended.")
+                Log.d(TAG, "Recording loop ended.")
+            } finally {
+                releaseAudioRecord()
+            }
         }
     }
 
@@ -262,11 +324,11 @@ class SherpaSpeechRecognizer(private val context: Context) {
         // Finalize recognition
         recognizer?.inputFinished()
         val text = recognizer?.text ?: ""
-        listener?.onFinalResult(text)
+        if (finalResultEmitted.compareAndSet(false, true)) {
+            listener?.onFinalResult(text)
+        }
 
-        audioRecord?.stop()
-        audioRecord?.release()
-        audioRecord = null
+        releaseAudioRecord()
     }
 
     /**
@@ -275,9 +337,8 @@ class SherpaSpeechRecognizer(private val context: Context) {
     fun cancel() {
         isListening = false
         recordingJob?.cancel()
-        audioRecord?.stop()
-        audioRecord?.release()
-        audioRecord = null
+        finalResultEmitted.set(true)
+        releaseAudioRecord()
     }
 
     /**
@@ -285,6 +346,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
      */
     fun shutdown() {
         cancel()
+        scope.cancel()
         recognizer = null
         isInitialized = false
     }
