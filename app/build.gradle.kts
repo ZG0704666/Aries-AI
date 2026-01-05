@@ -3,6 +3,22 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+val githubToken: String by lazy {
+    val f = rootProject.file("local.properties")
+    if (!f.exists()) return@lazy ""
+
+    val line =
+        f.readLines()
+            .asSequence()
+            .map { it.trim() }
+            .firstOrNull { it.isNotBlank() && !it.startsWith("#") && it.startsWith("github.token") }
+            ?: return@lazy ""
+
+    val eqIdx = line.indexOf('=')
+    if (eqIdx < 0) return@lazy ""
+    line.substring(eqIdx + 1).trim()
+}
+
 android {
     namespace = "com.ai.phoneagent"
     compileSdk {
@@ -16,10 +32,17 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        buildConfigField("String", "GITHUB_TOKEN", "\"\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
+        debug {
+            val escapedToken = githubToken.replace("\\", "\\\\").replace("\"", "\\\"")
+            buildConfigField("String", "GITHUB_TOKEN", "\"$escapedToken\"")
+        }
+
         release {
             isMinifyEnabled = false
             proguardFiles(

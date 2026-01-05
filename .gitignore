@@ -1,3 +1,6 @@
+# Ignore all temp assets and tool copies
+/temp/
+
 *.iml
 .gradle
 /local.properties
@@ -22,8 +25,6 @@ build/
 
 release/
 
-# Ignore all temp assets and tool copies
-/temp/
 
 # Local environment / secrets
 .env

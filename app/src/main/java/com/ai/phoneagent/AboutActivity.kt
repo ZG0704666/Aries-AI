@@ -3,13 +3,16 @@ package com.ai.phoneagent
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.view.LayoutInflater
+import android.view.View
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import android.widget.ImageButton
@@ -17,12 +20,28 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.ai.phoneagent.databinding.ActivityAboutBinding
+import com.ai.phoneagent.updates.ApkDownloadUtil
+import com.ai.phoneagent.updates.ReleaseEntry
+import com.ai.phoneagent.updates.ReleaseHistoryAdapter
+import com.ai.phoneagent.updates.ReleaseRepository
+import com.ai.phoneagent.updates.ReleaseUiUtil
+import com.ai.phoneagent.updates.UpdateHistoryActivity
+import com.ai.phoneagent.updates.VersionComparator
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.switchmaterial.SwitchMaterial
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class AboutActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAboutBinding
+
+    private val releaseRepo = ReleaseRepository()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,7 +90,7 @@ class AboutActivity : AppCompatActivity() {
         // 检查更新（占位）
         binding.btnCheckUpdate.setOnClickListener {
             vibrateLight()
-            Toast.makeText(this, "检查更新功能稍后接入", Toast.LENGTH_SHORT).show()
+            checkForUpdates()
         }
 
         // 更新日志
@@ -101,27 +120,175 @@ class AboutActivity : AppCompatActivity() {
     }
 
     private fun showChangelogDialog() {
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_changelog, null, false)
-        view.findViewById<TextView>(R.id.tvVersion).text = "v1.0.0"
-        view.findViewById<TextView>(R.id.tvDate).text = "2026-01-03"
-        view.findViewById<TextView>(R.id.tvBody).text = """
-            🎉 首个稳定版本发布！
+        showReleaseHistoryDialog()
+    }
 
-            本次更新内容：
-            · 支持 AutoGLM API 接入，实现智能对话
-            · 集成 sherpa-ncnn 本地语音识别引擎
-            · 支持无障碍服务实现手机自动化操作
-            · 悬浮小窗模式，边聊天边操作
-            · 优雅的蓝色玻璃拟态 UI 设计
-            · 历史对话管理与持久化
+    private fun showReleaseHistoryDialog() {
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_release_history, null, false)
 
-            感谢您的使用与支持！
-        """.trimIndent()
+        val tvTips = view.findViewById<TextView>(R.id.tvTips)
+        tvTips.text =
+            """
+                注意事项：
+                1) 私有仓库需要 github.token 才能访问 Releases 与下载。
+                2) 若未配置 token，将只能打开 Release 页面。
+                3) 第三方镜像仅适用于公开直链，存在安全风险，请自行甄别。
+                4) GitHub API 可能限流，失败可稍后重试。
+            """.trimIndent()
 
+        val switchPrerelease = view.findViewById<SwitchMaterial>(R.id.switchPrerelease)
+        val progress = view.findViewById<ProgressBar>(R.id.progress)
+        val tvError = view.findViewById<TextView>(R.id.tvError)
+        val recycler = view.findViewById<RecyclerView>(R.id.recyclerReleases)
+        val btnViewAll = view.findViewById<View>(R.id.btnViewAll)
+
+        recycler.layoutManager = LinearLayoutManager(this)
+
+        var includePrerelease = false
+        var loaded: List<ReleaseEntry> = emptyList()
+
+        lateinit var dialog: androidx.appcompat.app.AlertDialog
+
+        val adapter =
+            ReleaseHistoryAdapter(
+                onDetails = { showReleaseDetails(it) },
+                onOpenRelease = { ReleaseUiUtil.openUrl(this, it.releaseUrl) },
+                onDownload = { handleDownload(it) },
+            )
+
+        recycler.adapter = adapter
+
+        fun applyFilter() {
+            val list = if (includePrerelease) loaded else loaded.filter { !it.isPrerelease }
+            adapter.submitList(list)
+        }
+
+        switchPrerelease.setOnCheckedChangeListener { _, checked ->
+            includePrerelease = checked
+            applyFilter()
+        }
+
+        btnViewAll.setOnClickListener {
+            startActivity(
+                Intent(this, UpdateHistoryActivity::class.java)
+                    .putExtra(UpdateHistoryActivity.EXTRA_INCLUDE_PRERELEASE, includePrerelease)
+            )
+            dialog.dismiss()
+        }
+
+        dialog =
+            MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
+                .setView(view)
+                .setPositiveButton("关闭", null)
+                .create()
+
+        dialog.show()
+
+        tvError.visibility = View.GONE
+        progress.visibility = View.VISIBLE
+
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) { releaseRepo.fetchReleasePage(page = 1, perPage = 20) }
+            progress.visibility = View.GONE
+
+            result
+                .onSuccess { list ->
+                    loaded = list
+                    applyFilter()
+                }
+                .onFailure { e ->
+                    tvError.visibility = View.VISIBLE
+                    tvError.text = ReleaseUiUtil.formatError(e)
+                }
+        }
+    }
+
+    private fun showReleaseDetails(entry: ReleaseEntry) {
         MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
-            .setView(view)
-            .setPositiveButton("确定", null)
+            .setTitle(entry.versionTag)
+            .setMessage(entry.body.ifBlank { "（无更新说明）" })
+            .setPositiveButton("打开发布") { _, _ ->
+                ReleaseUiUtil.openUrl(this, entry.releaseUrl)
+            }
+            .setNegativeButton("关闭", null)
             .show()
+    }
+
+    private fun handleDownload(entry: ReleaseEntry) {
+        if (BuildConfig.GITHUB_TOKEN.isNotBlank()) {
+            ApkDownloadUtil.enqueueApkDownload(this, entry)
+            return
+        }
+
+        val options = ReleaseUiUtil.mirroredDownloadOptions(entry.apkUrl)
+        if (options.isEmpty()) {
+            ReleaseUiUtil.openUrl(this, entry.releaseUrl)
+            return
+        }
+
+        if (options.size == 1) {
+            ReleaseUiUtil.openUrl(this, options.first().second)
+            return
+        }
+
+        val names = options.map { it.first }.toTypedArray()
+        MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
+            .setTitle("选择下载源")
+            .setItems(names) { _, which ->
+                ReleaseUiUtil.openUrl(this, options[which].second)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun checkForUpdates() {
+        val currentVersion =
+            try {
+                packageManager.getPackageInfo(packageName, 0).versionName ?: ""
+            } catch (_: Exception) {
+                ""
+            }
+
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) { releaseRepo.fetchLatestRelease(includePrerelease = false) }
+            result
+                .onSuccess { latest ->
+                    if (latest == null) {
+                        MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
+                            .setTitle("检查更新")
+                            .setMessage("未获取到 Release。")
+                            .setPositiveButton("确定", null)
+                            .show()
+                        return@onSuccess
+                    }
+
+                    val newer = VersionComparator.compare(latest.version, currentVersion) > 0
+                    if (newer) {
+                        MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
+                            .setTitle("发现新版本 ${latest.versionTag}")
+                            .setMessage(latest.body.ifBlank { "（无更新说明）" })
+                            .setPositiveButton("下载") { _, _ -> handleDownload(latest) }
+                            .setNegativeButton("查看发布") { _, _ -> ReleaseUiUtil.openUrl(this@AboutActivity, latest.releaseUrl) }
+                            .setNeutralButton("更新历史") { _, _ -> showReleaseHistoryDialog() }
+                            .show()
+                    } else {
+                        MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
+                            .setTitle("已是最新")
+                            .setMessage("当前版本：$currentVersion")
+                            .setPositiveButton("确定", null)
+                            .setNeutralButton("更新历史") { _, _ -> showReleaseHistoryDialog() }
+                            .show()
+                    }
+                }
+                .onFailure { e ->
+                    MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
+                        .setTitle("检查更新失败")
+                        .setMessage(ReleaseUiUtil.formatError(e))
+                        .setPositiveButton("确定", null)
+                        .setNeutralButton("更新历史") { _, _ -> showReleaseHistoryDialog() }
+                        .show()
+                }
+        }
     }
 
     private fun showLicensesDialog() {

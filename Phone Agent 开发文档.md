@@ -1,6 +1,6 @@
 # Phone Agent 开发文档
 
-> 最后更新：2026-01-03
+> 最后更新：2026-01-05
 
 ## 0. 阅读指南（给 AI / 新同学）
 
@@ -9,7 +9,7 @@
 
 ## 目录
 
-- [1. 最新状态（2026-01-03）](#1-最新状态2026-01-03)
+- [1. 最新状态（2026-01-05）](#1-最新状态2026-01-05)
 - [2. 关键代码入口与数据流索引](#2-关键代码入口与数据流索引)
 - [3. 关键决策（待确认）](#3-关键决策待确认)
 - [4. 近期路线图（对齐 TODO）](#4-近期路线图对齐-todo)
@@ -20,7 +20,14 @@
 - [9. 历史任务进度（旧）](#9-历史任务进度旧)
 - [10. 大文件/LFS 与协作提醒](#10-大文件lfs-与协作提醒)
 
-## 1. 最新状态（2026-01-03）
+## 1. 最新状态（2026-01-05）
+
+### 应用启动与敏感检测优化（2026-01-05）
+
+- **应用直启提速**：新增 `AppPackageManager`（缓存 5 分钟、模糊匹配），`launch_app` 直接查缓存并启动，无需再让模型“思考”；新增 `get_installed_apps` 供模型/用户列出已装应用，启动耗时从 5-10s 降到 ~1s。
+- **系统提示词同步**：`AutomationActivityNew` 更新系统提示，明确允许直接使用应用名/包名启动，并提示购物/支付/金融/日常操作均为“允许”类别，避免模型过度谨慎。
+- **进度与步数**：自动化默认 `maxSteps=100`（不再 12 步封顶），`maxModelRetries=3`，进度 Overlay 显示百分比（去除 “1/12” 样式），任务页/Overlay 文案同步；涉及 `UiAutomationAgent`、`AutomationActivity`/`AutomationActivityNew`、`AutomationOverlay`、`ui/UIAutomationProgressOverlay.kt`。
+- **敏感检测放宽但保留底线**：新增 `ContentFilter` 对模型回复做“去警告”处理，仅保留真实错误；`UiAutomationAgent` 的敏感检测收窄为支付密码/CVV/验证码/确认支付等高风险词，购物/支付流程不再被误拦。危险操作（删除系统文件、未授权访问等）仍需拦截并提示。
 
 ### 兼容性与测试矩阵（必须遵守）
 
@@ -98,6 +105,39 @@
   - 涉及文件：
     - `app/src/main/java/com/ai/phoneagent/PermissionBottomSheet.kt`
     - `app/src/main/java/com/ai/phoneagent/MainActivity.kt`
+
+- **新版自动化系统对齐 Operit（2026-01-05）**
+  - **核心架构对齐**：
+    - ✅ 完整的 Agent 执行循环（截图 → AI 思考 → 动作解析 → 执行）
+    - ✅ 工具注册系统（12+ 个基础工具）
+    - ✅ 动作解析与自修复
+    - ✅ 错误重试机制（maxModelRetries 提高到 3）
+    - ✅ 上下文管理（智能裁剪）
+    - ✅ 暂停/继续/取消支持
+    - ✅ 进度 Overlay 显示（支持百分比与假进度）
+  - **配置优化**：
+    - `maxSteps` 提高至 100（实际由任务决定，不再硬限制）
+    - `maxModelRetries` 提高至 3（应对网络不稳定）
+    - 进度条百分比计算：已知总步数时精确，未知时按指数曲线显示 0-90% 假进度
+  - **API 加速与可靠性**：
+    - 🚀 **当前 API 端点**：`https://open.bigmodel.cn/api/paas/v4/`（官方入口）
+    - 🌐 **备用 CDN 加速方案（可配置）**：
+      - **方案A**：使用代理加速（如 Cloudflare Workers、Vercel 等）
+      - **方案B**：自建反向代理（可将官方 API 映射到自有域名/IP）
+      - **方案C**：检查网络运营商（某些运营商可能对国际 API 有限制，可考虑 VPN/专线）
+    - 📝 **修改方法**（`AutoGlmClient.kt` 第 22 行）：
+      ```kotlin
+      private const val BASE_URL = "https://your-accelerated-endpoint.com/api/paas/v4/"
+      ```
+    - ⚠️ **重试机制**：内置指数退避重试（基础延迟 700ms，最多 3 次），自动应对临时网络波动
+  - **涉及文件**：
+    - `core/agent/PhoneAgent.kt` - Agent 核心（470 行）
+    - `core/agent/AgentModels.kt` - 配置与数据模型
+    - `core/agent/ActionHandler.kt` - 动作执行（110 行）
+    - `core/tools/ToolRegistration.kt` - 工具注册（12 个工具）
+    - `core/tools/AIToolHandler.kt` - 工具管理器
+    - `ui/UIAutomationProgressOverlay.kt` - 进度 UI（支持百分比）
+    - `AutomationActivityNew.kt` - 集成示例（380 行）
     - `app/src/main/java/com/ai/phoneagent/AutomationActivity.kt`
 
 - **自动化页 UI 可用性修复**
@@ -204,6 +244,18 @@
 
 ## 6. 问题记录（定位 → 修复）
 
+### 6.x Release弹窗说明内容无法彻底替换问题
+
+- **现象**：APP 更新日志弹窗顶部说明内容（关于 github.token、镜像、限流等）在 XML 已修改为“在下方可以选择历史版本”，但实际运行时依然显示旧的多行说明。
+- **影响**：用户看到的说明与设计不符，体验不一致。
+- **排查进展**：
+  1. 布局文件 `dialog_release_history.xml` 已将 `tvTips` 的 `android:text` 正确替换为新内容。
+  2. 仍有旧内容显示，怀疑有代码动态 setText 或存在其他 TextView（如 tvReleaseHistoryTips）被赋值。
+- **待办**：
+  1. 检查所有与 Release 弹窗相关的 setText 代码，彻底移除旧说明内容。
+  2. 确认界面只保留一句简洁提示。
+  3. 完成后回归验证。
+
 > 统一记录模板：**现象** → **影响** → **根因** → **修复/规避** → **涉及文件/备注**。
 
 ### 6.1 Gradle 同步/构建失败：ktlint 插件解析失败（已修复）
@@ -285,6 +337,13 @@
 - **涉及文件**：`MainActivity.kt`
 
 ## 7. 更新记录（Changelog）
+
+### 更新记录 · 2026-01-05
+
+- **应用启动提速与缓存**：新增 `core/tools/AppPackageManager.kt`，后台缓存应用名↔包名（5 分钟），`launch_app` 直启绕过模型导航，新增 `get_installed_apps` 供选择；启动耗时约 ~1s。
+- **系统提示词与工具注册**：`AutomationActivityNew` 更新系统提示，明确允许购物/支付/金融等正常操作；`ToolRegistration` 注册新工具并使用缓存直启。
+- **敏感检测放宽**：`ContentFilter` 去除模型“过度警告”，`UiAutomationAgent` 仅对支付密码/CVV/验证码等高风险词触发敏感提示，购物/支付流不再被误拦。
+- **进度与步数**：`maxSteps` 默认 100，`maxModelRetries` 3；`AutomationOverlay`/`UIAutomationProgressOverlay` 进度显示改为百分比，消除 “1/12” 误导。
 
 ### 更新记录 · 2026-01-03
 

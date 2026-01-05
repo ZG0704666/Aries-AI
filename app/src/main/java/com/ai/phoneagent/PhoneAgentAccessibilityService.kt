@@ -63,6 +63,32 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         return rootInActiveWindow?.packageName?.toString().orEmpty()
     }
 
+    fun performGlobalBack(): Boolean {
+        return performGlobalAction(GLOBAL_ACTION_BACK)
+    }
+
+    fun performGlobalHome(): Boolean {
+        return performGlobalAction(GLOBAL_ACTION_HOME)
+    }
+
+    suspend fun performTap(x: Float, y: Float): Boolean {
+        return clickAwait(x, y)
+    }
+
+    suspend fun performSwipe(
+        startX: Float,
+        startY: Float,
+        endX: Float,
+        endY: Float,
+        durationMs: Long = 300L,
+    ): Boolean {
+        return swipeAwait(startX, startY, endX, endY, durationMs)
+    }
+
+    fun performTextInput(text: String): Boolean {
+        return setTextOnFocused(text)
+    }
+
     suspend fun tryCaptureScreenshotBase64(): ScreenshotData? {
         if (Build.VERSION.SDK_INT < 30) return null
         return suspendCancellableCoroutine { cont ->

@@ -158,12 +158,14 @@ object AutomationOverlay {
         }
         val s = step.coerceAtLeast(0)
         val frac = s.toFloat() / this.maxSteps.toFloat()
+        val percent = (frac.coerceIn(0f, 1f) * 100).toInt()
         v.setProgress(frac.coerceIn(0f, 1f))
         val sub = subtitle?.trim().orEmpty()
+        val title = "执行中（${percent}%）"
         if (sub.isNotBlank()) {
-            v.setTexts("执行中（$s/${this.maxSteps}）", sub.take(34))
+            v.setTexts(title, sub.take(34))
         } else {
-            v.setTexts("执行中（$s/${this.maxSteps}）", v.subtitleText().take(34))
+            v.setTexts(title, v.subtitleText().take(34))
         }
     }
 

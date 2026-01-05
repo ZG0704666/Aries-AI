@@ -30,7 +30,7 @@ class UiAutomationAgent(
     private class TakeOverException(message: String) : RuntimeException(message)
 
     data class Config(
-            val maxSteps: Int = 12,
+            val maxSteps: Int = 100,
             val stepDelayMs: Long = 160L,
             val maxModelRetries: Int = 2,
             val modelRetryBaseDelayMs: Long = 700L,
@@ -901,30 +901,15 @@ finish(message="完成原因")
         return pkgContains?.activityInfo?.packageName
     }
 
-    private fun looksSensitive(uiDump: String): Boolean {
-        val danger =
-                listOf(
-                        "支付",
-                        "付款",
-                        "去支付",
-                        "立即支付",
-                        "确认支付",
-                        "确认付款",
-                        "转账",
-                        "密码",
-                        "验证码",
-                        "短信验证码",
-                        "支付密码",
-                        "银行卡",
-                        "卡号",
-                        "cvv",
-                        "pay",
-                        "password",
-                        "otp",
-                        "sms"
-                )
-        return danger.any { uiDump.contains(it, ignoreCase = true) }
-    }
+        private fun looksSensitive(uiDump: String): Boolean {
+        // 降低敏感度：仅在真正付款/验证输入场景触发
+        val highRisk = listOf(
+            "支付密码", "银行卡", "信用卡", "卡号", "cvv", "安全码",
+            "验证码", "短信验证码", "otp", "一次性密码", "动态口令",
+            "输入密码", "请输入密码", "确认支付", "确认付款"
+        )
+        return highRisk.any { uiDump.contains(it, ignoreCase = true) }
+        }
 
     /** 估算文本的token数量（中文约2字符=1token，英文约4字符=1token） */
     private fun estimateTokens(text: String): Int {

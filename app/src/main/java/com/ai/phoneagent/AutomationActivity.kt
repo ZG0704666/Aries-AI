@@ -249,7 +249,7 @@ class AutomationActivity : AppCompatActivity() {
                         context = this,
                         title = "分析中",
                         subtitle = launchedLabel,
-                        maxSteps = 12,
+                        maxSteps = 100,
                         activity = this,
                     )
                 if (!ok) {
@@ -288,7 +288,7 @@ class AutomationActivity : AppCompatActivity() {
                             context = this,
                             title = "分析中",
                             subtitle = task.take(20),
-                            maxSteps = 12,
+                            maxSteps = 100,
                             activity = this,
                         )
             if (ok) {
