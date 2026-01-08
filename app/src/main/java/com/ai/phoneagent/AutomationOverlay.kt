@@ -30,6 +30,11 @@ object AutomationOverlay {
     private var container: OverlayContainer? = null
 
     private var maxSteps: Int = 1
+    
+    // 【优化】预估的总步骤数（从模型思考中解析）
+    private var estimatedTotalSteps: Int = 0
+    // 【优化】是否已解析过预估步骤数
+    private var hasEstimatedSteps: Boolean = false
 
     fun canDrawOverlays(context: Context): Boolean {
         if (PhoneAgentAccessibilityService.instance != null) return true
@@ -57,6 +62,9 @@ object AutomationOverlay {
         hide()
 
         this.maxSteps = maxSteps.coerceAtLeast(1)
+        // 【优化】重置预估步骤数
+        this.estimatedTotalSteps = 0
+        this.hasEstimatedSteps = false
 
         val appCtx = context.applicationContext
         val svc = PhoneAgentAccessibilityService.instance
@@ -67,13 +75,17 @@ object AutomationOverlay {
         view.setTexts(title, subtitle)
         view.setProgress(0f)
         view.setOnClickListener {
-            val i = Intent(appCtx, AutomationActivity::class.java)
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val i = Intent(appCtx, AutomationActivityNew::class.java)
+            i.addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+            )
             appCtx.startActivity(i)
         }
 
-        val overlayW = dp(appCtx, 148)
-        val overlayH = dp(appCtx, 148)
+        val overlayW = dp(appCtx, 115)
+        val overlayH = dp(appCtx, 115)
 
         val flags =
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -151,15 +163,79 @@ object AutomationOverlay {
 
     fun isShowing(): Boolean = container != null && wm != null
 
+    fun setOverlayVisible(visible: Boolean) {
+        val v = container ?: return
+        v.post {
+            v.visibility = if (visible) View.VISIBLE else View.INVISIBLE
+            v.alpha = if (visible) 1f else 0f
+        }
+    }
+    
+    /**
+     * 临时隐藏悬浮窗（执行点击操作时使用，防止点击到悬浮窗）
+     */
+    fun temporaryHide() {
+        val v = container ?: return
+        v.post { v.visibility = View.GONE }
+    }
+    
+    /**
+     * 恢复悬浮窗显示
+     */
+    fun restoreVisibility() {
+        val v = container ?: return
+        v.post { v.visibility = View.VISIBLE }
+    }
+    
+    /**
+     * 更新预估总步骤数（用于动态进度显示）
+     * 只在第一次解析出有效预估值时设置，后续不再更新
+     */
+    fun updateEstimatedSteps(estimated: Int) {
+        if (estimated > 0 && !hasEstimatedSteps) {
+            this.estimatedTotalSteps = estimated
+            this.hasEstimatedSteps = true
+            Log.d("AutomationOverlay", "设置预估总步骤数: $estimated")
+        }
+    }
+
+    /**
+     * 计算智能进度百分比
+     * - 如果有预估步骤数：使用 step/estimated 计算真实百分比
+     * - 如果没有预估：使用平滑的假进度曲线（0-90%渐进）
+     */
+    private fun calculateProgressPercent(step: Int): Int {
+        return if (hasEstimatedSteps && estimatedTotalSteps > 0) {
+            // 有预估步骤数时，使用真实计算
+            // 允许超过100%（任务可能比预估更长），但显示时限制在100%
+            val realPercent = (step.toFloat() / estimatedTotalSteps * 100).toInt()
+            realPercent.coerceIn(0, 100)
+        } else {
+            // 无预估时，使用平滑的假进度曲线
+            // 使用对数曲线：快速上升到60%，然后缓慢增长到90%
+            val normalized = step.toFloat() / 15f // 假设15步达到较高进度
+            val fakeProgress = when {
+                normalized < 0.3f -> normalized * 2f // 0-30% 快速增长
+                normalized < 0.6f -> 0.6f + (normalized - 0.3f) * 0.8f // 60-84%
+                else -> 0.84f + kotlin.math.min((normalized - 0.6f) * 0.15f, 0.06f) // 84-90%
+            }
+            (fakeProgress * 100).toInt().coerceIn(0, 90)
+        }
+    }
+
     fun updateStep(step: Int, maxSteps: Int? = null, subtitle: String? = null) {
         val v = container ?: return
-        if (maxSteps != null) {
+        // 【优化】不再用 maxSteps 参数覆盖预估值
+        // maxSteps 参数现在仅作为配置上限参考，不参与进度计算
+        if (maxSteps != null && !hasEstimatedSteps) {
             this.maxSteps = maxSteps.coerceAtLeast(1)
         }
+        
         val s = step.coerceAtLeast(0)
-        val frac = s.toFloat() / this.maxSteps.toFloat()
-        val percent = (frac.coerceIn(0f, 1f) * 100).toInt()
-        v.setProgress(frac.coerceIn(0f, 1f))
+        val percent = calculateProgressPercent(s)
+        val frac = percent / 100f
+        v.setProgress(frac)
+        
         val sub = subtitle?.trim().orEmpty()
         val title = "执行中（${percent}%）"
         if (sub.isNotBlank()) {
@@ -237,14 +313,14 @@ object AutomationOverlay {
         private var dragging = false
 
         init {
-            setPadding(dp(12), dp(12), dp(12), dp(12))
+            setPadding(dp(8), dp(8), dp(8), dp(8))
             background =
                     GradientDrawable().apply {
                         shape = GradientDrawable.RECTANGLE
-                        cornerRadius = dp(18).toFloat()
+                        cornerRadius = dp(14).toFloat()
                         setColor(Color.parseColor("#FFFFFFFF"))
                     }
-            elevation = dp(10).toFloat()
+            elevation = dp(8).toFloat()
             clipToPadding = false
 
             addView(
@@ -259,21 +335,25 @@ object AutomationOverlay {
             )
 
             title.setTextColor(Color.parseColor("#1B2B3D"))
-            title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             title.typeface = android.graphics.Typeface.DEFAULT_BOLD
             title.gravity = Gravity.CENTER_HORIZONTAL
+            title.maxLines = 2
+            title.ellipsize = android.text.TextUtils.TruncateAt.END
 
             subtitle.setTextColor(Color.parseColor("#4A6FAE"))
-            subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
             subtitle.gravity = Gravity.CENTER_HORIZONTAL
+            subtitle.maxLines = 2
+            subtitle.ellipsize = android.text.TextUtils.TruncateAt.END
 
             val titleLp = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
             titleLp.gravity = Gravity.CENTER_HORIZONTAL or Gravity.CENTER_VERTICAL
-            titleLp.topMargin = dp(-8)
+            titleLp.topMargin = dp(-10)
 
             val subLp = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
             subLp.gravity = Gravity.CENTER_HORIZONTAL or Gravity.CENTER_VERTICAL
-            subLp.topMargin = dp(16)
+            subLp.topMargin = dp(14)
 
             textBox.addView(title, titleLp)
             textBox.addView(subtitle, subLp)

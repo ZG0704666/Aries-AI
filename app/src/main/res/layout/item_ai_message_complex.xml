@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_glass_pane"
+    android:layout_marginTop="8dp"
+    android:layout_marginBottom="8dp"
+    android:layout_marginEnd="0dp">
+
+    <!-- 思考过程区域 -->
+    <LinearLayout
+        android:id="@+id/thinking_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:layout_marginBottom="8dp">
+
+        <!-- 思考头 (点击折叠/展开) -->
+        <LinearLayout
+            android:id="@+id/thinking_header"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingBottom="4dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="已思考"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#80505050" />
+
+            <TextView
+                android:id="@+id/thinking_indicator_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" ⌄"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#80505050"
+                android:layout_marginStart="4dp"/>
+        </LinearLayout>
+
+        <!-- 思考内容 (带引用竖线) -->
+        <LinearLayout
+            android:id="@+id/thinking_content_area"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="2dp">
+
+            <!-- 竖线 -->
+            <View
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:background="#40808080"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/thinking_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textColor="#90404040"
+                android:lineSpacingExtra="3dp"
+                android:text="Thinking process..." />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 主头像和发送人（可选，因为背景已经区分了）-->
+    <TextView
+        android:id="@+id/ai_author_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Aries"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textColor="#80505050"
+        android:visibility="gone"/>
+
+    <!-- 正文内容 -->
+    <TextView
+        android:id="@+id/message_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="15sp"
+        android:textColor="#FF202020"
+        android:lineSpacingExtra="4dp"
+        android:textIsSelectable="true" />
+        
+    <!-- 间隔和分割线区域，初始可见性根据是否结束显示 -->
+    <LinearLayout
+        android:id="@+id/action_area"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:layout_marginTop="8dp">
+        
+        <!-- 分割线 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#15000000"
+            android:layout_marginBottom="4dp"/>
+            
+        <!-- 底部按钮区 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            
+            <LinearLayout
+                android:id="@+id/btn_copy"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_action_button_oval"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+                
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_content_copy_24"
+                    app:tint="#80505050" />
+                    
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="复制"
+                    android:textSize="12sp"
+                    android:textColor="#80505050"
+                    android:layout_marginStart="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_retry"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_action_button_oval"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:layout_marginStart="8dp">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_refresh_24"
+                    app:tint="#80505050" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="重试"
+                    android:textSize="12sp"
+                    android:textColor="#80505050"
+                    android:layout_marginStart="4dp"/>
+            </LinearLayout>
+            
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

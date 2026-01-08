@@ -48,6 +48,12 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".AutomationActivityNew"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".LaunchProxyActivity"
             android:exported="false"
             android:theme="@style/Theme.TransparentLaunch"

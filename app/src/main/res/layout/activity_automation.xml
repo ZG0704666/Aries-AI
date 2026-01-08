@@ -129,39 +129,74 @@
                         android:textSize="12sp"
                         android:textColor="@color/blue_glass_icon" />
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        app:boxCornerRadiusTopStart="12dp"
-                        app:boxCornerRadiusTopEnd="12dp"
-                        app:boxCornerRadiusBottomStart="12dp"
-                        app:boxCornerRadiusBottomEnd="12dp"
-                        app:boxStrokeColor="@color/blue_glass_primary">
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
 
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etTask"
-                            android:layout_width="match_parent"
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:hint="输入要自动完成的任务（例如：打开设置并进入 Wi‑Fi）"
-                            android:inputType="textMultiLine"
-                            android:minLines="3"
-                            android:maxLines="5"
-                            android:gravity="top|start"
-                            android:textColor="@android:color/black" />
-                    </com.google.android.material.textfield.TextInputLayout>
+                            android:layout_weight="1"
+                            app:boxCornerRadiusTopStart="12dp"
+                            app:boxCornerRadiusTopEnd="12dp"
+                            app:boxCornerRadiusBottomStart="12dp"
+                            app:boxCornerRadiusBottomEnd="12dp"
+                            app:boxStrokeColor="@color/blue_glass_primary">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnRunDemo"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:layout_gravity="end"
-                        android:text="执行硬编码测试动作"
-                        android:textSize="12sp"
-                        android:textColor="@color/blue_glass_primary" />
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etTask"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:hint="输入要自动完成的任务（例如：打开设置并进入 Wi‑Fi）"
+                                android:inputType="textMultiLine"
+                                android:minLines="3"
+                                android:maxLines="5"
+                                android:gravity="top|start"
+                                android:textColor="@android:color/black" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- 语音输入按钮 - 右侧居中显眼 -->
+                        <ImageButton
+                            android:id="@+id/btnVoiceTask"
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/bg_circle_accent"
+                            android:contentDescription="@string/voice_input"
+                            android:elevation="4dp"
+                            android:padding="14dp"
+                            android:scaleType="fitCenter"
+                            app:srcCompat="@drawable/ic_mic_24"
+                            app:tint="@color/blue_glass_primary" />
+
+                    </LinearLayout>
+
+                    <!-- 推荐语句滚动区域 -->
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="60dp"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/bg_rounded_light">
+
+                        <TextView
+                            android:id="@+id/tvRecommendTask"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:text=""
+                            android:textColor="@color/blue_glass_text"
+                            android:textSize="14sp"
+                            android:gravity="center"
+                            android:alpha="0.65"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:background="?attr/selectableItemBackground" />
+                    </FrameLayout>
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

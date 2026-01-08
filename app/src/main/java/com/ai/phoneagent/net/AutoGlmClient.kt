@@ -1,6 +1,8 @@
 package com.ai.phoneagent.net
 
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -11,6 +13,37 @@ import retrofit2.http.POST
 import com.ai.phoneagent.BuildConfig
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+
+/**
+ * 共享 OkHttpClient 工厂
+ * 使用连接池复用连接，提高性能
+ */
+private object SharedHttpClient {
+        val instance: OkHttpClient by lazy {
+                val logger =
+                        HttpLoggingInterceptor().apply {
+                                level =
+                                        if (BuildConfig.DEBUG)
+                                                HttpLoggingInterceptor.Level.BASIC
+                                        else
+                                                HttpLoggingInterceptor.Level.NONE
+                        }
+                OkHttpClient.Builder()
+                        .addInterceptor(logger)
+                        .retryOnConnectionFailure(true)
+                        // 增加连接超时以适应慢速网络
+                        .connectTimeout(60, TimeUnit.SECONDS)
+                        // 设置较长的读写超时以支持长时间模型响应
+                        .readTimeout(300, TimeUnit.SECONDS)
+                        .writeTimeout(120, TimeUnit.SECONDS)
+                        .callTimeout(360, TimeUnit.SECONDS)
+                        // 使用连接池复用连接，提高性能
+                        .connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
+                        // 支持 HTTP/2 协议
+                        .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+                        .build()
+        }
+}
 
 /** 简化版 AutoGLM 客户端：仅用于单轮对话与 API 健康检查。 默认 BASE_URL 指向智谱官方 OpenAI 兼容接口，可根据需要调整。 */
 object AutoGlmClient {
@@ -42,27 +75,9 @@ object AutoGlmClient {
         private const val DEFAULT_MAX_TOKENS = 3000
 
         private val service: AutoGlmService by lazy {
-                val logger =
-                        HttpLoggingInterceptor().apply {
-                                level =
-                                        if (BuildConfig.DEBUG)
-                                                HttpLoggingInterceptor.Level.BASIC
-                                        else
-                                                HttpLoggingInterceptor.Level.NONE
-                        }
-                val client =
-                        OkHttpClient.Builder()
-                                .addInterceptor(logger)
-                                .retryOnConnectionFailure(true)
-                                .connectTimeout(20, TimeUnit.SECONDS)
-                                .readTimeout(75, TimeUnit.SECONDS)
-                                .writeTimeout(75, TimeUnit.SECONDS)
-                                .callTimeout(120, TimeUnit.SECONDS)
-                                .build()
-
                 Retrofit.Builder()
                         .baseUrl(BASE_URL)
-                        .client(client)
+                        .client(SharedHttpClient.instance)
                         .addConverterFactory(GsonConverterFactory.create())
                         .build()
                         .create(AutoGlmService::class.java)

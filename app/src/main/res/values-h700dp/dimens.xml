@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="ai_bar_margin_top">6dp</dimen>
+    <dimen name="about_appbar_padding_bottom">10dp</dimen>
+    <dimen name="about_content_padding">14dp</dimen>
+    <dimen name="about_content_padding_top">10dp</dimen>
+
+    <dimen name="about_card_margin_bottom">12dp</dimen>
+    <dimen name="about_card_inner_padding">18dp</dimen>
+
+    <dimen name="about_title_text_size">22sp</dimen>
+    <dimen name="about_title_padding_bottom">8dp</dimen>
+
+    <dimen name="about_icon_size">64dp</dimen>
+    <dimen name="about_icon_margin_top">2dp</dimen>
+
+    <dimen name="about_app_name_margin_top">10dp</dimen>
+    <dimen name="about_app_name_text_size">20sp</dimen>
+
+    <dimen name="about_version_margin_top">2dp</dimen>
+    <dimen name="about_version_text_size">12sp</dimen>
+
+    <dimen name="about_button_margin">12dp</dimen>
+    <dimen name="about_button_min_height">48dp</dimen>
+    <dimen name="about_button_text_size">15sp</dimen>
+
+    <dimen name="about_item_padding">12dp</dimen>
+    <dimen name="about_item_icon_size">32dp</dimen>
+    <dimen name="about_item_icon_padding">6dp</dimen>
+    <dimen name="about_item_text_margin_start">10dp</dimen>
+    <dimen name="about_item_text_size">15sp</dimen>
+    <dimen name="about_item_arrow_size">24dp</dimen>
+    <dimen name="about_item_subtitle_margin_top">2dp</dimen>
+    <dimen name="about_item_subtitle_text_size">11sp</dimen>
+
+    <dimen name="about_copyright_margin_top">12dp</dimen>
+    <dimen name="about_copyright_text_size">11sp</dimen>
+</resources>

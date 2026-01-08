@@ -115,7 +115,7 @@ class AboutActivity : AppCompatActivity() {
         // 开发者
         binding.root.findViewById<LinearLayout>(R.id.itemDeveloper).setOnClickListener {
             vibrateLight()
-            Toast.makeText(this, "感谢使用 Phone Agent！", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "感谢使用 Aries AI！", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -127,20 +127,12 @@ class AboutActivity : AppCompatActivity() {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_release_history, null, false)
 
         val tvTips = view.findViewById<TextView>(R.id.tvTips)
-        tvTips.text =
-            """
-                注意事项：
-                1) 私有仓库需要 github.token 才能访问 Releases 与下载。
-                2) 若未配置 token，将只能打开 Release 页面。
-                3) 第三方镜像仅适用于公开直链，存在安全风险，请自行甄别。
-                4) GitHub API 可能限流，失败可稍后重试。
-            """.trimIndent()
+        tvTips.text = "下方可以选择历史版本"
 
         val switchPrerelease = view.findViewById<SwitchMaterial>(R.id.switchPrerelease)
         val progress = view.findViewById<ProgressBar>(R.id.progress)
         val tvError = view.findViewById<TextView>(R.id.tvError)
         val recycler = view.findViewById<RecyclerView>(R.id.recyclerReleases)
-        val btnViewAll = view.findViewById<View>(R.id.btnViewAll)
 
         recycler.layoutManager = LinearLayoutManager(this)
 
@@ -168,13 +160,6 @@ class AboutActivity : AppCompatActivity() {
             applyFilter()
         }
 
-        btnViewAll.setOnClickListener {
-            startActivity(
-                Intent(this, UpdateHistoryActivity::class.java)
-                    .putExtra(UpdateHistoryActivity.EXTRA_INCLUDE_PRERELEASE, includePrerelease)
-            )
-            dialog.dismiss()
-        }
 
         dialog =
             MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)

@@ -26,6 +26,7 @@ import android.view.View
 import android.view.WindowManager
 import android.view.animation.PathInterpolator
 import android.view.animation.DecelerateInterpolator
+import android.view.animation.AccelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
@@ -33,6 +34,11 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationCompat
 import com.ai.phoneagent.net.AutoGlmClient
@@ -41,7 +47,7 @@ import kotlinx.coroutines.*
 
 /**
  * 悬浮聊天窗口服务
- * 参考 Operit 的实现，提供小窗模式的聊天界面
+ * 提供小窗模式的聊天界面
  */
 class FloatingChatService : Service() {
 
@@ -165,6 +171,10 @@ class FloatingChatService : Service() {
     // API Key
     private var apiKey: String = ""
 
+    // 语音输入（系统 SpeechRecognizer）
+    private var speechRecognizer: SpeechRecognizer? = null
+    private var isListening: Boolean = false
+
     private var awaitingReturnAck: Boolean = false
 
     private var lastOpenAppAttemptAt: Long = 0L
@@ -255,6 +265,10 @@ class FloatingChatService : Service() {
         super.onDestroy()
         instance = null
         runCatching { unregisterReceiver(returnAckReceiver) }
+        runCatching {
+            speechRecognizer?.destroy()
+            speechRecognizer = null
+        }
         serviceScope.cancel()  // 取消协程
         hideFloatingWindow()
         saveWindowState()
@@ -374,7 +388,15 @@ class FloatingChatService : Service() {
         for (msg in messageList) {
             // 支持"我:"和"我: "两种格式
             val isUser = msg.startsWith("我:") || msg.startsWith("我: ")
-            val content = msg.removePrefix("我: ").removePrefix("我:").removePrefix("AI: ").removePrefix("AI:").trim()
+            val content =
+                msg
+                    .removePrefix("我: ")
+                    .removePrefix("我:")
+                    .removePrefix("Aries: ")
+                    .removePrefix("Aries:")
+                    .removePrefix("AI: ")
+                    .removePrefix("AI:")
+                    .trim()
             if (content.isNotBlank()) {
                 chatHistory.add(ChatRequestMessage(
                     role = if (isUser) "user" else "assistant",
@@ -382,6 +404,134 @@ class FloatingChatService : Service() {
                 ))
             }
         }
+    }
+
+    private fun ensureSpeechRecognizer(): SpeechRecognizer? {
+        // 部分系统会错误返回“不支持”，但实际仍可用；不要在这里直接拦截。
+        if (speechRecognizer == null) {
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        }
+        return speechRecognizer
+    }
+
+    private fun speechErrorToMessage(error: Int): String {
+        return when (error) {
+            SpeechRecognizer.ERROR_AUDIO -> "音频采集失败（请检查麦克风权限/占用）"
+            SpeechRecognizer.ERROR_CLIENT -> "语音服务异常（请重试）"
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "缺少录音权限（请在主界面授予）"
+            SpeechRecognizer.ERROR_NETWORK -> "网络错误（语音服务可能需要联网）"
+            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "网络超时（请重试）"
+            SpeechRecognizer.ERROR_NO_MATCH -> "没有识别到内容（再说一遍试试）"
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "语音服务繁忙（稍后重试）"
+            SpeechRecognizer.ERROR_SERVER -> "语音服务器错误（稍后重试）"
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "未检测到语音（请靠近麦克风）"
+            else -> "语音识别失败（错误码：$error）"
+        }
+    }
+
+    private fun startVoiceInput(target: EditText) {
+        val sr = ensureSpeechRecognizer() ?: return
+        if (isListening) return
+        isListening = true
+
+        sr.setRecognitionListener(
+            object : RecognitionListener {
+                override fun onReadyForSpeech(params: android.os.Bundle?) {
+                    // no-op
+                }
+
+                override fun onBeginningOfSpeech() {
+                    // no-op
+                }
+
+                override fun onRmsChanged(rmsdB: Float) {
+                    // no-op
+                }
+
+                override fun onBufferReceived(buffer: ByteArray?) {
+                    // no-op
+                }
+
+                override fun onEndOfSpeech() {
+                    // no-op
+                }
+
+                override fun onError(error: Int) {
+                    isListening = false
+                    Log.w(TAG, "SpeechRecognizer onError=$error")
+
+                    // 部分机型会出现 ERROR_CLIENT/ERROR_RECOGNIZER_BUSY，重建 recognizer 更稳
+                    val needsRebuild = error == SpeechRecognizer.ERROR_CLIENT || 
+                                       error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY ||
+                                       error == SpeechRecognizer.ERROR_SERVER
+                    if (needsRebuild) {
+                        runCatching { speechRecognizer?.destroy() }
+                        speechRecognizer = null
+                    }
+                    
+                    // 特殊处理：如果系统语音不可用，提示用户
+                    val msg = if (!SpeechRecognizer.isRecognitionAvailable(this@FloatingChatService)) {
+                        "设备不支持系统语音识别，请使用主界面语音功能"
+                    } else {
+                        speechErrorToMessage(error)
+                    }
+                    Toast.makeText(this@FloatingChatService, msg, Toast.LENGTH_SHORT).show()
+                }
+
+                override fun onResults(results: android.os.Bundle?) {
+                    isListening = false
+                    val list =
+                        results
+                            ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                            ?.filterNotNull()
+                            .orEmpty()
+                    val text = list.firstOrNull().orEmpty()
+                    if (text.isNotBlank()) {
+                        target.setText(text)
+                        target.setSelection(target.text?.length ?: 0)
+                    }
+                }
+
+                override fun onPartialResults(partialResults: android.os.Bundle?) {
+                    val list =
+                        partialResults
+                            ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                            ?.filterNotNull()
+                            .orEmpty()
+                    val text = list.firstOrNull().orEmpty()
+                    if (text.isNotBlank()) {
+                        target.setText(text)
+                        target.setSelection(target.text?.length ?: 0)
+                    }
+                }
+
+                override fun onEvent(eventType: Int, params: android.os.Bundle?) {
+                    // no-op
+                }
+            }
+        )
+
+        val intent =
+            Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
+                putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
+            }
+        // 某些系统会在上一次会话未完全结束时 Busy；先 cancel 再启动更稳
+        runCatching { sr.cancel() }
+        runCatching { sr.startListening(intent) }
+            .onFailure {
+                isListening = false
+                Toast.makeText(this, "语音输入启动失败（系统限制或识别服务不可用）", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun stopVoiceInput() {
+        val sr = speechRecognizer ?: return
+        // cancel 比 stopListening 更“硬”，能更快结束 busy 状态
+        runCatching { sr.cancel() }
+        isListening = false
     }
     
     private fun createNotificationChannel() {
@@ -391,7 +541,7 @@ class FloatingChatService : Service() {
                 "悬浮聊天窗口",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Phone Agent 悬浮窗口服务"
+                description = "Aries AI 悬浮窗口服务"
                 setShowBadge(false)
             }
             val manager = getSystemService(NotificationManager::class.java)
@@ -427,7 +577,7 @@ class FloatingChatService : Service() {
             )
         
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Phone Agent")
+            .setContentTitle("Aries AI")
             .setContentText("小窗模式运行中")
             .setSmallIcon(R.drawable.ic_floating_window_24)
             .setContentIntent(pendingIntent)
@@ -538,11 +688,36 @@ class FloatingChatService : Service() {
         // 输入框 - 优化键盘呼出响应速度
         val inputMessage = view.findViewById<EditText>(R.id.inputMessage)
 
+        // 语音按钮
+        val btnVoice = view.findViewById<ImageButton>(R.id.btnVoice)
+        btnVoice.setOnClickListener {
+            // 悬浮窗里无法弹权限对话框；如果没权限提示用户回主界面授予
+            val granted =
+                ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                Toast.makeText(this, "请先在主界面授予录音权限", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            setFocusable(true)
+            if (isListening) stopVoiceInput() else startVoiceInput(inputMessage)
+        }
+
         // 预先设置为可聚焦模式，避免延迟
         inputMessage.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {
                 // 立即切换为可聚焦模式
                 setFocusable(true)
+
+                // 关键：切换窗口 flags 后，显式让 EditText 获取焦点并拉起键盘
+                inputMessage.isFocusableInTouchMode = true
+                inputMessage.requestFocus()
+                inputMessage.post {
+                    runCatching {
+                        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                        imm.showSoftInput(inputMessage, InputMethodManager.SHOW_IMPLICIT)
+                    }
+                }
             }
             false // 继续传递事件
         }
@@ -668,17 +843,26 @@ class FloatingChatService : Service() {
             return
         }
 
-        var startDelayMs = 0L
-
+        // 【优化】立即隐藏视图，完全避免闪烁
         if (openApp) {
+            // 立即将视图设为不可见和不可触摸
+            view.animate().cancel()
+            view.visibility = View.INVISIBLE
+            setTouchable(false)
+            overlayHiddenForReturn = true
+            
             awaitingReturnAck = true
             scheduleRetryOpenAppWhileWaitingAck()
             scheduleStopAfterReturnTimeout()
-            requestOpenApp(allowProxy = false)
-            startDelayMs = 120L
-            setTouchable(false)
+            
+            // 直接拉起主界面，不再做淡出动画（因为已经 INVISIBLE 了）
+            mainHandler.post {
+                requestOpenApp(allowProxy = false)
+            }
+            return
         }
 
+        // 普通关闭（不返回主界面）
         val exitInterpolator =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 PathInterpolator(0.3f, 0f, 0.2f, 1f)
@@ -690,15 +874,10 @@ class FloatingChatService : Service() {
             .alpha(0f)
             .scaleX(0.2f)
             .scaleY(0.2f)
-            .setStartDelay(startDelayMs)
-            .setDuration(220)
+            .setStartDelay(0)
+            .setDuration(180)
             .setInterpolator(exitInterpolator)
             .withEndAction {
-                if (openApp) {
-                    overlayHiddenForReturn = true
-                    view.visibility = View.GONE
-                    return@withEndAction
-                }
                 hideFloatingWindow()
                 stopSelf()
             }
@@ -717,13 +896,8 @@ class FloatingChatService : Service() {
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(inputMessage.windowToken, 0)
         
-        // 延迟恢复不可聚焦状态（给键盘隐藏一些时间）
-        mainHandler.postDelayed({
-            setFocusable(false)
-        }, 100)
-        
         // 显示"思考中..."
-        addMessage("AI: 思考中...", isUser = false, isThinking = true)
+        addMessage("Aries: 思考中...", isUser = false, isThinking = true)
         
         // 发送 AI 请求
         requestAIResponse(text)
@@ -736,7 +910,7 @@ class FloatingChatService : Service() {
         if (apiKey.isBlank()) {
             // 移除思考中消息，显示错误
             removeThinkingMessage()
-            addMessage("AI: 请在主界面配置 API Key", isUser = false)
+            addMessage("Aries: 请在主界面配置 API Key", isUser = false)
             return
         }
         
@@ -757,14 +931,14 @@ class FloatingChatService : Service() {
                 
                 if (response != null) {
                     // 添加 AI 回复
-                    addMessage("AI: $response", isUser = false)
+                    addMessage("Aries: $response", isUser = false)
                     chatHistory.add(ChatRequestMessage(role = "assistant", content = response))
                 } else {
-                    addMessage("AI: 抱歉，我无法回复您的消息", isUser = false)
+                    addMessage("Aries: 抱歉，我无法回复您的消息", isUser = false)
                 }
             } catch (e: Exception) {
                 removeThinkingMessage()
-                addMessage("AI: 请求失败: ${e.message?.take(50)}", isUser = false)
+                addMessage("Aries: 请求失败: ${e.message?.take(50)}", isUser = false)
             }
         }
     }
@@ -776,7 +950,8 @@ class FloatingChatService : Service() {
         val iterator = messages.iterator()
         while (iterator.hasNext()) {
             val msg = iterator.next()
-            if (msg == "AI: 思考中...") {
+            val normalized = msg.replace(" ", "")
+            if (normalized == "AI:思考中..." || normalized == "Aries:思考中...") {
                 iterator.remove()
                 break
             }
@@ -790,10 +965,12 @@ class FloatingChatService : Service() {
         val params = layoutParams ?: return
         if (focusable) {
             params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
-            params.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            params.softInputMode =
+                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
+                    WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
         } else {
             params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-            params.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED
+            params.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN
         }
         if (isViewAdded) {
             windowManager.updateViewLayout(floatingView, params)
@@ -841,7 +1018,10 @@ class FloatingChatService : Service() {
         for (msg in messages) {
             // 支持“我:”和“我: ”两种格式
             val isUser = msg.startsWith("我:") || msg.startsWith("我: ")
-            val isThinking = msg == "AI: 思考中..." || msg == "AI:思考中..."
+            val normalized = msg.replace(" ", "")
+            val isThinking =
+                normalized == "AI:思考中..." ||
+                    normalized == "Aries:思考中..."
             
             val textView = TextView(this).apply {
                 text = msg

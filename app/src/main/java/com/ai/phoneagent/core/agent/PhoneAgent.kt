@@ -14,8 +14,8 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 
 /**
- * Phone Agent - AI驱动的手机自动化Agent
- * 完全对齐Operit的PhoneAgent实现
+ * Aries AI - AI驱动的手机自动化Agent
+ * 参考成熟实现进行适配
  */
 class PhoneAgent(
     private val context: Context,

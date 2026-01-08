@@ -59,6 +59,33 @@ class UiAutomationAgent(
             val raw: String,
     )
 
+    /**
+     * 获取用于显示的动作名称（中文友好）
+     */
+    private fun getDisplayActionName(actionName: String, action: ParsedAgentAction): String {
+        val normalizedName = actionName.replace(" ", "").lowercase()
+        return when (normalizedName) {
+            "launch", "open_app", "start_app" -> {
+                val app = action.fields["app"] ?: action.fields["package"] ?: ""
+                if (app.isNotBlank()) "启动 $app" else "启动应用"
+            }
+            "tap", "click", "press" -> "点击"
+            "doubletap", "double_tap" -> "双击"
+            "longpress", "long_press" -> "长按"
+            "swipe", "scroll" -> "滑动"
+            "type", "input", "text" -> {
+                val text = action.fields["text"]?.take(10) ?: ""
+                if (text.isNotBlank()) "输入 \"$text\"" else "输入文本"
+            }
+            "type_name" -> "输入姓名"
+            "back" -> "返回"
+            "home" -> "回到桌面"
+            "wait" -> "等待加载"
+            "take_over", "takeover" -> "需要接管"
+            else -> actionName.ifBlank { "操作" }
+        }
+    }
+
     private fun extractFirstActionSnippet(text: String): String? {
         val trimmed = text.trim()
         if (trimmed.startsWith("do") || trimmed.startsWith("finish")) return trimmed
@@ -148,12 +175,16 @@ class UiAutomationAgent(
             attempt++
             onLog("[Step $step] 输出无法解析为动作，尝试修正（$attempt/${config.maxParseRepairs}）…")
 
-            // 更精简的修复提示，减少token消耗
-            val repairMsg = """你的输出格式错误。请根据当前截图，只输出一个动作：
-do(action="Tap", element=[x,y]) 或
-do(action="Swipe", start=[x1,y1], end=[x2,y2]) 或
-finish(message="完成原因")
-不要输出其他内容。"""
+            // 更直接的修复提示，强调只输出动作，不要思考
+            val repairMsg = """你的上一条输出格式错误或被截断。请直接输出一个动作，不要输出任何思考内容：
+
+do(action="Tap", element=[x,y])
+或 do(action="Type", text="要输入的文字")
+或 do(action="Swipe", start=[x1,y1], end=[x2,y2])
+或 do(action="Back")
+或 finish(message="完成原因")
+
+只输出上述格式之一，不要输出其他任何文字。"""
 
             // 修复时只使用最近的消息，避免上下文过长
             val repairHistory = mutableListOf<ChatRequestMessage>()
@@ -188,6 +219,89 @@ finish(message="完成原因")
         return action
     }
 
+    /**
+     * 检测用户任务中是否包含需要打开的应用，如果包含则自动启动（智能应用启动）
+     * 支持的模式：
+     * - "打开xxx" / "启动xxx" / "进入xxx"
+     * - 直接在消息中提及应用名称
+     */
+    private suspend fun trySmartAppLaunch(
+            task: String,
+            service: PhoneAgentAccessibilityService,
+            onLog: (String) -> Unit,
+    ): Boolean {
+        // 检测"打开/启动/进入"等动作词后面的应用名
+        val launchPatterns = listOf(
+            Regex("""(?:打开|启动|进入|帮我打开|用|去)\s*([^\s，。,\.]+?)(?:\s|，|。|,|\.|$)"""),
+            Regex("""(?:open|launch|start)\s+(\S+)""", RegexOption.IGNORE_CASE),
+        )
+        
+        var appMatch: AppPackageMapping.Match? = null
+        
+        // 首先尝试动作词模式
+        for (pattern in launchPatterns) {
+            val matchResult = pattern.find(task)
+            if (matchResult != null) {
+                val potentialApp = matchResult.groupValues.getOrNull(1)?.trim()
+                if (!potentialApp.isNullOrBlank()) {
+                    val resolved = AppPackageMapping.resolve(potentialApp)
+                    if (resolved != null) {
+                        appMatch = AppPackageMapping.Match(
+                            appLabel = potentialApp,
+                            packageName = resolved,
+                            start = matchResult.range.first,
+                            end = matchResult.range.last
+                        )
+                        break
+                    }
+                }
+            }
+        }
+        
+        // 如果动作词模式没有找到，尝试直接在任务中查找应用名
+        if (appMatch == null) {
+            appMatch = AppPackageMapping.bestMatchInText(task)
+        }
+        
+        if (appMatch == null) {
+            return false
+        }
+        
+        // 检查当前应用是否已经是目标应用
+        val currentApp = service.currentAppPackage()
+        if (currentApp == appMatch.packageName) {
+            onLog("[智能启动] ${appMatch.appLabel} 已经在前台，跳过启动")
+            return true
+        }
+        
+        // 尝试启动应用
+        val pm = service.packageManager
+        val intent = pm.getLaunchIntentForPackage(appMatch.packageName)
+        if (intent == null) {
+            onLog("[智能启动] 未找到 ${appMatch.appLabel}(${appMatch.packageName}) 的启动入口")
+            return false
+        }
+        
+        intent.addFlags(
+            android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+            android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION or
+            android.content.Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+        )
+        
+        try {
+            val beforeTime = service.lastWindowEventTime()
+            LaunchProxyActivity.launch(service, intent)
+            onLog("[智能启动] 后台启动 ${appMatch.appLabel}(${appMatch.packageName})")
+            // 等待应用启动完成
+            service.awaitWindowEvent(beforeTime, timeoutMs = 2200L)
+            delay(500) // 额外等待应用界面稳定
+            return true
+        } catch (e: Exception) {
+            onLog("[智能启动] 启动失败: ${e.message}")
+            return false
+        }
+    }
+
     suspend fun run(
             apiKey: String,
             model: String,
@@ -199,6 +313,9 @@ finish(message="完成原因")
         val metrics = service.resources.displayMetrics
         val screenW = metrics.widthPixels
         val screenH = metrics.heightPixels
+
+        // 智能应用启动：如果用户任务中包含应用名，自动在后台启动，无需请求模型
+        trySmartAppLaunch(task, service, onLog)
 
         val history = mutableListOf<ChatRequestMessage>()
         history +=
@@ -213,8 +330,8 @@ finish(message="完成原因")
             step++
             AutomationOverlay.updateStep(step = step, maxSteps = config.maxSteps)
             
-            // 获取UI树并限制大小
-            val rawUiDump = service.dumpUiTree(maxNodes = 120) // 减少节点数
+            // 获取UI树并限制大小（带重试机制）
+            val rawUiDump = service.dumpUiTreeWithRetry(maxNodes = 120) // 减少节点数
             val uiDump = truncateUiTree(rawUiDump, config.maxUiTreeChars)
 
             val currentApp = service.currentAppPackage()
@@ -243,7 +360,7 @@ finish(message="完成原因")
                                         "image_url" to
                                                 mapOf(
                                                         "url" to
-                                                                "data:image/png;base64,${screenshot.base64Png}"
+                                                                "data:image/jpeg;base64,${screenshot.base64Png}"
                                                 )
                                 ),
                                 mapOf("type" to "text", "text" to userMsg)
@@ -278,6 +395,14 @@ finish(message="完成原因")
             val (thinking, answer) = splitThinkingAndAnswer(finalReply)
             if (!thinking.isNullOrBlank()) {
                 onLog("[Step $step] 思考：${thinking.take(180)}")
+                // 从第一步的思考中解析预估步骤数
+                if (step == 1) {
+                    val estimatedSteps = parseEstimatedSteps(thinking)
+                    if (estimatedSteps > 0) {
+                        AutomationOverlay.updateEstimatedSteps(estimatedSteps)
+                        onLog("[Step $step] 预估总步骤数：$estimatedSteps")
+                    }
+                }
             }
             onLog("[Step $step] 输出：${answer.take(220)}")
 
@@ -312,6 +437,14 @@ finish(message="完成原因")
                                 ?.trim('"', '\'', ' ')
                                 ?.lowercase()
                                 .orEmpty()
+                
+                // 更新悬浮窗显示当前执行的动作
+                val displayActionName = getDisplayActionName(actionName, currentAction)
+                AutomationOverlay.updateStep(
+                    step = step, 
+                    maxSteps = config.maxSteps, 
+                    subtitle = "执行 $displayActionName"
+                )
 
                 if (actionName == "take_over" || actionName == "takeover") {
                     val msg = currentAction.fields["message"].orEmpty().ifBlank { "需要用户接管" }
@@ -401,12 +534,14 @@ finish(message="完成原因")
                         else -> 240L
                     }
 
+            // 【历史瘦身】执行完动作后，从历史中移除图片数据，只保留文本
+            // 参考 Operit 的 removeImagesFromLastUserMessage 策略
             if (observationUserIndex in history.indices) {
                 val obs = history[observationUserIndex]
                 if (obs.content is List<*>) {
-                    val textOnly = listOf(mapOf("type" to "text", "text" to userMsg))
+                    // 只保留文本部分，移除图片以降低后续请求的 token 压力
                     history[observationUserIndex] =
-                            ChatRequestMessage(role = "user", content = textOnly)
+                            ChatRequestMessage(role = "user", content = userMsg)
                 }
             }
 
@@ -491,6 +626,7 @@ finish(message="完成原因")
 16. 在做游戏任务时如果在战斗页面如果有自动战斗一定要开启自动战斗，如果多轮历史状态相似要检查自动战斗是否开启。
 17. 如果没有合适的搜索结果，可能是因为搜索页面不对，请返回到搜索页面的上一级尝试重新搜索，如果尝试三次返回上一级搜索后仍然没有符合要求的结果，执行 finish(message="原因")。
 18. 在结束任务前请一定要仔细检查任务是否完整准确的完成，如果出现错选、漏选、多选的情况，请返回之前的步骤进行纠正。
+19. 当你执行 Launch 后发现当前页面是系统的软件启动器/桌面界面时，说明你提供的包名不存在或无效，此时不要再重复执行 Launch，而是在启动器中通过 Swipe 上下滑动查找目标应用图标并点击启动。
 """
                         .trimIndent()
         )
@@ -521,6 +657,69 @@ finish(message="完成原因")
         }
         return null to full
     }
+    
+    /**
+     * 从模型的"思考"内容中解析预估步骤数
+     * 支持的格式：
+     * - "我需要：1. xxx 2. xxx 3. xxx" 或 "第1步 第2步 第3步"
+     * - "需要N步" / "大约N步" / "共N个步骤"
+     */
+    private fun parseEstimatedSteps(thinking: String): Int {
+        // 尝试匹配明确的步骤数声明
+        val explicitPatterns = listOf(
+            Regex("""(?:需要|大约|共|总共|预计)\s*(\d+)\s*(?:步|个步骤|个操作)"""),
+            Regex("""(\d+)\s*(?:步|个步骤|个操作)(?:完成|即可|就能)"""),
+        )
+        for (pattern in explicitPatterns) {
+            val match = pattern.find(thinking)
+            if (match != null) {
+                val num = match.groupValues.getOrNull(1)?.toIntOrNull()
+                if (num != null && num in 2..20) return num
+            }
+        }
+        
+        // 检测"我需要："后面的编号列表（最常见的格式）
+        // 例如："我需要：\n1. 修改出发地\n2. 修改目的地\n3. 修改日期\n4. 查询车票\n5. 选择最便宜的"
+        val needPattern = Regex("""我需要[：:]\s*([\s\S]*?)(?:首先|然后|接下来|现在|$)""")
+        val needMatch = needPattern.find(thinking)
+        if (needMatch != null) {
+            val needContent = needMatch.groupValues.getOrNull(1).orEmpty()
+            // 计算其中的编号数量
+            val numbers = Regex("""(\d+)\s*[\.、）\)：:]""")
+                .findAll(needContent)
+                .mapNotNull { it.groupValues.getOrNull(1)?.toIntOrNull() }
+                .toList()
+            if (numbers.isNotEmpty()) {
+                val maxStep = numbers.maxOrNull() ?: 0
+                if (maxStep in 2..20) return maxStep
+            }
+        }
+        
+        // 计算编号列表中的步骤数（1. 2. 3. 或 第1步 第2步）
+        val numberedSteps = Regex("""(?:^|\n|\s|，|。|；)(\d+)\s*[\.、）\)：:]|第(\d+)步""")
+            .findAll(thinking)
+            .mapNotNull { 
+                it.groupValues.getOrNull(1)?.toIntOrNull() 
+                    ?: it.groupValues.getOrNull(2)?.toIntOrNull() 
+            }
+            .toList()
+        
+        if (numberedSteps.isNotEmpty()) {
+            val maxStep = numberedSteps.maxOrNull() ?: 0
+            if (maxStep in 2..20) return maxStep
+        }
+        
+        // 计算动作动词出现次数作为粗略估计
+        val actionKeywords = listOf("点击", "输入", "滑动", "打开", "选择", "返回", "等待", "启动", "查询", "修改")
+        val actionCount = actionKeywords.sumOf { keyword -> 
+            thinking.split(keyword).size - 1 
+        }
+        if (actionCount >= 2) {
+            return actionCount.coerceIn(2, 15)
+        }
+        
+        return 0 // 无法解析
+    }
 
     private fun extractTagContent(text: String, tag: String): String? {
         val pattern = Regex("""<$tag>(.*?)</$tag>""", RegexOption.DOT_MATCHES_ALL)
@@ -530,11 +729,22 @@ finish(message="完成原因")
     private fun parseAgentAction(raw: String): ParsedAgentAction {
         val original = raw.trim()
         
+        // 检查是否输出被截断（包含乱码字符或明显不完整）
+        val hasTruncationSign = original.contains("\uFFFD") || // 替换字符
+            original.endsWith("…") ||
+            original.endsWith("...") ||
+            (original.contains("我需要") && !original.contains("do(") && !original.contains("finish("))
+        
         // 检查是否输出了无效内容（如重复的UI元素描述）
         if (original.contains("text=\"") && original.count { it == '=' } > 10 && 
             !original.contains("do(") && !original.contains("finish(")) {
             // 模型输出了UI元素列表而非动作，返回unknown让修复逻辑处理
             return ParsedAgentAction("unknown", null, emptyMap(), original.take(200))
+        }
+        
+        // 检查是否只有思考内容没有动作（如 "我需要：1. 2. 3. " 被截断）
+        if (hasTruncationSign && !original.contains("do(") && !original.contains("finish(")) {
+            return ParsedAgentAction("unknown", null, emptyMap(), "输出被截断，未包含动作")
         }
         
         val finishIndex = original.lastIndexOf("finish(")
@@ -562,7 +772,36 @@ finish(message="完成原因")
             return ParsedAgentAction("unknown", null, emptyMap(), trimmed.take(200))
         }
 
-        val inner = trimmed.removePrefix("do").trim().removeSurrounding("(", ")")
+        // 检查 do( 是否完整（有配对的右括号）
+        val openParenIndex = trimmed.indexOf('(')
+        if (openParenIndex < 0) {
+            return ParsedAgentAction("unknown", null, emptyMap(), "do命令不完整")
+        }
+        
+        // 寻找配对的右括号
+        var parenCount = 0
+        var closeParenIndex = -1
+        for (i in openParenIndex until trimmed.length) {
+            when (trimmed[i]) {
+                '(' -> parenCount++
+                ')' -> {
+                    parenCount--
+                    if (parenCount == 0) {
+                        closeParenIndex = i
+                        break
+                    }
+                }
+            }
+        }
+        
+        // 如果没有找到配对的右括号，尝试容错处理
+        val inner = if (closeParenIndex > openParenIndex) {
+            trimmed.substring(openParenIndex + 1, closeParenIndex).trim()
+        } else {
+            // 没有右括号，取到末尾并去除可能的尾部垃圾
+            trimmed.substring(openParenIndex + 1).trim().trimEnd(')', ',', ' ')
+        }
+        
         val fields = mutableMapOf<String, String>()
         val regex = Regex("""(\w+)\s*=\s*(?:\[(.*?)\]|\"(.*?)\"|'([^']*)'|([^,)]+))""")
         regex.findAll(inner).forEach { m ->
@@ -570,8 +809,13 @@ finish(message="完成原因")
             val value = m.groupValues.drop(2).firstOrNull { it.isNotEmpty() } ?: ""
             fields[key] = value
         }
+        
+        // 如果解析出了action字段，即使格式不完整也尝试使用
+        if (fields.containsKey("action")) {
+            return ParsedAgentAction("do", fields["action"], fields, trimmed)
+        }
 
-        return ParsedAgentAction("do", fields["action"], fields, trimmed)
+        return ParsedAgentAction("unknown", null, emptyMap(), trimmed.take(200))
     }
 
     private suspend fun execute(
@@ -713,10 +957,24 @@ finish(message="完成原因")
                                 ?: action.fields["element_text"]
                                         ?: action.fields["targetText"] ?: action.fields["target_text"]
                 val index = action.fields["index"]?.trim()?.toIntOrNull() ?: 0
+                
+                // 如果提供了坐标，先点击该位置激活输入框
+                val element = parsePoint(action.fields["element"])
+                        ?: parsePoint(action.fields["point"])
+                if (element != null) {
+                    val x = (element.first / 1000.0f) * screenW
+                    val y = (element.second / 1000.0f) * screenH
+                    onLog("执行：先点击输入框(${element.first},${element.second})")
+                    AutomationOverlay.temporaryHide()
+                    delay(50)
+                    service.clickAwait(x, y)
+                    AutomationOverlay.restoreVisibility()
+                    delay(300) // 等待输入框激活
+                }
 
                 onLog("执行：Type(${inputText.take(40)})")
 
-                val ok =
+                var ok =
                         if (resourceId != null || contentDesc != null || className != null || elementText != null) {
                             service.setTextOnElement(
                                     text = inputText,
@@ -729,6 +987,16 @@ finish(message="完成原因")
                         } else {
                             service.setTextOnFocused(inputText)
                         }
+                
+                // 如果失败，尝试寻找并点击第一个可编辑的输入框
+                if (!ok) {
+                    onLog("输入失败，尝试查找并激活输入框…")
+                    val inputClicked = service.clickFirstEditableElement()
+                    if (inputClicked) {
+                        delay(300)
+                        ok = service.setTextOnFocused(inputText)
+                    }
+                }
 
                 service.awaitWindowEvent(beforeWindowEventTime, timeoutMs = 1200L)
                 ok
@@ -787,7 +1055,11 @@ finish(message="完成原因")
                     val x = (xRel / 1000.0f) * screenW
                     val y = (yRel / 1000.0f) * screenH
                     onLog("执行：Tap($xRel,$yRel)")
+                    // 临时隐藏悬浮窗，防止点击到悬浮窗
+                    AutomationOverlay.temporaryHide()
+                    delay(50) // 等待悬浮窗隐藏
                     val ok = service.clickAwait(x, y)
+                    AutomationOverlay.restoreVisibility()
                     service.awaitWindowEvent(beforeWindowEventTime, timeoutMs = 1400L)
                     ok
                 }
@@ -801,7 +1073,11 @@ finish(message="完成原因")
                 val x = (element.first / 1000.0f) * screenW
                 val y = (element.second / 1000.0f) * screenH
                 onLog("执行：Long Press(${element.first},${element.second})")
+                // 临时隐藏悬浮窗
+                AutomationOverlay.temporaryHide()
+                delay(50)
                 val ok = service.clickAwait(x, y, durationMs = 520L)
+                AutomationOverlay.restoreVisibility()
                 service.awaitWindowEvent(beforeWindowEventTime, timeoutMs = 1400L)
                 ok
             }
@@ -814,9 +1090,13 @@ finish(message="完成原因")
                 val x = (element.first / 1000.0f) * screenW
                 val y = (element.second / 1000.0f) * screenH
                 onLog("执行：Double Tap(${element.first},${element.second})")
+                // 临时隐藏悬浮窗
+                AutomationOverlay.temporaryHide()
+                delay(50)
                 val ok1 = service.clickAwait(x, y, durationMs = 60L)
                 delay(90L)
                 val ok2 = service.clickAwait(x, y, durationMs = 60L)
+                AutomationOverlay.restoreVisibility()
                 service.awaitWindowEvent(beforeWindowEventTime, timeoutMs = 1400L)
                 ok1 && ok2
             }
@@ -849,7 +1129,11 @@ finish(message="完成原因")
                 val ex = (exRel / 1000.0f) * screenW
                 val ey = (eyRel / 1000.0f) * screenH
                 onLog("执行：Swipe($sxRel,$syRel -> $exRel,$eyRel, ${dur}ms)")
+                // 临时隐藏悬浮窗
+                AutomationOverlay.temporaryHide()
+                delay(50)
                 val ok = service.swipeAwait(sx, sy, ex, ey, dur)
+                AutomationOverlay.restoreVisibility()
                 service.awaitWindowEvent(beforeWindowEventTime, timeoutMs = 1600L)
                 ok
             }

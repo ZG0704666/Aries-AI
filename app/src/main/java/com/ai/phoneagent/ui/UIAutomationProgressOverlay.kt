@@ -2,6 +2,7 @@ package com.ai.phoneagent.ui
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
@@ -9,10 +10,12 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
+import com.ai.phoneagent.AutomationActivityNew
 import com.ai.phoneagent.R
 
 /**
@@ -82,7 +85,7 @@ class UIAutomationProgressOverlay private constructor(private val context: Conte
 
             // 创建布局参数
             val params = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -106,6 +109,16 @@ class UIAutomationProgressOverlay private constructor(private val context: Conte
                 btnPause = view.findViewById(R.id.btnPause)
                 btnCancel = view.findViewById(R.id.btnCancel)
                 progressBar = view.findViewById(R.id.progressBar)
+
+                view.setOnClickListener {
+                    val i = Intent(context, AutomationActivityNew::class.java)
+                    i.addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                    )
+                    context.startActivity(i)
+                }
 
                 // 设置初始值
                 updateProgress(0, initialStatus)
@@ -201,29 +214,96 @@ class UIAutomationProgressOverlay private constructor(private val context: Conte
         }
     }
 
+    fun isShowing(): Boolean = overlayView != null && windowManager != null
+
+    fun setOverlayVisible(visible: Boolean) {
+        runOnMainThread {
+            overlayView?.let { v ->
+                v.visibility = if (visible) View.VISIBLE else View.INVISIBLE
+                v.alpha = if (visible) 1f else 0f
+            }
+        }
+    }
+
     /**
      * 设置拖拽功能
      */
     @SuppressLint("ClickableViewAccessibility")
     private fun setupDragging(view: View, params: WindowManager.LayoutParams) {
-        var initialX = 0
-        var initialY = 0
-        var initialTouchX = 0f
-        var initialTouchY = 0f
+        val slop = ViewConfiguration.get(view.context).scaledTouchSlop
 
-        view.setOnTouchListener { _, event ->
-            when (event.action) {
+        fun isTouchInside(child: View?, rawX: Float, rawY: Float): Boolean {
+            if (child == null || !child.isShown) return false
+            val loc = IntArray(2)
+            child.getLocationOnScreen(loc)
+            val left = loc[0]
+            val top = loc[1]
+            val right = left + child.width
+            val bottom = top + child.height
+            return rawX >= left && rawX <= right && rawY >= top && rawY <= bottom
+        }
+
+        var downRawX = 0f
+        var downRawY = 0f
+        var downX = 0
+        var downY = 0
+        var dragging = false
+        var handling = false
+
+        view.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    initialX = params.x
-                    initialY = params.y
-                    initialTouchX = event.rawX
-                    initialTouchY = event.rawY
+                    val rawX = event.rawX
+                    val rawY = event.rawY
+                    handling =
+                            !(isTouchInside(btnPause, rawX, rawY) ||
+                                    isTouchInside(btnCancel, rawX, rawY))
+                    if (!handling) {
+                        return@setOnTouchListener false
+                    }
+
+                    downRawX = rawX
+                    downRawY = rawY
+                    downX = params.x
+                    downY = params.y
+                    dragging = false
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    params.x = initialX + (event.rawX - initialTouchX).toInt()
-                    params.y = initialY - (event.rawY - initialTouchY).toInt()
-                    windowManager?.updateViewLayout(view, params)
+                    if (!handling) {
+                        return@setOnTouchListener false
+                    }
+                    val dx = event.rawX - downRawX
+                    val dy = event.rawY - downRawY
+
+                    if (!dragging) {
+                        if (kotlin.math.abs(dx) >= slop || kotlin.math.abs(dy) >= slop) {
+                            dragging = true
+                        }
+                    }
+
+                    if (dragging) {
+                        params.x = downX + dx.toInt()
+                        params.y = downY - dy.toInt()
+                        windowManager?.updateViewLayout(v, params)
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!handling) {
+                        return@setOnTouchListener false
+                    }
+                    handling = false
+                    if (!dragging) {
+                        v.performClick()
+                    }
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    if (!handling) {
+                        return@setOnTouchListener false
+                    }
+                    handling = false
                     true
                 }
                 else -> false

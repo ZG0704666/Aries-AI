@@ -12,6 +12,7 @@ import android.os.Looper
 import android.util.Base64
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.ai.phoneagent.ui.UIAutomationProgressOverlay
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
@@ -22,6 +23,11 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
 
     companion object {
         @Volatile var instance: PhoneAgentAccessibilityService? = null
+        
+        // 截图压缩配置
+        private const val SCREENSHOT_QUALITY = 85  // JPEG质量 (0-100)
+        private const val SCREENSHOT_SCALE_PERCENT = 75  // 缩放百分比 (50-100)
+        private const val USE_JPEG_COMPRESSION = true  // 是否使用JPEG压缩
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -91,59 +97,114 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
 
     suspend fun tryCaptureScreenshotBase64(): ScreenshotData? {
         if (Build.VERSION.SDK_INT < 30) return null
-        return suspendCancellableCoroutine { cont ->
-            val executor = Executors.newSingleThreadExecutor()
-            try {
-                takeScreenshot(
-                        0,
-                        executor,
-                        object : AccessibilityService.TakeScreenshotCallback {
-                            override fun onSuccess(
-                                    screenshot: AccessibilityService.ScreenshotResult
-                            ) {
-                                try {
-                                    val hw =
-                                            Bitmap.wrapHardwareBuffer(
-                                                    screenshot.hardwareBuffer,
-                                                    screenshot.colorSpace
-                                            )
-                                    if (hw == null) {
-                                        if (cont.isActive) cont.resume(null)
-                                        return
-                                    }
 
-                                    val bmp = hw.copy(Bitmap.Config.ARGB_8888, false)
-                                    hw.recycle()
-                                    val out = ByteArrayOutputStream()
-                                    bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
-                                    val bytes = out.toByteArray()
-                                    val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                                    val result = ScreenshotData(bmp.width, bmp.height, base64)
-                                    bmp.recycle()
-                                    if (cont.isActive) cont.resume(result)
-                                } catch (_: Exception) {
-                                    if (cont.isActive) cont.resume(null)
-                                } finally {
-                                    runCatching {
-                                                screenshot.hardwareBuffer.close()
-                                            }
+        val progressOverlay = UIAutomationProgressOverlay.getInstance(this)
+        val hideProgressOverlay = progressOverlay.isShowing()
+        if (hideProgressOverlay) progressOverlay.setOverlayVisible(false)
+
+        val hideAutomationOverlay = AutomationOverlay.isShowing()
+        if (hideAutomationOverlay) AutomationOverlay.setOverlayVisible(false)
+
+        try {
+            if (hideProgressOverlay || hideAutomationOverlay) {
+                delay(80)
+            }
+            return suspendCancellableCoroutine { cont ->
+                val executor = Executors.newSingleThreadExecutor()
+                try {
+                    takeScreenshot(
+                            0,
+                            executor,
+                            object : AccessibilityService.TakeScreenshotCallback {
+                                override fun onSuccess(
+                                        screenshot: AccessibilityService.ScreenshotResult
+                                ) {
+                                    try {
+                                        val hw =
+                                                Bitmap.wrapHardwareBuffer(
+                                                        screenshot.hardwareBuffer,
+                                                        screenshot.colorSpace
+                                                )
+                                        if (hw == null) {
+                                            if (cont.isActive) cont.resume(null)
+                                            return
+                                        }
+
+                                        val originalBmp = hw.copy(Bitmap.Config.ARGB_8888, false)
+                                        hw.recycle()
+                                        
+                                        val originalWidth = originalBmp.width
+                                        val originalHeight = originalBmp.height
+                                        
+                                        // 按比例缩放截图以减少大小
+                                        val scaleFactor = SCREENSHOT_SCALE_PERCENT / 100.0
+                                        val bmpForCompress = if (scaleFactor < 1.0) {
+                                            val newWidth = (originalWidth * scaleFactor).toInt().coerceAtLeast(1)
+                                            val newHeight = (originalHeight * scaleFactor).toInt().coerceAtLeast(1)
+                                            val scaled = Bitmap.createScaledBitmap(originalBmp, newWidth, newHeight, true)
+                                            originalBmp.recycle()
+                                            scaled
+                                        } else {
+                                            originalBmp
+                                        }
+                                        
+                                        val out = ByteArrayOutputStream()
+                                        // 使用JPEG压缩以大幅减少文件大小
+                                        if (USE_JPEG_COMPRESSION) {
+                                            bmpForCompress.compress(Bitmap.CompressFormat.JPEG, SCREENSHOT_QUALITY, out)
+                                        } else {
+                                            bmpForCompress.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                        }
+                                        val bytes = out.toByteArray()
+                                        val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                                        // 返回原始尺寸供坐标计算使用
+                                        val result = ScreenshotData(originalWidth, originalHeight, base64)
+                                        bmpForCompress.recycle()
+                                        if (cont.isActive) cont.resume(result)
+                                    } catch (_: Exception) {
+                                        if (cont.isActive) cont.resume(null)
+                                    } finally {
+                                        runCatching {
+                                                    screenshot.hardwareBuffer.close()
+                                                }
+                                        runCatching { executor.shutdown() }
+                                    }
+                                }
+
+                                override fun onFailure(errorCode: Int) {
                                     runCatching { executor.shutdown() }
+                                    if (cont.isActive) cont.resume(null)
                                 }
                             }
+                    )
+                } catch (_: Exception) {
+                    runCatching { executor.shutdown() }
+                    if (cont.isActive) cont.resume(null)
+                } finally {
+                    cont.invokeOnCancellation { runCatching { executor.shutdownNow() } }
+                }
+            }
+        } finally {
+            if (hideAutomationOverlay) AutomationOverlay.setOverlayVisible(true)
+            if (hideProgressOverlay) progressOverlay.setOverlayVisible(true)
+        }
+    }
 
-                            override fun onFailure(errorCode: Int) {
-                                runCatching { executor.shutdown() }
-                                if (cont.isActive) cont.resume(null)
-                            }
-                        }
-                )
-            } catch (_: Exception) {
-                runCatching { executor.shutdown() }
-                if (cont.isActive) cont.resume(null)
-            } finally {
-                cont.invokeOnCancellation { runCatching { executor.shutdownNow() } }
+    /**
+     * 带重试机制的 UI 树获取
+     * 参考 Operit 的 getUIHierarchyWithRetry 策略
+     */
+    suspend fun dumpUiTreeWithRetry(maxNodes: Int = 200, maxRetries: Int = 3, retryDelayMs: Long = 300): String {
+        repeat(maxRetries) { attempt ->
+            val result = dumpUiTree(maxNodes)
+            if (result != "(no active window)" && result.isNotBlank()) {
+                return result
+            }
+            if (attempt < maxRetries - 1) {
+                delay(retryDelayMs)
             }
         }
+        return dumpUiTree(maxNodes) // 最后一次尝试
     }
 
     fun dumpUiTree(maxNodes: Int = 200): String {
@@ -219,6 +280,40 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             guard++
             val n = q.removeFirst()
             if (n.isEditable && (n.isFocused || n.isFocusable)) {
+                return n
+            }
+            for (i in 0 until n.childCount) {
+                n.getChild(i)?.let { q.add(it) }
+            }
+        }
+        return null
+    }
+    
+    /**
+     * 查找并点击第一个可编辑的输入框元素
+     */
+    suspend fun clickFirstEditableElement(): Boolean {
+        val root = rootInActiveWindow ?: return false
+        val editable = findFirstEditableElement(root) ?: return false
+        val bounds = android.graphics.Rect()
+        editable.getBoundsInScreen(bounds)
+        if (bounds.width() <= 0 || bounds.height() <= 0) return false
+        return clickAwait(bounds.centerX().toFloat(), bounds.centerY().toFloat())
+    }
+    
+    private fun findFirstEditableElement(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        val q = ArrayDeque<AccessibilityNodeInfo>()
+        q.add(root)
+        var guard = 0
+        while (q.isNotEmpty() && guard < 600) {
+            guard++
+            val n = q.removeFirst()
+            if (n.isEditable) {
+                return n
+            }
+            // 也检查 EditText 类名
+            val className = n.className?.toString().orEmpty()
+            if (className.contains("EditText", ignoreCase = true)) {
                 return n
             }
             for (i in 0 until n.childCount) {

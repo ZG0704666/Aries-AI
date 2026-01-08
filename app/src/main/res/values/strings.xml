@@ -1,11 +1,13 @@
 <resources>
-    <string name="app_name">Phone Agent</string>
-    <string name="app_title">AI 对话</string>
+    <string name="app_name">Aries AI</string>
+    <string name="app_title">Aries AI</string>
     <string name="status_disconnected">未连接模型</string>
     <string name="input_hint">请输入你的问题…</string>
     <string name="voice_input">语音输入</string>
     <string name="send">发送</string>
 
-    <string name="accessibility_service_label">Phone Agent 自动化</string>
+    <string name="accessibility_service_label">Aries AI 自动化</string>
     <string name="accessibility_service_desc">用于执行点击/滑动/返回等自动化动作（需要在系统无障碍中手动开启）</string>
+
+    <string name="about_copyright">© 2025-2026 Aries AI. 保留所有权利。</string>
 </resources>

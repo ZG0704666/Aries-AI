@@ -1,6 +1,6 @@
 # Ignore all temp assets and tool copies
 /temp/
-
+/自动化升级计划.md
 *.iml
 .gradle
 /local.properties

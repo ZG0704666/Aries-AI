@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/blue_glass_primary"
-        android:paddingBottom="18dp">
+        android:paddingBottom="@dimen/about_appbar_padding_bottom">
 
         <!-- 顶部工具栏 -->
         <com.google.android.material.appbar.MaterialToolbar
@@ -36,15 +36,15 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:paddingTop="12dp">
+            android:padding="@dimen/about_content_padding"
+            android:paddingTop="@dimen/about_content_padding_top">
 
             <!-- 应用信息卡片（渐变描边） -->
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="@dimen/about_card_margin_bottom"
                 android:background="@drawable/bg_card_border_gradient"
                 android:padding="1dp">
 
@@ -61,23 +61,23 @@
                         android:layout_height="wrap_content"
                         android:gravity="center_horizontal"
                         android:orientation="vertical"
-                        android:padding="24dp">
+                        android:padding="@dimen/about_card_inner_padding">
                     <!-- 蓝色“关于”标题 -->
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="关于"
                         android:textColor="@color/blue_glass_primary"
-                        android:textSize="24sp"
+                        android:textSize="@dimen/about_title_text_size"
                         android:textStyle="bold"
                         android:gravity="center"
-                        android:paddingBottom="12dp" />
+                        android:paddingBottom="@dimen/about_title_padding_bottom" />
 
                     <!-- 应用图标 -->
                     <ImageView
-                        android:layout_width="80dp"
-                        android:layout_height="80dp"
-                        android:layout_marginTop="4dp"
+                        android:layout_width="@dimen/about_icon_size"
+                        android:layout_height="@dimen/about_icon_size"
+                        android:layout_marginTop="@dimen/about_icon_margin_top"
                         android:src="@mipmap/ic_launcher_round"
                         android:contentDescription="App Icon" />
 
@@ -85,20 +85,20 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="Phone Agent"
+                        android:layout_marginTop="@dimen/about_app_name_margin_top"
+                        android:text="@string/app_name"
                         android:textColor="@color/blue_glass_text"
-                        android:textSize="22sp"
+                        android:textSize="@dimen/about_app_name_text_size"
                         android:textStyle="bold" />
 
                     <!-- 版本号 -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="@dimen/about_version_margin_top"
                         android:text="版本: 1.0.0"
                         android:textColor="@color/blue_glass_icon"
-                        android:textSize="14sp" />
+                        android:textSize="@dimen/about_version_text_size" />
 
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -108,7 +108,7 @@
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="@dimen/about_card_margin_bottom"
                 android:background="@drawable/bg_card_border_gradient"
                 android:padding="1dp">
 
@@ -132,14 +132,14 @@
                         android:id="@+id/btnCheckUpdate"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_margin="16dp"
-                        android:minHeight="52dp"
+                        android:layout_margin="@dimen/about_button_margin"
+                        android:minHeight="@dimen/about_button_min_height"
                         android:background="@drawable/ripple_btn_check_update"
                         android:backgroundTint="@null"
                         android:text="检查更新"
                         android:textAllCaps="false"
                         android:textColor="@color/blue_glass_primary_variant"
-                        android:textSize="16sp"
+                        android:textSize="@dimen/about_button_text_size"
                         app:icon="@drawable/ic_update"
                         app:iconTint="@color/blue_glass_primary_variant"
                         app:iconGravity="textStart"
@@ -157,13 +157,13 @@
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:padding="16dp">
+                        android:padding="@dimen/about_item_padding">
 
                         <ImageView
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
+                            android:layout_width="@dimen/about_item_icon_size"
+                            android:layout_height="@dimen/about_item_icon_size"
                             android:background="@drawable/about_icon_bg"
-                            android:padding="8dp"
+                            android:padding="@dimen/about_item_icon_padding"
                             android:src="@drawable/ic_history_24"
                             app:tint="@color/blue_glass_primary"
                             android:contentDescription="更新日志" />
@@ -171,15 +171,15 @@
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
+                            android:layout_marginStart="@dimen/about_item_text_margin_start"
                             android:layout_weight="1"
                             android:text="更新日志"
                             android:textColor="@color/blue_glass_text"
-                            android:textSize="16sp" />
+                            android:textSize="@dimen/about_item_text_size" />
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
+                            android:layout_width="@dimen/about_item_arrow_size"
+                            android:layout_height="@dimen/about_item_arrow_size"
                             android:src="@drawable/ic_arrow_right"
                             app:tint="@color/blue_glass_icon"
                             android:contentDescription="进入" />
@@ -196,13 +196,13 @@
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:padding="16dp">
+                        android:padding="@dimen/about_item_padding">
 
                         <ImageView
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
+                            android:layout_width="@dimen/about_item_icon_size"
+                            android:layout_height="@dimen/about_item_icon_size"
                             android:background="@drawable/about_icon_bg"
-                            android:padding="8dp"
+                            android:padding="@dimen/about_item_icon_padding"
                             android:src="@drawable/ic_license"
                             app:tint="@color/blue_glass_primary"
                             android:contentDescription="开源许可" />
@@ -210,15 +210,15 @@
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
+                            android:layout_marginStart="@dimen/about_item_text_margin_start"
                             android:layout_weight="1"
                             android:text="开源许可声明"
                             android:textColor="@color/blue_glass_text"
-                            android:textSize="16sp" />
+                            android:textSize="@dimen/about_item_text_size" />
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
+                            android:layout_width="@dimen/about_item_arrow_size"
+                            android:layout_height="@dimen/about_item_arrow_size"
                             android:src="@drawable/ic_arrow_right"
                             app:tint="@color/blue_glass_icon"
                             android:contentDescription="进入" />
@@ -233,7 +233,7 @@
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="@dimen/about_card_margin_bottom"
                 android:background="@drawable/bg_card_border_gradient"
                 android:padding="1dp">
 
@@ -262,13 +262,13 @@
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:padding="16dp">
+                        android:padding="@dimen/about_item_padding">
 
                         <ImageView
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
+                            android:layout_width="@dimen/about_item_icon_size"
+                            android:layout_height="@dimen/about_item_icon_size"
                             android:background="@drawable/about_icon_bg"
-                            android:padding="8dp"
+                            android:padding="@dimen/about_item_icon_padding"
                             android:src="@drawable/ic_email"
                             app:tint="@color/blue_glass_primary"
                             android:contentDescription="联系方式" />
@@ -276,7 +276,7 @@
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
+                            android:layout_marginStart="@dimen/about_item_text_margin_start"
                             android:layout_weight="1"
                             android:orientation="vertical">
 
@@ -285,15 +285,15 @@
                                 android:layout_height="wrap_content"
                                 android:text="联系方式"
                                 android:textColor="@color/blue_glass_text"
-                                android:textSize="16sp" />
+                                android:textSize="@dimen/about_item_text_size" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
+                                android:layout_marginTop="@dimen/about_item_subtitle_margin_top"
                                 android:text="联系我们: jack666_2007@foxmail.com"
                                 android:textColor="@color/blue_glass_icon"
-                                android:textSize="12sp" />
+                                android:textSize="@dimen/about_item_subtitle_text_size" />
 
                         </LinearLayout>
 
@@ -309,13 +309,13 @@
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:padding="16dp">
+                        android:padding="@dimen/about_item_padding">
 
                         <ImageView
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
+                            android:layout_width="@dimen/about_item_icon_size"
+                            android:layout_height="@dimen/about_item_icon_size"
                             android:background="@drawable/about_icon_bg"
-                            android:padding="8dp"
+                            android:padding="@dimen/about_item_icon_padding"
                             android:src="@drawable/ic_developer"
                             app:tint="@color/blue_glass_primary"
                             android:contentDescription="开发者" />
@@ -323,7 +323,7 @@
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
+                            android:layout_marginStart="@dimen/about_item_text_margin_start"
                             android:layout_weight="1"
                             android:orientation="vertical">
 
@@ -332,15 +332,15 @@
                                 android:layout_height="wrap_content"
                                 android:text="开发者"
                                 android:textColor="@color/blue_glass_text"
-                                android:textSize="16sp" />
+                                android:textSize="@dimen/about_item_text_size" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
+                                android:layout_marginTop="@dimen/about_item_subtitle_margin_top"
                                 android:text="开发者: ZG0704666"
                                 android:textColor="@color/blue_glass_primary"
-                                android:textSize="12sp" />
+                                android:textSize="@dimen/about_item_subtitle_text_size" />
 
                         </LinearLayout>
 
@@ -354,11 +354,11 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="@dimen/about_copyright_margin_top"
                 android:gravity="center"
-                android:text="© 2025-2026 Phone Agent. 保留所有权利。"
+                android:text="@string/about_copyright"
                 android:textColor="@color/blue_glass_icon"
-                android:textSize="12sp" />
+                android:textSize="@dimen/about_copyright_text_size" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

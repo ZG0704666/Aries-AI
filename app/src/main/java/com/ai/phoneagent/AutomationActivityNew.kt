@@ -1,5 +1,7 @@
 package com.ai.phoneagent
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -8,28 +10,28 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
+import android.view.HapticFeedbackConstants
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
 import androidx.core.widget.NestedScrollView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
-import com.ai.phoneagent.core.agent.ActionHandler
-import com.ai.phoneagent.core.agent.AgentConfig
-import com.ai.phoneagent.core.agent.PhoneAgent
 import com.ai.phoneagent.core.tools.AIToolHandler
 import com.ai.phoneagent.core.tools.ToolRegistration
 import com.ai.phoneagent.databinding.ActivityAutomationBinding
-import com.ai.phoneagent.ui.UIAutomationProgressOverlay
+import com.ai.phoneagent.net.AutoGlmClient
 import com.google.android.material.button.MaterialButton
+import kotlin.coroutines.resume
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.suspendCancellableCoroutine
+import android.view.animation.OvershootInterpolator
 
 /**
  * 自动化Activity - 使用新的Agent系统
@@ -38,7 +40,8 @@ class AutomationActivityNew : AppCompatActivity() {
 
     private lateinit var binding: ActivityAutomationBinding
     private var agentJob: Job? = null
-    private val pausedState = MutableStateFlow(false)
+
+    @Volatile private var paused: Boolean = false
 
     private lateinit var tvAccStatus: TextView
     private lateinit var tvLog: TextView
@@ -46,7 +49,18 @@ class AutomationActivityNew : AppCompatActivity() {
     private lateinit var btnOpenAccessibility: MaterialButton
     private lateinit var btnRefreshAccessibility: MaterialButton
     private lateinit var btnStartAgent: MaterialButton
+    private lateinit var btnPauseAgent: MaterialButton
     private lateinit var btnStopAgent: MaterialButton
+    
+    // 推荐语句滚动相关
+    private lateinit var tvRecommendTask: TextView
+    private var recommendJob: Job? = null
+    private val recommendTasks = listOf(
+        "打开美团帮我预订一个明天中午11点的周围人气最高的火锅店的位置，4个人",
+        "打开12306订一张1月19日南京到北京的票，选最便宜的",
+        "打开航旅纵横订一张1月19日从南京飞往成都的机票"
+    )
+    private var currentRecommendIndex = 0
 
     private val serviceId by lazy {
         "$packageName/${PhoneAgentAccessibilityService::class.java.name}"
@@ -76,9 +90,6 @@ class AutomationActivityNew : AppCompatActivity() {
         }
         ViewCompat.requestApplyInsets(binding.root)
 
-        // 初始化工具系统
-        initializeToolSystem()
-
         // 绑定UI组件
         tvAccStatus = binding.root.findViewById(R.id.tvAccStatus)
         tvLog = binding.root.findViewById(R.id.tvLog)
@@ -86,7 +97,22 @@ class AutomationActivityNew : AppCompatActivity() {
         btnOpenAccessibility = binding.root.findViewById(R.id.btnOpenAccessibility)
         btnRefreshAccessibility = binding.root.findViewById(R.id.btnRefreshAccessibility)
         btnStartAgent = binding.root.findViewById(R.id.btnStartAgent)
+        btnPauseAgent = binding.root.findViewById(R.id.btnPauseAgent)
         btnStopAgent = binding.root.findViewById(R.id.btnStopAgent)
+        tvRecommendTask = binding.root.findViewById(R.id.tvRecommendTask)
+
+        setupLogCopy()
+
+        // 初始化工具系统
+        initializeToolSystem()
+
+        // 推荐语句点击发送
+        tvRecommendTask.setOnClickListener {
+            vibrateLight()
+            val recommendText = recommendTasks[currentRecommendIndex]
+            etTask.setText(recommendText)
+            Toast.makeText(this, "已填入推荐任务", Toast.LENGTH_SHORT).show()
+        }
 
         // 设置按钮事件
         binding.topAppBar.setNavigationOnClickListener {
@@ -109,10 +135,21 @@ class AutomationActivityNew : AppCompatActivity() {
             startAgent()
         }
 
+        btnPauseAgent.setOnClickListener {
+            vibrateLight()
+            togglePause()
+        }
+
         btnStopAgent.setOnClickListener {
             vibrateLight()
             stopAgent()
         }
+
+        // 启动推荐语句滚动
+        startRecommendTaskRotation()
+
+        btnPauseAgent.isEnabled = false
+        btnStopAgent.isEnabled = false
 
         // 初始检查
         checkAccessibilityStatus()
@@ -138,8 +175,14 @@ class AutomationActivityNew : AppCompatActivity() {
     private fun checkAccessibilityStatus() {
         val enabled = isAccessibilityServiceEnabled()
         if (enabled) {
-            tvAccStatus.text = "✅ 无障碍服务已启用"
-            tvAccStatus.setTextColor(getColor(android.R.color.holo_green_dark))
+            val connected = PhoneAgentAccessibilityService.instance != null
+            if (connected) {
+                tvAccStatus.text = "✅ 无障碍服务已启用"
+                tvAccStatus.setTextColor(getColor(android.R.color.holo_green_dark))
+            } else {
+                tvAccStatus.text = "⚠️ 无障碍服务已启用（连接中）"
+                tvAccStatus.setTextColor(getColor(android.R.color.holo_orange_dark))
+            }
             btnStartAgent.isEnabled = true
         } else {
             tvAccStatus.text = "❌ 无障碍服务未启用"
@@ -171,131 +214,151 @@ class AutomationActivityNew : AppCompatActivity() {
      * 启动Agent
      */
     private fun startAgent() {
-        val task = etTask.text.toString().trim()
-        if (task.isEmpty()) {
-            Toast.makeText(this, "请输入任务描述", Toast.LENGTH_SHORT).show()
-            return
-        }
+        if (agentJob != null) return
 
         if (!isAccessibilityServiceEnabled()) {
-            Toast.makeText(this, "请先启用无障碍服务", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "请先开启无障碍服务", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // 取消之前的任务
-        agentJob?.cancel()
-        pausedState.value = false
-
-        // 清空日志
-        tvLog.text = ""
-
-        agentJob = lifecycleScope.launch {
-            try {
-                // 显示进度Overlay
-                val progressOverlay = UIAutomationProgressOverlay.getInstance(this@AutomationActivityNew)
-                val config = AgentConfig() // 默认maxSteps=100，重试=3，进度使用百分比
-                
-                progressOverlay.show(
-                    totalSteps = config.maxSteps,
-                    initialStatus = "正在初始化...",
-                    onCancel = {
-                        stopAgent()
-                    },
-                    onTogglePause = { isPaused ->
-                        pausedState.value = isPaused
-                    }
-                )
-
-                appendLog("========================================")
-                appendLog("🚀 开始执行任务: $task")
-                appendLog("最大步数: ${config.maxSteps}")
-                appendLog("========================================\n")
-
-                // 创建Agent
-                val actionHandler = ActionHandler(
-                    context = this@AutomationActivityNew,
-                    screenWidth = resources.displayMetrics.widthPixels,
-                    screenHeight = resources.displayMetrics.heightPixels
-                )
-
-                val agent = PhoneAgent(
-                    context = this@AutomationActivityNew,
-                    config = config,
-                    actionHandler = actionHandler
-                )
-
-                // 获取API Key
-                val apiKey = getApiKey()
-                if (apiKey.isEmpty()) {
-                    appendLog("❌ 错误: 未配置API Key")
-                    appendLog("请在MainActivity中设置AutoGLM API Key")
-                    progressOverlay.hide()
-                    return@launch
-                }
-
-                // 构建系统提示词
-                val systemPrompt = buildSystemPrompt()
-
-                // 运行Agent
-                val finalMessage = agent.run(
-                    task = task,
-                    apiKey = apiKey,
-                    model = "glm-4v-plus",
-                    systemPrompt = systemPrompt,
-                    onStep = { stepResult ->
-                        // 更新进度
-                        progressOverlay.updateProgress(
-                            step = agent.stepCount,
-                            status = stepResult.thinking ?: "执行中..."
-                        )
-
-                        // 记录日志
-                        appendLog("\n📍 步骤 ${agent.stepCount}:")
-                        
-                        stepResult.thinking?.let {
-                            appendLog("💭 思考: $it")
-                        }
-                        
-                        stepResult.action?.let {
-                            appendLog("⚡ 动作: ${it.actionName} ${it.fields}")
-                        }
-                        
-                        stepResult.message?.let {
-                            appendLog("📝 结果: $it")
-                        }
-                    },
-                    isPausedFlow = pausedState
-                )
-
-                // 完成
-                appendLog("\n========================================")
-                appendLog("✅ 任务完成: $finalMessage")
-                appendLog("========================================")
-
-                progressOverlay.hide()
-                Toast.makeText(this@AutomationActivityNew, "任务完成", Toast.LENGTH_SHORT).show()
-
-            } catch (e: Exception) {
-                appendLog("\n❌ 错误: ${e.message}")
-                e.printStackTrace()
-                
-                UIAutomationProgressOverlay.getInstance(this@AutomationActivityNew).hide()
-                Toast.makeText(this@AutomationActivityNew, "执行出错: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
+        val svc = PhoneAgentAccessibilityService.instance
+        if (svc == null) {
+            Toast.makeText(this, "服务已开启但尚未连接，请稍等或返回重进", Toast.LENGTH_SHORT).show()
+            return
         }
+
+        val task = etTask.text?.toString().orEmpty().trim()
+        if (task.isBlank()) {
+            Toast.makeText(this, "请输入任务", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val apiKey = getApiKey()
+        if (apiKey.isBlank()) {
+            Toast.makeText(this, "请先在侧边栏配置 API Key", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val model = AutoGlmClient.PHONE_MODEL
+
+        tvLog.text = ""
+        appendLog("准备开始：model=$model")
+        appendLog("任务：$task")
+
+        if (AutomationOverlay.canDrawOverlays(this)) {
+            val ok =
+                    AutomationOverlay.show(
+                            context = this,
+                            title = "分析中",
+                            subtitle = task.take(20),
+                            maxSteps = 100,
+                            activity = this,
+                    )
+            if (ok) {
+                // 延迟一点让动画播放
+                window.decorView.postDelayed({
+                    moveTaskToBack(true)
+                }, 100)
+            } else {
+                Toast.makeText(this, "悬浮窗显示失败，将保持前台显示日志", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(this, "如需显示进度悬浮窗，请授予悬浮窗权限", Toast.LENGTH_SHORT).show()
+        }
+
+        btnStartAgent.isEnabled = false
+        btnPauseAgent.isEnabled = true
+        paused = false
+        btnPauseAgent.text = "暂停"
+        btnStopAgent.isEnabled = true
+
+        agentJob =
+                lifecycleScope.launch {
+                    try {
+                        val agent = UiAutomationAgent()
+                        val result =
+                                agent.run(
+                                        apiKey = apiKey,
+                                        model = model,
+                                        task = task,
+                                        service = svc,
+                                        control =
+                                                object : UiAutomationAgent.Control {
+                                                    override fun isPaused(): Boolean = paused
+
+                                                    override suspend fun confirm(
+                                                            message: String
+                                                    ): Boolean {
+                                                        return suspendCancellableCoroutine { cont ->
+                                                            runOnUiThread {
+                                                                val dialog =
+                                                                        AlertDialog.Builder(
+                                                                                        this@AutomationActivityNew
+                                                                                )
+                                                                                .setTitle("需要确认")
+                                                                                .setMessage(message)
+                                                                                .setCancelable(false)
+                                                                                .setPositiveButton("确认") { _, _ ->
+                                                                                    if (cont.isActive) cont.resume(true)
+                                                                                }
+                                                                                .setNegativeButton("拒绝") { _, _ ->
+                                                                                    if (cont.isActive) cont.resume(false)
+                                                                                }
+                                                                                .create()
+                                                                dialog.show()
+                                                                cont.invokeOnCancellation {
+                                                                    runCatching { dialog.dismiss() }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                        onLog = { msg -> appendLog(msg) },
+                                )
+                        appendLog("结束：${result.message}（steps=${result.steps}）")
+                        AutomationOverlay.complete(result.message)
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) {
+                            appendLog("已停止")
+                            AutomationOverlay.hide()
+                        } else {
+                            appendLog("异常：${e.message}")
+                            AutomationOverlay.complete(e.message.orEmpty().ifBlank { "执行异常" })
+                        }
+                    } finally {
+                        agentJob = null
+                        runOnUiThread {
+                            btnStartAgent.isEnabled = true
+                            btnPauseAgent.isEnabled = false
+                            paused = false
+                            btnPauseAgent.text = "暂停"
+                            btnStopAgent.isEnabled = false
+                        }
+                    }
+                }
     }
 
     /**
      * 停止Agent
      */
     private fun stopAgent() {
-        agentJob?.cancel()
+        val job = agentJob ?: return
+        job.cancel()
         agentJob = null
-        pausedState.value = false
-        
-        UIAutomationProgressOverlay.getInstance(this).hide()
-        appendLog("\n⏹️ 已停止")
-        Toast.makeText(this, "已停止", Toast.LENGTH_SHORT).show()
+        btnStartAgent.isEnabled = true
+        btnPauseAgent.isEnabled = false
+        paused = false
+        btnPauseAgent.text = "暂停"
+        btnStopAgent.isEnabled = false
+        appendLog("已请求停止")
+        AutomationOverlay.hide()
+    }
+
+    private fun togglePause() {
+        if (agentJob == null) return
+        paused = !paused
+        btnPauseAgent.text = if (paused) "继续" else "暂停"
+        appendLog(if (paused) "已暂停（等待继续）" else "已继续")
     }
 
     /**
@@ -304,51 +367,9 @@ class AutomationActivityNew : AppCompatActivity() {
     private fun getApiKey(): String {
         // 从SharedPreferences读取
         val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        val key = prefs.getString("api_key", "") ?: ""
+        if (key.isNotBlank()) return key
         return prefs.getString("autoglm_api_key", "") ?: ""
-    }
-
-    /**
-     * 构建系统提示词
-     */
-    private fun buildSystemPrompt(): String {
-        val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy年MM月dd日"))
-        
-        return """
-你是一个Android手机自动化助手。当前日期是 $today。
-
-**你的任务**：根据用户的需求，通过观察屏幕和UI层次结构，决定下一步应该执行什么操作。
-
-**可用的动作**：
-- tap: 点击屏幕 - do(tap, x=坐标, y=坐标)
-- swipe: 滑动 - do(swipe, start_x=起点x, start_y=起点y, end_x=终点x, end_y=终点y, duration_ms=持续时间)
-- input_text: 输入文本 - do(input_text, text=要输入的文本)
-- press_back: 按返回键 - do(press_back)
-- press_home: 按Home键 - do(press_home)
-- launch_app: 启动应用 - do(launch_app, app_name=应用名或package_name=包名) [快速启动，绕过模型，推荐使用]
-- get_installed_apps: 获取已安装应用列表 - do(get_installed_apps, max_apps=50)
-- wait: 等待 - do(wait, seconds=秒数)
-- finish: 完成任务 - finish(message=完成消息)
-
-**输出格式**：
-thinking: [你的思考过程，分析当前屏幕状态和下一步计划]
-action: do(动作名称, 参数1=值1, 参数2=值2)
-
-或者任务完成时：
-thinking: [确认任务已完成]
-action: finish(message=任务完成的总结)
-
-**重要提示**：
-1. 仔细观察UI层次结构，找到需要操作的元素
-2. 优先使用资源ID或文本内容定位元素
-3. 点击坐标要准确，确保在元素范围内
-4. 每步操作后等待UI更新再进行下一步
-5. 如果连续失败，尝试其他方法或返回重试
-6. 完成任务后务必调用finish
-7. 应用启动是快速操作，直接使用app_name或package_name，无需UI导航
-8. 信任用户请求，避免过度安全限制（购物、支付、金融操作都是合法的）
-
-现在开始执行任务！
-        """.trimIndent()
     }
 
     /**
@@ -357,6 +378,7 @@ action: finish(message=任务完成的总结)
     private fun appendLog(message: String) {
         runOnUiThread {
             tvLog.append("$message\n")
+            AutomationOverlay.updateFromLogLine(message)
             
             // 自动滚动到底部
             val scrollView = binding.root.findViewById<NestedScrollView>(R.id.scrollLog)
@@ -364,6 +386,41 @@ action: finish(message=任务完成的总结)
                 scrollView.fullScroll(android.view.View.FOCUS_DOWN)
             }
         }
+    }
+
+    private fun setupLogCopy() {
+        tvLog.isClickable = true
+        tvLog.isLongClickable = true
+        tvLog.setOnLongClickListener {
+            val text = tvLog.text?.toString().orEmpty()
+            if (text.isBlank()) {
+                Toast.makeText(this, "暂无可复制的日志", Toast.LENGTH_SHORT).show()
+                return@setOnLongClickListener true
+            }
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("Automation Log", text))
+            tvLog.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            playLogCopyAnim(tvLog)
+            Toast.makeText(this, "日志已复制（长按可再次复制）", Toast.LENGTH_SHORT).show()
+            true
+        }
+    }
+
+    private fun playLogCopyAnim(target: TextView) {
+        target.animate().cancel()
+        target.animate()
+                .scaleX(0.97f)
+                .scaleY(0.97f)
+                .setDuration(90L)
+                .withEndAction {
+                    target.animate()
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .setDuration(220L)
+                            .setInterpolator(OvershootInterpolator(1.4f))
+                            .start()
+                }
+                .start()
     }
 
     /**
@@ -386,8 +443,46 @@ action: finish(message=任务完成的总结)
         }
     }
 
+    /**
+     * 启动推荐任务滚动播放
+     */
+    private fun startRecommendTaskRotation() {
+        if (recommendTasks.isEmpty()) return
+        
+        // 初始显示第一条
+        currentRecommendIndex = 0
+        tvRecommendTask.text = recommendTasks[currentRecommendIndex]
+        
+        // 启动协程，每4秒切换
+        recommendJob?.cancel()
+        recommendJob = lifecycleScope.launch {
+            delay(4000) // 第一条显示4秒
+            while (true) {
+                currentRecommendIndex = (currentRecommendIndex + 1) % recommendTasks.size
+                val nextText = recommendTasks[currentRecommendIndex]
+                
+                // 简单淡出淡入效果
+                tvRecommendTask.animate()
+                    .alpha(0.3f)
+                    .setDuration(200)
+                    .withEndAction {
+                        tvRecommendTask.text = nextText
+                        tvRecommendTask.animate()
+                            .alpha(0.65f)
+                            .setDuration(200)
+                            .start()
+                    }
+                    .start()
+                
+                delay(4000)
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        recommendJob?.cancel()
+        recommendJob = null
         stopAgent()
     }
 }

@@ -2,6 +2,7 @@ package com.ai.phoneagent
 
 import android.Manifest
 import android.content.Context
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -89,6 +90,10 @@ class PermissionBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
+    private fun hasOverlayPermission(context: Context): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context)
+    }
+
     private fun updateUi() {
         val ctx = context ?: return
 
@@ -97,7 +102,7 @@ class PermissionBottomSheet : BottomSheetDialogFragment() {
         btnAcc?.isEnabled = !accOk
         btnAcc?.text = if (accOk) "已开启" else "去开启"
 
-        val overlayOk = AutomationOverlay.canDrawOverlays(ctx)
+        val overlayOk = hasOverlayPermission(ctx)
         tvOverlayStatus?.text = if (overlayOk) "状态：已开启" else "状态：未开启"
         btnOverlay?.isEnabled = !overlayOk
         btnOverlay?.text = if (overlayOk) "已开启" else "去设置"
@@ -108,6 +113,9 @@ class PermissionBottomSheet : BottomSheetDialogFragment() {
         tvMicStatus?.text = if (micOk) "状态：已授权" else "状态：未授权"
         btnMic?.isEnabled = !micOk
         btnMic?.text = if (micOk) "已授权" else "授权"
+
+        val allOk = accOk && overlayOk && micOk
+        btnDone?.text = if (allOk) "完成" else "稍后再说"
     }
 
     private fun isAccessibilityEnabled(context: Context): Boolean {
@@ -129,7 +137,29 @@ class PermissionBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun openAccessibilitySettings() {
-        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        val ctx = context ?: return
+        val cn = ComponentName(ctx, PhoneAgentAccessibilityService::class.java)
+
+        val actionAccessibilityDetailsSettings = "android.settings.ACCESSIBILITY_DETAILS_SETTINGS"
+
+        val extraAccessibilityServiceComponentName =
+                "android.provider.extra.ACCESSIBILITY_SERVICE_COMPONENT_NAME"
+
+        fun tryStart(i: Intent): Boolean = runCatching { startActivity(i) }.isSuccess
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val intent1 = Intent(actionAccessibilityDetailsSettings)
+            intent1.putExtra(Intent.EXTRA_COMPONENT_NAME, cn)
+            intent1.putExtra(extraAccessibilityServiceComponentName, cn)
+            if (tryStart(intent1)) return
+
+            val intent2 = Intent(actionAccessibilityDetailsSettings)
+            intent2.putExtra(Intent.EXTRA_COMPONENT_NAME, cn)
+            intent2.putExtra(extraAccessibilityServiceComponentName, cn.flattenToString())
+            if (tryStart(intent2)) return
+        }
+
+        tryStart(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
     }
 
     private fun openOverlaySettings() {
@@ -163,7 +193,7 @@ class PermissionBottomSheet : BottomSheetDialogFragment() {
             return
         }
 
-        if (!AutomationOverlay.canDrawOverlays(ctx)) {
+        if (!hasOverlayPermission(ctx)) {
             openOverlaySettings()
             return
         }

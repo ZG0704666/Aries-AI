@@ -6,17 +6,17 @@
         android:title="新对话"
         android:icon="@drawable/ic_new_chat_24"
         android:orderInCategory="10"
-        app:showAsAction="always" />
+        app:showAsAction="ifRoom" />
     <item
         android:id="@+id/action_history"
         android:title="历史对话"
         android:icon="@drawable/ic_history_24"
         android:orderInCategory="20"
-        app:showAsAction="always" />
+        app:showAsAction="ifRoom" />
     <item
         android:id="@+id/action_floating_window"
         android:title="小窗模式"
         android:icon="@drawable/ic_floating_window_24"
         android:orderInCategory="30"
-        app:showAsAction="always" />
+        app:showAsAction="ifRoom" />
 </menu>

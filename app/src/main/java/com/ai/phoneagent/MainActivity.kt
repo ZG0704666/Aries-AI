@@ -95,7 +95,11 @@ class MainActivity : AppCompatActivity() {
 
     private var micAnimator: ObjectAnimator? = null
 
-    private var thinkingView: TextView? = null
+    private var thinkingView: View? = null
+    private var thinkingTextView: TextView? = null
+
+    // 防止并发请求导致重试时更容易出现空回复/失败提示
+    private var isRequestInFlight: Boolean = false
 
     private var voiceInputAnimJob: Job? = null
     private var savedInputText: String = ""
@@ -295,6 +299,9 @@ class MainActivity : AppCompatActivity() {
 
         // 设置消息同步监听器
         setupMessageSyncListener()
+
+        // 防止返回应用后气泡底部的复制/重试按钮被隐藏
+        revealActionAreasForMessages()
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -310,7 +317,7 @@ class MainActivity : AppCompatActivity() {
         // 不再清除消息同步监听器，保持双向同步
         // 监听器会在 Activity 销毁时自动失效
     }
-    
+
     /**
      * 设置消息同步监听器，用于接收悬浮窗中的新消息
      */
@@ -320,15 +327,23 @@ class MainActivity : AppCompatActivity() {
                 // 在主线程更新 UI
                 runOnUiThread {
                     val c = requireActiveConversation()
-                    val content = message.removePrefix("我: ").removePrefix("AI: ")
-                    val author = if (isUser) "我" else "AI"
+                    val content =
+                        message
+                            .removePrefix("我: ")
+                            .removePrefix("AI: ")
+                            .removePrefix("Aries: ")
+                    val author = if (isUser) "我" else "Aries"
                     
                     // 检查是否已存在该消息（避免重复）
                     val exists = c.messages.any { it.content == content && it.isUser == isUser }
                     if (!exists) {
                         c.messages.add(UiMessage(author = author, content = content, isUser = isUser))
                         c.updatedAt = System.currentTimeMillis()
-                        appendMessageInstant(author, content, isUser)
+                        if (isUser) {
+                            appendComplexUserMessage(author, content, animate = false)
+                        } else {
+                            appendComplexAiMessage(author, content, animate = false, timeCostMs = 0)
+                        }
                         persistConversations()
                     }
                 }
@@ -356,6 +371,17 @@ class MainActivity : AppCompatActivity() {
             sendBroadcast(
                 Intent(FloatingChatService.ACTION_FLOATING_RETURNED).setPackage(packageName)
             )
+        }
+
+        // 【减轻闪动】禁用过渡动画，并用轻微淡入接管首帧观感
+        runCatching { overridePendingTransition(0, 0) }
+        binding.contentRoot.alpha = 0.92f
+        binding.contentRoot.post {
+            binding.contentRoot.animate().cancel()
+            binding.contentRoot.animate()
+                .alpha(1f)
+                .setDuration(120)
+                .start()
         }
 
         // 同步悬浮窗中的消息到主界面
@@ -397,6 +423,8 @@ class MainActivity : AppCompatActivity() {
             val content =
                 msg.removePrefix("我: ")
                     .removePrefix("我:")
+                    .removePrefix("Aries: ")
+                    .removePrefix("Aries:")
                     .removePrefix("AI: ")
                     .removePrefix("AI:")
                     .trim()
@@ -407,7 +435,7 @@ class MainActivity : AppCompatActivity() {
             // 检查是否已存在该消息
             val exists = c.messages.any { it.content == content && it.isUser == isUser }
             if (!exists) {
-                val author = if (isUser) "我" else "AI"
+                val author = if (isUser) "我" else "Aries"
                 c.messages.add(UiMessage(author = author, content = content, isUser = isUser))
             }
         }
@@ -492,7 +520,7 @@ class MainActivity : AppCompatActivity() {
         // 收集当前聊天消息传递给小窗
         val messagesList = ArrayList<String>()
         activeConversation?.messages?.forEach { msg ->
-            messagesList.add("${if (msg.isUser) "我" else "AI"}: ${msg.content}")
+            messagesList.add("${if (msg.isUser) "我" else "Aries"}: ${msg.content}")
         }
 
         // 启动悬浮窗服务，传递消息和位置
@@ -705,7 +733,7 @@ class MainActivity : AppCompatActivity() {
             when (item.itemId) {
                 R.id.nav_automation -> {
                     vibrateLight()
-                    startActivity(android.content.Intent(this, AutomationActivity::class.java))
+                    startActivity(android.content.Intent(this, AutomationActivityNew::class.java))
                     binding.drawerLayout.closeDrawer(GravityCompat.START)
                 }
                 R.id.nav_about -> {
@@ -905,6 +933,19 @@ class MainActivity : AppCompatActivity() {
                     override fun afterTextChanged(s: Editable?) {}
                 }
         )
+
+        // 部分设备从后台返回后首次点击输入框不弹出键盘，这里在触摸时主动请求焦点并唤起软键盘
+        binding.inputMessage.setOnTouchListener { v, event ->
+            if (event.action == MotionEvent.ACTION_DOWN && !binding.inputMessage.isFocused) {
+                binding.inputMessage.requestFocus()
+                binding.inputMessage.post {
+                    val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    imm.showSoftInput(binding.inputMessage, InputMethodManager.SHOW_IMPLICIT)
+                }
+            }
+            // 返回 false 让 EditText 继续处理点击（光标、选择等）
+            false
+        }
     }
 
     private fun hideKeyboard() {
@@ -1015,11 +1056,30 @@ class MainActivity : AppCompatActivity() {
     private fun renderConversation(conversation: Conversation) {
         binding.messagesContainer.removeAllViews()
         for (m in conversation.messages) {
-            appendMessageInstant(m.author, m.content, m.isUser)
+            // 历史消息全部使用新的复杂气泡（如果是AI），确保视觉风格统一
+            if (!m.isUser) {
+                // 无论是包含 <think> 还是普通消息，都使用 appendComplexAiMessage
+                // 使用 animate = false 立即显示
+                appendComplexAiMessage(m.author, m.content, animate = false, timeCostMs = 0)
+            } else {
+                appendComplexUserMessage(m.author, m.content, animate = false)
+            }
+        }
+        
+        // 渲染完后滚动到底部
+        binding.messagesContainer.post {
+            (binding.messagesContainer.parent as? android.widget.ScrollView)?.fullScroll(
+                android.view.View.FOCUS_DOWN
+            )
         }
     }
 
-    private fun sendMessage(text: String) {
+    private fun sendMessage(text: String, resendUser: Boolean = true) {
+
+        if (isRequestInFlight) {
+            Toast.makeText(this, "正在生成回复，请稍后…", Toast.LENGTH_SHORT).show()
+            return
+        }
 
         val apiKey = prefs.getString("api_key", "") ?: ""
 
@@ -1036,42 +1096,427 @@ class MainActivity : AppCompatActivity() {
         if (c.title.isBlank()) {
             c.title = text.take(18)
         }
-        c.messages.add(UiMessage(author = "我", content = text, isUser = true))
-        c.updatedAt = System.currentTimeMillis()
-        persistConversations()
-
-        appendMessageTyping("我", text, true)
         
-        // 同步消息到悬浮窗（如果运行中）
-        if (FloatingChatService.isRunning()) {
-            FloatingChatService.getInstance()?.addMessage("我: $text", isUser = true)
-        }
-
-        binding.inputMessage.text?.clear()
-        showThinking()
-
-        lifecycleScope.launch {
-            val reply =
-                    withContext(Dispatchers.IO) {
-                        AutoGlmClient.sendChat(
-                                apiKey = apiKey,
-                                messages = listOf(ChatRequestMessage(role = "user", content = text))
-                        )
-                    }
-
-            val finalReply = reply ?: "（无回复或请求失败）"
-
-            val cc = requireActiveConversation()
-            cc.messages.add(UiMessage(author = "模型", content = finalReply, isUser = false))
-            cc.updatedAt = System.currentTimeMillis()
+        if (resendUser) {
+            c.messages.add(UiMessage(author = "我", content = text, isUser = true))
+            c.updatedAt = System.currentTimeMillis()
             persistConversations()
 
-            removeThinking()
-            appendMessageTyping("模型", finalReply, false, true)
+            appendComplexUserMessage("我", text, animate = true)
             
-            // 同步 AI 回复到悬浮窗（如果运行中）
+            // 同步消息到悬浮窗（如果运行中）
             if (FloatingChatService.isRunning()) {
-                FloatingChatService.getInstance()?.addMessage("AI: $finalReply", isUser = false)
+                FloatingChatService.getInstance()?.addMessage("我: $text", isUser = true)
+            }
+
+            binding.inputMessage.text?.clear()
+        }
+
+        showThinking()
+        
+        val startTime = System.currentTimeMillis()
+
+        isRequestInFlight = true
+        lifecycleScope.launch {
+            try {
+                // 【修复】构建完整的对话历史，让AI能看到上下文
+                val chatHistory = buildChatHistory(c)
+
+                var reply: String? = null
+                var lastError: Throwable? = null
+                val maxAttempts = 2
+                for (attempt in 1..maxAttempts) {
+                    val result =
+                        runCatching {
+                            withContext(Dispatchers.IO) {
+                                AutoGlmClient.sendChat(
+                                    apiKey = apiKey,
+                                    messages = chatHistory
+                                )
+                            }
+                        }
+                    reply = result.getOrNull()
+                    if (!reply.isNullOrBlank()) break
+                    lastError = result.exceptionOrNull()
+                    if (attempt < maxAttempts) delay(250L * attempt)
+                }
+                        
+                val timeCost = System.currentTimeMillis() - startTime
+
+                val finalReply =
+                    if (!reply.isNullOrBlank()) {
+                        reply!!
+                    } else {
+                        val hint = lastError?.message?.take(60)?.trim().orEmpty()
+                        if (hint.isNotBlank()) "（请求失败：$hint）" else "（请求失败，请稍后点击重试）"
+                    }
+
+                val cc = requireActiveConversation()
+                cc.messages.add(UiMessage(author = "Aries", content = finalReply, isUser = false))
+                cc.updatedAt = System.currentTimeMillis()
+                persistConversations()
+
+                removeThinking()
+                
+                // 【优化】使用复杂布局显示 AI 回复（支持思考过程和流式动画）
+                appendComplexAiMessage("Aries", finalReply, animate = true, timeCostMs = timeCost)
+                
+                // 同步 AI 回复到悬浮窗（如果运行中）
+                if (FloatingChatService.isRunning()) {
+                    FloatingChatService.getInstance()?.addMessage("Aries: $finalReply", isUser = false)
+                }
+            } finally {
+                isRequestInFlight = false
+            }
+        }
+    }
+    
+    /**
+     * 构建完整的对话历史，传递给AI模型
+     * 包含系统提示和最近的对话上下文
+     */
+    private fun buildChatHistory(conversation: Conversation): List<ChatRequestMessage> {
+        val history = mutableListOf<ChatRequestMessage>()
+        
+        // 添加系统提示
+        history.add(ChatRequestMessage(
+            role = "system",
+            content = "你是Aries AI，一个全能AI助手，旨在解决用户提出的任何任务。请用简洁、友好的方式回复用户。如果问题较复杂，请先进行思考，思考过程用 <think>...</think> 包裹，然后再给出最终答复。"
+        ))
+        
+        // 添加对话历史（最多保留最近10轮对话，避免上下文过长）
+        val recentMessages = conversation.messages.takeLast(20) // 10轮对话 = 20条消息
+        for (msg in recentMessages) {
+            val content = if (!msg.isUser) {
+                // 历史记录传递给模型时，如果包含 <think>，是否保留？
+                // 通常保留可以让模型知道之前的思考逻辑，但也可能浪费 token。
+                // 这里选择保留完整内容。
+                msg.content
+            } else {
+                msg.content
+            }
+            
+            history.add(ChatRequestMessage(
+                role = if (msg.isUser) "user" else "assistant",
+                content = content
+            ))
+        }
+        
+        return history
+    }
+
+    /**
+     * 解析并显示复杂的 AI 消息（包含思考过程）
+     * 支持淡蓝色液态玻璃框、思考过程折叠、打字机动画、丝滑滚动
+     */
+    private fun appendComplexAiMessage(
+        author: String,
+        fullContent: String,
+        animate: Boolean,
+        timeCostMs: Long
+    ) {
+        // 1. Inflate 复杂布局
+        val view = layoutInflater.inflate(R.layout.item_ai_message_complex, binding.messagesContainer, false)
+        binding.messagesContainer.addView(view)
+        
+        val thinkingLayout = view.findViewById<LinearLayout>(R.id.thinking_layout)
+        val thinkingHeader = view.findViewById<LinearLayout>(R.id.thinking_header)
+        val thinkingText = view.findViewById<TextView>(R.id.thinking_text)
+        val thinkingIndicator = view.findViewById<TextView>(R.id.thinking_indicator_text)
+        val messageContent = view.findViewById<TextView>(R.id.message_content)
+        val authorName = view.findViewById<TextView>(R.id.ai_author_name)
+        
+        // 解析内容
+        val thinkRegex = "<think>([\\s\\S]*?)</think>([\\s\\S]*)".toRegex()
+        val match = thinkRegex.find(fullContent)
+        
+        val thinkContent = match?.groupValues?.get(1)?.trim()
+        val realContent = match?.groupValues?.get(2)?.trim() ?: fullContent
+        
+        // 设置作者名
+        authorName.text = author
+        authorName.visibility = View.VISIBLE
+        
+        // 设置思考部分交互
+        if (!thinkContent.isNullOrBlank()) {
+            thinkingLayout.visibility = View.VISIBLE
+            val seconds = (timeCostMs / 1000).coerceAtLeast(1)
+            val headerTitle = thinkingHeader.getChildAt(0) as TextView
+            headerTitle.text = "已思考 (用时 ${seconds} 秒)"
+            
+            var isExpanded = true
+            thinkingHeader.setOnClickListener {
+                isExpanded = !isExpanded
+                if (isExpanded) {
+                    thinkingText.visibility = View.VISIBLE
+                    thinkingIndicator.text = " ⌄" // Down arrow (expanded)
+                    (view.findViewById<View>(R.id.thinking_content_area)).visibility = View.VISIBLE
+                } else {
+                    thinkingText.visibility = View.GONE
+                    thinkingIndicator.text = " ›" // Right arrow (collapsed)
+                    (view.findViewById<View>(R.id.thinking_content_area)).visibility = View.GONE
+                }
+            }
+        } else {
+            thinkingLayout.visibility = View.GONE
+        }
+        
+        smoothScrollToBottom()
+
+        if (!animate) {
+            // 无动画直接显示
+            if (!thinkContent.isNullOrBlank()) thinkingText.text = thinkContent
+            messageContent.text = realContent
+            return
+        }
+        
+        // 动画显示逻辑
+        lifecycleScope.launch {
+            // 1. 如果有思考内容，先播放思考打字机
+            if (!thinkContent.isNullOrBlank()) {
+                val sb = StringBuilder()
+                val chunkSize = 5
+                var index = 0
+                while (index < thinkContent.length) {
+                    val end = minOf(index + chunkSize, thinkContent.length)
+                    sb.append(thinkContent.substring(index, end))
+                    thinkingText.text = sb.toString()
+                    index = end
+                    
+                    smoothScrollToBottom()
+                    delay(10) // 思考过程刷快一点
+                }
+                thinkingText.text = thinkContent // 确保完整
+                delay(200) // 思考完停顿一下
+            }
+            
+            // 2. 播放正文打字机
+            val sb = StringBuilder()
+            val chunkSize = 2 // 正文稍微慢一点，更像打字
+            var index = 0
+            while (index < realContent.length) {
+                val end = minOf(index + chunkSize, realContent.length)
+                val chunk = realContent.substring(index, end)
+                sb.append(chunk)
+                messageContent.text = sb.toString()
+                index = end
+                
+                smoothScrollToBottom()
+                
+                // 根据标点调整节奏
+                val lastChar = chunk.lastOrNull() ?: ' '
+                val d = when (lastChar) {
+                    '。', '！', '？', '\n' -> 50L
+                    '，', '；' -> 30L
+                    else -> 10L // 默认很快，丝滑
+                }
+                delay(d)
+            }
+            messageContent.text = realContent
+            
+            // 动画结束后显示底部操作栏（分割线+复制/重试）
+            val actionArea = view.findViewById<View>(R.id.action_area)
+            actionArea.visibility = View.VISIBLE
+            smoothScrollToBottom()
+        }
+        
+        // 绑定复制和重试按钮事件
+        val btnCopy = view.findViewById<View>(R.id.btn_copy)
+        btnCopy.setOnClickListener {
+            val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            // 复制时是否包含思考过程？DeepSeek 通常只复制正文
+            val clip = android.content.ClipData.newPlainText("AI Reply", realContent)
+            cm.setPrimaryClip(clip)
+            Toast.makeText(this@MainActivity, "已复制内容", Toast.LENGTH_SHORT).show()
+        }
+
+        val btnRetry = view.findViewById<View>(R.id.btn_retry)
+        btnRetry.setOnClickListener {
+            // 重试逻辑：获取上一条用户消息，重新发送
+            val c = activeConversation
+            if (c != null && c.messages.isNotEmpty()) {
+                val lastUserMsg = c.messages.findLast { it.isUser }
+                if (lastUserMsg != null) {
+                    sendMessage(lastUserMsg.content, resendUser = false)
+                }
+            }
+        }
+        
+        if (!animate) {
+            // 如果非动画模式（如历史记录），直接显示操作栏
+            view.findViewById<View>(R.id.action_area).visibility = View.VISIBLE
+        }
+    }
+    
+    /**
+     * 丝滑滚动到底部
+     */
+    private fun smoothScrollToBottom() {
+        binding.messagesContainer.post {
+            val scrollView = binding.messagesContainer.parent as? android.widget.ScrollView ?: return@post
+            // 检查是否需要滚动：如果已经在底部附近，则跟随滚动
+            val viewHeight = binding.messagesContainer.height
+            val scrollViewHeight = scrollView.height
+            val scrollY = scrollView.scrollY
+            
+            // 容差值，判定是否在底部
+            val isAtBottom = (viewHeight - (scrollY + scrollViewHeight)) < 300 
+            
+            // 强制滚动，或者仅当用户没往回滚时滚动？
+            // 用户要求“同步下移”，通常是强制跟随。
+            scrollView.smoothScrollTo(0, viewHeight)
+        }
+    }
+
+    /**
+     * 重新进入页面时，确保所有已渲染的 AI 气泡都展示底部操作区（复制/重试）。
+     * 某些情况下（如动画被打断或 Activity 复用）action_area 可能保持 GONE 状态。
+     */
+    private fun revealActionAreasForMessages() {
+        val container = binding.messagesContainer
+        for (i in 0 until container.childCount) {
+            val child = container.getChildAt(i)
+            val actionArea = child.findViewById<View?>(R.id.action_area)
+            // thinking 占位或非标准布局可能没有 action_area，这里仅对存在的进行显隐修正
+            if (actionArea != null && actionArea.visibility != View.VISIBLE) {
+                actionArea.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    /**
+     * 用户消息复杂气泡：淡水蓝背景，右侧对齐，并与底部输入栏左右边界保持一致。
+     */
+    private fun appendComplexUserMessage(author: String, content: String, animate: Boolean) {
+        val bubble = layoutInflater.inflate(R.layout.item_user_message_complex, binding.messagesContainer, false)
+        val tv = bubble.findViewById<TextView>(R.id.message_content)
+        val authorTv = bubble.findViewById<TextView>(R.id.user_author_name)
+        authorTv.text = author
+        authorTv.visibility = View.GONE
+
+        val density = resources.displayMetrics.density
+        fun dp(v: Int): Int = (v * density).toInt()
+
+        // 用 row 容器把气泡贴到右侧（row 宽度 match_parent）
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END
+        }
+
+        row.addView(
+            bubble,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                // 左侧留出空间制造“对话层次”，右侧贴边由 row + ScrollView padding 保证
+                setMargins(dp(48), dp(8), 0, dp(8))
+            }
+        )
+
+        binding.messagesContainer.addView(
+            row,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        smoothScrollToBottom()
+
+        if (!animate) {
+            tv.text = content
+            return
+        }
+
+        lifecycleScope.launch {
+            val sb = StringBuilder()
+            val chunkSize = 2
+            var idx = 0
+            while (idx < content.length) {
+                val end = minOf(idx + chunkSize, content.length)
+                sb.append(content.substring(idx, end))
+                tv.text = sb.toString()
+                idx = end
+                smoothScrollToBottom()
+                delay(10)
+            }
+            tv.text = content
+        }
+    }
+    
+    /**
+     * 【优化】使用StringBuilder批量更新方式显示消息
+     * 参考Operit的groupBy算法，每次收到一点就拼接，然后刷新整个文本
+     */
+    private fun appendMessageBatch(
+            author: String,
+            content: String,
+            isUser: Boolean,
+    ) {
+        val tv =
+                TextView(this).apply {
+                    text = "$author："
+                    setPadding(20, 12, 20, 12)
+                    background =
+                            ContextCompat.getDrawable(
+                                    this@MainActivity,
+                                    if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
+                            )
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.blue_glass_text))
+                }
+
+        val lp =
+                LinearLayout.LayoutParams(
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                LinearLayout.LayoutParams.WRAP_CONTENT
+                        )
+                        .apply {
+                            setMargins(12, 8, 12, 8)
+                            gravity = if (isUser) Gravity.END else Gravity.START
+                        }
+
+        binding.messagesContainer.addView(tv, lp)
+
+        binding.messagesContainer.post {
+            (binding.messagesContainer.parent as? android.widget.ScrollView)?.fullScroll(
+                    android.view.View.FOCUS_DOWN
+            )
+        }
+
+        // 使用StringBuilder批量构建文本，分块更新UI
+        lifecycleScope.launch {
+            val sb = StringBuilder("$author：")
+            val chunkSize = 5 // 每5个字符批量更新一次
+            var charIndex = 0
+            
+            while (charIndex < content.length) {
+                // 计算本次要添加的字符数
+                val endIndex = minOf(charIndex + chunkSize, content.length)
+                val chunk = content.substring(charIndex, endIndex)
+                sb.append(chunk)
+                
+                // 刷新整个文本到界面
+                tv.text = sb.toString()
+                
+                charIndex = endIndex
+                
+                // 根据标点符号调整延迟，让显示更自然
+                val lastChar = chunk.lastOrNull() ?: ' '
+                val delayMs = when (lastChar) {
+                    '。', '！', '？', '.', '!', '?' -> 80L
+                    '，', '、', '；', ',', ';', '：', ':' -> 50L
+                    '\n' -> 60L
+                    else -> 25L
+                }
+                delay(delayMs)
+            }
+            
+            // 最终滚动到底部
+            binding.messagesContainer.post {
+                (binding.messagesContainer.parent as? android.widget.ScrollView)?.fullScroll(
+                        android.view.View.FOCUS_DOWN
+                )
             }
         }
     }
@@ -1084,7 +1529,7 @@ class MainActivity : AppCompatActivity() {
                     background =
                             ContextCompat.getDrawable(
                                     this@MainActivity,
-                                    if (isUser) R.drawable.bubble_user else R.drawable.bubble_bot
+                                    if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
                             )
                     setTextColor(ContextCompat.getColor(this@MainActivity, R.color.blue_glass_text))
                 }
@@ -1121,7 +1566,7 @@ class MainActivity : AppCompatActivity() {
                     background =
                             ContextCompat.getDrawable(
                                     this@MainActivity,
-                                    if (isUser) R.drawable.bubble_user else R.drawable.bubble_bot
+                                    if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
                             )
 
                     setTextColor(ContextCompat.getColor(this@MainActivity, R.color.blue_glass_text))
@@ -1168,29 +1613,30 @@ class MainActivity : AppCompatActivity() {
 
     private fun showThinking() {
         removeThinking()
-        val tv =
-                TextView(this).apply {
-                    text = "模型：正在思考"
-                    setPadding(20, 12, 20, 12)
-                    background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bubble_bot)
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.blue_glass_text))
-                }
-        val lp =
-                LinearLayout.LayoutParams(
-                                LinearLayout.LayoutParams.WRAP_CONTENT,
-                                LinearLayout.LayoutParams.WRAP_CONTENT
-                        )
-                        .apply {
-                            setMargins(12, 8, 12, 8)
-                            gravity = Gravity.START
-                        }
-        binding.messagesContainer.addView(tv, lp)
-        thinkingView = tv
+
+        val view = layoutInflater.inflate(R.layout.item_ai_message_complex, binding.messagesContainer, false)
+        val authorName = view.findViewById<TextView>(R.id.ai_author_name)
+        val messageContent = view.findViewById<TextView>(R.id.message_content)
+        val thinkingLayout = view.findViewById<View>(R.id.thinking_layout)
+        val actionArea = view.findViewById<View>(R.id.action_area)
+
+        authorName.text = "Aries"
+        authorName.visibility = View.VISIBLE
+        thinkingLayout.visibility = View.GONE
+        actionArea.visibility = View.GONE
+
+        messageContent.text = "正在思考"
+        messageContent.setTextColor(Color.parseColor("#80505050"))
+
+        binding.messagesContainer.addView(view)
+        thinkingView = view
+        thinkingTextView = messageContent
+
         lifecycleScope.launch {
             var n = 0
-            while (thinkingView === tv) {
+            while (thinkingView === view) {
                 val dots = ".".repeat(n % 4)
-                tv.text = "模型：正在思考$dots"
+                thinkingTextView?.text = "正在思考$dots"
                 n++
                 delay(400)
             }
@@ -1203,9 +1649,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun removeThinking() {
-        val tv = thinkingView ?: return
-        binding.messagesContainer.removeView(tv)
+        val v = thinkingView ?: return
+        binding.messagesContainer.removeView(v)
         thinkingView = null
+        thinkingTextView = null
     }
 
     private fun initSherpaModel() {

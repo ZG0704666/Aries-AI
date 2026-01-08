@@ -89,15 +89,15 @@ class SherpaSpeechRecognizer(private val context: Context) {
         Log.d(TAG, "Initializing sherpa-ncnn...")
         return try {
             withContext(Dispatchers.IO) {
-                createRecognizer()
-                if (recognizer != null) {
-                    Log.d(TAG, "sherpa-ncnn initialized successfully")
-                    isInitialized = true
-                    true
-                } else {
+                val created = createRecognizer()
+                if (!created || recognizer == null) {
                     Log.e(TAG, "Failed to create sherpa-ncnn recognizer")
-                    false
+                    return@withContext false
                 }
+
+                Log.d(TAG, "sherpa-ncnn initialized successfully")
+                isInitialized = true
+                true
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize sherpa-ncnn", e)
@@ -143,17 +143,25 @@ class SherpaSpeechRecognizer(private val context: Context) {
         return targetDir
     }
 
-    private fun createRecognizer() {
-        val localModelDir: File
-        try {
-            // 模型目录名（中英文双语模型）
-            val modelDirName = "sherpa-ncnn-streaming-zipformer-bilingual-zh-en-2023-02-13"
-            val assetModelDir = "sherpa-models/$modelDirName"
-            localModelDir = copyAssetDirToCache(assetModelDir, context.filesDir)
-        } catch (e: IOException) {
-            Log.e(TAG, "Failed to copy model assets.", e)
-            return
-        }
+    private fun createRecognizer(): Boolean {
+        val modelDirName = "sherpa-ncnn-streaming-zipformer-bilingual-zh-en-2023-02-13"
+        val assetModelDir = "sherpa-models/$modelDirName"
+
+        val requiredFiles = listOf(
+            "encoder_jit_trace-pnnx.ncnn.param",
+            "encoder_jit_trace-pnnx.ncnn.bin",
+            "decoder_jit_trace-pnnx.ncnn.param",
+            "decoder_jit_trace-pnnx.ncnn.bin",
+            "joiner_jit_trace-pnnx.ncnn.param",
+            "joiner_jit_trace-pnnx.ncnn.bin",
+            "tokens.txt",
+        )
+
+        val localModelDir = ensureModelDirReady(
+            assetDir = assetModelDir,
+            targetRootDir = context.filesDir,
+            requiredFiles = requiredFiles
+        ) ?: return false
 
         val featConfig = getFeatureExtractorConfig(sampleRate = SAMPLE_RATE.toFloat(), featureDim = 80)
 
@@ -183,10 +191,50 @@ class SherpaSpeechRecognizer(private val context: Context) {
             hotwordsScore = 1.5f
         )
 
-        recognizer = SherpaNcnn(
-            config = recognizerConfig,
-            assetManager = null // Force using newFromFile
-        )
+        return try {
+            recognizer = SherpaNcnn(
+                config = recognizerConfig,
+                assetManager = null // Force using newFromFile
+            )
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create SherpaNcnn instance", e)
+            recognizer = null
+            false
+        }
+    }
+
+    private fun ensureModelDirReady(
+        assetDir: String,
+        targetRootDir: File,
+        requiredFiles: List<String>,
+    ): File? {
+        val dirName = assetDir.substringAfterLast('/')
+        val targetDir = File(targetRootDir, dirName)
+
+        fun isComplete(): Boolean {
+            if (!targetDir.exists()) return false
+            return requiredFiles.all { name ->
+                val f = File(targetDir, name)
+                f.exists() && f.isFile && f.length() > 0
+            }
+        }
+
+        // 如果缓存目录存在但不完整（常见于首次运行中断/拷贝失败），需要删除并重新拷贝
+        if (!isComplete()) {
+            if (targetDir.exists()) {
+                Log.w(TAG, "Model cache is incomplete. Re-copying model files: ${targetDir.absolutePath}")
+                runCatching { targetDir.deleteRecursively() }
+            }
+            return try {
+                copyAssetDirToCache(assetDir, targetRootDir)
+            } catch (e: IOException) {
+                Log.e(TAG, "Failed to copy model assets.", e)
+                null
+            }
+        }
+
+        return targetDir
     }
 
     /**
