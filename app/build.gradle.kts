@@ -71,6 +71,13 @@ android {
     }
 }
 
+configurations.all {
+    // 保留 org.jetbrains:annotations（显式声明版本），仅排除 org.intellij:annotations 避免重复
+    exclude(group = "org.intellij", module = "annotations")
+    // 旧库可能引入的 java5 版本注解，统一移除
+    exclude(group = "org.jetbrains", module = "annotations-java5")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -91,6 +98,19 @@ dependencies {
 
     // 后台任务（便于自动化/定时流程）
     implementation("androidx.work:work-runtime-ktx:2.9.1")
+    
+    // Markdown 渲染
+    implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:ext-strikethrough:4.6.2")
+    implementation("io.noties.markwon:ext-tables:4.6.2")
+    implementation("io.noties.markwon:syntax-highlight:4.6.2") // prism4j 已作为传递依赖，无需重复声明
+
+    // 显式添加单一版本的 annotations，供 Kotlin/Markwon 等使用
+    implementation("org.jetbrains:annotations:23.0.0")
+
+    configurations.configureEach {
+        resolutionStrategy.force("org.jetbrains:annotations:23.0.0")
+    }
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

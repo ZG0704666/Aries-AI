@@ -47,3 +47,4 @@ app/src/main/assets/sherpa-models/*
 logs/
 **/logs/
 **/*.log
+docs/思考回答区域修复说明.md

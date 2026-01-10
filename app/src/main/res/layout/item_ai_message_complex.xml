@@ -70,10 +70,13 @@
                 android:id="@+id/thinking_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="13sp"
-                android:textColor="#90404040"
-                android:lineSpacingExtra="3dp"
-                android:text="Thinking process..." />
+                android:textSize="13.5sp"
+                android:textColor="#85404040"
+                android:lineSpacingMultiplier="1.4"
+                android:text=""
+                android:minHeight="24dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp" />
         </LinearLayout>
     </LinearLayout>
 
@@ -94,9 +97,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="15sp"
-        android:textColor="#FF202020"
-        android:lineSpacingExtra="4dp"
-        android:textIsSelectable="true" />
+        android:textColor="#FF1A1A1A"
+        android:lineSpacingMultiplier="1.5"
+        android:textIsSelectable="true"
+        android:paddingTop="4dp" />
         
     <!-- 间隔和分割线区域，初始可见性根据是否结束显示 -->
     <LinearLayout

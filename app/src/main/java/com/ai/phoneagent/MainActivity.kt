@@ -28,6 +28,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.LinearLayout
 import android.widget.ImageButton
 import android.widget.TextView
+import com.ai.phoneagent.helper.StreamRenderHelper
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -44,7 +45,6 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.ai.phoneagent.databinding.ActivityMainBinding
-import com.ai.phoneagent.helper.StreamRenderHelper
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
 import kotlinx.coroutines.Dispatchers
@@ -1114,7 +1114,8 @@ class MainActivity : AppCompatActivity() {
             binding.inputMessage.text?.clear()
         }
 
-        showThinking()
+        // 移除旧的思考中提示
+        // showThinking() 
         
         val startTime = System.currentTimeMillis()
 
@@ -1184,7 +1185,8 @@ class MainActivity : AppCompatActivity() {
                             if (delta.isNotBlank()) {
                                 reasoningSb.append(delta)
                                 runOnUiThread {
-                                    StreamRenderHelper.animateAppend(vh.thinkingText, delta, lifecycleScope) {
+                                    // 使用新的处理方法
+                                    StreamRenderHelper.processReasoningDelta(vh, delta, lifecycleScope) {
                                         smoothScrollToBottom()
                                     }
                                 }
@@ -1195,20 +1197,27 @@ class MainActivity : AppCompatActivity() {
                             }
                         },
                         onContentDelta = { delta ->
-                            if (delta.isNotBlank()) {
-                                // 首次收到正文时切换状态
-                                if (contentSb.isEmpty() && reasoningSb.isNotEmpty()) {
-                                    runOnUiThread {
-                                        StreamRenderHelper.transitionToAnswer(vh)
-                                    }
-                                }
-
-                                contentSb.append(delta)
+                            if (delta.isNotEmpty()) {
                                 runOnUiThread {
-                                    StreamRenderHelper.animateAppend(vh.messageContent, delta, lifecycleScope) {
-                                        smoothScrollToBottom()
-                                    }
+                                    // 使用新的智能解析处理方法
+                                    StreamRenderHelper.processContentDelta(
+                                        vh, 
+                                        delta, 
+                                        lifecycleScope,
+                                        this@MainActivity,
+                                        onScroll = { smoothScrollToBottom() },
+                                        onPhaseChange = { isAnswerPhase ->
+                                            if (isAnswerPhase) {
+                                                StreamRenderHelper.transitionToAnswer(vh)
+                                            }
+                                        }
+                                    )
                                 }
+                                
+                                // 更新 contentSb（用于保存）
+                                // 注意：这里我们保存原始内容，解析器会处理显示
+                                contentSb.append(delta)
+                                
                                 // 同步到悬浮窗
                                 if (FloatingChatService.isRunning()) {
                                     FloatingChatService.getInstance()?.appendExternalContentDelta(delta)
@@ -1248,9 +1257,14 @@ class MainActivity : AppCompatActivity() {
                      FloatingChatService.getInstance()?.finishExternalStreamAiReply(timeCost.toInt(), finalContent)
                 }
 
-                // 保存到历史
-                val persistContent = if (reasoningSb.isNotEmpty()) {
-                    "<think>${reasoningSb}</think>\n${finalContent}"
+                // 保存到历史 - 使用解析后的内容
+                val thinkingContent = StreamRenderHelper.getThinkingText(vh)
+                val answerContent = StreamRenderHelper.getAnswerText(vh)
+                
+                val persistContent = if (thinkingContent.isNotEmpty()) {
+                    "<think>${thinkingContent}</think>\n${answerContent}"
+                } else if (answerContent.isNotEmpty()) {
+                    answerContent
                 } else {
                     finalContent
                 }
@@ -1276,7 +1290,24 @@ class MainActivity : AppCompatActivity() {
         // 添加系统提示
         history.add(ChatRequestMessage(
             role = "system",
-            content = "你是Aries AI，一个全能AI助手，旨在解决用户提出的任何任务。请用简洁、友好的方式回复用户。如果问题较复杂，请先进行思考，思考过程用 <think>...</think> 包裹，然后再给出最终答复。"
+            content = """
+                你是 Aries AI。
+                
+                你必须严格按以下结构输出（否则我的 Android 应用无法正确渲染）：
+                
+                【思考开始】
+                （这里写你的思考过程）
+                【思考结束】
+                
+                【回答开始】
+                （这里写你的最终回答，使用 Markdown：标题/列表/代码块/表格等）
+                【回答结束】
+                
+                要求：
+                1) 以上四个标记必须原样输出，且不要输出其它同名/相似标记。
+                2) 思考内容写在“思考开始/结束”之间；正式回答写在“回答开始/结束”之间。
+                3) 代码块使用三反引号 ``` 并尽量保持语法完整。
+            """.trimIndent()
         ))
         
         // 添加对话历史（最多保留最近10轮对话，避免上下文过长）
@@ -1359,9 +1390,30 @@ class MainActivity : AppCompatActivity() {
         smoothScrollToBottom()
 
         if (!animate) {
-            // 无动画直接显示
-            if (!thinkContent.isNullOrBlank()) thinkingText.text = thinkContent
-            messageContent.text = realContent
+            if (!thinkContent.isNullOrBlank()) {
+                StreamRenderHelper.applyMarkdownToHistory(thinkingText, thinkContent)
+            }
+            StreamRenderHelper.applyMarkdownToHistory(messageContent, realContent)
+            view.findViewById<View>(R.id.action_area).visibility = View.VISIBLE
+
+            val btnCopy = view.findViewById<View>(R.id.btn_copy)
+            btnCopy.setOnClickListener {
+                val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("AI Reply", realContent)
+                cm.setPrimaryClip(clip)
+                Toast.makeText(this@MainActivity, "已复制内容", Toast.LENGTH_SHORT).show()
+            }
+
+            val btnRetry = view.findViewById<View>(R.id.btn_retry)
+            btnRetry.setOnClickListener {
+                val c = activeConversation
+                if (c != null && c.messages.isNotEmpty()) {
+                    val lastUserMsg = c.messages.findLast { it.isUser }
+                    if (lastUserMsg != null) {
+                        sendMessage(lastUserMsg.content, resendUser = false)
+                    }
+                }
+            }
             return
         }
         

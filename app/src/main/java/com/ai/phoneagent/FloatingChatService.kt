@@ -28,6 +28,8 @@ import android.view.animation.PathInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.OvershootInterpolator
+import android.view.ContextThemeWrapper
+import com.ai.phoneagent.R
 import com.ai.phoneagent.helper.StreamRenderHelper
 import com.ai.phoneagent.net.AutoGlmClient
 import android.view.inputmethod.InputMethodManager
@@ -897,8 +899,7 @@ class FloatingChatService : Service() {
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(inputMessage.windowToken, 0)
         
-        // 显示"思考中..."
-        addMessage("Aries: 思考中...", isUser = false, isThinking = true)
+        // 已移除: addMessage("Aries: 思考中...", isUser = false, isThinking = true)
         
         // 发送 AI 请求
         requestAIResponse(text)
@@ -914,6 +915,34 @@ class FloatingChatService : Service() {
             addMessage("Aries: 请在主界面配置 API Key", isUser = false)
             return
         }
+
+        if (chatHistory.firstOrNull()?.role != "system") {
+            chatHistory.add(
+                0,
+                ChatRequestMessage(
+                    role = "system",
+                    content =
+                        """
+                            你是 Aries AI。
+                            
+                            你必须严格按以下结构输出（否则我的 Android 应用无法正确渲染）：
+                            
+                            【思考开始】
+                            （这里写你的思考过程）
+                            【思考结束】
+                            
+                            【回答开始】
+                            （这里写你的最终回答，使用 Markdown：标题/列表/代码块/表格等）
+                            【回答结束】
+                            
+                            要求：
+                            1) 以上四个标记必须原样输出，且不要输出其它同名/相似标记。
+                            2) 思考内容写在“思考开始/结束”之间；正式回答写在“回答开始/结束”之间。
+                            3) 代码块使用三反引号 ``` 并尽量保持语法完整。
+                        """.trimIndent(),
+                ),
+            )
+        }
         
         chatHistory.add(ChatRequestMessage(role = "user", content = userText))
         
@@ -922,13 +951,30 @@ class FloatingChatService : Service() {
             val container = floatingView?.findViewById<LinearLayout>(R.id.messagesContainer)
             if (container != null) {
                 withContext(Dispatchers.Main) {
-                    val inflater = LayoutInflater.from(this@FloatingChatService)
+                    // 使用 Theme.PhoneAgent 包装 Context，防止 Context 引起的崩溃
+                    val contextWrapper = ContextThemeWrapper(this@FloatingChatService, R.style.Theme_PhoneAgent)
+                    val inflater = LayoutInflater.from(contextWrapper)
+                    
                     val aiView = inflater.inflate(R.layout.item_ai_message_complex, container, false)
                     container.addView(aiView)
                     
                     val vh = StreamRenderHelper.bindViews(aiView)
                     StreamRenderHelper.initThinkingState(vh)
                     currentStreamViewHolder = vh
+
+                    vh.copyButton?.setOnClickListener {
+                        val cm =
+                            getSystemService(android.content.Context.CLIPBOARD_SERVICE) as
+                                android.content.ClipboardManager
+                        val clip =
+                            android.content.ClipData.newPlainText(
+                                "AI Reply",
+                                vh.messageContent.text,
+                            )
+                        cm.setPrimaryClip(clip)
+                        Toast.makeText(this@FloatingChatService, "已复制内容", Toast.LENGTH_SHORT)
+                            .show()
+                    }
                     
                     // 滚动到底部
                     floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
@@ -947,52 +993,54 @@ class FloatingChatService : Service() {
                 onReasoningDelta = { delta ->
                     if (delta.isNotBlank() && vh != null) {
                         reasoningSb.append(delta)
-                        // 若在后台线程回调，需切回主线程更新UI
                         Handler(Looper.getMainLooper()).post {
-                            StreamRenderHelper.animateAppend(vh.thinkingText, delta, serviceScope) {
+                            StreamRenderHelper.processReasoningDelta(vh, delta, serviceScope) {
                                 floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
                             }
                         }
                     }
                 },
                 onContentDelta = { delta ->
-                    if (delta.isNotBlank() && vh != null) {
-                        if (contentSb.isEmpty() && reasoningSb.isNotEmpty()) {
-                             Handler(Looper.getMainLooper()).post {
-                                StreamRenderHelper.transitionToAnswer(vh)
-                             }
-                        }
+                    if (delta.isNotEmpty() && vh != null) {
                         contentSb.append(delta)
                         Handler(Looper.getMainLooper()).post {
-                            StreamRenderHelper.animateAppend(vh.messageContent, delta, serviceScope) {
-                                floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
-                            }
+                            StreamRenderHelper.processContentDelta(
+                                vh,
+                                delta,
+                                serviceScope,
+                                this@FloatingChatService,
+                                onScroll = {
+                                    floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
+                                },
+                                onPhaseChange = { isAnswerPhase ->
+                                    if (isAnswerPhase) {
+                                        StreamRenderHelper.transitionToAnswer(vh)
+                                    }
+                                }
+                            )
                         }
                     }
                 }
             )
             
             streamOk = result.isSuccess
-            val finalContent = contentSb.toString()
             
             // 结束后整理状态
             withContext(Dispatchers.Main) {
                 if (vh != null) {
-                     StreamRenderHelper.markCompleted(vh, 0) // 时间统计暂略
+                     StreamRenderHelper.markCompleted(vh, 0)
                 }
                 
-                // 将最终结果作为文本保存到 messages，以便下次打开恢复
-                val persistText = if (reasoningSb.isNotEmpty()) {
-                    "<think>$reasoningSb</think>\n$finalContent"
+                // 获取解析后的内容
+                val thinkingContent = vh?.let { StreamRenderHelper.getThinkingText(it) } ?: ""
+                val answerContent = vh?.let { StreamRenderHelper.getAnswerText(it) } ?: contentSb.toString()
+                
+                val persistText = if (thinkingContent.isNotEmpty()) {
+                    "<think>$thinkingContent</think>\n$answerContent"
                 } else {
-                    finalContent
+                    answerContent
                 }
                 
-                // 添加到历史记录和UI列表(注意：addMessage会触发 updateMessagesUI，这会重置掉我们的 fancy view)
-                // 策略：我们仅添加数据，不立即刷新？或者接受刷新？
-                // 为了简单起见，我们接受刷新，这样历史记录一致。
-                // 这意味着动画完成后，视图会"闪爍"一下变为普通文本框。
-                // 优化：暂时不调用 addMessage，只加到 list 和 save。
                 messages.add("Aries: $persistText")
                 saveMessagesToPrefs()
                 
@@ -1007,7 +1055,9 @@ class FloatingChatService : Service() {
          // 在悬浮窗也准备一个气泡跟随主界面
          Handler(Looper.getMainLooper()).post {
              val container = floatingView?.findViewById<LinearLayout>(R.id.messagesContainer) ?: return@post
-             val inflater = LayoutInflater.from(this@FloatingChatService)
+             // 使用主题包装
+             val contextWrapper = ContextThemeWrapper(this@FloatingChatService, R.style.Theme_PhoneAgent)
+             val inflater = LayoutInflater.from(contextWrapper)
              val aiView = inflater.inflate(R.layout.item_ai_message_complex, container, false)
              container.addView(aiView)
              
@@ -1022,7 +1072,7 @@ class FloatingChatService : Service() {
     fun appendExternalReasoningDelta(delta: String) {
         val vh = currentStreamViewHolder ?: return
         Handler(Looper.getMainLooper()).post {
-             StreamRenderHelper.animateAppend(vh.thinkingText, delta, serviceScope) {
+             StreamRenderHelper.processReasoningDelta(vh, delta, serviceScope) {
                  floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
              }
         }
@@ -1030,17 +1080,22 @@ class FloatingChatService : Service() {
     
     fun appendExternalContentDelta(delta: String) {
         val vh = currentStreamViewHolder ?: return
-        // 简单判断状态切换：如果 receiving content but thinking text is visible/active?
-        // 这里简化，直接 append。状态切换由 helper 内部或调用者负责？
-        // MainActivity 已经负责逻辑。这里只是镜像。
-        // 但我们需要手动触发 transitionToAnswer 如果还没触发。
-        // 由于无法知晓 MainActivity 的精确状态，我们假设收到 Content 就转 Answer
-        
         Handler(Looper.getMainLooper()).post {
-             StreamRenderHelper.transitionToAnswer(vh) // idempotent-ish
-             StreamRenderHelper.animateAppend(vh.messageContent, delta, serviceScope) {
-                 floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
-             }
+            // 使用新的智能解析处理方法
+            StreamRenderHelper.processContentDelta(
+                vh,
+                delta,
+                serviceScope,
+                this@FloatingChatService,
+                onScroll = {
+                    floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
+                },
+                onPhaseChange = { isAnswerPhase ->
+                    if (isAnswerPhase) {
+                        StreamRenderHelper.transitionToAnswer(vh)
+                    }
+                }
+            )
         }
     }
     
@@ -1056,8 +1111,19 @@ class FloatingChatService : Service() {
         Handler(Looper.getMainLooper()).post {
              StreamRenderHelper.markCompleted(vh, timeCost.toLong())
              
-             // 同时也保存一下
-             messages.add("Aries: $finalContent") // 简化保存
+             // 获取解析后的内容保存
+             val thinkingContent = StreamRenderHelper.getThinkingText(vh)
+             val answerContent = StreamRenderHelper.getAnswerText(vh)
+             
+             val persistText = if (thinkingContent.isNotEmpty()) {
+                 "<think>$thinkingContent</think>\n$answerContent"
+             } else if (answerContent.isNotEmpty()) {
+                 answerContent
+             } else {
+                 finalContent
+             }
+             
+             messages.add("Aries: $persistText")
              saveMessagesToPrefs()
         }
     }
@@ -1119,6 +1185,8 @@ class FloatingChatService : Service() {
     private fun updateMessagesUI() {
         val container = floatingView?.findViewById<LinearLayout>(R.id.messagesContainer) ?: return
         container.removeAllViews()
+        val contextWrapper = ContextThemeWrapper(this@FloatingChatService, R.style.Theme_PhoneAgent)
+        val inflater = LayoutInflater.from(contextWrapper)
         
         for (msg in messages) {
             // 支持“我:”和“我: ”两种格式
@@ -1127,17 +1195,87 @@ class FloatingChatService : Service() {
             val isThinking =
                 normalized == "AI:思考中..." ||
                     normalized == "Aries:思考中..."
-            
-            val textView = TextView(this).apply {
-                text = msg
-                textSize = 14f
-                setTextColor(if (isThinking) 0xFF999999.toInt() else 0xFF333333.toInt())
-                setPadding(16, 8, 16, 8)
-                if (isThinking) {
+
+            if (isThinking) {
+                val textView = TextView(this).apply {
+                    text = msg
+                    textSize = 14f
+                    setTextColor(0xFF999999.toInt())
+                    setPadding(16, 8, 16, 8)
                     setTypeface(null, android.graphics.Typeface.ITALIC)
                 }
+                container.addView(textView)
+                continue
             }
-            container.addView(textView)
+
+            if (isUser) {
+                val content =
+                    msg.removePrefix("我: ")
+                        .removePrefix("我:")
+                        .trimStart()
+
+                val textView = TextView(this).apply {
+                    text = content
+                    textSize = 14f
+                    setTextColor(0xFF333333.toInt())
+                    setPadding(16, 8, 16, 8)
+                }
+                container.addView(textView)
+                continue
+            }
+
+            val content =
+                msg.removePrefix("AI: ")
+                    .removePrefix("AI:")
+                    .removePrefix("Aries: ")
+                    .removePrefix("Aries:")
+                    .trimStart()
+
+            val aiView = inflater.inflate(R.layout.item_ai_message_complex, container, false)
+            container.addView(aiView)
+
+            val vh = StreamRenderHelper.bindViews(aiView)
+            vh.authorName.text = "Aries"
+            vh.authorName.visibility = View.VISIBLE
+
+            val thinkRegex = "<think>([\\s\\S]*?)</think>([\\s\\S]*)".toRegex()
+            val match = thinkRegex.find(content)
+            val thinkContent = match?.groupValues?.get(1)?.trim()
+            val realContent = match?.groupValues?.get(2)?.trim() ?: content
+
+            if (!thinkContent.isNullOrBlank()) {
+                vh.thinkingLayout.visibility = View.VISIBLE
+                val headerTitle = vh.thinkingHeader.getChildAt(0) as? TextView
+                headerTitle?.text = "已思考"
+
+                var expanded = true
+                vh.thinkingText.visibility = View.VISIBLE
+                vh.thinkingContentArea.visibility = View.VISIBLE
+                vh.thinkingIndicator.text = " ⌄"
+
+                vh.thinkingHeader.setOnClickListener {
+                    expanded = !expanded
+                    vh.thinkingText.visibility = if (expanded) View.VISIBLE else View.GONE
+                    vh.thinkingContentArea.visibility = if (expanded) View.VISIBLE else View.GONE
+                    vh.thinkingIndicator.text = if (expanded) " ⌄" else " ›"
+                }
+
+                StreamRenderHelper.applyMarkdownToHistory(vh.thinkingText, thinkContent)
+            } else {
+                vh.thinkingLayout.visibility = View.GONE
+            }
+
+            StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, realContent)
+            vh.actionArea.visibility = View.VISIBLE
+            vh.retryButton?.visibility = View.GONE
+            vh.copyButton?.setOnClickListener {
+                val cm =
+                    getSystemService(android.content.Context.CLIPBOARD_SERVICE) as
+                        android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("AI Reply", realContent)
+                cm.setPrimaryClip(clip)
+                Toast.makeText(this@FloatingChatService, "已复制内容", Toast.LENGTH_SHORT).show()
+            }
         }
         
         // 滚动到底部

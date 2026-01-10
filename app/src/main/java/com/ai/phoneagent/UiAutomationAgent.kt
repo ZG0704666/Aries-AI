@@ -480,7 +480,7 @@ do(action="Tap", element=[x,y])
                 val failMsg =
                         "上一步动作执行失败：${currentAction.raw.take(320)}\n" +
                                 "请根据上一条屏幕信息重新给出下一步动作，优先使用 selector（resourceId/elementText/contentDesc/className/index）。\n" +
-                                "严格只输出：<think>...</think><answer>do(...)</answer> 或 <answer>finish(...)</answer>。"
+                                "严格只输出：\n【思考开始】...【思考结束】\n【回答开始】do(...)/finish(...)【回答结束】。"
                 history += ChatRequestMessage(role = "user", content = failMsg)
 
                 val fixResult =
@@ -561,14 +561,22 @@ do(action="Tap", element=[x,y])
         return (
                 """
 今天的日期是: $formattedDate
+你是 Aries AI。
 你是一个智能体分析专家，可以根据操作历史和当前状态图执行一系列操作来完成任务。
-你必须严格按照要求输出以下格式：
-<think>{think}</think>
-<answer>{action}</answer>
+
+你必须严格按以下结构输出（否则我的 Android 应用无法正确解析动作）：
+
+【思考开始】
+{think}
+【思考结束】
+
+【回答开始】
+{action}
+【回答结束】
 
 其中：
 - {think} 是对你为什么选择这个操作的简短推理说明。
-- {action} 是本次执行的具体操作指令，必须严格遵循下方定义的指令格式。
+- {action} 是本次执行的具体操作指令，必须严格遵循下方定义的指令格式。你在 {action} 中只能输出 do(...) 或 finish(...)，不要输出多余解释文字。
 
 操作指令及其作用如下：
 - do(action="Launch", app="xxx")  
@@ -635,6 +643,11 @@ do(action="Tap", element=[x,y])
     private fun splitThinkingAndAnswer(content: String): Pair<String?, String> {
         val full = content.trim()
 
+        val (ariesThinking, ariesAnswer) = extractAriesThinkingAndAnswer(full)
+        if (!ariesAnswer.isNullOrBlank()) {
+            return ariesThinking to ariesAnswer
+        }
+
         val thinkTag = extractTagContent(full, "think")
         val answerTag = extractTagContent(full, "answer")
         if (answerTag != null) {
@@ -656,6 +669,51 @@ do(action="Tap", element=[x,y])
             return thinking to action
         }
         return null to full
+    }
+
+    private fun extractAriesThinkingAndAnswer(text: String): Pair<String?, String?> {
+        val thinkStartTag = "【思考开始】"
+        val thinkEndTag = "【思考结束】"
+        val answerStartTags = listOf("【回答开始】", "【回答】")
+        val answerEndTag = "【回答结束】"
+
+        val thinkStartIdx = text.indexOf(thinkStartTag)
+        val thinkEndIdx = text.indexOf(thinkEndTag)
+
+        val answerStartMatch =
+                answerStartTags
+                        .mapNotNull { tag ->
+                            val idx = text.indexOf(tag)
+                            if (idx >= 0) idx to tag else null
+                        }
+                        .minByOrNull { it.first }
+        val answerEndIdx = text.indexOf(answerEndTag)
+
+        val thinking: String? =
+                if (thinkStartIdx >= 0) {
+                    val start = thinkStartIdx + thinkStartTag.length
+                    val end =
+                            when {
+                                thinkEndIdx >= start -> thinkEndIdx
+                                answerStartMatch != null && answerStartMatch.first >= start ->
+                                        answerStartMatch.first
+                                else -> text.length
+                            }
+                    text.substring(start, end).trim().ifBlank { null }
+                } else {
+                    null
+                }
+
+        val answer: String? =
+                if (answerStartMatch != null) {
+                    val start = answerStartMatch.first + answerStartMatch.second.length
+                    val end = if (answerEndIdx >= start) answerEndIdx else text.length
+                    text.substring(start, end).trim()
+                } else {
+                    null
+                }
+
+        return thinking to answer
     }
     
     /**
