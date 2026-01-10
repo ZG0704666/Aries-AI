@@ -28,6 +28,8 @@ import android.view.animation.PathInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.OvershootInterpolator
+import com.ai.phoneagent.helper.StreamRenderHelper
+import com.ai.phoneagent.net.AutoGlmClient
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.ImageButton
@@ -903,60 +905,164 @@ class FloatingChatService : Service() {
         requestAIResponse(text)
     }
     
+    private var currentStreamViewHolder: StreamRenderHelper.ViewHolder? = null
+    
     /**
      * 请求 AI 回复
      */
     private fun requestAIResponse(userText: String) {
         if (apiKey.isBlank()) {
-            // 移除思考中消息，显示错误
-            removeThinkingMessage()
             addMessage("Aries: 请在主界面配置 API Key", isUser = false)
             return
         }
         
-        // 添加到聊天历史
         chatHistory.add(ChatRequestMessage(role = "user", content = userText))
         
         serviceScope.launch {
-            try {
-                val response = withContext(Dispatchers.IO) {
-                    AutoGlmClient.sendChat(
-                        apiKey = apiKey,
-                        messages = chatHistory
-                    )
+            // 准备流式渲染视图
+            val container = floatingView?.findViewById<LinearLayout>(R.id.messagesContainer)
+            if (container != null) {
+                withContext(Dispatchers.Main) {
+                    val inflater = LayoutInflater.from(this@FloatingChatService)
+                    val aiView = inflater.inflate(R.layout.item_ai_message_complex, container, false)
+                    container.addView(aiView)
+                    
+                    val vh = StreamRenderHelper.bindViews(aiView)
+                    StreamRenderHelper.initThinkingState(vh)
+                    currentStreamViewHolder = vh
+                    
+                    // 滚动到底部
+                    floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
                 }
-                
-                // 移除思考中消息
-                removeThinkingMessage()
-                
-                if (response != null) {
-                    // 添加 AI 回复
-                    addMessage("Aries: $response", isUser = false)
-                    chatHistory.add(ChatRequestMessage(role = "assistant", content = response))
-                } else {
-                    addMessage("Aries: 抱歉，我无法回复您的消息", isUser = false)
-                }
-            } catch (e: Exception) {
-                removeThinkingMessage()
-                addMessage("Aries: 请求失败: ${e.message?.take(50)}", isUser = false)
             }
+
+            val vh = currentStreamViewHolder
+            val reasoningSb = StringBuilder()
+            val contentSb = StringBuilder()
+
+            var streamOk = false
+            
+            val result = AutoGlmClient.sendChatStreamResult(
+                apiKey = apiKey,
+                messages = chatHistory,
+                onReasoningDelta = { delta ->
+                    if (delta.isNotBlank() && vh != null) {
+                        reasoningSb.append(delta)
+                        // 若在后台线程回调，需切回主线程更新UI
+                        Handler(Looper.getMainLooper()).post {
+                            StreamRenderHelper.animateAppend(vh.thinkingText, delta, serviceScope) {
+                                floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
+                            }
+                        }
+                    }
+                },
+                onContentDelta = { delta ->
+                    if (delta.isNotBlank() && vh != null) {
+                        if (contentSb.isEmpty() && reasoningSb.isNotEmpty()) {
+                             Handler(Looper.getMainLooper()).post {
+                                StreamRenderHelper.transitionToAnswer(vh)
+                             }
+                        }
+                        contentSb.append(delta)
+                        Handler(Looper.getMainLooper()).post {
+                            StreamRenderHelper.animateAppend(vh.messageContent, delta, serviceScope) {
+                                floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
+                            }
+                        }
+                    }
+                }
+            )
+            
+            streamOk = result.isSuccess
+            val finalContent = contentSb.toString()
+            
+            // 结束后整理状态
+            withContext(Dispatchers.Main) {
+                if (vh != null) {
+                     StreamRenderHelper.markCompleted(vh, 0) // 时间统计暂略
+                }
+                
+                // 将最终结果作为文本保存到 messages，以便下次打开恢复
+                val persistText = if (reasoningSb.isNotEmpty()) {
+                    "<think>$reasoningSb</think>\n$finalContent"
+                } else {
+                    finalContent
+                }
+                
+                // 添加到历史记录和UI列表(注意：addMessage会触发 updateMessagesUI，这会重置掉我们的 fancy view)
+                // 策略：我们仅添加数据，不立即刷新？或者接受刷新？
+                // 为了简单起见，我们接受刷新，这样历史记录一致。
+                // 这意味着动画完成后，视图会"闪爍"一下变为普通文本框。
+                // 优化：暂时不调用 addMessage，只加到 list 和 save。
+                messages.add("Aries: $persistText")
+                saveMessagesToPrefs()
+                
+                chatHistory.add(ChatRequestMessage(role = "assistant", content = persistText))
+            }
+        }
+    }
+
+    // --- 外部同步接口 (供 MainActivity 调用) ---
+
+    fun beginExternalStreamAiReply() {
+         // 在悬浮窗也准备一个气泡跟随主界面
+         Handler(Looper.getMainLooper()).post {
+             val container = floatingView?.findViewById<LinearLayout>(R.id.messagesContainer) ?: return@post
+             val inflater = LayoutInflater.from(this@FloatingChatService)
+             val aiView = inflater.inflate(R.layout.item_ai_message_complex, container, false)
+             container.addView(aiView)
+             
+             val vh = StreamRenderHelper.bindViews(aiView)
+             StreamRenderHelper.initThinkingState(vh)
+             currentStreamViewHolder = vh
+             
+             floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
+         }
+    }
+    
+    fun appendExternalReasoningDelta(delta: String) {
+        val vh = currentStreamViewHolder ?: return
+        Handler(Looper.getMainLooper()).post {
+             StreamRenderHelper.animateAppend(vh.thinkingText, delta, serviceScope) {
+                 floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
+             }
         }
     }
     
-    /**
-     * 移除"思考中..."消息
-     */
-    private fun removeThinkingMessage() {
-        val iterator = messages.iterator()
-        while (iterator.hasNext()) {
-            val msg = iterator.next()
-            val normalized = msg.replace(" ", "")
-            if (normalized == "AI:思考中..." || normalized == "Aries:思考中...") {
-                iterator.remove()
-                break
-            }
+    fun appendExternalContentDelta(delta: String) {
+        val vh = currentStreamViewHolder ?: return
+        // 简单判断状态切换：如果 receiving content but thinking text is visible/active?
+        // 这里简化，直接 append。状态切换由 helper 内部或调用者负责？
+        // MainActivity 已经负责逻辑。这里只是镜像。
+        // 但我们需要手动触发 transitionToAnswer 如果还没触发。
+        // 由于无法知晓 MainActivity 的精确状态，我们假设收到 Content 就转 Answer
+        
+        Handler(Looper.getMainLooper()).post {
+             StreamRenderHelper.transitionToAnswer(vh) // idempotent-ish
+             StreamRenderHelper.animateAppend(vh.messageContent, delta, serviceScope) {
+                 floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
+             }
         }
     }
+    
+    fun resetExternalStreamAiReply() {
+        val vh = currentStreamViewHolder ?: return
+        Handler(Looper.getMainLooper()).post {
+             StreamRenderHelper.initThinkingState(vh)
+        }
+    }
+    
+    fun finishExternalStreamAiReply(timeCost: Int, finalContent: String) {
+        val vh = currentStreamViewHolder ?: return
+        Handler(Looper.getMainLooper()).post {
+             StreamRenderHelper.markCompleted(vh, timeCost.toLong())
+             
+             // 同时也保存一下
+             messages.add("Aries: $finalContent") // 简化保存
+             saveMessagesToPrefs()
+        }
+    }
+
     
     /**
      * 设置悬浮窗是否可聚焦（用于键盘输入）
