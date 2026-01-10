@@ -16,6 +16,8 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:visibility="gone"
+        android:background="#F5F7FA"
+        android:padding="8dp"
         android:layout_marginBottom="8dp">
 
         <!-- 思考头 (点击折叠/展开) -->
