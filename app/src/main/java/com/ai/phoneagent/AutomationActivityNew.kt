@@ -56,11 +56,12 @@ class AutomationActivityNew : AppCompatActivity() {
     @Volatile private var paused: Boolean = false
 
     private lateinit var tvAccStatus: TextView
+    private lateinit var statusIndicator: View
     private lateinit var tvLog: TextView
     private lateinit var etTask: EditText
-    private lateinit var btnVoiceTask: ImageButton
-    private lateinit var btnOpenAccessibility: MaterialButton
-    private lateinit var btnRefreshAccessibility: MaterialButton
+    private lateinit var btnVoiceTask: View
+    private lateinit var btnOpenAccessibility: View
+    private lateinit var btnRefreshAccessibility: View
     private lateinit var btnStartAgent: MaterialButton
     private lateinit var btnPauseAgent: MaterialButton
     private lateinit var btnStopAgent: MaterialButton
@@ -107,6 +108,10 @@ class AutomationActivityNew : AppCompatActivity() {
         setContentView(binding.root)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            WindowCompat.getInsetsController(window, binding.root).isAppearanceLightStatusBars = true
+        }
 
         val initialTop = binding.root.paddingTop
         val initialBottom = binding.root.paddingBottom
@@ -114,9 +119,13 @@ class AutomationActivityNew : AppCompatActivity() {
             val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             val bottomInset = if (ime.bottom > sys.bottom) ime.bottom else sys.bottom
+            
+            // 将 top inset 应用到 AppBar
+            binding.appBar.setPadding(0, sys.top, 0, 0)
+            
             v.setPadding(
                 v.paddingLeft,
-                initialTop + sys.top,
+                initialTop,
                 v.paddingRight,
                 initialBottom + bottomInset
             )
@@ -126,6 +135,7 @@ class AutomationActivityNew : AppCompatActivity() {
 
         // 绑定UI组件
         tvAccStatus = binding.root.findViewById(R.id.tvAccStatus)
+        statusIndicator = binding.root.findViewById(R.id.statusIndicator)
         tvLog = binding.root.findViewById(R.id.tvLog)
         etTask = binding.root.findViewById(R.id.etTask)
         btnVoiceTask = binding.root.findViewById(R.id.btnVoiceTask)
@@ -225,21 +235,24 @@ class AutomationActivityNew : AppCompatActivity() {
      */
     private fun checkAccessibilityStatus() {
         val enabled = isAccessibilityServiceEnabled()
-        if (enabled) {
-            val connected = PhoneAgentAccessibilityService.instance != null
-            if (connected) {
-                tvAccStatus.text = "✅ 无障碍服务已启用"
-                tvAccStatus.setTextColor(getColor(android.R.color.holo_green_dark))
-            } else {
-                tvAccStatus.text = "⚠️ 无障碍服务已启用（连接中）"
-                tvAccStatus.setTextColor(getColor(android.R.color.holo_orange_dark))
-            }
-            btnStartAgent.isEnabled = true
-        } else {
-            tvAccStatus.text = "❌ 无障碍服务未启用"
-            tvAccStatus.setTextColor(getColor(android.R.color.holo_red_dark))
-            btnStartAgent.isEnabled = false
+        val connected = PhoneAgentAccessibilityService.instance != null
+        
+        tvAccStatus.text = when {
+            !enabled -> "服务未开启：请前往设置"
+            !connected -> "服务已开启：正在连接..."
+            else -> "已就绪：无障碍连接正常"
         }
+        
+        statusIndicator.setBackgroundResource(
+            when {
+                !enabled -> R.drawable.bg_circle_red
+                !connected -> R.drawable.bg_circle_yellow
+                else -> R.drawable.bg_circle_green
+            }
+        )
+        
+        btnOpenAccessibility.visibility = if (enabled) View.GONE else View.VISIBLE
+        btnStartAgent.isEnabled = enabled
     }
 
     /**

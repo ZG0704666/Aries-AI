@@ -48,3 +48,4 @@ logs/
 **/logs/
 **/*.log
 docs/思考回答区域修复说明.md
+.trae/documents/Phone Agent 更新机制优化方案.md

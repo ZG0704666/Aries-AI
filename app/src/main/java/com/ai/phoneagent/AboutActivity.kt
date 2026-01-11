@@ -37,6 +37,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+import android.view.animation.OvershootInterpolator
+import android.annotation.SuppressLint
+import android.view.MotionEvent
+
 class AboutActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAboutBinding
@@ -51,30 +55,73 @@ class AboutActivity : AppCompatActivity() {
         setupEdgeToEdge()
         setupToolbar()
         setupClickListeners()
+
+        // 入场动画
+        binding.root.post {
+            animateEntrance()
+        }
+    }
+
+    private fun animateEntrance() {
+        val views = listOf(
+            binding.cardAppInfo,
+            binding.cardActions,
+            binding.cardDeveloper
+        )
+
+        views.forEachIndexed { index, view ->
+            view.alpha = 0f
+            view.translationY = 80f
+            view.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(700)
+                .setStartDelay(150L * index)
+                .setInterpolator(OvershootInterpolator(1.1f))
+                .start()
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun applySpringScaleEffect(view: View) {
+        view.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    v.animate().scaleX(0.96f).scaleY(0.96f).setDuration(150).setInterpolator(android.view.animation.AccelerateInterpolator()).start()
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    v.animate().scaleX(1f).scaleY(1f).setDuration(400).setInterpolator(OvershootInterpolator(2.5f)).start()
+                }
+            }
+            false
+        }
     }
 
     private fun setupEdgeToEdge() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = getColor(R.color.blue_glass_primary)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val controller = WindowCompat.getInsetsController(window, binding.root)
+            controller.isAppearanceLightStatusBars = true
+        }
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-
-            // 与主页一致：把系统栏 top inset 交给 AppBarLayout 的 padding，避免内容层遮挡导致点击无效。
             binding.appBar.setPadding(0, sys.top, 0, 0)
             insets
         }
     }
 
     private fun setupToolbar() {
-        // 标题改为由页面内容区域展示，避免在沉浸式状态栏下出现重复/裁切。
-        binding.topAppBar.title = ""
+        // 标题恢复，显示为“关于”
+        binding.topAppBar.title = "关于"
         binding.topAppBar.setNavigationOnClickListener {
             vibrateLight()
             finish()
         }
 
-        // 返回按钮上移一点点，和主页顶栏图标对齐（主页是 -7dp）。
+        // 返回按钮对齐
         val upOffsetPx = -7f * resources.displayMetrics.density
         binding.topAppBar.post {
             for (i in 0 until binding.topAppBar.childCount) {
@@ -87,6 +134,22 @@ class AboutActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
+        // 应用点击缩放动效
+        applySpringScaleEffect(binding.btnCheckUpdate)
+        applySpringScaleEffect(binding.itemChangelog)
+        applySpringScaleEffect(binding.itemLicenses)
+        applySpringScaleEffect(binding.itemDeveloper)
+        applySpringScaleEffect(binding.itemContact)
+        
+        // 尝试绑定官网项（如果布局中存在）
+        findViewById<View>(R.id.itemWebsite)?.let {
+            applySpringScaleEffect(it)
+            it.setOnClickListener {
+                vibrateLight()
+                openUrl("https://aries-agent.com/")
+            }
+        }
+
         // 检查更新（占位）
         binding.btnCheckUpdate.setOnClickListener {
             vibrateLight()
@@ -94,26 +157,26 @@ class AboutActivity : AppCompatActivity() {
         }
 
         // 更新日志
-        binding.root.findViewById<LinearLayout>(R.id.itemChangelog).setOnClickListener {
+        binding.itemChangelog.setOnClickListener {
             vibrateLight()
             showChangelogDialog()
         }
 
         // 开源许可声明
-        binding.root.findViewById<LinearLayout>(R.id.itemLicenses).setOnClickListener {
+        binding.itemLicenses.setOnClickListener {
             vibrateLight()
             showLicensesDialog()
         }
 
         // 联系方式 - 点击复制邮箱
-        binding.root.findViewById<LinearLayout>(R.id.itemContact).setOnClickListener {
+        binding.itemContact.setOnClickListener {
             vibrateLight()
             copyToClipboard("jack666_2007@foxmail.com")
             Toast.makeText(this, "邮箱已复制到剪贴板", Toast.LENGTH_SHORT).show()
         }
 
         // 开发者
-        binding.root.findViewById<LinearLayout>(R.id.itemDeveloper).setOnClickListener {
+        binding.itemDeveloper.setOnClickListener {
             vibrateLight()
             Toast.makeText(this, "感谢使用 Aries AI！", Toast.LENGTH_SHORT).show()
         }
@@ -308,8 +371,17 @@ class AboutActivity : AppCompatActivity() {
 
     private fun copyToClipboard(text: String) {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("email", text)
+        val clip = ClipData.newPlainText("text", text)
         clipboard.setPrimaryClip(clip)
+    }
+
+    private fun openUrl(url: String) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "无法打开网页", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun vibrateLight() {

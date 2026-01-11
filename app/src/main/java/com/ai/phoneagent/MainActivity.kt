@@ -1086,26 +1086,26 @@ class MainActivity : AppCompatActivity() {
         activeConversation = c
         
         if (clearUi) {
-            // 一气呵成收敛动效：逐步缩小并向上冲刺融入背景
+            // 逐步缩小收敛一气呵成向上收缩：不再只是平移，而是带有一种“消失”的速度感
             binding.messagesContainer.animate()
-                .translationY(-600f) // 向上冲刺
-                .scaleX(0.7f)        // 逐步收缩
-                .scaleY(0.7f)
-                .alpha(0f)           // 渐隐融入
-                .setDuration(450)
-                .setInterpolator(AccelerateInterpolator(1.5f)) // 加速冲出，不回弹
+                .translationY(-1000f) // 冲刺距离加大，一气呵成
+                .scaleX(0.6f)         // 收缩更明显
+                .scaleY(0.6f)
+                .alpha(0f)            // 融入背景
+                .setDuration(400)      // 稍微加快，更显果断
+                .setInterpolator(AccelerateInterpolator(1.8f)) // 纯加速，无回弹
                 .withEndAction {
                     binding.messagesContainer.removeAllViews()
                     
-                    // 状态瞬间重置
+                    // 状态瞬间回位
                     binding.messagesContainer.translationY = 0f
                     binding.messagesContainer.scaleX = 1f
                     binding.messagesContainer.scaleY = 1f
                     
-                    // 新对话界面极其柔和地原地淡入
+                    // 新对话界面原地极其自然地透出来
                     binding.messagesContainer.animate()
                         .alpha(1.0f)
-                        .setDuration(400)
+                        .setDuration(500)
                         .setInterpolator(DecelerateInterpolator())
                         .start()
                 }

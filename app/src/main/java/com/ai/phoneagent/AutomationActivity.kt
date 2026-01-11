@@ -57,9 +57,10 @@ class AutomationActivity : AppCompatActivity() {
     private lateinit var tvAccStatus: TextView
     private lateinit var tvLog: TextView
     private lateinit var etTask: EditText
-    private lateinit var btnVoiceTask: ImageButton
-    private lateinit var btnOpenAccessibility: MaterialButton
-    private lateinit var btnRefreshAccessibility: MaterialButton
+    private lateinit var btnVoiceTask: View
+    private lateinit var statusIndicator: View
+    private lateinit var btnOpenAccessibility: View
+    private lateinit var btnRefreshAccessibility: View
     private lateinit var btnStartAgent: MaterialButton
     private lateinit var btnPauseAgent: MaterialButton
     private lateinit var btnStopAgent: MaterialButton
@@ -108,6 +109,10 @@ class AutomationActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            WindowCompat.getInsetsController(window, binding.root).isAppearanceLightStatusBars = true
+        }
 
         val initialTop = binding.root.paddingTop
         val initialBottom = binding.root.paddingBottom
@@ -115,9 +120,13 @@ class AutomationActivity : AppCompatActivity() {
             val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             val bottomInset = if (ime.bottom > sys.bottom) ime.bottom else sys.bottom
+            
+            // 将 top inset 应用到 AppBar
+            binding.appBar.setPadding(0, sys.top, 0, 0)
+            
             v.setPadding(
                     v.paddingLeft,
-                    initialTop + sys.top,
+                    initialTop,
                     v.paddingRight,
                     initialBottom + bottomInset
             )
@@ -126,6 +135,7 @@ class AutomationActivity : AppCompatActivity() {
         ViewCompat.requestApplyInsets(binding.root)
 
         tvAccStatus = binding.root.findViewById(R.id.tvAccStatus)
+        statusIndicator = binding.root.findViewById(R.id.statusIndicator)
         tvLog = binding.root.findViewById(R.id.tvLog)
         etTask = binding.root.findViewById(R.id.etTask)
         btnVoiceTask = binding.root.findViewById(R.id.btnVoiceTask)
@@ -193,6 +203,32 @@ class AutomationActivity : AppCompatActivity() {
 
         initSherpaModel()
         refreshAccessibilityStatus()
+
+        // 入场动画
+        binding.root.post {
+            animateEntrance()
+        }
+    }
+
+    private fun animateEntrance() {
+        val cards = listOf(
+            findViewById<View>(R.id.cardStatus),
+            findViewById<View>(R.id.cardTask),
+            findViewById<View>(R.id.layoutControls),
+            findViewById<View>(R.id.cardLog)
+        )
+
+        cards.forEachIndexed { index, view ->
+            view.alpha = 0f
+            view.translationY = 100f
+            view.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(600)
+                .setStartDelay(100L * index)
+                .setInterpolator(OvershootInterpolator(1.2f))
+                .start()
+        }
     }
 
     override fun onResume() {
@@ -489,12 +525,23 @@ class AutomationActivity : AppCompatActivity() {
 
     private fun refreshAccessibilityStatus() {
         val enabled = isAccessibilityEnabled()
-        tvAccStatus.text =
-                when {
-                    !enabled -> "无障碍状态：未开启"
-                    PhoneAgentAccessibilityService.instance == null -> "无障碍状态：已开启（连接中）"
-                    else -> "无障碍状态：已开启"
-                }
+        val connected = PhoneAgentAccessibilityService.instance != null
+        
+        tvAccStatus.text = when {
+            !enabled -> "服务未开启：请前往设置"
+            !connected -> "服务已开启：正在连接..."
+            else -> "已就绪：无障碍连接正常"
+        }
+        
+        statusIndicator.setBackgroundResource(
+            when {
+                !enabled -> R.drawable.bg_circle_red
+                !connected -> R.drawable.bg_circle_yellow // I should define yellow too
+                else -> R.drawable.bg_circle_green
+            }
+        )
+        
+        btnOpenAccessibility.visibility = if (enabled) View.GONE else View.VISIBLE
     }
 
     private fun startModelDrivenAutomation() {

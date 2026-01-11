@@ -3,362 +3,330 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/blue_glass_light">
+    android:background="@android:color/white">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/blue_glass_primary"
-        android:paddingBottom="@dimen/about_appbar_padding_bottom">
+        android:background="@android:color/white"
+        app:elevation="0dp">
 
         <!-- 顶部工具栏 -->
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/topAppBar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@android:color/transparent"
+            android:background="@android:color/white"
             app:navigationIcon="@drawable/ic_arrow_back_24"
-            app:navigationIconTint="@android:color/white"
-            app:title=""
-            app:titleCentered="true"
-            app:titleTextColor="@android:color/white" />
+            app:navigationIconTint="@color/blue_glass_primary"
+            app:title="关于"
+            app:titleTextColor="@color/blue_glass_primary" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="#FBFDFF"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         android:fillViewport="true">
 
         <LinearLayout
+            android:id="@+id/scrollContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="@dimen/about_content_padding"
-            android:paddingTop="@dimen/about_content_padding_top">
+            android:padding="20dp">
 
-            <!-- 应用信息卡片（渐变描边） -->
-            <FrameLayout
+            <!-- 应用信息卡片（无阴影，淡蓝描边） -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardAppInfo"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:layout_marginBottom="@dimen/about_card_margin_bottom"
-                android:background="@drawable/bg_card_border_gradient"
-                android:padding="1dp">
+                android:layout_marginBottom="20dp"
+                app:cardBackgroundColor="@android:color/white"
+                app:cardCornerRadius="32dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="#E0F2FE">
 
-                <com.google.android.material.card.MaterialCardView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:cardBackgroundColor="@android:color/white"
-                    app:cardCornerRadius="19dp"
-                    app:cardElevation="4dp"
-                    app:strokeWidth="0dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_horizontal"
-                        android:orientation="vertical"
-                        android:padding="@dimen/about_card_inner_padding">
-                    <!-- 蓝色“关于”标题 -->
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="关于"
-                        android:textColor="@color/blue_glass_primary"
-                        android:textSize="@dimen/about_title_text_size"
-                        android:textStyle="bold"
-                        android:gravity="center"
-                        android:paddingBottom="@dimen/about_title_padding_bottom" />
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical"
+                    android:padding="32dp">
 
                     <!-- 应用图标 -->
-                    <ImageView
-                        android:layout_width="@dimen/about_icon_size"
-                        android:layout_height="@dimen/about_icon_size"
-                        android:layout_marginTop="@dimen/about_icon_margin_top"
-                        android:src="@mipmap/ic_launcher_round"
-                        android:contentDescription="App Icon" />
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="96dp"
+                        android:layout_height="96dp"
+                        app:cardCornerRadius="24dp"
+                        app:cardElevation="0dp"
+                        app:strokeWidth="1.5dp"
+                        app:strokeColor="#E0F2FE">
+                        
+                        <ImageView
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:src="@mipmap/ic_launcher_round"
+                            android:scaleType="centerCrop"
+                            android:contentDescription="App Icon" />
+                    </com.google.android.material.card.MaterialCardView>
 
                     <!-- 应用名称 -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/about_app_name_margin_top"
-                        android:text="@string/app_name"
-                        android:textColor="@color/blue_glass_text"
-                        android:textSize="@dimen/about_app_name_text_size"
-                        android:textStyle="bold" />
+                        android:layout_marginTop="20dp"
+                        android:text="Aries AI"
+                        android:textColor="@color/blue_glass_primary"
+                        android:textSize="24sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.03" />
 
                     <!-- 版本号 -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/about_version_margin_top"
-                        android:text="版本: 1.0.0"
+                        android:layout_marginTop="6dp"
+                        android:text="v1.0.0 首发版 Alpha"
                         android:textColor="@color/blue_glass_icon"
-                        android:textSize="@dimen/about_version_text_size" />
+                        android:textSize="14sp" />
 
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-            </FrameLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-            <!-- 功能列表卡片（渐变描边） -->
-            <FrameLayout
+            <!-- 功能列表卡片 -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardActions"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/about_card_margin_bottom"
-                android:background="@drawable/bg_card_border_gradient"
-                android:padding="1dp">
-
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardBackgroundColor="@android:color/white"
-                    app:cardCornerRadius="19dp"
-                    app:cardElevation="4dp"
-                    app:strokeWidth="0dp">
+                android:layout_marginBottom="20dp"
+                app:cardBackgroundColor="@android:color/white"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="#E0F2FE">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:divider="?android:dividerHorizontal"
-                    android:showDividers="middle">
+                    android:padding="8dp">
 
                     <!-- 检查更新按钮 -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnCheckUpdate"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/about_button_margin"
-                        android:minHeight="@dimen/about_button_min_height"
-                        android:background="@drawable/ripple_btn_check_update"
-                        android:backgroundTint="@null"
-                        android:text="检查更新"
+                        android:layout_height="64dp"
+                        android:layout_margin="8dp"
+                        android:text="立即检查更新"
                         android:textAllCaps="false"
-                        android:textColor="@color/blue_glass_primary_variant"
-                        android:textSize="@dimen/about_button_text_size"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        app:backgroundTint="@color/blue_glass_primary"
+                        app:cornerRadius="24dp"
+                        app:elevation="0dp"
                         app:icon="@drawable/ic_update"
-                        app:iconTint="@color/blue_glass_primary_variant"
                         app:iconGravity="textStart"
-                        app:backgroundTint="@null"
-                        android:elevation="4dp"
-                        android:fontFamily="sans-serif-medium" />
+                        app:iconPadding="12dp" />
 
-                    <!-- 更新日志 -->
+                    <!-- 通用列表项 -->
                     <LinearLayout
                         android:id="@+id/itemChangelog"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="64dp"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:padding="@dimen/about_item_padding">
+                        android:paddingStart="20dp"
+                        android:paddingEnd="20dp">
 
                         <ImageView
-                            android:layout_width="@dimen/about_item_icon_size"
-                            android:layout_height="@dimen/about_item_icon_size"
-                            android:background="@drawable/about_icon_bg"
-                            android:padding="@dimen/about_item_icon_padding"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
                             android:src="@drawable/ic_history_24"
-                            app:tint="@color/blue_glass_primary"
-                            android:contentDescription="更新日志" />
+                            app:tint="@color/blue_glass_primary" />
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="@dimen/about_item_text_margin_start"
+                            android:layout_marginStart="16dp"
                             android:layout_weight="1"
                             android:text="更新日志"
                             android:textColor="@color/blue_glass_text"
-                            android:textSize="@dimen/about_item_text_size" />
+                            android:textSize="16sp" />
 
                         <ImageView
-                            android:layout_width="@dimen/about_item_arrow_size"
-                            android:layout_height="@dimen/about_item_arrow_size"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
                             android:src="@drawable/ic_arrow_right"
-                            app:tint="@color/blue_glass_icon"
-                            android:contentDescription="进入" />
-
+                            app:tint="@color/blue_glass_icon" />
                     </LinearLayout>
 
-                    <!-- 开源许可声明 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="60dp"
+                        android:background="#F1F5F9" />
+
                     <LinearLayout
                         android:id="@+id/itemLicenses"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="64dp"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:padding="@dimen/about_item_padding">
+                        android:paddingStart="20dp"
+                        android:paddingEnd="20dp">
 
                         <ImageView
-                            android:layout_width="@dimen/about_item_icon_size"
-                            android:layout_height="@dimen/about_item_icon_size"
-                            android:background="@drawable/about_icon_bg"
-                            android:padding="@dimen/about_item_icon_padding"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
                             android:src="@drawable/ic_license"
-                            app:tint="@color/blue_glass_primary"
-                            android:contentDescription="开源许可" />
+                            app:tint="@color/blue_glass_primary" />
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="@dimen/about_item_text_margin_start"
+                            android:layout_marginStart="16dp"
                             android:layout_weight="1"
                             android:text="开源许可声明"
                             android:textColor="@color/blue_glass_text"
-                            android:textSize="@dimen/about_item_text_size" />
+                            android:textSize="16sp" />
 
                         <ImageView
-                            android:layout_width="@dimen/about_item_arrow_size"
-                            android:layout_height="@dimen/about_item_arrow_size"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
                             android:src="@drawable/ic_arrow_right"
-                            app:tint="@color/blue_glass_icon"
-                            android:contentDescription="进入" />
+                            app:tint="@color/blue_glass_icon" />
+                    </LinearLayout>
 
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="0.5dp"
+                        android:layout_marginStart="60dp"
+                        android:background="#F1F5F9" />
+
+                    <!-- 访问官网 -->
+                    <LinearLayout
+                        android:id="@+id/itemWebsite"
+                        android:layout_width="match_parent"
+                        android:layout_height="64dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="20dp"
+                        android:paddingEnd="20dp">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@drawable/ic_public_24"
+                            app:tint="@color/blue_glass_primary" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="16dp"
+                            android:layout_weight="1"
+                            android:text="访问我们的官网"
+                            android:textColor="@color/blue_glass_text"
+                            android:textSize="16sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="aries-agent.com"
+                            android:textColor="@color/blue_glass_icon"
+                            android:textSize="12sp"
+                            android:layout_marginEnd="8dp" />
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_arrow_right"
+                            app:tint="@color/blue_glass_icon" />
                     </LinearLayout>
 
                 </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-            </FrameLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-            <!-- 联系信息卡片（渐变描边） -->
-            <FrameLayout
+            <!-- 开发者信息 -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardDeveloper"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/about_card_margin_bottom"
-                android:background="@drawable/bg_card_border_gradient"
-                android:padding="1dp">
-
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardBackgroundColor="@android:color/white"
-                    app:cardCornerRadius="19dp"
-                    app:cardElevation="4dp"
-                    app:strokeWidth="0dp">
+                android:layout_marginBottom="32dp"
+                app:cardBackgroundColor="@android:color/white"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="#E0F2FE">
 
                 <LinearLayout
+                    android:id="@+id/itemDeveloper"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:divider="?android:dividerHorizontal"
-                    android:showDividers="middle">
+                    android:padding="20dp"
+                    android:gravity="center"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true">
 
-                    <!-- 联系方式 -->
-                    <LinearLayout
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="开发者信息"
+                        android:textColor="@color/blue_glass_icon"
+                        android:textSize="12sp"
+                        android:textAllCaps="true"
+                        android:letterSpacing="0.1" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="开发者：ZG0704666"
+                        android:textColor="@color/blue_glass_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
                         android:id="@+id/itemContact"
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="联系我们：jack666_2007@foxmail.com"
+                        android:textColor="@color/blue_glass_icon"
+                        android:textSize="13sp"
+                        android:padding="4dp"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
-                        android:focusable="true"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:padding="@dimen/about_item_padding">
-
-                        <ImageView
-                            android:layout_width="@dimen/about_item_icon_size"
-                            android:layout_height="@dimen/about_item_icon_size"
-                            android:background="@drawable/about_icon_bg"
-                            android:padding="@dimen/about_item_icon_padding"
-                            android:src="@drawable/ic_email"
-                            app:tint="@color/blue_glass_primary"
-                            android:contentDescription="联系方式" />
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="@dimen/about_item_text_margin_start"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="联系方式"
-                                android:textColor="@color/blue_glass_text"
-                                android:textSize="@dimen/about_item_text_size" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="@dimen/about_item_subtitle_margin_top"
-                                android:text="联系我们: jack666_2007@foxmail.com"
-                                android:textColor="@color/blue_glass_icon"
-                                android:textSize="@dimen/about_item_subtitle_text_size" />
-
-                        </LinearLayout>
-
-                    </LinearLayout>
-
-                    <!-- 开发者 -->
-                    <LinearLayout
-                        android:id="@+id/itemDeveloper"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="?attr/selectableItemBackground"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:padding="@dimen/about_item_padding">
-
-                        <ImageView
-                            android:layout_width="@dimen/about_item_icon_size"
-                            android:layout_height="@dimen/about_item_icon_size"
-                            android:background="@drawable/about_icon_bg"
-                            android:padding="@dimen/about_item_icon_padding"
-                            android:src="@drawable/ic_developer"
-                            app:tint="@color/blue_glass_primary"
-                            android:contentDescription="开发者" />
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="@dimen/about_item_text_margin_start"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="开发者"
-                                android:textColor="@color/blue_glass_text"
-                                android:textSize="@dimen/about_item_text_size" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="@dimen/about_item_subtitle_margin_top"
-                                android:text="开发者: ZG0704666"
-                                android:textColor="@color/blue_glass_primary"
-                                android:textSize="@dimen/about_item_subtitle_text_size" />
-
-                        </LinearLayout>
-
-                    </LinearLayout>
+                        android:focusable="true" />
 
                 </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-            </FrameLayout>
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- 版权声明 -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/about_copyright_margin_top"
                 android:gravity="center"
-                android:text="@string/about_copyright"
-                android:textColor="@color/blue_glass_icon"
-                android:textSize="@dimen/about_copyright_text_size" />
+                android:text="© 2026 Aries AI. 保留所有权利"
+                android:textColor="#CBD5E1"
+                android:textSize="12sp"
+                android:layout_marginBottom="20dp" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

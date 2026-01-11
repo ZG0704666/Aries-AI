@@ -978,6 +978,28 @@ class FloatingChatService : Service() {
                         Toast.makeText(this@FloatingChatService, "已复制内容", Toast.LENGTH_SHORT)
                             .show()
                     }
+
+                    vh.retryButton?.setOnClickListener {
+                        // 尝试重新请求最后的 AI 会话
+                        val lastUserMsg = chatHistory.lastOrNull { it.role == "user" }?.content
+                        if (lastUserMsg != null) {
+                            // 先删掉当前失败/空的气泡（即刚才添加的 aiView）
+                            container.removeView(aiView)
+                            
+                            // 从上下文和本地记录中移除刚才这个还没成功的 assistant 槽位（如果有）
+                            if (chatHistory.lastOrNull()?.role == "assistant") {
+                                chatHistory.removeAt(chatHistory.size - 1)
+                            }
+                            if (messages.lastOrNull()?.startsWith("Aries:") == true) {
+                                messages.removeAt(messages.size - 1)
+                            }
+                            
+                            // 重试请求
+                            requestAIResponse(lastUserMsg.toString())
+                        } else {
+                            Toast.makeText(this@FloatingChatService, "没有可重试的消息", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                     
                     // 滚动到底部
                     floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
@@ -1033,10 +1055,15 @@ class FloatingChatService : Service() {
                 if (vh != null) {
                      StreamRenderHelper.markCompleted(vh, 0)
                 }
+
+                if (!streamOk && contentSb.isEmpty()) {
+                    vh?.messageContent?.text = "连接超时或服务遇到问题，请点击重试。"
+                    vh?.messageContent?.setTextColor(android.graphics.Color.RED)
+                }
                 
                 // 获取解析后的内容
                 val thinkingContent = vh?.let { StreamRenderHelper.getThinkingText(it) } ?: ""
-                val answerContent = vh?.let { StreamRenderHelper.getAnswerText(it) } ?: contentSb.toString()
+                val answerContent = vh?.let { StreamRenderHelper.getAnswerText(it) } ?: (if (streamOk) contentSb.toString() else "请求失败")
                 
                 val persistText = if (thinkingContent.isNotEmpty()) {
                     "<think>$thinkingContent</think>\n$answerContent"

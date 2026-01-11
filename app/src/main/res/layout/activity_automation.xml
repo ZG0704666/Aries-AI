@@ -3,280 +3,327 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/blue_glass_light">
+    android:background="#F8FAFC">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/topAppBar"
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@drawable/glass_toolbar_bg"
-        android:theme="@style/ThemeOverlay.MaterialComponents.Light"
-        android:layout_marginStart="12dp"
-        android:layout_marginEnd="12dp"
-        android:layout_marginTop="6dp"
-        app:navigationIconTint="@color/blue_glass_icon"
-        app:titleTextColor="@color/blue_glass_text"
-        app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"
-        app:title="自动化"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_height="wrap_content"
+        android:background="@android:color/white"
+        app:elevation="0dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/topAppBar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@android:color/white"
+            app:navigationIcon="@drawable/ic_arrow_back_24"
+            app:navigationIconTint="@color/blue_glass_primary"
+            app:title="智能自动化控制台"
+            app:titleCentered="true"
+            app:titleTextColor="@color/blue_glass_primary" />
+    </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollLog"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintTop_toBottomOf="@id/topAppBar"
-        app:layout_constraintBottom_toBottomOf="parent">
+        android:fillViewport="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/appBar">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="20dp">
 
-            <!-- 状态卡片 -->
+            <!-- 核心状态卡片 -->
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardStatus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="2dp"
+                android:layout_marginBottom="24dp"
                 app:cardBackgroundColor="@android:color/white"
-                app:strokeWidth="0dp"
-                android:layout_marginBottom="16dp">
+                app:cardCornerRadius="32dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="#E0F2FE">
 
-                <androidx.constraintlayout.widget.ConstraintLayout
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:padding="16dp">
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="20dp">
 
-                    <TextView
-                        android:id="@+id/tvStatusTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="系统状态"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/blue_glass_text"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent" />
+                    <View
+                        android:id="@+id/statusIndicator"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:background="@drawable/bg_circle_red" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnRefreshAccessibility"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="刷新"
-                        android:textColor="@color/blue_glass_primary"
-                        android:padding="0dp"
-                        android:minWidth="0dp"
-                        android:minHeight="0dp"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintTop_toTopOf="@id/tvStatusTitle"
-                        app:layout_constraintBottom_toBottomOf="@id/tvStatusTitle" />
-
-                    <TextView
-                        android:id="@+id/tvAccStatus"
+                    <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="无障碍状态：未开启"
-                        android:textColor="@color/blue_glass_text"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/tvStatusTitle" />
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="系统状态"
+                            android:textAllCaps="true"
+                            android:textColor="@color/blue_glass_icon"
+                            android:textSize="10sp"
+                            android:letterSpacing="0.1" />
+
+                        <TextView
+                            android:id="@+id/tvAccStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="无障碍服务：未启用"
+                            android:textColor="@color/blue_glass_text"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnOpenAccessibility"
-                        android:layout_width="match_parent"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="前往开启无障碍"
-                        app:cornerRadius="12dp"
-                        app:backgroundTint="@color/blue_glass_primary"
-                        app:layout_constraintTop_toBottomOf="@id/tvAccStatus" />
+                        android:text="去开启"
+                        android:textColor="@color/blue_glass_primary"
+                        app:rippleColor="#202563EB" />
 
-                </androidx.constraintlayout.widget.ConstraintLayout>
+                    <ImageButton
+                        android:id="@+id/btnRefreshAccessibility"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:src="@drawable/ic_refresh_24"
+                        app:tint="@color/blue_glass_icon" />
+                </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 任务卡片 -->
+            <!-- 任务指令区 -->
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardTask"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="2dp"
+                android:layout_marginBottom="24dp"
                 app:cardBackgroundColor="@android:color/white"
-                app:strokeWidth="0dp"
-                android:layout_marginBottom="16dp">
+                app:cardCornerRadius="32dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="#E0F2FE">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="20dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="任务指令"
-                        android:textSize="16sp"
+                        android:text="任务指令确认"
+                        android:textAllCaps="true"
+                        android:textColor="@color/blue_glass_primary"
+                        android:textSize="11sp"
                         android:textStyle="bold"
-                        android:textColor="@color/blue_glass_text" />
+                        android:letterSpacing="0.1" />
 
-                    <TextView
+                    <RelativeLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="已连接 API 后，可在此执行手机自动化任务"
-                        android:textSize="12sp"
-                        android:textColor="@color/blue_glass_icon" />
+                        android:layout_marginTop="16dp"
+                        android:background="@drawable/bg_rounded_input_light"
+                        android:padding="4dp">
 
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etTask"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_toStartOf="@id/btnVoiceTask"
+                            android:background="@null"
+                            android:gravity="top"
+                            android:hint="在此输入或录入您的任务指令..."
+                            android:inputType="textMultiLine"
+                            android:minLines="3"
+                            android:maxLines="6"
+                            android:padding="12dp"
+                            android:textColor="@color/blue_glass_text"
+                            android:textColorHint="#94A3B8"
+                            android:textSize="15sp" />
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/btnVoiceTask"
+                            android:layout_width="52dp"
+                            android:layout_height="52dp"
+                            android:layout_alignParentEnd="true"
+                            android:layout_centerVertical="true"
+                            android:layout_margin="4dp"
+                            app:cardBackgroundColor="@color/blue_glass_primary"
+                            app:cardCornerRadius="26dp"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="0dp">
+
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_mic_24"
+                                app:tint="@android:color/white" />
+                        </com.google.android.material.card.MaterialCardView>
+                    </RelativeLayout>
+
+                    <!-- 动态任务建议 -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            app:boxCornerRadiusTopStart="12dp"
-                            app:boxCornerRadiusTopEnd="12dp"
-                            app:boxCornerRadiusBottomStart="12dp"
-                            app:boxCornerRadiusBottomEnd="12dp"
-                            app:boxStrokeColor="@color/blue_glass_primary">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etTask"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:hint="输入要自动完成的任务（例如：打开设置并进入 Wi‑Fi）"
-                                android:inputType="textMultiLine"
-                                android:minLines="3"
-                                android:maxLines="5"
-                                android:gravity="top|start"
-                                android:textColor="@android:color/black" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <!-- 语音输入按钮 - 右侧居中显眼 -->
-                        <ImageButton
-                            android:id="@+id/btnVoiceTask"
-                            android:layout_width="56dp"
-                            android:layout_height="56dp"
-                            android:layout_marginStart="8dp"
-                            android:background="@drawable/bg_circle_accent"
-                            android:contentDescription="@string/voice_input"
-                            android:elevation="4dp"
-                            android:padding="14dp"
-                            android:scaleType="fitCenter"
-                            app:srcCompat="@drawable/ic_mic_24"
-                            app:tint="@color/blue_glass_primary" />
-
-                    </LinearLayout>
-
-                    <!-- 推荐语句滚动区域 -->
-                    <FrameLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="60dp"
-                        android:layout_marginTop="12dp"
-                        android:background="@drawable/bg_rounded_light">
+                        android:layout_marginTop="16dp"
+                        android:background="@drawable/bg_recommend_gradient"
+                        android:padding="1dp">
 
                         <TextView
                             android:id="@+id/tvRecommendTask"
                             android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:text=""
-                            android:textColor="@color/blue_glass_text"
-                            android:textSize="14sp"
-                            android:gravity="center"
-                            android:alpha="0.65"
-                            android:paddingStart="16dp"
-                            android:paddingEnd="16dp"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_recommend_inner"
                             android:clickable="true"
                             android:focusable="true"
-                            android:background="?attr/selectableItemBackground" />
-                    </FrameLayout>
-
+                            android:gravity="center"
+                            android:padding="12dp"
+                            android:text="点击尝试：'查看当前电池状态'"
+                            android:textColor="@color/blue_glass_primary"
+                            android:textSize="13sp"
+                            android:fontStyle="italic" />
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 控制按钮 -->
+            <!-- 操作面板 (高度平齐，无阴影，淡蓝描边) -->
             <LinearLayout
+                android:id="@+id/layoutControls"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="16dp">
+                android:layout_marginBottom="28dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPauseAgent"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="60dp"
+                    android:layout_weight="1"
+                    android:text="暂停"
+                    android:textColor="@color/blue_glass_primary"
+                    android:textSize="15sp"
+                    android:layout_marginEnd="12dp"
+                    app:cornerRadius="30dp"
+                    app:icon="@drawable/ic_pause_24"
+                    app:iconGravity="textStart"
+                    app:iconTint="@color/blue_glass_primary"
+                    app:strokeColor="#BAE6FD"
+                    app:strokeWidth="1.5dp"
+                    app:rippleColor="#102563EB" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnStartAgent"
                     android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_weight="1"
-                    android:text="开始执行"
-                    android:textSize="16sp"
+                    android:layout_height="60dp"
+                    android:layout_weight="1.2"
+                    android:text="立即开始"
                     android:textColor="@android:color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
                     app:backgroundTint="@color/blue_glass_primary"
-                    app:cornerRadius="16dp"
-                    android:layout_marginEnd="8dp" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnPauseAgent"
-                    android:layout_width="wrap_content"
-                    android:layout_height="56dp"
-                    android:text="暂停"
-                    android:textColor="@color/blue_glass_text"
-                    app:backgroundTint="@android:color/white"
-                    app:strokeColor="@color/blue_glass_primary"
-                    app:strokeWidth="1dp"
-                    app:cornerRadius="16dp"
-                    android:layout_marginEnd="8dp" />
+                    app:cornerRadius="30dp"
+                    app:elevation="0dp"
+                    app:rippleColor="#20FFFFFF" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnStopAgent"
-                    android:layout_width="wrap_content"
-                    android:layout_height="56dp"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="60dp"
+                    android:layout_weight="1"
                     android:text="停止"
-                    android:textColor="@android:color/holo_red_dark"
-                    app:backgroundTint="@android:color/white"
-                    app:strokeColor="@android:color/holo_red_dark"
-                    app:strokeWidth="1dp"
-                    app:cornerRadius="16dp" />
-
+                    android:textColor="#EF4444"
+                    android:textSize="15sp"
+                    android:layout_marginStart="12dp"
+                    app:cornerRadius="30dp"
+                    app:icon="@drawable/ic_stop_24"
+                    app:iconGravity="textStart"
+                    app:iconTint="#EF4444"
+                    app:strokeColor="#FEE2E2"
+                    app:strokeWidth="1.5dp"
+                    app:rippleColor="#10EF4444" />
             </LinearLayout>
 
-            <!-- 日志区域 -->
+            <!-- 日志终端 -->
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardLog"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="16dp"
+                android:layout_marginBottom="20dp"
+                app:cardBackgroundColor="#0F172A"
+                app:cardCornerRadius="24dp"
                 app:cardElevation="0dp"
-                app:cardBackgroundColor="#F5F5F5"
-                app:strokeWidth="0dp">
+                app:strokeWidth="1.5dp"
+                app:strokeColor="#1E293B">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="12dp">
-                    
-                    <TextView
-                        android:layout_width="wrap_content"
+                    android:padding="20dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="执行日志"
-                        android:textSize="12sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/blue_glass_icon"
-                        android:layout_marginBottom="8dp"/>
+                        android:layout_marginBottom="12dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:layout_width="8dp"
+                            android:layout_height="8dp"
+                            android:background="@drawable/bg_circle_green" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:fontFamily="monospace"
+                            android:text="运行日志系统"
+                            android:textColor="#38BDF8"
+                            android:textSize="10sp"
+                            android:textStyle="bold" />
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="1dp"
+                            android:layout_marginStart="12dp"
+                            android:layout_weight="1"
+                            android:background="#2038BDF8" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/tvLog"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:textColor="@color/blue_glass_text"
-                        android:textSize="12sp"
                         android:fontFamily="monospace"
-                        android:text="等待任务开始..." />
+                        android:lineSpacingExtra="6dp"
+                        android:text="系统已就绪，等待指令输入..."
+                        android:textColor="#F1F5F9"
+                        android:textSize="13sp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
