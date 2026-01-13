@@ -46,6 +46,17 @@ object ReleaseUiUtil {
         }
 
         val msg = t.message?.trim().orEmpty()
+        val m = Regex("HTTP\\s+(\\d{3})").find(msg)
+        if (m != null) {
+            val code = m.groupValues.getOrNull(1)?.toIntOrNull()
+            if (code != null) {
+                return when (code) {
+                    401, 403 -> "访问 GitHub 失败($code)：可能触发了 API 限流，建议配置 github.token。"
+                    404 -> "仓库或 Release 不存在(404)。"
+                    else -> "网络错误：HTTP $code"
+                }
+            }
+        }
         return if (msg.isNotBlank()) msg else t.javaClass.simpleName
     }
 }

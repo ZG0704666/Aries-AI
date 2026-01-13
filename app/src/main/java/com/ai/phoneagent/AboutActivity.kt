@@ -9,6 +9,9 @@ import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.app.Dialog
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
@@ -28,6 +31,10 @@ import com.ai.phoneagent.updates.ApkDownloadUtil
 import com.ai.phoneagent.updates.ReleaseEntry
 import com.ai.phoneagent.updates.ReleaseHistoryAdapter
 import com.ai.phoneagent.updates.ReleaseRepository
+import com.ai.phoneagent.updates.UpdateConfig
+import com.ai.phoneagent.updates.UpdateLinkAdapter
+import com.ai.phoneagent.updates.UpdateNotificationUtil
+import com.ai.phoneagent.updates.UpdateStore
 import com.ai.phoneagent.updates.ReleaseUiUtil
 import com.ai.phoneagent.updates.UpdateHistoryActivity
 import com.ai.phoneagent.updates.VersionComparator
@@ -38,8 +45,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 import android.view.animation.OvershootInterpolator
+import android.view.animation.AccelerateInterpolator
 import android.annotation.SuppressLint
 import android.view.MotionEvent
+import android.view.Window
+import android.view.WindowManager
 
 class AboutActivity : AppCompatActivity() {
 
@@ -59,7 +69,16 @@ class AboutActivity : AppCompatActivity() {
         // 入场动画
         binding.root.post {
             animateEntrance()
+            maybeShowUpdateDialogFromIntent()
         }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        if (intent != null) {
+            setIntent(intent)
+        }
+        maybeShowUpdateDialogFromIntent()
     }
 
     private fun animateEntrance() {
@@ -260,6 +279,104 @@ class AboutActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun maybeShowUpdateDialogFromIntent() {
+        val show = intent?.getBooleanExtra(UpdateNotificationUtil.EXTRA_SHOW_UPDATE_DIALOG, false) == true
+        if (!show) return
+        intent?.putExtra(UpdateNotificationUtil.EXTRA_SHOW_UPDATE_DIALOG, false)
+
+        val cached = UpdateStore.loadLatest(this)
+        if (cached != null) {
+            showUpdateLinksDialog(cached)
+            return
+        }
+
+        checkForUpdates(showLinksDialogIfNew = true)
+    }
+
+    private fun showUpdateLinksDialog(entry: ReleaseEntry) {
+        val options = ReleaseUiUtil.mirroredDownloadOptions(entry.apkUrl)
+        val links = if (options.isNotEmpty()) options else listOf("发布页" to entry.releaseUrl)
+
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        val containerView = layoutInflater.inflate(R.layout.dialog_update_links, null)
+        dialog.setContentView(containerView)
+
+        val cardView = containerView.findViewById<View>(R.id.dialogCard)
+
+        dialog.window?.let { window ->
+            window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            window.setLayout(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT
+            )
+            window.setDimAmount(0f)
+            window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
+            val params = window.attributes
+            params.windowAnimations = 0
+            window.attributes = params
+        }
+
+        val tvTitle = containerView.findViewById<TextView>(R.id.tvTitle)
+        val tvSubtitle = containerView.findViewById<TextView>(R.id.tvSubtitle)
+        val tvBody = containerView.findViewById<TextView>(R.id.tvBody)
+        val rvLinks = containerView.findViewById<RecyclerView>(R.id.rvLinks)
+
+        tvTitle.text = "发现新版本 ${entry.versionTag}"
+        tvSubtitle.text = "${UpdateConfig.REPO_OWNER}/${UpdateConfig.REPO_NAME}  •  ${UpdateConfig.APK_ASSET_NAME}"
+        tvBody.text = entry.body.ifBlank { "（无更新说明）" }
+
+        rvLinks.layoutManager = LinearLayoutManager(this)
+        rvLinks.adapter =
+            UpdateLinkAdapter(
+                items = links,
+                onOpen = { ReleaseUiUtil.openUrl(this, it) },
+                onCopy = {
+                    copyToClipboard(it)
+                    Toast.makeText(this, "链接已复制", Toast.LENGTH_SHORT).show()
+                },
+            )
+
+        fun exitDialog() {
+            vibrateLight()
+            cardView.animate()
+                .translationY(cardView.height.toFloat() * 1.5f)
+                .alpha(0f)
+                .setDuration(450)
+                .setInterpolator(AccelerateInterpolator(1.2f))
+                .withEndAction { dialog.dismiss() }
+                .start()
+        }
+
+        containerView.findViewById<View>(R.id.btnClose).setOnClickListener { exitDialog() }
+        containerView.setOnClickListener { exitDialog() }
+        cardView.setOnClickListener { }
+
+        containerView.findViewById<View>(R.id.btnOpenRelease).setOnClickListener {
+            exitDialog()
+            ReleaseUiUtil.openUrl(this, entry.releaseUrl)
+        }
+        containerView.findViewById<View>(R.id.btnHistory).setOnClickListener {
+            exitDialog()
+            showReleaseHistoryDialog()
+        }
+
+        dialog.show()
+
+        cardView.post {
+            cardView.translationY = -cardView.height.toFloat() * 1.5f
+            cardView.alpha = 0f
+            cardView.animate()
+                .translationY(0f)
+                .alpha(1f)
+                .scaleX(1.0f)
+                .scaleY(1.0f)
+                .setDuration(600)
+                .setInterpolator(OvershootInterpolator(1.1f))
+                .start()
+        }
+    }
+
     private fun handleDownload(entry: ReleaseEntry) {
         if (BuildConfig.GITHUB_TOKEN.isNotBlank()) {
             ApkDownloadUtil.enqueueApkDownload(this, entry)
@@ -287,7 +404,7 @@ class AboutActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun checkForUpdates() {
+    private fun checkForUpdates(showLinksDialogIfNew: Boolean = false) {
         val currentVersion =
             try {
                 packageManager.getPackageInfo(packageName, 0).versionName ?: ""
@@ -296,7 +413,7 @@ class AboutActivity : AppCompatActivity() {
             }
 
         lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) { releaseRepo.fetchLatestRelease(includePrerelease = false) }
+            val result = withContext(Dispatchers.IO) { releaseRepo.fetchLatestReleaseResilient(includePrerelease = false) }
             result
                 .onSuccess { latest ->
                     if (latest == null) {
@@ -310,13 +427,12 @@ class AboutActivity : AppCompatActivity() {
 
                     val newer = VersionComparator.compare(latest.version, currentVersion) > 0
                     if (newer) {
-                        MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
-                            .setTitle("发现新版本 ${latest.versionTag}")
-                            .setMessage(latest.body.ifBlank { "（无更新说明）" })
-                            .setPositiveButton("下载") { _, _ -> handleDownload(latest) }
-                            .setNegativeButton("查看发布") { _, _ -> ReleaseUiUtil.openUrl(this@AboutActivity, latest.releaseUrl) }
-                            .setNeutralButton("更新历史") { _, _ -> showReleaseHistoryDialog() }
-                            .show()
+                        UpdateStore.saveLatest(this@AboutActivity, latest)
+                        if (showLinksDialogIfNew) {
+                            showUpdateLinksDialog(latest)
+                        } else {
+                            showUpdateLinksDialog(latest)
+                        }
                     } else {
                         MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
                             .setTitle("已是最新")

@@ -52,6 +52,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.ai.phoneagent.databinding.ActivityMainBinding
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
+import com.ai.phoneagent.updates.ReleaseRepository
+import com.ai.phoneagent.updates.UpdateNotificationUtil
+import com.ai.phoneagent.updates.UpdateStore
+import com.ai.phoneagent.updates.VersionComparator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -207,6 +211,49 @@ class MainActivity : AppCompatActivity() {
         binding.btnVoice.isEnabled = true
 
         initSherpaModel()
+
+        silentCheckUpdatesOnLaunch()
+    }
+
+    private fun silentCheckUpdatesOnLaunch() {
+        val now = System.currentTimeMillis()
+        val intervalMs = 6L * 60L * 60L * 1000L
+        if (!UpdateStore.shouldSilentCheck(this, nowMs = now, intervalMs = intervalMs)) return
+
+        // 先打点，避免频繁启动/重建时重复请求
+        UpdateStore.markSilentChecked(this, nowMs = now)
+
+        val currentVersion =
+                try {
+                    packageManager.getPackageInfo(packageName, 0).versionName ?: ""
+                } catch (_: Exception) {
+                    ""
+                }
+
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                ReleaseRepository().fetchLatestReleaseResilient(includePrerelease = false)
+            }
+
+            result
+                .onSuccess { latest ->
+                    if (latest == null) return@onSuccess
+                    val newer = VersionComparator.compare(latest.version, currentVersion) > 0
+                    if (!newer) return@onSuccess
+
+                    UpdateStore.saveLatest(this@MainActivity, latest)
+
+                    if (!UpdateStore.shouldNotify(this@MainActivity, latest.versionTag)) return@onSuccess
+
+                    val posted = UpdateNotificationUtil.notifyNewVersion(this@MainActivity, latest)
+                    if (posted) {
+                        UpdateStore.markNotified(this@MainActivity, latest.versionTag)
+                    }
+                }
+                .onFailure {
+                    // 静默检查：不打扰用户
+                }
+        }
     }
 
     private fun setupEdgeToEdge() {

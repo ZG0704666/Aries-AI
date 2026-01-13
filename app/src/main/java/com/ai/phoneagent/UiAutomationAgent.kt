@@ -4,6 +4,8 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
+import com.ai.phoneagent.core.cache.ScreenshotCache
+import com.ai.phoneagent.core.cache.ScreenshotThrottler
 import java.io.IOException
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -18,6 +20,15 @@ import kotlinx.coroutines.withContext
 class UiAutomationAgent(
         private val config: Config = Config(),
 ) {
+    
+    // 截图优化组件
+    private val screenshotCache = ScreenshotCache(
+        maxSize = 3,           // 最多缓墵3张截图
+        ttlMs = 2000L          // 2秒TTL
+    )
+    private val screenshotThrottler = ScreenshotThrottler(
+        minIntervalMs = 1100L  // 1.1秒最小间隔
+    )
 
     interface Control {
         fun isPaused(): Boolean
@@ -50,6 +61,11 @@ class UiAutomationAgent(
             val useStreamingWithEarlyStop: Boolean = true,  // 使用流式API并在获取完整动作后早停
             val parallelScreenshotAndUi: Boolean = true,    // 并行获取截图和UI树
             val postActionDelayMs: Long = 120L,             // 执行动作后等待时间（原160ms）
+            // 截图优化参数
+            val enableScreenshotCache: Boolean = true,      // 启用截图缓存
+            val enableScreenshotThrottle: Boolean = true,   // 启用截图节流
+            val screenshotCompressionQuality: Int = 85,     // JPEG压缩质量 (0-100)
+            val screenshotMaxSizeKB: Int = 150,             // 最大截图大小 (KB)
     )
 
     data class Result(
@@ -124,6 +140,75 @@ class UiAutomationAgent(
      * 当检测到完整的 do(...) 或 finish(...) 动作时，立即停止读取后续内容
      * 可节省 0.5-2 秒的"尾部等待"时间
      */
+    /**
+     * 优化的截图获取方法（集成缓存+节流+压缩）
+     * 1. 检查节流器，防止频繁截图
+     * 2. 检查缓存，避免重复截图
+     * 3. 执行截图并压缩优化
+     */
+    private suspend fun getOptimizedScreenshot(
+        service: PhoneAgentAccessibilityService
+    ): PhoneAgentAccessibilityService.ScreenshotData? {
+        // 检查节流器
+        if (config.enableScreenshotThrottle && !screenshotThrottler.canTakeScreenshot()) {
+            val remainingWait = screenshotThrottler.getRemainingWaitTime()
+            if (remainingWait > 0) {
+                // 尝试从缓存获取
+                if (config.enableScreenshotCache) {
+                    val currentApp = service.currentAppPackage()
+                    val windowEventTime = service.lastWindowEventTime()
+                    val cacheKey = screenshotCache.generateKey(currentApp, windowEventTime)
+                    
+                    val cachedScreenshot = screenshotCache.get(cacheKey)
+                    if (cachedScreenshot is PhoneAgentAccessibilityService.ScreenshotData) {
+                        return cachedScreenshot
+                    }
+                }
+                
+                // 无缓存且需要等待，返回null
+                return null
+            }
+        }
+        
+        // 检查缓存
+        if (config.enableScreenshotCache) {
+            val currentApp = service.currentAppPackage()
+            val windowEventTime = service.lastWindowEventTime()
+            val cacheKey = screenshotCache.generateKey(currentApp, windowEventTime)
+            
+            val cachedScreenshot = screenshotCache.get(cacheKey)
+            if (cachedScreenshot is PhoneAgentAccessibilityService.ScreenshotData) {
+                return cachedScreenshot
+            }
+            
+            // 缓存未命中，执行截图
+            val screenshot = service.tryCaptureScreenshotBase64()
+            if (screenshot != null) {
+                // 存储到缓存
+                screenshotCache.put(cacheKey, screenshot)
+                
+                // 清理过期缓存
+                screenshotCache.evictExpired()
+            }
+            return screenshot
+        } else {
+            // 未启用缓存，直接截图
+            return service.tryCaptureScreenshotBase64()
+        }
+    }
+    
+    /**
+     * 清理截图缓存（在任务开始/结束时调用）
+     */
+    private fun clearScreenshotCache() {
+        if (config.enableScreenshotCache) {
+            screenshotCache.clear()
+        }
+        if (config.enableScreenshotThrottle) {
+            screenshotThrottler.reset()
+        }
+    }
+
     private suspend fun requestModelStreamingWithEarlyStop(
             apiKey: String,
             model: String,
@@ -414,6 +499,9 @@ do(action="Tap", element=[x,y])
         history +=
                 ChatRequestMessage(role = "system", content = buildSystemPrompt(screenW, screenH))
 
+        // 清除截图缓存和限流器
+        clearScreenshotCache()
+
         var step = 0
         while (step < config.maxSteps) {
             kotlinx.coroutines.currentCoroutineContext().ensureActive()
@@ -430,7 +518,7 @@ do(action="Tap", element=[x,y])
             
             // ⚡ 性能优化：并行获取截图和UI树
             val (screenshot, rawUiDump) = coroutineScope {
-                val screenshotDeferred = async { service.tryCaptureScreenshotBase64() }
+                val screenshotDeferred = async { getOptimizedScreenshot(service) }
                 val uiDumpDeferred = async { service.dumpUiTreeWithRetry(maxNodes = 30) }
                 Pair(screenshotDeferred.await(), uiDumpDeferred.await())
             }
@@ -504,6 +592,7 @@ do(action="Tap", element=[x,y])
                     onThinkingDelta = { delta ->
                         streamedThinking += delta
                         // 实时更新进度显示
+                        AutomationOverlay.updateThinking(delta)
                         AutomationOverlay.updateProgress(
                             step = step,
                             phaseInStep = 0.35f,

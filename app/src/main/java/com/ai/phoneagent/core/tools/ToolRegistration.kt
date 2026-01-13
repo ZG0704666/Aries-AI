@@ -526,6 +526,67 @@ object ToolRegistration {
         )
 
         // ============================================================================
+        // Operit 同款工具接口 - scroll_to_element (优化新增)
+        // ============================================================================
+        handler.registerTool(
+            name = "scroll_to_element",
+            dangerCheck = { false },
+            descriptionGenerator = { tool ->
+                val text = tool.parameters.find { it.name == "text" }?.value
+                val resourceId = tool.parameters.find { it.name == "resource_id" }?.value
+                val direction = tool.parameters.find { it.name == "direction" }?.value ?: "down"
+                val selector = text ?: resourceId ?: "目标元素"
+                "滚动查找元素: $selector ($direction)"
+            },
+            executor = { tool ->
+                val service = PhoneAgentAccessibilityService.instance
+                if (service == null) {
+                    ToolResult(
+                        toolName = tool.name,
+                        success = false,
+                        error = "无障碍服务未启用"
+                    )
+                } else {
+                    val resourceId = tool.parameters.find { it.name == "resource_id" }?.value
+                    val text = tool.parameters.find { it.name == "text" }?.value
+                    val contentDesc = tool.parameters.find { it.name == "content_desc" }?.value
+                    val className = tool.parameters.find { it.name == "class_name" }?.value
+                    val direction = tool.parameters.find { it.name == "direction" }?.value ?: "down"
+                    val maxScrolls = tool.parameters.find { it.name == "max_scrolls" }?.value?.toIntOrNull() ?: 10
+                    val scrollDelayMs = tool.parameters.find { it.name == "scroll_delay_ms" }?.value?.toLongOrNull() ?: 500L
+                    
+                    if (resourceId.isNullOrBlank() && text.isNullOrBlank() && 
+                        contentDesc.isNullOrBlank() && className.isNullOrBlank()) {
+                        ToolResult(
+                            toolName = tool.name,
+                            success = false,
+                            error = "需要至少一个选择器参数: resource_id, text, content_desc, 或 class_name"
+                        )
+                    } else {
+                        kotlinx.coroutines.runBlocking {
+                            val success = service.scrollToElement(
+                                resourceId = resourceId,
+                                text = text,
+                                contentDesc = contentDesc,
+                                className = className,
+                                direction = direction,
+                                maxScrolls = maxScrolls,
+                                scrollDelayMs = scrollDelayMs
+                            )
+                            val selector = text ?: resourceId ?: "目标元素"
+                            ToolResult(
+                                toolName = tool.name,
+                                success = success,
+                                result = UIActionResultData("scroll_to_element", success, "滚动查找: $selector ($direction)"),
+                                message = if (success) "成功找到并滚动到元素" else "未能找到目标元素"
+                            )
+                        }
+                    }
+                }
+            }
+        )
+        
+        // ============================================================================
         // Operit 同款工具接口 - TODO-012 find_elements
         // ============================================================================
         handler.registerTool(

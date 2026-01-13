@@ -37,6 +37,9 @@ object AutomationOverlay {
     private var estimatedTotalSteps: Int = 0
     // 【优化】是否已解析过预估步骤数
     private var hasEstimatedSteps: Boolean = false
+    // 【优化新增】流式思考显示
+    private var isShowingThinking: Boolean = false
+    private var thinkingText: String = ""
 
     fun canDrawOverlays(context: Context): Boolean {
         if (PhoneAgentAccessibilityService.instance != null) return true
@@ -199,6 +202,76 @@ object AutomationOverlay {
             this.hasEstimatedSteps = true
             Log.d("AutomationOverlay", "设置预估总步骤数: $estimated")
         }
+    }
+    
+    /**
+     * 开始流式思考显示
+     */
+    fun startThinking() {
+        val v = container ?: return
+        isShowingThinking = true
+        thinkingText = ""
+        v.setTexts("思考中", "正在分析问题...")
+    }
+    
+    /**
+     * 更新流式思考内容
+     * @param delta 新增的思考内容片段
+     */
+    fun updateThinking(delta: String) {
+        if (!isShowingThinking) return
+        val v = container ?: return
+        
+        thinkingText += delta
+        
+        // 提取有意义的关键词显示
+        val meaningfulText = extractMeaningfulThinking(thinkingText)
+        val displayText = if (meaningfulText.isNotBlank()) {
+            meaningfulText.take(30) + if (meaningfulText.length > 30) "..." else ""
+        } else {
+            "正在思考..."
+        }
+        
+        v.setTexts("思考中", displayText)
+    }
+    
+    /**
+     * 结束流式思考显示
+     */
+    fun stopThinking() {
+        isShowingThinking = false
+        thinkingText = ""
+    }
+    
+    /**
+     * 从思考文本中提取有意义的关键信息
+     */
+    private fun extractMeaningfulThinking(thinking: String): String {
+        val text = thinking.trim()
+        if (text.isBlank()) return ""
+        
+        // 匹配常见的行动关键词
+        val actionPatterns = listOf(
+            "需要点击", "点击", "输入", "滚动", "查找", "等待", 
+            "打开", "关闭", "返回", "确认", "取消", "保存",
+            "在", "找到", "看到", "应该", "可以", "正在"
+        )
+        
+        // 尝试提取包含行动关键词的句子
+        val sentences = text.split("[。！？\n]".toRegex())
+        for (sentence in sentences) {
+            val trimmed = sentence.trim()
+            if (trimmed.length in 10..50) { // 适中的句子长度
+                for (pattern in actionPatterns) {
+                    if (trimmed.contains(pattern)) {
+                        return trimmed
+                    }
+                }
+            }
+        }
+        
+        // 如果没有找到合适的句子，返回前面的内容
+        return text.take(40)
     }
 
     /**

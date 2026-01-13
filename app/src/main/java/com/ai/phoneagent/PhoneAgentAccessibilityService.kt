@@ -31,6 +31,37 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         private const val SCREENSHOT_QUALITY = 85  // JPEG质量 (0-100)
         private const val SCREENSHOT_SCALE_PERCENT = 75  // 缩放百分比 (50-100)
         private const val USE_JPEG_COMPRESSION = true  // 是否使用JPEG压缩
+        
+        /**
+         * 文本规范化：去除空白、繁简转换
+         */
+        private fun normalizeText(text: String): String {
+            return text.trim()
+                .replace(Regex("\\s+"), "")  // 移除所有空白字符
+                .toSimplifiedChinese()  // 繁体转简体
+                .lowercase()  // 转小写
+        }
+        
+        /**
+         * 繁体中文转简体，覆盖常见字符
+         */
+        private fun String.toSimplifiedChinese(): String {
+            val traditionalToSimplified = mapOf(
+                // 常见繁体字
+                '錄' to '录', '應' to '应', '開' to '开', '關' to '关', '設' to '设',
+                '節' to '节', '點' to '点', '選' to '选', '瀋' to '览', '頁' to '页',
+                '鯒' to '龙', '青' to '香', '臺' to '台', '灣' to '湾', '國' to '国',
+                '獨' to '小', '學' to '学', '會' to '会', '還' to '还', '當' to '当',
+                '線' to '线', '購' to '购', '請' to '请', '讓' to '让', '說' to '说',
+                '閱' to '阅', '文' to '件', '事' to '件', '工' to '作', '資' to '资',
+                '訊' to '讯', '已' to '已', '未' to '未', '更' to '更', '呼' to '呼'
+            )
+            var result = this
+            traditionalToSimplified.forEach { (trad, simp) ->
+                result = result.replace(trad, simp)
+            }
+            return result
+        }
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -794,6 +825,137 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
      * 获取当前应用详细信息
      * @return JSON格式的应用信息
      */
+    // ============================================================================
+    // Operit 同款工具接口 - scroll_to_element (优化新增)
+    // ============================================================================
+    
+    /**
+     * 滚动到目标元素，直到元素可见或达到最大滚动次数
+     * @param resourceId 资源ID（如 "com.example:id/button"）
+     * @param text 文本内容（模糊匹配）
+     * @param contentDesc 内容描述（模糊匹配）
+     * @param className 类名（如 "Button" 或完整类名）
+     * @param direction 滚动方向: "up", "down", "left", "right"
+     * @param maxScrolls 最大滚动次数（默认10次）
+     * @param scrollDelayMs 每次滚动后的等待时间（默认500ms）
+     * @return 是否成功找到元素
+     */
+    suspend fun scrollToElement(
+        resourceId: String? = null,
+        text: String? = null,
+        contentDesc: String? = null,
+        className: String? = null,
+        direction: String = "down",
+        maxScrolls: Int = 10,
+        scrollDelayMs: Long = 500L,
+    ): Boolean {
+        if (resourceId.isNullOrBlank() && text.isNullOrBlank() && 
+            contentDesc.isNullOrBlank() && className.isNullOrBlank()) {
+            Log.w("SCROLL_TO_ELEMENT", "至少需要一个选择器参数")
+            return false
+        }
+        
+        Log.d("SCROLL_TO_ELEMENT", "开始滚动查找: resourceId=$resourceId, text=$text, direction=$direction")
+        
+        // 首先检查元素是否已经可见
+        val root = rootInActiveWindow
+        if (root != null) {
+            val found = findNode(root, resourceId, text, contentDesc, className, 0)
+            if (found != null && isElementVisible(found)) {
+                Log.d("SCROLL_TO_ELEMENT", "元素已可见，无需滚动")
+                return true
+            }
+        }
+        
+        // 执行滚动查找
+        repeat(maxScrolls) { scrollCount ->
+            Log.d("SCROLL_TO_ELEMENT", "滚动第 ${scrollCount + 1}/$maxScrolls 次")
+            
+            // 执行滚动
+            performScroll(direction)
+            
+            // 等待界面稳定
+            delay(scrollDelayMs)
+            
+            // 检查元素是否已出现
+            val currentRoot = rootInActiveWindow
+            if (currentRoot != null) {
+                val target = findNode(currentRoot, resourceId, text, contentDesc, className, 0)
+                if (target != null && isElementVisible(target)) {
+                    Log.d("SCROLL_TO_ELEMENT", "滚动成功找到元素，滚动次数: ${scrollCount + 1}")
+                    return true
+                }
+            }
+        }
+        
+        Log.w("SCROLL_TO_ELEMENT", "达到最大滚动次数 $maxScrolls，未找到目标元素")
+        return false
+    }
+    
+    /**
+     * 检查元素是否在屏幕可见区域内
+     */
+    private fun isElementVisible(node: AccessibilityNodeInfo): Boolean {
+        val bounds = Rect()
+        node.getBoundsInScreen(bounds)
+        
+        // 获取屏幕尺寸
+        val dm = resources.displayMetrics
+        val screenWidth = dm.widthPixels
+        val screenHeight = dm.heightPixels
+        
+        // 检查元素是否在屏幕范围内
+        return bounds.left >= 0 && bounds.top >= 0 && 
+               bounds.right <= screenWidth && bounds.bottom <= screenHeight &&
+               bounds.width() > 0 && bounds.height() > 0
+    }
+    
+    /**
+     * 执行滚动操作
+     */
+    private suspend fun performScroll(direction: String) {
+        val dm = resources.displayMetrics
+        val screenWidth = dm.widthPixels
+        val screenHeight = dm.heightPixels
+        
+        // 滚动区域设置为屏幕中央80%区域，避免触碰边缘控件
+        val centerX = screenWidth * 0.5f
+        val centerY = screenHeight * 0.5f
+        val scrollDistance = minOf(screenWidth, screenHeight) * 0.3f // 滚动距离为屏幕30%
+        
+        val (startX, startY, endX, endY) = when (direction.lowercase().trim()) {
+            "up" -> {
+                val startY = centerY + scrollDistance
+                val endY = centerY - scrollDistance
+                arrayOf(centerX, startY, centerX, endY)
+            }
+            "down" -> {
+                val startY = centerY - scrollDistance
+                val endY = centerY + scrollDistance
+                arrayOf(centerX, startY, centerX, endY)
+            }
+            "left" -> {
+                val startX = centerX + scrollDistance
+                val endX = centerX - scrollDistance
+                arrayOf(startX, centerY, endX, centerY)
+            }
+            "right" -> {
+                val startX = centerX - scrollDistance
+                val endX = centerX + scrollDistance
+                arrayOf(startX, centerY, endX, centerY)
+            }
+            else -> {
+                Log.w("SCROLL_TO_ELEMENT", "未知滚动方向: $direction，使用默认向下滚动")
+                val startY = centerY - scrollDistance
+                val endY = centerY + scrollDistance
+                arrayOf(centerX, startY, centerX, endY)
+            }
+        }
+        
+        // 执行滑动手势
+        swipe(startX, startY, endX, endY, 400L)
+    }
+
     fun getCurrentAppInfo(): String {
         val root = rootInActiveWindow
         val packageName = root?.packageName?.toString() ?: "unknown"
@@ -920,11 +1082,23 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             }
             if (!text.isNullOrBlank()) {
                 if (t.isBlank()) return false
-                if (!t.contains(text, ignoreCase = true)) return false
+                // 增强匹配：原始 + 规范化
+                val normalizedNodeText = normalizeText(t)
+                val normalizedSearchText = normalizeText(text)
+                if (!t.contains(text, ignoreCase = true) && 
+                    !normalizedNodeText.contains(normalizedSearchText)) {
+                    return false
+                }
             }
             if (!contentDesc.isNullOrBlank()) {
                 if (d.isBlank()) return false
-                if (!d.contains(contentDesc, ignoreCase = true)) return false
+                // 增强匹配：原始 + 规范化
+                val normalizedNodeDesc = normalizeText(d)
+                val normalizedSearchDesc = normalizeText(contentDesc)
+                if (!d.contains(contentDesc, ignoreCase = true) && 
+                    !normalizedNodeDesc.contains(normalizedSearchDesc)) {
+                    return false
+                }
             }
             return true
         }
