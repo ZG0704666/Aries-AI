@@ -114,21 +114,19 @@ class AboutActivity : AppCompatActivity() {
     }
 
     private fun setupToolbar() {
-        // 标题恢复，显示为“关于”
-        binding.topAppBar.title = "关于"
-        binding.topAppBar.setNavigationOnClickListener {
-            vibrateLight()
-            finish()
-        }
-
-        // 返回按钮对齐
-        val upOffsetPx = -7f * resources.displayMetrics.density
-        binding.topAppBar.post {
-            for (i in 0 until binding.topAppBar.childCount) {
-                val child = binding.topAppBar.getChildAt(i)
-                if (child is ImageButton) {
-                    child.translationY = upOffsetPx
-                }
+        // 新布局中返回按钮ID为 btnBack
+        val btnBack = binding.root.findViewById<ImageButton>(R.id.btnBack)
+        btnBack?.let { btn ->
+            // 设置返回按钮的颜色（兼容各API级别）
+            androidx.core.widget.ImageViewCompat.setImageTintList(
+                btn,
+                android.content.res.ColorStateList.valueOf(
+                    androidx.core.content.ContextCompat.getColor(this, R.color.blue_glass_primary)
+                )
+            )
+            btn.setOnClickListener {
+                vibrateLight()
+                finish()
             }
         }
     }
@@ -171,7 +169,7 @@ class AboutActivity : AppCompatActivity() {
         // 联系方式 - 点击复制邮箱
         binding.itemContact.setOnClickListener {
             vibrateLight()
-            copyToClipboard("jack666_2007@foxmail.com")
+            copyToClipboard("zhangyongqi@njit.edu.cn")
             Toast.makeText(this, "邮箱已复制到剪贴板", Toast.LENGTH_SHORT).show()
         }
 

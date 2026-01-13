@@ -20,7 +20,7 @@
             android:background="@android:color/white"
             app:navigationIcon="@drawable/ic_arrow_back_24"
             app:navigationIconTint="@color/blue_glass_primary"
-            app:title="智能自动化控制台"
+            app:title="Aries AI自动化控制台"
             app:titleCentered="true"
             app:titleTextColor="@color/blue_glass_primary" />
     </com.google.android.material.appbar.AppBarLayout>

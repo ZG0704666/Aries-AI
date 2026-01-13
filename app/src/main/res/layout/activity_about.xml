@@ -9,19 +9,46 @@
         android:id="@+id/appBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:minHeight="56dp"
         android:background="@android:color/white"
         app:elevation="0dp">
 
-        <!-- 顶部工具栏 -->
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/topAppBar"
+        <!-- 顶部工具栏：标题居中，与返回按钮平齐 -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
+            android:layout_height="56dp"
             android:background="@android:color/white"
-            app:navigationIcon="@drawable/ic_arrow_back_24"
-            app:navigationIconTint="@color/blue_glass_primary"
-            app:title="关于"
-            app:titleTextColor="@color/blue_glass_primary" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- 返回按钮 -->
+            <ImageButton
+                android:id="@+id/btnBack"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:src="@drawable/ic_arrow_back_24"
+                android:scaleType="centerInside"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="返回" />
+
+            <!-- 标题"关于"：居中显示，加大字号 -->
+            <TextView
+                android:id="@+id/titleAbout"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="关于"
+                android:textColor="@color/blue_glass_primary"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:gravity="center" />
+
+            <!-- 占位符，与返回按钮对称 -->
+            <Space
+                android:layout_width="56dp"
+                android:layout_height="56dp" />
+
+        </LinearLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -37,14 +64,15 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="20dp">
+            android:padding="16dp"
+            android:gravity="center_horizontal">
 
             <!-- 应用信息卡片（无阴影，淡蓝描边） -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardAppInfo"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
+                android:layout_marginBottom="12dp"
                 app:cardBackgroundColor="@android:color/white"
                 app:cardCornerRadius="32dp"
                 app:cardElevation="0dp"
@@ -56,13 +84,13 @@
                     android:layout_height="wrap_content"
                     android:gravity="center_horizontal"
                     android:orientation="vertical"
-                    android:padding="32dp">
+                    android:padding="24dp">
 
                     <!-- 应用图标 -->
                     <com.google.android.material.card.MaterialCardView
-                        android:layout_width="96dp"
-                        android:layout_height="96dp"
-                        app:cardCornerRadius="24dp"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        app:cardCornerRadius="20dp"
                         app:cardElevation="0dp"
                         app:strokeWidth="1.5dp"
                         app:strokeColor="#E0F2FE">
@@ -79,10 +107,10 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="20dp"
+                        android:layout_marginTop="14dp"
                         android:text="Aries AI"
                         android:textColor="@color/blue_glass_primary"
-                        android:textSize="24sp"
+                        android:textSize="22sp"
                         android:textStyle="bold"
                         android:letterSpacing="0.03" />
 
@@ -90,10 +118,10 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
+                        android:layout_marginTop="4dp"
                         android:text="v1.0.0 首发版 Alpha"
                         android:textColor="@color/blue_glass_icon"
-                        android:textSize="14sp" />
+                        android:textSize="13sp" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -103,7 +131,7 @@
                 android:id="@+id/cardActions"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
+                android:layout_marginBottom="12dp"
                 app:cardBackgroundColor="@android:color/white"
                 app:cardCornerRadius="28dp"
                 app:cardElevation="0dp"
@@ -114,53 +142,53 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:padding="4dp">
 
                     <!-- 检查更新按钮 -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnCheckUpdate"
                         android:layout_width="match_parent"
-                        android:layout_height="64dp"
-                        android:layout_margin="8dp"
+                        android:layout_height="52dp"
+                        android:layout_margin="6dp"
                         android:text="立即检查更新"
                         android:textAllCaps="false"
                         android:textColor="@android:color/white"
-                        android:textSize="16sp"
+                        android:textSize="15sp"
                         android:textStyle="bold"
                         app:backgroundTint="@color/blue_glass_primary"
                         app:cornerRadius="24dp"
                         app:elevation="0dp"
                         app:icon="@drawable/ic_update"
                         app:iconGravity="textStart"
-                        app:iconPadding="12dp" />
+                        app:iconPadding="10dp" />
 
                     <!-- 通用列表项 -->
                     <LinearLayout
                         android:id="@+id/itemChangelog"
                         android:layout_width="match_parent"
-                        android:layout_height="64dp"
+                        android:layout_height="52dp"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:paddingStart="20dp"
-                        android:paddingEnd="20dp">
+                        android:paddingStart="18dp"
+                        android:paddingEnd="18dp">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
                             android:src="@drawable/ic_history_24"
                             app:tint="@color/blue_glass_primary" />
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="16dp"
+                            android:layout_marginStart="14dp"
                             android:layout_weight="1"
                             android:text="更新日志"
                             android:textColor="@color/blue_glass_text"
-                            android:textSize="16sp" />
+                            android:textSize="15sp" />
 
                         <ImageView
                             android:layout_width="20dp"
@@ -172,35 +200,35 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
-                        android:layout_marginStart="60dp"
+                        android:layout_marginStart="56dp"
                         android:background="#F1F5F9" />
 
                     <LinearLayout
                         android:id="@+id/itemLicenses"
                         android:layout_width="match_parent"
-                        android:layout_height="64dp"
+                        android:layout_height="52dp"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:paddingStart="20dp"
-                        android:paddingEnd="20dp">
+                        android:paddingStart="18dp"
+                        android:paddingEnd="18dp">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
                             android:src="@drawable/ic_license"
                             app:tint="@color/blue_glass_primary" />
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="16dp"
+                            android:layout_marginStart="14dp"
                             android:layout_weight="1"
                             android:text="开源许可声明"
                             android:textColor="@color/blue_glass_text"
-                            android:textSize="16sp" />
+                            android:textSize="15sp" />
 
                         <ImageView
                             android:layout_width="20dp"
@@ -212,43 +240,43 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="0.5dp"
-                        android:layout_marginStart="60dp"
+                        android:layout_marginStart="56dp"
                         android:background="#F1F5F9" />
 
                     <!-- 访问官网 -->
                     <LinearLayout
                         android:id="@+id/itemWebsite"
                         android:layout_width="match_parent"
-                        android:layout_height="64dp"
+                        android:layout_height="52dp"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:paddingStart="20dp"
-                        android:paddingEnd="20dp">
+                        android:paddingStart="18dp"
+                        android:paddingEnd="18dp">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
                             android:src="@drawable/ic_public_24"
                             app:tint="@color/blue_glass_primary" />
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="16dp"
+                            android:layout_marginStart="14dp"
                             android:layout_weight="1"
                             android:text="访问我们的官网"
                             android:textColor="@color/blue_glass_text"
-                            android:textSize="16sp" />
+                            android:textSize="15sp" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="aries-agent.com"
                             android:textColor="@color/blue_glass_icon"
-                            android:textSize="12sp"
+                            android:textSize="11sp"
                             android:layout_marginEnd="8dp" />
 
                         <ImageView
@@ -266,7 +294,7 @@
                 android:id="@+id/cardDeveloper"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="32dp"
+                android:layout_marginBottom="12dp"
                 app:cardBackgroundColor="@android:color/white"
                 app:cardCornerRadius="28dp"
                 app:cardElevation="0dp"
@@ -278,7 +306,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp"
+                    android:padding="16dp"
                     android:gravity="center"
                     android:background="?attr/selectableItemBackground"
                     android:clickable="true"
@@ -289,28 +317,28 @@
                         android:layout_height="wrap_content"
                         android:text="开发者信息"
                         android:textColor="@color/blue_glass_icon"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
                         android:textAllCaps="true"
                         android:letterSpacing="0.1" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="3dp"
                         android:text="开发者：ZG0704666"
                         android:textColor="@color/blue_glass_primary"
-                        android:textSize="16sp"
+                        android:textSize="15sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/itemContact"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="联系我们：jack666_2007@foxmail.com"
+                        android:layout_marginTop="6dp"
+                        android:text="联系我们：zhangyongqi@njit.edu.cn"
                         android:textColor="@color/blue_glass_icon"
-                        android:textSize="13sp"
-                        android:padding="4dp"
+                        android:textSize="12sp"
+                        android:padding="3dp"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true" />
@@ -325,8 +353,8 @@
                 android:gravity="center"
                 android:text="© 2026 Aries AI. 保留所有权利"
                 android:textColor="#CBD5E1"
-                android:textSize="12sp"
-                android:layout_marginBottom="20dp" />
+                android:textSize="11sp"
+                android:layout_marginBottom="8dp" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

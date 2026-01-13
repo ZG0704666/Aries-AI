@@ -251,6 +251,15 @@ class AutomationActivityNew : AppCompatActivity() {
             }
         )
         
+        // 无障碍权限未开启时，显示提示
+        if (!enabled) {
+            etTask.hint = "请打开无障碍服务"
+            etTask.isEnabled = false
+        } else {
+            etTask.hint = "在此输入或录入您的任务指令..."
+            etTask.isEnabled = true
+        }
+        
         btnOpenAccessibility.visibility = if (enabled) View.GONE else View.VISIBLE
         btnStartAgent.isEnabled = enabled
     }
