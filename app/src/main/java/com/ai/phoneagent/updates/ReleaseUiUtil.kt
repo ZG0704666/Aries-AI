@@ -13,17 +13,23 @@ import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 
 object ReleaseUiUtil {
-    private val GITHUB_MIRRORS = linkedMapOf(
-        "官方" to "",
-        "Ghfast" to "https://ghfast.top/",
-        "GhProxy" to "https://ghproxy.com/",
-        "GhProxyNet" to "https://ghproxy.net/",
-        "GhProxyMirror" to "https://mirror.ghproxy.com/",
-        "Flash" to "https://flash.aaswordsman.org/",
-        "Gh-Proxy" to "https://gh-proxy.com/",
-        "GitMirror" to "https://hub.gitmirror.com/",
-        "Moeyy" to "https://github.moeyy.xyz/",
-        "Workers" to "https://github.abskoop.workers.dev/",
+    private data class MirrorSite(
+        val name: String,
+        val buildUrl: (String) -> String,
+    )
+
+    private val GITHUB_MIRRORS = listOf(
+        MirrorSite("官方") { it },
+        // 注意：很多镜像站要求后面必须是完整的 https://github.com/... URL
+        MirrorSite("GhProxy") { "https://ghproxy.com/$it" },
+        MirrorSite("GhProxyMirror") { "https://mirror.ghproxy.com/$it" },
+        MirrorSite("GhProxyNet") { "https://ghproxy.net/$it" },
+        MirrorSite("Ghfast") { "https://ghfast.top/$it" },
+        MirrorSite("Gh-Proxy") { "https://gh-proxy.com/$it" },
+        MirrorSite("GitMirror") { "https://hub.gitmirror.com/$it" },
+        MirrorSite("Moeyy") { "https://github.moeyy.xyz/$it" },
+        MirrorSite("Workers") { "https://github.abskoop.workers.dev/$it" },
+        MirrorSite("Flash") { "https://flash.aaswordsman.org/$it" },
     )
 
     fun openUrl(context: Context, url: String) {
@@ -35,8 +41,10 @@ object ReleaseUiUtil {
     }
 
     fun mirroredDownloadOptions(originalUrl: String?): List<Pair<String, String>> {
-        if (originalUrl.isNullOrBlank()) return emptyList()
-        val url = originalUrl.trim()
+        // 优先使用 API 返回的 browser_download_url（通常是 /releases/download/<tag>/xxx.apk）
+        // 不强制 latest/download，避免镜像站对 302/链式跳转兼容性差导致“打开空白”。
+        val url = originalUrl?.trim().orEmpty()
+        if (url.isBlank()) return emptyList()
         val isReleaseAsset =
             url.contains("github.com") &&
                 (url.contains("/releases/download/") || url.contains("/releases/latest/download/"))
@@ -44,9 +52,10 @@ object ReleaseUiUtil {
 
         val stableUrl =
             "https://github.com/${UpdateConfig.REPO_OWNER}/${UpdateConfig.REPO_NAME}/releases/latest/download/${UpdateConfig.APK_ASSET_NAME}"
+        val target = url.takeIf { it.isNotBlank() } ?: stableUrl
 
-        return GITHUB_MIRRORS.mapNotNull { (name, prefix) ->
-            if (name == "官方") name to stableUrl else name to (prefix + stableUrl)
+        return GITHUB_MIRRORS.map { site ->
+            site.name to site.buildUrl(target)
         }
     }
 

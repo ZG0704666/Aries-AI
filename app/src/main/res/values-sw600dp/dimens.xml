@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- tablet/large screens: larger sizes -->
+    <dimen name="page_padding">24dp</dimen>
+    <dimen name="inner_padding">20dp</dimen>
+    <dimen name="inner_padding_small">14dp</dimen>
+    <dimen name="card_corner">28dp</dimen>
+    <dimen name="button_height">56dp</dimen>
+    <dimen name="button_corner">28dp</dimen>
+    <dimen name="app_icon_size">96dp</dimen>
+</resources>

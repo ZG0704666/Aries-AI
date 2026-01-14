@@ -88,9 +88,9 @@
 
                     <!-- 应用图标 -->
                     <com.google.android.material.card.MaterialCardView
-                        android:layout_width="80dp"
-                        android:layout_height="80dp"
-                        app:cardCornerRadius="20dp"
+                        android:layout_width="@dimen/app_icon_size"
+                        android:layout_height="@dimen/app_icon_size"
+                        app:cardCornerRadius="@dimen/card_corner"
                         app:cardElevation="0dp"
                         app:strokeWidth="1.5dp"
                         app:strokeColor="#E0F2FE">
@@ -99,7 +99,8 @@
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:src="@mipmap/ic_launcher_round"
-                            android:scaleType="centerCrop"
+                            android:scaleType="centerInside"
+                            android:adjustViewBounds="true"
                             android:contentDescription="App Icon" />
                     </com.google.android.material.card.MaterialCardView>
 

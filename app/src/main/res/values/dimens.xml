@@ -35,4 +35,13 @@
 
     <dimen name="about_copyright_margin_top">10dp</dimen>
     <dimen name="about_copyright_text_size">10sp</dimen>
+
+    <!-- added unified dimensions for responsive UI -->
+    <dimen name="page_padding">16dp</dimen>
+    <dimen name="inner_padding">14dp</dimen>
+    <dimen name="inner_padding_small">10dp</dimen>
+    <dimen name="card_corner">20dp</dimen>
+    <dimen name="button_height">48dp</dimen>
+    <dimen name="button_corner">20dp</dimen>
+    <dimen name="app_icon_size">80dp</dimen>
 </resources>

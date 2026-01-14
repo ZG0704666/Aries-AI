@@ -236,8 +236,7 @@ class MainActivity : AppCompatActivity() {
         if (cached != null) {
             val newerCached = VersionComparator.compare(cached.version, currentVersion) > 0
             if (newerCached && UpdateStore.shouldNotify(this, cached.versionTag)) {
-                showUpdateLinksDialog(cached)
-
+                // 不再直接弹出大的更新界面，改为只发送通知
                 val posted = UpdateNotificationUtil.notifyNewVersion(this, cached)
                 if (posted) {
                     UpdateStore.markNotified(this, cached.versionTag)
@@ -270,8 +269,7 @@ class MainActivity : AppCompatActivity() {
 
                     if (!UpdateStore.shouldNotify(this@MainActivity, latest.versionTag)) return@onSuccess
 
-                    showUpdateLinksDialog(latest)
-
+                    // 不再自动弹出更新详情，改为只发送系统通知，点击通知可进入关于页查看
                     val posted = UpdateNotificationUtil.notifyNewVersion(this@MainActivity, latest)
                     if (posted) {
                         UpdateStore.markNotified(this@MainActivity, latest.versionTag)

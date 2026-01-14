@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- small screens: slightly smaller icon/button -->
+    <dimen name="page_padding">12dp</dimen>
+    <dimen name="inner_padding">10dp</dimen>
+    <dimen name="inner_padding_small">8dp</dimen>
+    <dimen name="card_corner">16dp</dimen>
+    <dimen name="button_height">44dp</dimen>
+    <dimen name="button_corner">18dp</dimen>
+    <dimen name="app_icon_size">64dp</dimen>
+</resources>

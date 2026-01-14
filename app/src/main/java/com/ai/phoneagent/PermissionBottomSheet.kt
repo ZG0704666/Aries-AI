@@ -67,6 +67,28 @@ class PermissionBottomSheet : BottomSheetDialogFragment() {
         updateUi()
     }
 
+    override fun onStart() {
+        super.onStart()
+        // adjust BottomSheet behavior: set reasonable peek height and allow swipe-to-dismiss
+        val dialog = dialog
+        try {
+            val bottomSheet = dialog?.findViewById<View?>(com.google.android.material.R.id.design_bottom_sheet)
+            bottomSheet?.let { sheet ->
+                val behavior = com.google.android.material.bottomsheet.BottomSheetBehavior.from(sheet)
+                val dm = resources.displayMetrics
+                val screenH = dm.heightPixels
+                // target peek at 45% of screen, allow expanded to 80%
+                val peek = (screenH * 0.45).toInt()
+                behavior.peekHeight = peek
+                behavior.isDraggable = true
+                behavior.isHideable = true
+                behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED
+            }
+        } catch (e: Exception) {
+            // ignore if behavior not available
+        }
+    }
+
     override fun onDestroyView() {
         tvAccStatus = null
         tvOverlayStatus = null

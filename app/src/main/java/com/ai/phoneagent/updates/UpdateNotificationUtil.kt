@@ -47,7 +47,8 @@ object UpdateNotificationUtil {
 
         val notif =
             NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_update)
+                // 使用最新应用图标作为通知小图标，确保与启动图一致
+                .setSmallIcon(R.mipmap.ic_launcher_round)
                 .setContentTitle("发现新版本 ${entry.versionTag}")
                 .setContentText("点击查看下载链接")
                 .setAutoCancel(true)
@@ -64,7 +65,11 @@ object UpdateNotificationUtil {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val existing = manager.getNotificationChannel(CHANNEL_ID)
         if (existing != null) return
-        val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT)
+        // Use lower importance to reduce interruption; disable vibration for update notices
+        val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW)
+        channel.enableVibration(false)
+        channel.setSound(null, null)
+        channel.setShowBadge(true)
         manager.createNotificationChannel(channel)
     }
 }
