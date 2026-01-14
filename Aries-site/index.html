@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aries AI - 开启手机智能新交互</title>
-    <link rel="icon" type="image/png" href="./aries-icon.png">
+    <link rel="icon" type="image/png" href="../app/src/main/res/drawable/ic_launcher_foreground.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -289,7 +289,7 @@
         }
 
         html.light footer .glass-card::before {
-            background: linear-gradient(120deg, transparent 35%, rgba(59, 130, 246, 0.12) 50%, transparent 65%);
+            background: linear-gradient(120deg, transparent, rgba(59, 130, 246, 0.12) 50%, transparent 65%);
         }
 
         .glass-card::before {
@@ -395,15 +395,43 @@
             will-change: transform;
         }
 
+        .marquee-track.marquee-left {
+            animation: marqueeLeft 18s linear infinite;
+        }
+
+        .marquee-track.marquee-right {
+            animation: marqueeRight 18s linear infinite;
+        }
+
+        @keyframes marqueeLeft {
+            from {
+                transform: translateX(0);
+            }
+
+            to {
+                transform: translateX(-50%);
+            }
+        }
+
+        @keyframes marqueeRight {
+            from {
+                transform: translateX(-50%);
+            }
+
+            to {
+                transform: translateX(0);
+            }
+        }
+
         .app-capsule {
-            padding: 0.85rem 1.75rem;
+            padding: 0.95rem 1.9rem;
             border-radius: 9999px;
-            font-size: 1rem;
+            font-size: 1.05rem;
             font-weight: 600;
             white-space: nowrap;
             display: flex;
             align-items: center;
-            gap: 0.6rem;
+            gap: 0.7rem;
             transition: all 0.3s;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
@@ -1083,11 +1111,11 @@
 
             <!-- Speed control handled by JS with decay -->
             <div class="marquee-wrapper w-full" id="marquee-row-1" data-direction="-1">
-                <div class="marquee-track"></div>
+                <div class="marquee-track marquee-left"></div>
             </div>
 
             <div class="marquee-wrapper w-full" id="marquee-row-2" data-direction="1">
-                <div class="marquee-track"></div>
+                <div class="marquee-track marquee-right"></div>
             </div>
         </div>
     </section>
@@ -1194,7 +1222,7 @@
 
             </div>
 
-            <p class="mb-2 dark:text-gray-400 text-gray-600 font-medium text-sm">© 2026 Aries AI Project. All rights
+            <p class="mb-2 dark:text-gray-400 text-gray-600 font-medium text-sm"> 2026 Aries AI Project. All rights
                 reserved.</p>
             <p class="text-xs dark:text-gray-600 text-gray-400">Powered by AutoGLM & Sherpa-ncnn.</p>
         </div>
@@ -1211,7 +1239,7 @@
                 type="button" aria-label="关闭" onclick="hideDownloadModal()">✕</button>
 
             <div class="flex items-start gap-3 sm:gap-4 mb-6 pr-12">
-                <img src="./aries-icon.png" alt="Aries AI 图标"
+                <img src="../app/src/main/res/drawable/ic_launcher_foreground.png" alt="Aries AI 图标"
                     class="w-12 sm:w-14 md:w-16 h-12 sm:h-14 md:h-16 rounded-xl shadow-md border border-white/20 bg-white/80 flex-shrink-0"
                     style="object-fit:cover;" />
                 <div class="flex-1">
@@ -1220,540 +1248,433 @@
                 </div>
             </div>
 
-            <div class="mb-6 sm:mb-8">
-                <p class="text-xs sm:text-sm md:text-base dark:text-gray-300 text-gray-600 leading-relaxed">推荐直接下载
-                    APK；如访问缓慢，可选择 GitHub 备用通道。</p>
-            </div>
-
             <div class="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
-                <a id="download-direct-link" href="../release/release/app-release.apk" download
-                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full px-4 sm:px-5 md:px-6 py-4 sm:py-5 md:py-6 rounded-xl sm:rounded-2xl border dark:border-white/10 border-gray-200 hover:border-blue-400/60 hover:shadow-lg transition bg-white/80 dark:bg-white/5 gap-2 sm:gap-3 active:scale-95 cursor-pointer min-h-[48px] sm:min-h-[56px]">
+                <a id="download-mirror-ghfast" href="#"
+                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full px-4 sm:px-5 md:px-6 py-4 sm:py-5 md:py-6 rounded-xl sm:rounded-2xl border dark:border-white/10 border-gray-200 hover:border-orange-400/60 hover:shadow-lg transition bg-white/80 dark:bg-white/5 gap-2 sm:gap-3 active:scale-95 cursor-pointer min-h-[48px] sm:min-h-[56px]"
+                    target="_blank" rel="noopener noreferrer">
                     <div class="flex-1">
-                        <div class="text-sm sm:text-base md:text-lg font-semibold">直接下载 APK（推荐）</div>
-                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">同仓库内置，国内快速</div>
+                        <div class="text-sm sm:text-base md:text-lg font-semibold">镜像下载（推荐）</div>
+                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">ghfast.top 加速</div>
                     </div>
                     <span
-                        class="text-xs sm:text-sm font-semibold text-blue-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">高速</span>
+                        class="text-xs sm:text-sm font-semibold text-orange-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">推荐</span>
                 </a>
 
-                <a id="download-github-link"
-                    href="https://github.com/ZG0704666/Aries-AI/releases/latest/download/app-release.apk"
-                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full px-4 sm:px-5 md:px-6 py-4 sm:py-5 md:py-6 rounded-xl sm:rounded-2xl border dark:border-white/10 border-gray-200 hover:border-purple-400/60 hover:shadow-lg transition bg-white/80 dark:bg-white/5 gap-2 sm:gap-3 active:scale-95 cursor-pointer min-h-[48px] sm:min-h-[56px]"
-                    target="_blank" rel="noreferrer">
+                <a id="download-mirror-gitmirror" href="#"
+                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full px-4 sm:px-5 md:px-6 py-4 sm:py-5 md:py-6 rounded-xl sm:rounded-2xl border dark:border-white/10 border-gray-200 hover:border-cyan-400/60 hover:shadow-lg transition bg-white/80 dark:bg-white/5 gap-2 sm:gap-3 active:scale-95 cursor-pointer min-h-[48px] sm:min-h-[56px]"
+                    target="_blank" rel="noopener noreferrer">
                     <div class="flex-1">
-                        <div class="text-sm sm:text-base md:text-lg font-semibold">GitHub 备用下载</div>
-                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">官方 Releases，更可信</div>
+                        <div class="text-sm sm:text-base md:text-lg font-semibold">镜像下载（备用 1）</div>
+                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">hub.gitmirror.com 加速</div>
                     </div>
                     <span
-                        class="text-xs sm:text-sm font-semibold text-purple-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">备用</span>
+                        class="text-xs sm:text-sm font-semibold text-cyan-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">备用</span>
+                </a>
+
+                <a id="download-mirror-jsdelivr" href="#"
+                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full px-4 sm:px-5 md:px-6 py-4 sm:py-5 md:py-6 rounded-xl sm:rounded-2xl border dark:border-white/10 border-gray-200 hover:border-green-400/60 hover:shadow-lg transition bg-white/80 dark:bg-white/5 gap-2 sm:gap-3 active:scale-95 cursor-pointer min-h-[48px] sm:min-h-[56px]"
+                    target="_blank" rel="noopener noreferrer">
+                    <div class="flex-1">
+                        <div class="text-sm sm:text-base md:text-lg font-semibold">镜像下载（备用 2）</div>
+                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">jsDelivr 直连 GitHub（可能受限）</div>
+                    </div>
+                    <span
+                        class="text-xs sm:text-sm font-semibold text-green-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">备用</span>
+                </a>
+
+                <a id="download-github-link" href="#"
+                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full px-4 sm:px-5 md:px-6 py-4 sm:py-5 md:py-6 rounded-xl sm:rounded-2xl border dark:border-white/10 border-gray-200 hover:border-purple-400/60 hover:shadow-lg transition bg-white/80 dark:bg-white/5 gap-2 sm:gap-3 active:scale-95 cursor-pointer min-h-[48px] sm:min-h-[56px]"
+                    target="_blank" rel="noopener noreferrer">
+                    <div class="flex-1">
+                        <div class="text-sm sm:text-base md:text-lg font-semibold">GitHub 官方下载</div>
+                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">Releases 原始链接</div>
+                    </div>
+                    <span
+                        class="text-xs sm:text-sm font-semibold text-purple-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">官方</span>
                 </a>
             </div>
 
             <div
                 class="text-xs sm:text-sm dark:text-gray-400 text-gray-500 leading-relaxed pt-4 sm:pt-6 border-t dark:border-white/10 border-gray-200">
-                <p class="font-semibold text-[13px] sm:text-[14px]">💡 下载提示：如点击无响应，请右键"复制链接"在新标签页打开，或加 QQ 群：<span
+                <p class="font-semibold text-[13px] sm:text-[14px]"> 下载提示：如点击无响应，请右键"复制链接"在新标签页打开，或加 QQ 群：<span
                         class="text-blue-400 font-bold">746434973</span></p>
             </div>
         </div>
     </div>
-    <script>
-        // --- 下载弹窗 ---
-        const directApkUrl = '../release/release/app-release.apk';
-        const githubApkUrl = 'https://github.com/ZG0704666/Aries-AI/releases/latest/download/app-release.apk';
+</div>
 
-        function showDownloadModal() {
-            const modal = document.getElementById('download-modal');
-            if (!modal) return;
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            document.body.classList.add('overflow-hidden');
-            // 延迟触发动画
-            setTimeout(() => {
-                modal.classList.add('animate-fade-in');
-            }, 10);
-        }
+<script>
+    const GITHUB_RELEASES_PAGE_URL = 'https://github.com/ZG0704666/Aries-AI/releases';
+    const GITHUB_LATEST_RELEASE_API = 'https://api.github.com/repos/ZG0704666/Aries-AI/releases/latest';
+    const FIXED_APK_URL = 'https://github.com/ZG0704666/Aries-AI/releases/download/v1.0.1/app-release.apk';
 
-        function hideDownloadModal() {
-            const modal = document.getElementById('download-modal');
-            if (!modal) return;
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            modal.classList.remove('animate-fade-in');
-            document.body.classList.remove('overflow-hidden');
-        }
+    function openDownloadInNewTab(url) {
+        window.open(url, '_blank', 'noopener');
+    }
 
-        // --- 1. 生成星空 ---
-        function generateStars() {
-            const container = document.getElementById('stars-container');
-            const starCount = 60;
-            for (let i = 0; i < starCount; i++) {
-                const star = document.createElement('div');
-                star.classList.add('star');
-                const x = Math.random() * 100;
-                const y = Math.random() * 100;
-                const size = Math.random() * 2 + 1;
-                const duration = Math.random() * 3 + 2;
-                const delay = Math.random() * 5;
-                const opacity = Math.random() * 0.7 + 0.3;
+    function showDownloadModal() {
+        const modal = document.getElementById('download-modal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
 
-                star.style.left = `${x}%`;
-                star.style.top = `${y}%`;
-                star.style.width = `${size}px`;
-                star.style.height = `${size}px`;
-                star.style.setProperty('--duration', `${duration}s`);
-                star.style.setProperty('--delay', `${delay}s`);
-                star.style.setProperty('--opacity', opacity);
+    function hideDownloadModal() {
+        const modal = document.getElementById('download-modal');
+        if (!modal) return;
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
 
-                container.appendChild(star);
+    const heroBtn = document.getElementById('btn-download-hero');
+    if (heroBtn) heroBtn.addEventListener('click', showDownloadModal);
+    const navBtn = document.getElementById('btn-download-nav');
+    if (navBtn) navBtn.addEventListener('click', showDownloadModal);
+
+    function toGhFast(url) {
+        return 'https://ghfast.top/' + url;
+    }
+
+    function toGitMirror(url) {
+        return url.replace('https://github.com/', 'https://hub.gitmirror.com/');
+    }
+
+    function setHref(el, url) {
+        if (!el) return;
+        el.href = url || GITHUB_RELEASES_PAGE_URL;
+    }
+
+    const mirrorFast = document.getElementById('download-mirror-ghfast');
+    const mirror2 = document.getElementById('download-mirror-gitmirror');
+    const mirror3 = document.getElementById('download-mirror-jsdelivr');
+    const ghLink = document.getElementById('download-github-link');
+
+    let resolvedAssetUrl = '';
+    function getResolvedAssetUrl() {
+        return resolvedAssetUrl || FIXED_APK_URL;
+    }
+
+    function refreshDownloadHrefs() {
+        const u = getResolvedAssetUrl();
+        setHref(mirrorFast, u ? toGhFast(u) : '');
+        setHref(mirror2, u ? toGitMirror(u) : '');
+        // jsDelivr 不适合直连 release asset，这里改为兜底：打开 Releases
+        setHref(mirror3, GITHUB_RELEASES_PAGE_URL);
+        setHref(ghLink, u || GITHUB_RELEASES_PAGE_URL);
+    }
+
+    function bindOpenLink(el, getUrl) {
+        if (!el) return;
+        el.addEventListener('click', (e) => {
+            e.preventDefault();
+            const url = getUrl();
+            if (!url) {
+                openDownloadInNewTab(GITHUB_RELEASES_PAGE_URL);
+                return;
             }
-        }
-
-        // --- 2. 主题切换 ---
-        function toggleTheme() {
-            const html = document.documentElement;
-            if (html.classList.contains('dark')) {
-                html.classList.remove('dark');
-                html.classList.add('light');
-                localStorage.setItem('theme', 'light');
-            } else {
-                html.classList.remove('light');
-                html.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-            }
-        }
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'light') {
-            document.documentElement.classList.remove('dark');
-            document.documentElement.classList.add('light');
-        } else {
-            document.documentElement.classList.remove('light');
-            document.documentElement.classList.add('dark');
-        }
-
-        // --- 3. 滚动事件监听 (Tooltip) ---
-        let hasScrolled = false;
-        const tooltip = document.getElementById('theme-tooltip');
-        window.addEventListener('scroll', () => {
-            if (!hasScrolled && window.scrollY > 20) {
-                tooltip.style.opacity = '0';
-                tooltip.style.transform = 'translate(-50%, -20px)';
-                hasScrolled = true;
-            }
+            openDownloadInNewTab(url);
         });
+    }
 
-        // --- 4. JS 驱动的无缝双瀑布流 (动力学优化版) ---
-        const adaptedApps = [
-            "微信",
-            "QQ",
-            "支付宝",
-            "淘宝",
-            "拼多多",
-            "京东",
-            "京东秒送",
-            "美团",
-            "饿了么",
-            "滴滴出行",
-            "高德地图",
-            "百度地图",
-            "大众点评",
-            "携程",
-            "去哪儿",
-            "去哪儿旅行",
-            "铁路12306",
-            "航旅纵横",
-            "肯德基",
-            "麦当劳",
-            "抖音",
-            "快手",
-            "哔哩哔哩",
-            "今日头条",
-            "小红书",
-            "知乎",
-            "豆瓣",
-            "喜马拉雅",
-            "网易云音乐",
-            "汽水音乐",
-            "优酷视频",
-            "腾讯视频",
-            "芒果TV",
-            "红果短剧",
-            "番茄小说",
-            "七猫免费小说",
-            "崩坏：星穹铁道",
-            "恋与深空",
-            "飞书",
-            "安居客",
-            "贝壳找房",
-            "美柚",
-            "腾讯新闻"
+    bindOpenLink(mirrorFast, () => {
+        const u = getResolvedAssetUrl();
+        return u ? toGhFast(u) : '';
+    });
+
+    bindOpenLink(mirror2, () => {
+        const u = getResolvedAssetUrl();
+        return u ? toGitMirror(u) : '';
+    });
+
+    bindOpenLink(mirror3, () => GITHUB_RELEASES_PAGE_URL);
+    bindOpenLink(ghLink, () => getResolvedAssetUrl() || GITHUB_RELEASES_PAGE_URL);
+
+    async function resolveLatestReleaseApkUrl() {
+        try {
+            const res = await fetch(GITHUB_LATEST_RELEASE_API, {
+                headers: { 'Accept': 'application/vnd.github+json' },
+            });
+            if (!res.ok) return '';
+            const data = await res.json();
+            const assets = Array.isArray(data && data.assets) ? data.assets : [];
+            const apk = assets.find(a => typeof a?.name === 'string' && a.name.toLowerCase().endsWith('.apk'))
+                || assets.find(a => typeof a?.browser_download_url === 'string' && a.browser_download_url.toLowerCase().endsWith('.apk'));
+            const url = apk && typeof apk.browser_download_url === 'string' ? apk.browser_download_url : '';
+            return url;
+        } catch (_) {
+            return '';
+        }
+    }
+
+    refreshDownloadHrefs();
+    resolveLatestReleaseApkUrl().then((url) => {
+        resolvedAssetUrl = url || FIXED_APK_URL;
+        refreshDownloadHrefs();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') hideDownloadModal();
+    });
+
+    const modalOverlay = document.querySelector('#download-modal > div:first-child');
+    if (modalOverlay) modalOverlay.addEventListener('click', hideDownloadModal);
+</script>
+
+<script>
+    function applyThemeClass(theme) {
+        const html = document.documentElement;
+        html.classList.remove('dark', 'light');
+        html.classList.add(theme);
+    }
+
+    function getStoredTheme() {
+        const saved = localStorage.getItem('theme');
+        if (saved === 'dark' || saved === 'light') return saved;
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    function toggleTheme() {
+        const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+        const next = current === 'dark' ? 'light' : 'dark';
+        localStorage.setItem('theme', next);
+        applyThemeClass(next);
+    }
+
+    applyThemeClass(getStoredTheme());
+
+    (function initStars() {
+        const container = document.getElementById('stars-container');
+        if (!container) return;
+        const starCount = 120;
+        container.innerHTML = '';
+        for (let i = 0; i < starCount; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            const size = Math.random() * 2.2 + 0.6;
+            const opacity = Math.random() * 0.55 + 0.15;
+            const duration = Math.random() * 4 + 2;
+            const delay = Math.random() * 5;
+            star.style.width = size + 'px';
+            star.style.height = size + 'px';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.setProperty('--opacity', opacity.toString());
+            star.style.setProperty('--duration', duration + 's');
+            star.style.setProperty('--delay', delay + 's');
+            container.appendChild(star);
+        }
+    })();
+
+    (function initConstellation() {
+        const canvas = document.getElementById('constellation-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        let w = 0;
+        let h = 0;
+        let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+        const points = [];
+        const pointCount = 60;
+        const linkDist = 250;
+        const repelRadius = 200;
+        const repelStrength = 1.05;
+        let mouseX = -9999;
+        let mouseY = -9999;
+
+        function resize() {
+            dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+            w = Math.floor(window.innerWidth);
+            h = Math.floor(window.innerHeight);
+            canvas.width = Math.floor(w * dpr);
+            canvas.height = Math.floor(h * dpr);
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        function isDark() {
+            return document.documentElement.classList.contains('dark');
+        }
+
+        function resetPoints() {
+            points.length = 0;
+            for (let i = 0; i < pointCount; i++) {
+                points.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    vx: (Math.random() - 0.5) * 0.28,
+                    vy: (Math.random() - 0.5) * 0.28,
+                    tw: Math.random() * Math.PI * 2,
+                });
+            }
+        }
+
+        function onMove(e) {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        }
+
+        function onLeave() {
+            mouseX = -9999;
+            mouseY = -9999;
+        }
+
+        window.addEventListener('resize', () => {
+            resize();
+            resetPoints();
+        });
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseleave', onLeave);
+
+        resize();
+        resetPoints();
+
+        let last = performance.now();
+        function step(now) {
+            const dt = Math.min(0.033, (now - last) / 1000);
+            last = now;
+
+            ctx.clearRect(0, 0, w, h);
+
+            if (!isDark()) {
+                requestAnimationFrame(step);
+                return;
+            }
+
+            // update points
+            for (const p of points) {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.tw += dt * 1.2;
+
+                if (p.x < -20) p.x = w + 20;
+                if (p.x > w + 20) p.x = -20;
+                if (p.y < -20) p.y = h + 20;
+                if (p.y > h + 20) p.y = -20;
+
+                const dx = p.x - mouseX;
+                const dy = p.y - mouseY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0.001 && dist < repelRadius) {
+                    const force = (1 - dist / repelRadius) * repelStrength;
+                    p.x += (dx / dist) * force * 24 * dt;
+                    p.y += (dy / dist) * force * 24 * dt;
+                }
+            }
+
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            for (let i = 0; i < points.length; i++) {
+                const a = points[i];
+                for (let j = i + 1; j < points.length; j++) {
+                    const b = points[j];
+                    const dx = a.x - b.x;
+                    const dy = a.y - b.y;
+                    const d = Math.sqrt(dx * dx + dy * dy);
+                    if (d < linkDist) {
+                        const alpha = (1 - d / linkDist) * 0.28;
+                        ctx.strokeStyle = `rgba(180, 220, 255, ${alpha})`;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(a.x, a.y);
+                        ctx.lineTo(b.x, b.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            for (const p of points) {
+                const pulse = 0.55 + (Math.sin(p.tw) * 0.18);
+                ctx.fillStyle = `rgba(255,255,255,${pulse})`;
+                ctx.shadowColor = 'rgba(140, 200, 255, 0.55)';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+            ctx.restore();
+
+            requestAnimationFrame(step);
+        }
+
+        requestAnimationFrame(step);
+    })();
+
+    (function initMarqueeData() {
+        const allApps = [
+            '淘宝', '支付宝', '美团', '高德地图', '微信', 'QQ', '京东', '知乎', 'B站', '抖音', '小红书', '携程',
+            '12306', '饿了么', '拼多多', '闲鱼', '快手', '网易云音乐', '微博', 'Keep', 'WPS', '大众点评', '滴滴出行', '百度地图',
+            'QQ音乐', '腾讯视频', '爱奇艺', '优酷', '哔哩哔哩漫画', '淘宝特价版', '得物', '苏宁易购', '唯品会', '菜鸟',
+            '豆瓣', '小宇宙', '喜马拉雅', '百度网盘', '夸克', 'UC浏览器', '百度', '今日头条', '腾讯新闻', '网易新闻',
+            '微信读书', '飞书', '钉钉', '企业微信', '携程旅行', '去哪儿', '同程旅行', '滴滴',
         ];
 
-        const appsRow1 = adaptedApps.filter((_, i) => i % 2 === 0);
-        const appsRow2 = adaptedApps.filter((_, i) => i % 2 === 1);
+        const appsRow1 = allApps.filter((_, i) => i % 2 === 0);
+        const appsRow2 = allApps.filter((_, i) => i % 2 === 1);
 
-        function initMarquee(elementId, items, direction) {
-            const wrapper = document.getElementById(elementId);
-            const track = wrapper.querySelector('.marquee-track');
-
-            // 重复填充内容
-            const repeatCount = 10;
-            let html = '';
-            for (let i = 0; i < repeatCount; i++) {
-                items.forEach(item => {
-                    html += `<span class="app-capsule">${item}</span>`;
-                });
+        function buildBase(trackEl, items) {
+            trackEl.innerHTML = '';
+            for (const name of items) {
+                const el = document.createElement('div');
+                el.className = 'app-capsule';
+                el.textContent = name;
+                trackEl.appendChild(el);
             }
-            track.innerHTML = html;
-
-            let position = 0;
-            const baseSpeed = 0.3;     // 慢速巡航速度
-            const maxSpeed = 4.0;      // 触发时的最大速度
-            let currentSpeed = baseSpeed;
-            let hasTriggeredRush = false; // 标记是否已经触发过冲刺
-
-            const totalWidth = track.scrollWidth;
-
-            // 衰减系数 (0.96 比较平滑)
-            const decayFactor = 0.96;
-
-            function animate() {
-                // 检测是否进入视口
-                const rect = wrapper.getBoundingClientRect();
-                const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-
-                // 视口���测逻辑：当它快进入视口中心时触发冲刺
-                if (isVisible) {
-                    // 简单起见，只要在屏幕内且速度很慢，且未触发过（或者每次滚动进来都触发，这里设计为每次进入视口若速度低则触发）
-                    const centerY = window.innerHeight / 2;
-                    const wrapperCenter = rect.top + rect.height / 2;
-                    const dist = Math.abs(centerY - wrapperCenter);
-
-                    // 距离中心点一定范围内，且当前速度接近基础速度时，给予冲量
-                    if (dist < window.innerHeight * 0.4 && Math.abs(currentSpeed - baseSpeed) < 0.1 && !hasTriggeredRush) {
-                        currentSpeed = maxSpeed;
-                        hasTriggeredRush = true; // 锁定，防止一直触发
-                    }
-                } else {
-                    // 离开视口后重置 trigger，保证下次回来还能加速
-                    hasTriggeredRush = false;
-                }
-
-                // 物理衰减逻辑：每一帧都乘以衰减系数，直到降到 baseSpeed
-                if (currentSpeed > baseSpeed) {
-                    currentSpeed *= decayFactor;
-                }
-                // 托底，不能低于基础速度
-                if (currentSpeed < baseSpeed) {
-                    currentSpeed = baseSpeed;
-                }
-
-                position += currentSpeed * direction;
-
-                // 无限循环逻辑
-                if (direction === -1) {
-                    // Left
-                    if (Math.abs(position) >= (totalWidth / 2)) {
-                        position = 0;
-                    }
-                    track.style.transform = `translateX(${position}px)`;
-                } else {
-                    // Right
-                    let move = position % (totalWidth / 2);
-                    track.style.transform = `translateX(${- (totalWidth / 2) + move}px)`;
-                }
-
-                requestAnimationFrame(animate);
-            }
-
-            requestAnimationFrame(animate);
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            // 绑定下载弹窗按钮
-            // 绑定下载按钮事件
-            const downloadButtons = [
-                document.getElementById('btn-download-hero'),
-                document.getElementById('btn-download-nav')
-            ];
-            downloadButtons.forEach(btn => {
-                if (!btn) return;
-                const handleDownload = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    showDownloadModal();
-                };
-                btn.addEventListener('click', handleDownload);
-                // 移动端也支持触摸
-                btn.addEventListener('touchstart', handleDownload);
-            });
+        function duplicateOnce(trackEl) {
+            const copy = trackEl.innerHTML;
+            trackEl.insertAdjacentHTML('beforeend', copy);
+        }
 
-            // 弹窗关闭事件
-            const closeBtn = document.getElementById('download-modal-close');
-            if (closeBtn) {
-                const handleClose = (e) => {
-                    e?.preventDefault?.();
-                    e?.stopPropagation?.();
-                    hideDownloadModal();
-                };
-                closeBtn.addEventListener('click', handleClose);
-                closeBtn.addEventListener('touchend', handleClose);
+        function initMarquee(wrapperId, items, direction) {
+            const wrapper = document.getElementById(wrapperId);
+            if (!wrapper) return;
+            const track = wrapper.querySelector('.marquee-track');
+            if (!track) return;
+
+            function rebuild() {
+                buildBase(track, items);
+                // Duplicate until base covers the viewport, then duplicate once more for seamless CSS loop.
+                let safety = 0;
+                while (track.scrollWidth < window.innerWidth + 60 && safety < 12) {
+                    duplicateOnce(track);
+                    safety++;
+                }
+                duplicateOnce(track);
+
+                track.classList.remove('marquee-left', 'marquee-right');
+                track.classList.add(direction < 0 ? 'marquee-left' : 'marquee-right');
             }
 
-            // 下载链接
-            const directLink = document.getElementById('download-direct-link');
-            if (directLink) directLink.href = directApkUrl;
-            const ghLink = document.getElementById('download-github-link');
-            if (ghLink) ghLink.href = githubApkUrl;
+            rebuild();
+            window.addEventListener('resize', rebuild);
+        }
 
-            // ESC 和点击背景关闭
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') hideDownloadModal();
-            });
+        initMarquee('marquee-row-1', appsRow1, -1);
+        initMarquee('marquee-row-2', appsRow2, 1);
+    })();
+</script>
 
-            const modalOverlay = document.querySelector('#download-modal > div:first-child');
-            if (modalOverlay) {
-                modalOverlay.addEventListener('click', hideDownloadModal);
+<script>
+    (function initQqLink() {
+        const qqGroupId = '746434973';
+        const qqJoinUrl = 'https://qm.qq.com/q/ASVDJPrIxq';
+        const qqLink = document.getElementById('qq-link');
+        if (!qqLink) return;
+
+        qqLink.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(qqGroupId);
+            } catch (e) {
             }
-
-            generateStars();
-            setTimeout(() => {
-                if (!hasScrolled) tooltip.style.opacity = '1';
-            }, 500);
-
-            (function initConstellation() {
-                const canvas = document.getElementById('constellation-canvas');
-                if (!canvas) return;
-                const ctx = canvas.getContext('2d');
-                if (!ctx) return;
-
-                let w = 0;
-                let h = 0;
-                let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-
-                const points = [];
-                const pointCount = 60;
-                const linkDist = 250;
-                const repelRadius = 200;
-                const repelStrength = 1.05;
-                let mouseX = -9999;
-                let mouseY = -9999;
-
-                const meteors = [];
-                const maxMeteors = 2;
-                let nextMeteorAt = performance.now() + 1600;
-
-                function resize() {
-                    dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-                    w = Math.floor(window.innerWidth);
-                    h = Math.floor(window.innerHeight);
-                    canvas.width = Math.floor(w * dpr);
-                    canvas.height = Math.floor(h * dpr);
-                    canvas.style.width = w + 'px';
-                    canvas.style.height = h + 'px';
-                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-                }
-
-                function isDark() {
-                    return document.documentElement.classList.contains('dark');
-                }
-
-                function resetPoints() {
-                    points.length = 0;
-                    for (let i = 0; i < pointCount; i++) {
-                        points.push({
-                            x: Math.random() * w,
-                            y: Math.random() * h,
-                            vx: (Math.random() - 0.5) * 0.28,
-                            vy: (Math.random() - 0.5) * 0.28,
-                            tw: Math.random() * Math.PI * 2,
-                        });
-                    }
-                }
-
-                function rand(min, max) {
-                    return min + Math.random() * (max - min);
-                }
-
-                function spawnMeteor() {
-                    // One meteor sweeping across the sky with long tail
-                    const fromLeft = Math.random() < 0.5;
-                    const startX = fromLeft ? rand(-w * 0.2, w * 0.05) : rand(w * 0.95, w * 1.2);
-                    const startY = rand(h * 0.05, h * 0.55);
-                    const angle = fromLeft ? rand(0.15, 0.35) : Math.PI + rand(-0.35, -0.15);
-                    const speed = rand(900, 1350);
-                    const len = rand(1100, 1900);
-                    meteors.push({
-                        x: startX,
-                        y: startY,
-                        vx: Math.cos(angle) * speed,
-                        vy: Math.sin(angle) * speed,
-                        len,
-                        life: 0,
-                        maxLife: rand(0.9, 1.4),
-                    });
-                }
-
-                function onMove(e) {
-                    mouseX = e.clientX;
-                    mouseY = e.clientY;
-                }
-
-                function onLeave() {
-                    mouseX = -9999;
-                    mouseY = -9999;
-                }
-
-                window.addEventListener('resize', () => {
-                    resize();
-                    resetPoints();
-                });
-                window.addEventListener('mousemove', onMove);
-                window.addEventListener('mouseleave', onLeave);
-
-                resize();
-                resetPoints();
-
-                let last = performance.now();
-                function step(now) {
-                    const dt = Math.min(0.033, (now - last) / 1000);
-                    last = now;
-
-                    ctx.clearRect(0, 0, w, h);
-
-                    if (!isDark()) {
-                        requestAnimationFrame(step);
-                        return;
-                    }
-
-                    // update points
-                    for (const p of points) {
-                        // gentle drift
-                        p.x += p.vx;
-                        p.y += p.vy;
-                        p.tw += dt * 1.2;
-
-                        // wrap
-                        if (p.x < -20) p.x = w + 20;
-                        if (p.x > w + 20) p.x = -20;
-                        if (p.y < -20) p.y = h + 20;
-                        if (p.y > h + 20) p.y = -20;
-
-                        // mouse repel (push away)
-                        const dx = p.x - mouseX;
-                        const dy = p.y - mouseY;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist > 0.001 && dist < repelRadius) {
-                            const force = (1 - dist / repelRadius) * repelStrength;
-                            p.x += (dx / dist) * force * 24 * dt;
-                            p.y += (dy / dist) * force * 24 * dt;
-                        }
-                    }
-
-                    // draw links
-                    ctx.save();
-                    ctx.globalCompositeOperation = 'lighter';
-                    for (let i = 0; i < points.length; i++) {
-                        const a = points[i];
-                        for (let j = i + 1; j < points.length; j++) {
-                            const b = points[j];
-                            const dx = a.x - b.x;
-                            const dy = a.y - b.y;
-                            const d = Math.sqrt(dx * dx + dy * dy);
-                            if (d < linkDist) {
-                                const alpha = (1 - d / linkDist) * 0.28;
-                                ctx.strokeStyle = `rgba(180, 220, 255, ${alpha})`;
-                                ctx.lineWidth = 1;
-                                ctx.beginPath();
-                                ctx.moveTo(a.x, a.y);
-                                ctx.lineTo(b.x, b.y);
-                                ctx.stroke();
-                            }
-                        }
-                    }
-
-                    // draw nodes (with glow)
-                    for (const p of points) {
-                        const pulse = 0.55 + (Math.sin(p.tw) * 0.18);
-                        ctx.fillStyle = `rgba(255,255,255,${pulse})`;
-                        ctx.shadowColor = 'rgba(140, 200, 255, 0.55)';
-                        ctx.shadowBlur = 10;
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.shadowBlur = 0;
-                    }
-
-                    // meteor (1-2, high quality)
-                    if (now > nextMeteorAt && meteors.length < maxMeteors) {
-                        spawnMeteor();
-                        nextMeteorAt = now + rand(3500, 9000);
-                    }
-
-                    for (let i = meteors.length - 1; i >= 0; i--) {
-                        const m = meteors[i];
-                        m.life += dt;
-                        m.x += m.vx * dt;
-                        m.y += m.vy * dt;
-                        const t = Math.min(1, m.life / m.maxLife);
-                        const a = (1 - t);
-
-                        const tailX = m.x - (m.vx / 1100) * m.len;
-                        const tailY = m.y - (m.vy / 1100) * m.len;
-                        const grad = ctx.createLinearGradient(m.x, m.y, tailX, tailY);
-                        grad.addColorStop(0.00, `rgba(255,255,255,${1.00 * a})`);
-                        grad.addColorStop(0.07, `rgba(120,235,255,${0.95 * a})`);
-                        grad.addColorStop(0.20, `rgba(255,210,140,${0.45 * a})`);
-                        grad.addColorStop(1.00, 'rgba(255,255,255,0)');
-
-                        ctx.save();
-                        ctx.globalCompositeOperation = 'lighter';
-                        ctx.strokeStyle = grad;
-                        ctx.lineWidth = 2.6;
-                        ctx.beginPath();
-                        ctx.moveTo(m.x, m.y);
-                        ctx.lineTo(tailX, tailY);
-                        ctx.stroke();
-
-                        // glowing head
-                        ctx.fillStyle = `rgba(170, 240, 255, ${1.00 * a})`;
-                        ctx.shadowColor = 'rgba(140, 235, 255, 0.95)';
-                        ctx.shadowBlur = 28;
-                        ctx.beginPath();
-                        ctx.arc(m.x, m.y, 2.2, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.restore();
-
-                        if (t >= 1 || m.x < -1000 || m.x > w + 1000 || m.y < -1000 || m.y > h + 1000) {
-                            meteors.splice(i, 1);
-                        }
-                    }
-                    ctx.restore();
-
-                    requestAnimationFrame(step);
-                }
-
-                requestAnimationFrame(step);
-            })();
-
-            const qqGroupId = '746434973';
-            const qqLink = document.getElementById('qq-link');
-            if (qqLink) {
-                const qqJoinUrl = 'https://qm.qq.com/q/ASVDJPrIxq';
-                qqLink.addEventListener('click', async () => {
-                    const url = qqJoinUrl;
-                    try {
-                        await navigator.clipboard.writeText(qqGroupId);
-                    } catch (e) {
-                    }
-                    window.open(url, '_blank');
-                });
-            }
-
-            initMarquee('marquee-row-1', appsRow1, -1);
-            initMarquee('marquee-row-2', appsRow2, 1);
+            window.open(qqJoinUrl, '_blank', 'noopener');
         });
-
-    </script>
+    })();
+</script>
 
 </body>
 
