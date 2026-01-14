@@ -19,17 +19,8 @@ object ReleaseUiUtil {
     )
 
     private val GITHUB_MIRRORS = listOf(
-        MirrorSite("官方") { it },
-        // 注意：很多镜像站要求后面必须是完整的 https://github.com/... URL
-        MirrorSite("GhProxy") { "https://ghproxy.com/$it" },
-        MirrorSite("GhProxyMirror") { "https://mirror.ghproxy.com/$it" },
-        MirrorSite("GhProxyNet") { "https://ghproxy.net/$it" },
-        MirrorSite("Ghfast") { "https://ghfast.top/$it" },
-        MirrorSite("Gh-Proxy") { "https://gh-proxy.com/$it" },
-        MirrorSite("GitMirror") { "https://hub.gitmirror.com/$it" },
-        MirrorSite("Moeyy") { "https://github.moeyy.xyz/$it" },
-        MirrorSite("Workers") { "https://github.abskoop.workers.dev/$it" },
-        MirrorSite("Flash") { "https://flash.aaswordsman.org/$it" },
+        MirrorSite("官方直连") { it },
+        MirrorSite("镜像加速1") { "https://ghfast.top/$it" }
     )
 
     fun openUrl(context: Context, url: String) {
