@@ -28,11 +28,25 @@ release/
 
 # Local environment / secrets
 .env
+.env.*
+!.env.example
 .env.local
+.env.*.local
+.env.prod
 *.bak*
+
+# Signing keys and certificates
 *.jks
 *.keystore
+*.p12
+*.pfx
+*.pem
+release.keystore
+
+# Build outputs that may contain metadata
 *.apk
+*.aab
+*.aar
 *.aab
 
 app/src/main/assets/model/*
