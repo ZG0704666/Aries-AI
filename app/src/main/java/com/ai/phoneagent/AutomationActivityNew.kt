@@ -76,7 +76,7 @@ class AutomationActivityNew : AppCompatActivity() {
     
     // 推荐语句滚动相关
     private lateinit var tvRecommendTask: TextView
-    private var recommendJob: Job? = null
+     private var recommendJob: Job? = null
     private val recommendTasks = listOf(
         "打开美团帮我预订一个明天中午11点的周围人气最高的火锅店的位置，4个人",
         "打开12306订一张1月19日南京到北京的票，选最便宜的",

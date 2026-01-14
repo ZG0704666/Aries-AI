@@ -92,13 +92,13 @@ class AboutActivity : AppCompatActivity() {
 
         views.forEachIndexed { index, view ->
             view.alpha = 0f
-            view.translationY = 80f
+            view.translationY = 50f
             view.animate()
                 .alpha(1f)
                 .translationY(0f)
-                .setDuration(700)
-                .setStartDelay(150L * index)
-                .setInterpolator(OvershootInterpolator(1.1f))
+                .setDuration(600)
+                .setStartDelay(100L * index)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.5f))
                 .start()
         }
     }

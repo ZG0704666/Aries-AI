@@ -34,8 +34,8 @@
         android:layout_marginTop="@dimen/inner_padding"
         app:cardCornerRadius="@dimen/card_corner"
         app:cardElevation="0dp"
-        app:cardBackgroundColor="?attr/colorSurface"
-        app:strokeColor="?attr/colorOutline"
+        app:cardBackgroundColor="@color/white"
+        app:strokeColor="#E0F2FE"
         app:strokeWidth="1dp">
 
         <LinearLayout
@@ -187,9 +187,9 @@
         android:layout_marginTop="@dimen/inner_padding_small"
         android:text="稍后再说"
         app:cornerRadius="@dimen/button_corner"
-        app:backgroundTint="?attr/colorSurface"
-        app:strokeColor="?attr/colorPrimary"
+        app:backgroundTint="@color/white"
+        app:strokeColor="@color/blue_glass_primary"
         app:strokeWidth="1dp"
-        android:textColor="?attr/colorOnSurface" />
+        android:textColor="@color/blue_glass_primary" />
 
 </LinearLayout>

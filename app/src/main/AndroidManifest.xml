@@ -62,9 +62,6 @@
             android:name=".FloatingChatService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="phoneagent_floating_chat" />
         </service>
 
         <activity

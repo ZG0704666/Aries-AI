@@ -816,6 +816,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var isDrawerMoving = false
+
     private fun setupDrawer() {
 
         val header = binding.navigationView.getHeaderView(0)
@@ -825,6 +827,18 @@ class MainActivity : AppCompatActivity() {
         val apiStatus = header.findViewById<TextView>(R.id.apiStatus)
 
         val btnCheck = header.findViewById<android.widget.Button>(R.id.btnCheckApi)
+
+        val btnGetApiKey = header.findViewById<View>(R.id.btnGetApiKey)
+        btnGetApiKey?.setOnClickListener {
+            runCatching {
+                val intent = android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys")
+                )
+                startActivity(intent)
+            }
+        }
+
         binding.drawerLayout.setScrimColor(Color.TRANSPARENT)
         binding.drawerLayout.setStatusBarBackgroundColor(Color.TRANSPARENT)
         binding.drawerLayout.setStatusBarBackground(null)
@@ -834,18 +848,78 @@ class MainActivity : AppCompatActivity() {
         
         binding.drawerLayout.addDrawerListener(
                 object : DrawerLayout.SimpleDrawerListener() {
+                    private var isHardwareLayerSet = false
+                    private val interpolator = android.view.animation.DecelerateInterpolator(1.2f)
+
                     override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
-                        val w = binding.navigationView.width.toFloat()
-                        val tx = w * slideOffset
-                        binding.contentRoot.translationX = tx
+                        isDrawerMoving = slideOffset > 0 && slideOffset < 1
+                        
+                        // 使用减速插值器优化视觉曲线，使动画在开始时更轻快，结束时更柔和
+                        val t = interpolator.getInterpolation(slideOffset)
+                        
+                        if (!isHardwareLayerSet && isDrawerMoving) {
+                            binding.contentRoot.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                            drawerView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                            isHardwareLayerSet = true
+                        }
+
+                        val w = drawerView.width.toFloat()
+                        val density = resources.displayMetrics.density
+                        
+                        // 1. 缩放效果：主界面平滑缩小，增加空间感 (使用插值后的 t)
+                        val scale = 1f - (t * 0.12f)
+                        binding.contentRoot.scaleX = scale
+                        binding.contentRoot.scaleY = scale
+                        
+                        // 2. 透明度：主界面轻微变暗
+                        binding.contentRoot.alpha = 1f - (t * 0.3f)
+                        
+                        // 3. 位移补偿：侧边栏推开主界面的同时，保持平滑平移
+                        binding.contentRoot.translationX = w * t
+                        
+                        // 4. 圆角平滑：
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            val cornerRadius = 32f * density * t
+                            binding.contentRoot.outlineProvider = object : android.view.ViewOutlineProvider() {
+                                override fun getOutline(view: View, outline: android.graphics.Outline) {
+                                    outline.setRoundRect(0, 0, view.width, view.height, cornerRadius)
+                                }
+                            }
+                            binding.contentRoot.clipToOutline = t > 0
+                        }
+                        
+                        // 5. 侧边栏本身也平滑淡入
+                        drawerView.alpha = 0.5f + (0.5f * t)
                     }
 
                     override fun onDrawerClosed(drawerView: View) {
+                        isDrawerMoving = false
                         binding.contentRoot.translationX = 0f
+                        binding.contentRoot.scaleX = 1f
+                        binding.contentRoot.scaleY = 1f
+                        binding.contentRoot.alpha = 1f
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            binding.contentRoot.clipToOutline = false
+                        }
+                        // 停止滑动后释放硬件层，节省内存
+                        binding.contentRoot.setLayerType(View.LAYER_TYPE_NONE, null)
+                        drawerView.setLayerType(View.LAYER_TYPE_NONE, null)
+                        isHardwareLayerSet = false
                     }
 
                     override fun onDrawerOpened(drawerView: View) {
                         hideKeyboard()
+                        // 停止滑动后释放硬件层
+                        binding.contentRoot.setLayerType(View.LAYER_TYPE_NONE, null)
+                        drawerView.setLayerType(View.LAYER_TYPE_NONE, null)
+                        isHardwareLayerSet = false
+                    }
+
+                    override fun onDrawerStateChanged(newState: Int) {
+                        // 当用户开始触摸或程序开始自动滚动时，确保键盘收起，避免布局抖动
+                        if (newState == DrawerLayout.STATE_DRAGGING) {
+                            hideKeyboard()
+                        }
                     }
                 }
         )
@@ -948,16 +1022,37 @@ class MainActivity : AppCompatActivity() {
             when (item.itemId) {
                 R.id.nav_automation -> {
                     vibrateLight()
-                    startActivity(android.content.Intent(this, AutomationActivityNew::class.java))
-                    binding.drawerLayout.closeDrawer(GravityCompat.START)
+                    val intent = Intent(this, AutomationActivityNew::class.java)
+                    startActivity(intent)
+                    
+                    // 统一使用平滑的缩放渐变过渡，改善“硬切”感
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, android.R.anim.fade_in, android.R.anim.fade_out)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                    }
+                    
+                    // 延迟关闭 Drawer，确保 Activity 启动动画衔接自然
+                    binding.drawerLayout.postDelayed({
+                        binding.drawerLayout.closeDrawer(GravityCompat.START, false)
+                    }, 350)
                 }
                 R.id.nav_about -> {
-
                     vibrateLight()
-
-                    startActivity(Intent(this, AboutActivity::class.java))
-
-                    binding.drawerLayout.closeDrawer(GravityCompat.START)
+                    val intent = Intent(this, AboutActivity::class.java)
+                    startActivity(intent)
+                    
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, android.R.anim.fade_in, android.R.anim.fade_out)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                    }
+                    
+                    binding.drawerLayout.postDelayed({
+                        binding.drawerLayout.closeDrawer(GravityCompat.START, false)
+                    }, 350)
                 }
             }
 
@@ -2484,8 +2579,10 @@ class MainActivity : AppCompatActivity() {
                 duration = 5200L * 3
                 interpolator = LinearInterpolator()
                 addUpdateListener {
-                    angle = start + (it.animatedValue as Float)
-                    drawable.invalidateSelf()
+                    if (!isDrawerMoving) {
+                        angle = start + (it.animatedValue as Float)
+                        drawable.invalidateSelf()
+                    }
                 }
                 addListener(object : android.animation.AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: android.animation.Animator) {
@@ -2505,8 +2602,10 @@ class MainActivity : AppCompatActivity() {
                 duration = 360
                 interpolator = LinearInterpolator()
                 addUpdateListener {
-                    angle = start + (it.animatedValue as Float)
-                    drawable.invalidateSelf()
+                    if (!isDrawerMoving) {
+                        angle = start + (it.animatedValue as Float)
+                        drawable.invalidateSelf()
+                    }
                 }
                 addListener(object : android.animation.AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: android.animation.Animator) {
@@ -2652,8 +2751,10 @@ class MainActivity : AppCompatActivity() {
                 duration = 5200L * 3
                 interpolator = LinearInterpolator()
                 addUpdateListener {
-                    angle = start + (it.animatedValue as Float)
-                    drawable.invalidateSelf()
+                    if (!isDrawerMoving) {
+                        angle = start + (it.animatedValue as Float)
+                        drawable.invalidateSelf()
+                    }
                 }
                 addListener(object : android.animation.AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: android.animation.Animator) {
@@ -2673,8 +2774,10 @@ class MainActivity : AppCompatActivity() {
                 duration = 360
                 interpolator = LinearInterpolator()
                 addUpdateListener {
-                    angle = start + (it.animatedValue as Float)
-                    drawable.invalidateSelf()
+                    if (!isDrawerMoving) {
+                        angle = start + (it.animatedValue as Float)
+                        drawable.invalidateSelf()
+                    }
                 }
                 addListener(object : android.animation.AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: android.animation.Animator) {

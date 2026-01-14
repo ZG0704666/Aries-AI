@@ -1,49 +1,152 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingTop="48dp"
-    android:paddingBottom="16dp"
-    android:paddingStart="24dp"
-    android:paddingEnd="24dp"
-    android:clipToPadding="false">
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingTop="36dp"
+    android:paddingBottom="24dp"
+    android:clipToPadding="false"
+    android:background="@android:color/transparent">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="API 配置"
-        android:textStyle="bold"
-        android:textSize="18sp"
-        android:textColor="@color/blue_glass_text"
-        android:paddingBottom="8dp" />
-
-    <EditText
-        android:id="@+id/apiInput"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:hint="输入你的 API Key"
-        android:background="@drawable/rounded_input_bg"
-        android:paddingHorizontal="12dp"
-        android:inputType="textNoSuggestions"
-        android:textColor="@android:color/black"
-        android:textColorHint="@android:color/black"
-        android:layout_marginTop="12dp" />
-
-    <Button
-        android:id="@+id/btnCheckApi"
+    <!-- Branding Section -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="检查 API 连接"
-        android:textColor="@color/blue_glass_text"
-        android:layout_marginTop="14dp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="24dp">
+        
+        <ImageView
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:src="@mipmap/ic_launcher_round"
+            android:elevation="4dp"
+            android:background="@drawable/bg_circle_white_shadow"
+            android:contentDescription="App Icon" />
 
-    <TextView
-        android:id="@+id/apiStatus"
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="14dp"
+            android:orientation="vertical">
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Aries AI"
+                android:textStyle="bold"
+                android:textSize="20sp"
+                android:textColor="@color/blue_glass_text"
+                android:letterSpacing="0.02" />
+                
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="智能手机助手"
+                android:textSize="12sp"
+                android:textColor="@color/blue_glass_icon" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- API Config Card -->
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="未检查"
-        android:textColor="@color/blue_glass_text"
-        android:paddingTop="6dp" />
+        app:cardCornerRadius="20dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@android:color/white"
+        app:strokeWidth="1dp"
+        app:strokeColor="#E0F2FE">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingBottom="12dp">
+                
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_key_24"
+                    app:tint="@color/blue_glass_primary" />
+                    
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="API 配置"
+                    android:textStyle="bold"
+                    android:textSize="15sp"
+                    android:textColor="@color/blue_glass_text" />
+            </LinearLayout>
+
+            <EditText
+                android:id="@+id/apiInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:hint="输入 API Key"
+                android:background="@drawable/bg_input_field_flat"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="12dp"
+                android:inputType="textNoSuggestions|textVisiblePassword"
+                android:textSize="14sp"
+                android:textColor="@color/blue_glass_text"
+                android:textColorHint="#90A4AE"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Get API Key Link -->
+            <TextView
+                android:id="@+id/btnGetApiKey"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="获取您的 API Key >"
+                android:textSize="13sp"
+                android:textColor="@color/blue_glass_primary"
+                android:textStyle="bold"
+                android:paddingVertical="4dp"
+                android:paddingEnd="4dp"
+                android:background="?attr/selectableItemBackground"
+                android:layout_gravity="end"
+                android:layout_marginBottom="16dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCheckApi"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="验证连接"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                app:backgroundTint="@color/blue_glass_primary"
+                app:cornerRadius="24dp"
+                app:elevation="0dp"
+                app:icon="@drawable/ic_check_circle_24"
+                app:iconGravity="textStart"
+                app:iconPadding="8dp" />
+
+            <TextView
+                android:id="@+id/apiStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="未检查"
+                android:textSize="12sp"
+                android:gravity="center"
+                android:textColor="@color/blue_glass_icon"
+                android:paddingTop="10dp" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
 </LinearLayout>

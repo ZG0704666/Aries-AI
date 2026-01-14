@@ -50,7 +50,7 @@
         <item name="android:textColor">@color/blue_glass_primary</item>
     </style>
 
-    <style name="BlueGlassDialogShape" parent="">
+    <style name="BlueGlassDialogShape" parent="ShapeAppearance.MaterialComponents.MediumComponent">
         <item name="cornerSize">16dp</item>
     </style>
 
