@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aries AI - 开启手机智能新交互</title>
+    <link rel="icon" type="image/png" href="./aries-icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -95,9 +96,9 @@
 
         html.light .aurora-container {
             background: radial-gradient(900px 520px at 50% 10%, rgba(37, 99, 235, 0.16), transparent 58%),
-                        radial-gradient(980px 560px at 20% 45%, rgba(124, 58, 237, 0.14), transparent 60%),
-                        radial-gradient(900px 520px at 85% 35%, rgba(219, 39, 119, 0.10), transparent 62%),
-                        #f3f7ff;
+                radial-gradient(980px 560px at 20% 45%, rgba(124, 58, 237, 0.14), transparent 60%),
+                radial-gradient(900px 520px at 85% 35%, rgba(219, 39, 119, 0.10), transparent 62%),
+                #f3f7ff;
         }
 
         /* 星星层 */
@@ -131,7 +132,7 @@
         html.light .constellation-layer {
             opacity: 0;
         }
-        
+
         .star {
             position: absolute;
             background: white;
@@ -142,9 +143,21 @@
         }
 
         @keyframes twinkle {
-            0% { opacity: 0; transform: scale(0.5); }
-            50% { opacity: var(--opacity); transform: scale(1); box-shadow: 0 0 4px rgba(255,255,255,0.8); }
-            100% { opacity: 0; transform: scale(0.5); }
+            0% {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+
+            50% {
+                opacity: var(--opacity);
+                transform: scale(1);
+                box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(0.5);
+            }
         }
 
         .aurora-blob {
@@ -157,29 +170,56 @@
         }
 
         .blob-1 {
-            top: -10%; left: -10%; width: 50vw; height: 50vw;
+            top: -10%;
+            left: -10%;
+            width: 50vw;
+            height: 50vw;
             background: #1e3a8a;
             animation-delay: 0s;
         }
+
         .blob-2 {
-            bottom: -10%; right: -10%; width: 60vw; height: 60vw;
+            bottom: -10%;
+            right: -10%;
+            width: 60vw;
+            height: 60vw;
             background: #4c1d95;
             animation-delay: -5s;
         }
+
         .blob-3 {
-            top: 30%; left: 40%; width: 30vw; height: 30vw;
+            top: 30%;
+            left: 40%;
+            width: 30vw;
+            height: 30vw;
             background: #be185d;
             animation-delay: -2s;
             opacity: 0.2;
         }
 
-        html.light .blob-1 { background: #93c5fd; opacity: 0.5; }
-        html.light .blob-2 { background: #fdba74; opacity: 0.5; }
-        html.light .blob-3 { background: #c4b5fd; opacity: 0.4; }
+        html.light .blob-1 {
+            background: #93c5fd;
+            opacity: 0.5;
+        }
+
+        html.light .blob-2 {
+            background: #fdba74;
+            opacity: 0.5;
+        }
+
+        html.light .blob-3 {
+            background: #c4b5fd;
+            opacity: 0.4;
+        }
 
         @keyframes move {
-            from { transform: translate(0, 0) scale(1) rotate(0deg); }
-            to { transform: translate(30px, -30px) scale(1.1) rotate(5deg); }
+            from {
+                transform: translate(0, 0) scale(1) rotate(0deg);
+            }
+
+            to {
+                transform: translate(30px, -30px) scale(1.1) rotate(5deg);
+            }
         }
 
         /* --- 2. 玻璃拟态卡片 --- */
@@ -249,22 +289,49 @@
         }
 
         html.light footer .glass-card::before {
-            background: linear-gradient(120deg, transparent 35%, rgba(59,130,246,0.12) 50%, transparent 65%);
+            background: linear-gradient(120deg, transparent 35%, rgba(59, 130, 246, 0.12) 50%, transparent 65%);
         }
 
         .glass-card::before {
             content: '';
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.08) 50%, transparent 70%);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.08) 50%, transparent 70%);
             transform: translateX(-100%);
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 2;
             pointer-events: none;
         }
+
         .glass-card:hover::before {
             transform: translateX(100%);
             transition: transform 0.8s ease-in-out;
+        }
+
+        /* 下载弹窗动效 */
+        .modal-panel {
+            animation: modalPop 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+            transform-origin: center;
+        }
+
+        @keyframes modalPop {
+            0% {
+                opacity: 0;
+                transform: scale(0.9) translateY(10px);
+            }
+
+            55% {
+                opacity: 1;
+                transform: scale(1.03) translateY(0);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
 
         /* --- 3. 导航栏 --- */
@@ -272,10 +339,12 @@
             backdrop-filter: blur(20px);
             transition: all 0.3s ease;
         }
+
         html.dark .nav-glass {
             background: rgba(5, 5, 10, 0.6);
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
+
         html.light .nav-glass {
             background: rgba(255, 255, 255, 0.8);
             border-bottom: 1px solid rgba(0, 0, 0, 0.05);
@@ -304,7 +373,9 @@
         }
 
         @keyframes shine {
-            to { background-position: 200% center; }
+            to {
+                background-position: 200% center;
+            }
         }
 
         /* --- 5. Marquee --- */
@@ -316,7 +387,7 @@
             -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
             padding: 10px 0;
         }
-        
+
         .marquee-track {
             display: flex;
             width: fit-content;
@@ -325,7 +396,7 @@
         }
 
         .app-capsule {
-            padding: 0.85rem 1.75rem; 
+            padding: 0.85rem 1.75rem;
             border-radius: 9999px;
             font-size: 1rem;
             font-weight: 600;
@@ -334,29 +405,31 @@
             align-items: center;
             gap: 0.6rem;
             transition: all 0.3s;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        
+
         html.dark .app-capsule {
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             color: #e2e8f0;
         }
+
         html.dark .app-capsule:hover {
-            background: rgba(255,255,255,0.15);
-            border-color: rgba(255,255,255,0.3);
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
             transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(255,255,255,0.1);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
         }
 
         html.light .app-capsule {
-            background: rgba(255,255,255,0.7);
+            background: rgba(255, 255, 255, 0.7);
             color: #334155;
-            border-color: rgba(0,0,0,0.05);
+            border-color: rgba(0, 0, 0, 0.05);
         }
+
         html.light .app-capsule:hover {
             background: #fff;
             transform: scale(1.05);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
         }
 
         /* --- 6. 切换开关 --- */
@@ -371,11 +444,12 @@
             padding: 3px;
             transition: all 0.3s;
         }
-        
+
         html.dark .theme-toggle {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
+
         html.light .theme-toggle {
             background: #e2e8f0;
             border: 1px solid #cbd5e1;
@@ -390,11 +464,20 @@
             align-items: center;
             justify-content: center;
             font-size: 12px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         }
 
-        html.dark .toggle-dot { transform: translateX(24px); background: #3b82f6; color: white; }
-        html.light .toggle-dot { transform: translateX(0); background: #ffffff; color: #f59e0b; }
+        html.dark .toggle-dot {
+            transform: translateX(24px);
+            background: #3b82f6;
+            color: white;
+        }
+
+        html.light .toggle-dot {
+            transform: translateX(0);
+            background: #ffffff;
+            color: #f59e0b;
+        }
 
         .toggle-tooltip {
             position: absolute;
@@ -408,10 +491,10 @@
             font-weight: 500;
             opacity: 0;
             pointer-events: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
             transition: opacity 0.5s ease;
         }
-        
+
         /* Banner & Titles */
         .banner-glow-border {
             position: absolute;
@@ -425,16 +508,16 @@
             -webkit-mask-composite: xor;
             mask-composite: exclude;
             pointer-events: none;
-            opacity: 0.8; 
+            opacity: 0.8;
         }
-        
+
         .streamer-glow {
             position: absolute;
             top: 0;
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
             transform: skewX(-20deg);
             display: none;
         }
@@ -443,18 +526,19 @@
             position: relative;
             display: inline-block;
         }
+
         .section-title::after {
             content: '';
             position: absolute;
             bottom: -10px;
             left: 50%;
             transform: translateX(-50%);
-            width: 50px; 
+            width: 50px;
             height: 4px;
             border-radius: 2px;
             background: linear-gradient(90deg, #3b82f6, #8b5cf6);
         }
-        
+
         .text-gradient-flow {
             background-image: linear-gradient(to right, #60a5fa, #d8b4fe, #fca5a5, #60a5fa);
             background-size: 200% auto;
@@ -465,15 +549,31 @@
         }
 
         @keyframes ringSpin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         @keyframes ringTempo {
-            0% { filter: blur(10px); }
-            35% { filter: blur(14px); }
-            70% { filter: blur(10px); }
-            100% { filter: blur(12px); }
+            0% {
+                filter: blur(10px);
+            }
+
+            35% {
+                filter: blur(14px);
+            }
+
+            70% {
+                filter: blur(10px);
+            }
+
+            100% {
+                filter: blur(12px);
+            }
         }
 
         .hero-capsule {
@@ -488,7 +588,7 @@
             position: absolute;
             inset: -3px;
             border-radius: inherit;
-            background: conic-gradient(from 180deg, rgba(96,165,250,0.0), rgba(96,165,250,0.95), rgba(192,132,252,0.95), rgba(244,114,182,0.95), rgba(96,165,250,0.0));
+            background: conic-gradient(from 180deg, rgba(96, 165, 250, 0.0), rgba(96, 165, 250, 0.95), rgba(192, 132, 252, 0.95), rgba(244, 114, 182, 0.95), rgba(96, 165, 250, 0.0));
             filter: blur(10px);
             opacity: 0.7;
             animation: ringSpin 7.2s linear infinite, ringTempo 4.2s linear infinite;
@@ -500,13 +600,13 @@
             position: absolute;
             inset: 1px;
             border-radius: inherit;
-            background: rgba(0,0,0,0.35);
+            background: rgba(0, 0, 0, 0.35);
             z-index: -1;
             transition: background-color .25s ease;
         }
 
         html.light .hero-capsule::after {
-            background: rgba(255,255,255,0.9);
+            background: rgba(255, 255, 255, 0.9);
         }
 
         .hero-capsule:hover::before {
@@ -523,18 +623,19 @@
             justify-content: center;
             position: relative;
             /* 玻璃质感背景 */
-            background: rgba(255,255,255,0.05);
-            box-shadow: inset 0 0 10px rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.05);
             overflow: visible;
         }
-        
+
         html.dark .tech-icon-box {
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
+
         html.light .tech-icon-box {
-            background: rgba(255,255,255,0.8);
-            border: 1px solid rgba(0,0,0,0.05);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
 
         /* 图标背后的光晕 */
@@ -558,19 +659,87 @@
         }
 
         /* 特定图标颜色 */
-        .icon-cloud .tech-icon-glow { background: rgba(59, 130, 246, 0.5); }
-        .icon-cloud .icon-svg { stroke: #60a5fa; fill: none; }
-        
-        .icon-client .tech-icon-glow { background: rgba(168, 85, 247, 0.5); }
-        .icon-client .icon-svg { stroke: #c084fc; fill: none; }
-        
-        .icon-action .tech-icon-glow { background: rgba(245, 158, 11, 0.5); }
-        .icon-action .icon-svg { stroke: #fbbf24; fill: none; }
+        .icon-cloud .tech-icon-glow {
+            background: rgba(59, 130, 246, 0.5);
+        }
 
+        .icon-cloud .icon-svg {
+            stroke: #60a5fa;
+            fill: none;
+        }
+
+        .icon-client .tech-icon-glow {
+            background: rgba(168, 85, 247, 0.5);
+        }
+
+        .icon-client .icon-svg {
+            stroke: #c084fc;
+            fill: none;
+        }
+
+        .icon-action .tech-icon-glow {
+            background: rgba(245, 158, 11, 0.5);
+        }
+
+        .icon-action .icon-svg {
+            stroke: #fbbf24;
+            fill: none;
+        }
+
+        /* --- 7. 移动端优化 --- */
+        @media (max-width: 640px) {
+
+            /* 增加触摸目标尺寸 */
+            button,
+            a[role="button"] {
+                min-height: 44px;
+                min-width: 44px;
+                padding: 0.75rem 1rem;
+            }
+
+            /* 弹窗在移动端全屏适配 */
+            #download-modal {
+                padding: 12px !important;
+            }
+
+            #download-modal .modal-panel {
+                border-radius: 1rem;
+                max-height: 95vh;
+            }
+
+            /* 下载链接按钮更大 */
+            #download-direct-link,
+            #download-github-link {
+                padding: 1rem 1.25rem !important;
+                min-height: 56px;
+                font-size: 0.95rem;
+            }
+
+            /* 防止输入框缩放 */
+            input,
+            button,
+            select {
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+
+            /* 超小屏幕的额外调整 */
+            #download-modal .modal-panel {
+                padding: 1.25rem !important;
+            }
+
+            button[id*="download"] {
+                padding: 0.875rem 1rem !important;
+                font-size: 0.875rem;
+            }
+        }
     </style>
 </head>
 
-<body class="antialiased selection:bg-blue-500 selection:text-white text-gray-100 dark:text-white bg-black dark:bg-black transition-colors duration-500">
+<body
+    class="antialiased selection:bg-blue-500 selection:text-white text-gray-100 dark:text-white bg-black dark:bg-black transition-colors duration-500">
 
     <!-- 背景层 -->
     <div class="aurora-container">
@@ -583,38 +752,53 @@
 
     <!-- 导航栏 -->
     <nav class="nav-glass fixed w-full z-50">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12">
             <div class="flex justify-between h-20 items-center">
                 <!-- Logo -->
                 <div class="flex items-center gap-3 cursor-pointer group" onclick="window.scrollTo(0,0)">
-                    <div class="w-9 h-9 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300">
+                    <div
+                        class="w-9 h-9 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300">
                         A
                     </div>
-                    <span class="text-xl font-bold tracking-tight dark:text-white text-gray-900 transition-colors">Aries AI</span>
+                    <span class="text-xl font-bold tracking-tight dark:text-white text-gray-900 transition-colors">Aries
+                        AI</span>
                 </div>
 
                 <!-- Menu (Order Updated) -->
                 <div class="hidden md:flex items-center space-x-8 font-medium text-sm">
-                    <a href="#features" class="dark:text-gray-300 text-gray-600 hover:text-blue-400 dark:hover:text-blue-300 transition">核心能力</a>
+                    <a href="#features"
+                        class="dark:text-gray-300 text-gray-600 hover:text-blue-400 dark:hover:text-blue-300 transition">核心能力</a>
                     <!-- Swapped Cases and Apps -->
-                    <a href="#cases" class="dark:text-gray-300 text-gray-600 hover:text-blue-400 dark:hover:text-blue-300 transition">成功案例</a>
-                    <a href="#apps" class="dark:text-gray-300 text-gray-600 hover:text-blue-400 dark:hover:text-blue-300 transition">支持应用</a>
-                    <a href="#roadmap" class="dark:text-gray-300 text-gray-600 hover:text-blue-400 dark:hover:text-blue-300 transition">开发路线</a>
-                    
+                    <a href="#cases"
+                        class="dark:text-gray-300 text-gray-600 hover:text-blue-400 dark:hover:text-blue-300 transition">成功案例</a>
+                    <a href="#apps"
+                        class="dark:text-gray-300 text-gray-600 hover:text-blue-400 dark:hover:text-blue-300 transition">支持应用</a>
+                    <a href="#roadmap"
+                        class="dark:text-gray-300 text-gray-600 hover:text-blue-400 dark:hover:text-blue-300 transition">开发路线</a>
+
                     <!-- Theme Toggle -->
                     <div class="relative flex flex-col items-center">
                         <div class="theme-toggle" onclick="toggleTheme()">
                             <div class="toggle-dot">
-                                <svg class="w-3 h-3 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                                <svg class="w-3 h-3 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                                <svg class="w-3 h-3 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <svg class="w-3 h-3 hidden dark:block" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                </svg>
                             </div>
                         </div>
-                        <div id="theme-tooltip" class="toggle-tooltip animate-fade-in-tooltip animate-bounce-slight bg-white/90 dark:bg-white text-black shadow-xl">
+                        <div id="theme-tooltip"
+                            class="toggle-tooltip animate-fade-in-tooltip animate-bounce-slight bg-white/90 dark:bg-white text-black shadow-xl">
                             点击切换日/夜模式
                         </div>
                     </div>
 
-                    <button class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-2 rounded-full hover:shadow-lg hover:shadow-blue-500/40 transition font-semibold transform hover:scale-105 active:scale-95 border border-white/10 text-sm">
+                    <button id="btn-download-nav"
+                        class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 sm:px-7 py-2.5 sm:py-3 rounded-full hover:shadow-lg hover:shadow-blue-500/40 transition font-semibold transform hover:scale-105 active:scale-95 border border-white/10 text-xs sm:text-sm md:text-base min-h-[44px] sm:min-h-[48px] flex items-center justify-center cursor-pointer">
                         立即体验
                     </button>
                 </div>
@@ -623,43 +807,55 @@
     </nav>
 
     <!-- Hero Section -->
-    <header class="relative min-h-screen flex items-center justify-center text-center px-4 pt-20 overflow-hidden">
+    <header
+        class="relative min-h-screen flex items-center justify-center text-center px-5 sm:px-8 pt-20 overflow-hidden">
         <div class="relative z-10 max-w-5xl mx-auto flex flex-col items-center">
 
             <!-- 动态通知 Banner (胶囊升级：更强流光，字体扫描) -->
-            <div class="hero-capsule relative inline-block glass-card rounded-full px-12 py-5 mb-10 cursor-pointer hover:scale-105 transition-transform duration-300 group shadow-[0_0_35px_rgba(59,130,246,0.3)] border border-blue-400/30">
+            <div
+                class="hero-capsule relative inline-block glass-card rounded-full px-6 sm:px-12 py-4 sm:py-5 mb-8 sm:mb-10 cursor-pointer hover:scale-105 transition-transform duration-300 group shadow-[0_0_35px_rgba(59,130,246,0.3)] border border-blue-400/30">
                 <!-- 边框流光 -->
                 <div class="banner-glow-border"></div>
                 <!-- 扫光动画 -->
                 <div class="streamer-glow"></div>
-                
-                <span class="relative z-10 font-bold text-lg flex items-center gap-3 text-gradient-flow tracking-wide">
-                   <span class="animate-bounce-slight">✨</span> 想旅行？说走就走！Aries 支持一句话定高铁票/机票！
+
+                <span
+                    class="relative z-10 font-bold text-sm sm:text-xl flex items-center gap-2 sm:gap-3 text-gradient-flow tracking-wide">
+                    <span class="animate-bounce-slight text-base sm:text-2xl">✨</span> <span
+                        class="hidden sm:inline">想旅行？说走就走！Aries 支持一句话定高铁票/机票！</span><span class="sm:hidden">Aries
+                        支持一句话定高铁票/机票！</span>
                 </span>
             </div>
 
             <!-- 主标题 -->
-            <div class="mb-8 relative animate-fade-in-up">
-                <span class="inline-block px-3 py-1 mb-6 text-xs font-bold tracking-[0.2em] text-blue-400 uppercase bg-blue-500/5 rounded-full border border-blue-500/20 backdrop-blur-sm">
+            <div class="mb-6 sm:mb-8 relative animate-fade-in-up">
+                <span
+                    class="inline-block px-3 py-1 mb-4 sm:mb-6 text-xs font-bold tracking-[0.2em] text-blue-400 uppercase bg-blue-500/5 rounded-full border border-blue-500/20 backdrop-blur-sm">
                     Based on AutoGLM-Aries-9B
                 </span>
-                <h1 class="text-5xl md:text-7xl lg:text-8xl font-extrabold dark:text-white text-gray-900 tracking-tight leading-none drop-shadow-2xl">
+                <h1
+                    class="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold dark:text-white text-gray-900 tracking-tight leading-tight sm:leading-none drop-shadow-2xl">
                     开启手机智能<br>
-                    <span class="gradient-text-fix mt-2 pb-4">新交互时代</span>
+                    <span class="gradient-text-fix mt-2 pb-2 sm:pb-4">新交互时代</span>
                 </h1>
             </div>
 
-            <p class="text-lg md:text-xl dark:text-gray-300 text-gray-600 mb-12 font-light max-w-3xl mx-auto leading-relaxed animate-delay-200 fade-in-up opacity-90">
+            <p
+                class="text-lg sm:text-xl md:text-2xl dark:text-gray-300 text-gray-600 mb-10 sm:mb-14 font-light max-w-3xl mx-auto leading-relaxed animate-delay-200 fade-in-up opacity-90">
                 多模态自动化操控手机<br class="hidden md:block">
                 离线语音极速响应，屏幕感知一语即达。
             </p>
 
-            <div class="flex flex-col sm:flex-row justify-center gap-6 w-full sm:w-auto">
-                <button class="relative overflow-hidden group bg-white dark:bg-gray-100 text-black px-8 py-3.5 rounded-full font-bold text-base hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] transition transform hover:-translate-y-1">
+            <div class="flex flex-col sm:flex-row justify-center gap-3 sm:gap-5 md:gap-6 w-full sm:w-auto px-2 sm:px-0">
+                <button id="btn-download-hero"
+                    class="relative overflow-hidden group bg-white dark:bg-gray-100 text-black px-6 sm:px-10 md:px-12 py-3 sm:py-4 md:py-5 rounded-full font-bold text-sm sm:text-lg md:text-xl hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] transition transform hover:-translate-y-1 min-h-[48px] sm:min-h-[52px] md:min-h-[56px] flex items-center justify-center cursor-pointer whitespace-nowrap">
                     <span class="relative z-10">下载首发版 Alpha</span>
-                    <div class="absolute inset-0 bg-gradient-to-r from-gray-100 to-white opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div
+                        class="absolute inset-0 bg-gradient-to-r from-gray-100 to-white opacity-0 group-hover:opacity-100 transition-opacity">
+                    </div>
                 </button>
-                <button onclick="window.location.href='docs-center.html'" class="glass-card px-8 py-3.5 rounded-full font-medium text-base hover:bg-white/10 dark:text-white text-gray-800 transition border dark:border-white/10 border-gray-300/50 backdrop-blur-md">
+                <button onclick="window.location.href='docs-center.html'"
+                    class="glass-card px-6 sm:px-10 md:px-12 py-3 sm:py-4 md:py-5 rounded-full font-medium text-sm sm:text-lg md:text-xl hover:bg-white/10 dark:text-white text-gray-800 transition border dark:border-white/10 border-gray-300/50 backdrop-blur-md min-h-[48px] sm:min-h-[52px] md:min-h-[56px] flex items-center justify-center cursor-pointer whitespace-nowrap">
                     查看技术文档
                 </button>
             </div>
@@ -667,49 +863,76 @@
     </header>
 
     <!-- 核心能力 -->
-    <section id="features" class="py-24 relative z-10">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="features" class="py-16 md:py-24 relative z-10">
+        <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12">
             <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-stretch">
 
                 <!-- 左侧：文字介绍 (Titles Centered) -->
-                <div class="glass-card p-8 lg:p-10 flex flex-col justify-center animate-rush-in-left h-full">
+                <div class="glass-card p-6 sm:p-8 lg:p-10 flex flex-col justify-center animate-rush-in-left h-full">
                     <!-- Title Centered -->
-                    <div class="text-center w-full mb-8">
-                        <h2 class="text-3xl md:text-4xl font-bold dark:text-white text-gray-900 section-title inline-block">什么是 Aries AI?</h2>
+                    <div class="text-center w-full mb-6 sm:mb-8">
+                        <h2
+                            class="text-2xl sm:text-3xl md:text-4xl font-bold dark:text-white text-gray-900 section-title inline-block">
+                            什么是 Aries AI?</h2>
                     </div>
-                    
-                    <p class="text-base dark:text-gray-300 text-gray-600 leading-relaxed mb-10 text-center lg:text-left">
+
+                    <p
+                        class="text-base dark:text-gray-300 text-gray-600 leading-relaxed mb-10 text-center lg:text-left">
                         Aries AI 是一个基于 <strong>AutoGLM</strong> 构建的手机端智能助理。它抛弃了传统的脚本方式，像人类一样通过“视觉”理解屏幕，自动帮您完成复杂的跨应用操作。
                     </p>
 
                     <div class="space-y-6">
                         <!-- Feature 1 -->
                         <div class="flex gap-5 items-start group">
-                            <div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center justify-center transition transform group-hover:scale-110 flex-shrink-0">
-                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                            <div
+                                class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center justify-center transition transform group-hover:scale-110 flex-shrink-0">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
                             </div>
                             <div>
-                                <h4 class="text-lg font-bold dark:text-white text-gray-800 mb-1 group-hover:text-blue-400 transition">多模态感知</h4>
+                                <h4
+                                    class="text-lg font-bold dark:text-white text-gray-800 mb-1 group-hover:text-blue-400 transition">
+                                    多模态感知</h4>
                                 <p class="text-sm dark:text-gray-400 text-gray-500">基于 VLM 视觉模型，像人眼一样看懂 APP 界面布局与语义。</p>
                             </div>
                         </div>
                         <!-- Feature 2 -->
                         <div class="flex gap-5 items-start group">
-                            <div class="w-12 h-12 rounded-xl bg-orange-500/10 text-orange-500 border border-orange-500/20 flex items-center justify-center transition transform group-hover:scale-110 flex-shrink-0">
-                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                            <div
+                                class="w-12 h-12 rounded-xl bg-orange-500/10 text-orange-500 border border-orange-500/20 flex items-center justify-center transition transform group-hover:scale-110 flex-shrink-0">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                                </svg>
                             </div>
                             <div>
-                                <h4 class="text-lg font-bold dark:text-white text-gray-800 mb-1 group-hover:text-orange-400 transition">离线语音识别</h4>
-                                <p class="text-sm dark:text-gray-400 text-gray-500">集成 Sherpa-ncnn 引擎，本地处理无需联网，隐私更安全。</p>
+                                <h4
+                                    class="text-lg font-bold dark:text-white text-gray-800 mb-1 group-hover:text-orange-400 transition">
+                                    离线语音识别</h4>
+                                <p class="text-sm dark:text-gray-400 text-gray-500">集成 Sherpa-ncnn 引擎，本地处理无需联网，隐私更安全。
+                                </p>
                             </div>
                         </div>
                         <!-- Feature 3 -->
                         <div class="flex gap-5 items-start group">
-                            <div class="w-12 h-12 rounded-xl bg-green-500/10 text-green-500 border border-green-500/20 flex items-center justify-center transition transform group-hover:scale-110 flex-shrink-0">
-                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                            <div
+                                class="w-12 h-12 rounded-xl bg-green-500/10 text-green-500 border border-green-500/20 flex items-center justify-center transition transform group-hover:scale-110 flex-shrink-0">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
                             </div>
                             <div>
-                                <h4 class="text-lg font-bold dark:text-white text-gray-800 mb-1 group-hover:text-green-400 transition">安全接管</h4>
+                                <h4
+                                    class="text-lg font-bold dark:text-white text-gray-800 mb-1 group-hover:text-green-400 transition">
+                                    安全接管</h4>
                                 <p class="text-sm dark:text-gray-400 text-gray-500">敏感操作（如支付）自动暂停确认，失败操作自动重试修复。</p>
                             </div>
                         </div>
@@ -717,52 +940,72 @@
                 </div>
 
                 <!-- 右侧：架构图 (Icons Redesigned & Titles Centered) -->
-                <div class="glass-card rounded-[1.5rem] p-8 relative overflow-hidden flex flex-col justify-center animate-rush-in-right h-full">
+                <div
+                    class="glass-card rounded-[1.5rem] p-8 relative overflow-hidden flex flex-col justify-center animate-rush-in-right h-full">
                     <div class="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 blur-[80px] rounded-full"></div>
                     <div class="absolute bottom-0 left-0 w-64 h-64 bg-purple-600/10 blur-[80px] rounded-full"></div>
 
                     <!-- Title Centered -->
                     <div class="text-center w-full mb-10">
-                         <h3 class="text-xl font-bold dark:text-white text-gray-900 section-title inline-block">云端大脑 + 本地执行</h3>
+                        <h3 class="text-xl font-bold dark:text-white text-gray-900 section-title inline-block">云端大脑 +
+                            本地执行</h3>
                     </div>
 
                     <div class="space-y-6 relative z-10 pl-4 pr-4">
-                        <div class="absolute left-[3.75rem] top-10 bottom-10 w-0.5 bg-gradient-to-b from-blue-500/40 via-purple-500/40 to-yellow-500/40 -z-10"></div>
+                        <div
+                            class="absolute left-[3.75rem] top-10 bottom-10 w-0.5 bg-gradient-to-b from-blue-500/40 via-purple-500/40 to-yellow-500/40 -z-10">
+                        </div>
 
                         <!-- Card 1: Cloud Brain (Redesigned Icon) -->
-                        <div class="glass-card p-5 rounded-xl flex gap-6 items-center dark:bg-white/5 bg-white/60 hover:bg-blue-500/5 transition-all group">
+                        <div
+                            class="glass-card p-5 rounded-xl flex gap-6 items-center dark:bg-white/5 bg-white/60 hover:bg-blue-500/5 transition-all group">
                             <div class="tech-icon-box icon-cloud animate-icon-float">
                                 <div class="tech-icon-glow"></div>
-                                <svg class="icon-svg" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+                                <svg class="icon-svg" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                                </svg>
                             </div>
                             <div class="flex-1">
-                                <span class="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1 block">Cloud Brain</span>
+                                <span
+                                    class="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1 block">Cloud
+                                    Brain</span>
                                 <h4 class="text-lg font-bold dark:text-white text-gray-900">AutoGLM-Aries-9B</h4>
                                 <p class="text-xs dark:text-gray-400 text-gray-500 mt-1">多模态智能规划与决策中心</p>
                             </div>
                         </div>
 
                         <!-- Card 2: Client (Redesigned Icon) -->
-                        <div class="glass-card p-5 rounded-xl flex gap-6 items-center dark:bg-white/5 bg-white/60 hover:bg-purple-500/5 transition-all group" style="animation-delay: 0.2s">
+                        <div class="glass-card p-5 rounded-xl flex gap-6 items-center dark:bg-white/5 bg-white/60 hover:bg-purple-500/5 transition-all group"
+                            style="animation-delay: 0.2s">
                             <div class="tech-icon-box icon-client animate-icon-float" style="animation-delay: 1s;">
                                 <div class="tech-icon-glow"></div>
-                                <svg class="icon-svg" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                <svg class="icon-svg" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                </svg>
                             </div>
                             <div class="flex-1">
-                                <span class="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1 block">Client</span>
+                                <span
+                                    class="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1 block">Client</span>
                                 <h4 class="text-lg font-bold dark:text-white text-gray-900">Android 终端</h4>
                                 <p class="text-xs dark:text-gray-400 text-gray-500 mt-1">Sherpa-ncnn / 悬浮窗 / 自动化执行</p>
                             </div>
                         </div>
-                        
+
                         <!-- Card 3: Action (Redesigned Icon) -->
-                        <div class="glass-card p-5 rounded-xl flex gap-6 items-center dark:bg-white/5 bg-white/60 hover:bg-yellow-500/5 transition-all group" style="animation-delay: 0.4s">
+                        <div class="glass-card p-5 rounded-xl flex gap-6 items-center dark:bg-white/5 bg-white/60 hover:bg-yellow-500/5 transition-all group"
+                            style="animation-delay: 0.4s">
                             <div class="tech-icon-box icon-action animate-icon-float" style="animation-delay: 2s;">
                                 <div class="tech-icon-glow"></div>
-                                <svg class="icon-svg" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
+                                <svg class="icon-svg" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                                </svg>
                             </div>
                             <div class="flex-1">
-                                <span class="text-[10px] font-bold text-yellow-400 uppercase tracking-widest mb-1 block">Action</span>
+                                <span
+                                    class="text-[10px] font-bold text-yellow-400 uppercase tracking-widest mb-1 block">Action</span>
                                 <h4 class="text-lg font-bold dark:text-white text-gray-900">执行层</h4>
                                 <p class="text-xs dark:text-gray-400 text-gray-500 mt-1">模拟点击 / 滑动 / 截图反馈</p>
                             </div>
@@ -774,39 +1017,44 @@
     </section>
 
     <!-- 成功案例 (Moved UP) -->
-    <section id="cases" class="py-20 relative z-10 border-t dark:border-white/5 border-gray-200">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-2xl font-bold text-center mb-12 dark:text-white text-gray-900 section-title">已实现的智能场景</h2>
-            <div class="grid md:grid-cols-3 gap-6">
+    <section id="cases" class="py-16 md:py-24 relative z-10 border-t dark:border-white/5 border-gray-200">
+        <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12">
+            <h2
+                class="text-2xl md:text-3xl font-bold text-center mb-12 md:mb-16 dark:text-white text-gray-900 section-title">
+                已实现的智能场景</h2>
+            <div class="grid md:grid-cols-3 gap-5 md:gap-6">
                 <!-- Case 1 -->
                 <div class="glass-card p-6 rounded-2xl group cursor-pointer">
-                    <div class="w-14 h-14 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center mb-5 text-2xl shadow-lg shadow-orange-500/20 group-hover:scale-110 group-hover:rotate-3 transition duration-300">
+                    <div
+                        class="w-12 sm:w-14 h-12 sm:h-14 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center mb-4 sm:mb-5 text-xl sm:text-2xl shadow-lg shadow-orange-500/20 group-hover:scale-110 group-hover:rotate-3 transition duration-300">
                         🍲
                     </div>
-                    <h3 class="text-lg font-bold mb-2 dark:text-white text-gray-900">美团订座</h3>
-                    <p class="dark:text-gray-400 text-gray-600 text-sm leading-relaxed">
+                    <h3 class="text-base sm:text-lg font-bold mb-2 dark:text-white text-gray-900">美团订座</h3>
+                    <p class="dark:text-gray-400 text-gray-600 text-xs sm:text-sm leading-relaxed">
                         “帮我定明天中午火锅店座位，四个人。”<br>
                         自动打开美团，选择店铺、时间人数，一步到位直达付款界面。
                     </p>
                 </div>
                 <!-- Case 2 -->
                 <div class="glass-card p-6 rounded-2xl group cursor-pointer">
-                    <div class="w-14 h-14 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-2xl flex items-center justify-center mb-5 text-2xl shadow-lg shadow-blue-500/20 group-hover:scale-110 group-hover:rotate-3 transition duration-300">
+                    <div
+                        class="w-12 sm:w-14 h-12 sm:h-14 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-2xl flex items-center justify-center mb-4 sm:mb-5 text-xl sm:text-2xl shadow-lg shadow-blue-500/20 group-hover:scale-110 group-hover:rotate-3 transition duration-300">
                         🛍️
                     </div>
-                    <h3 class="text-lg font-bold mb-2 dark:text-white text-gray-900">淘宝物</h3>
-                    <p class="dark:text-gray-400 text-gray-600 text-sm leading-relaxed">
+                    <h3 class="text-base sm:text-lg font-bold mb-2 dark:text-white text-gray-900">淘宝购物</h3>
+                    <p class="dark:text-gray-400 text-gray-600 text-xs sm:text-sm leading-relaxed">
                         “搜索蓝牙耳机，要销量最高的。”<br>
                         自动筛选销量排序，精准识别并进入商品详情页。
                     </p>
                 </div>
                 <!-- Case 3 -->
                 <div class="glass-card p-6 rounded-2xl group cursor-pointer">
-                    <div class="w-14 h-14 bg-gradient-to-br from-purple-400 to-pink-500 rounded-2xl flex items-center justify-center mb-5 text-2xl shadow-lg shadow-purple-500/20 group-hover:scale-110 group-hover:rotate-3 transition duration-300">
+                    <div
+                        class="w-14 h-14 bg-gradient-to-br from-purple-400 to-pink-500 rounded-2xl flex items-center justify-center mb-5 text-2xl shadow-lg shadow-purple-500/20 group-hover:scale-110 group-hover:rotate-3 transition duration-300">
                         🎵
                     </div>
-                    <h3 class="text-lg font-bold mb-2 dark:text-white text-gray-900">抖音互动</h3>
-                    <p class="dark:text-gray-400 text-gray-600 text-sm leading-relaxed">
+                    <h3 class="text-base sm:text-lg font-bold mb-2 dark:text-white text-gray-900">抖音互动</h3>
+                    <p class="dark:text-gray-400 text-gray-600 text-xs sm:text-sm leading-relaxed">
                         “给这个视频点个赞，评论‘真不错’。”<br>
                         自动点赞视频，并进入评论区输入指定内容。
                     </p>
@@ -816,14 +1064,20 @@
     </section>
 
     <!-- 支持应用 (Moved DOWN & Dynamics Updated) -->
-    <section id="apps" class="py-20 relative z-10 dark:bg-white/5 bg-white/30 backdrop-blur-sm overflow-hidden">
+    <section id="apps"
+        class="py-16 md:py-24 relative z-10 dark:bg-white/5 bg-white/30 backdrop-blur-sm overflow-hidden">
         <div class="relative z-10 w-full flex flex-col items-center">
-            <div class="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[980px] h-[420px] rounded-full bg-gradient-to-r from-blue-500/25 via-purple-500/25 to-pink-500/25 blur-[70px]"></div>
-            <div class="pointer-events-none absolute -bottom-28 left-1/2 -translate-x-1/2 w-[820px] h-[380px] rounded-full bg-gradient-to-r from-cyan-400/15 via-sky-500/15 to-fuchsia-500/15 blur-[80px]"></div>
+            <div
+                class="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[980px] h-[420px] rounded-full bg-gradient-to-r from-blue-500/25 via-purple-500/25 to-pink-500/25 blur-[70px]">
+            </div>
+            <div
+                class="pointer-events-none absolute -bottom-28 left-1/2 -translate-x-1/2 w-[820px] h-[380px] rounded-full bg-gradient-to-r from-cyan-400/15 via-sky-500/15 to-fuchsia-500/15 blur-[80px]">
+            </div>
 
             <h2 class="text-2xl font-bold text-center mb-4 dark:text-white text-gray-900 section-title relative">
                 适配100+款主流应用
-                <span class="block mx-auto mt-3 h-[3px] w-20 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 shadow-[0_0_18px_rgba(99,102,241,0.35)]"></span>
+                <span
+                    class="block mx-auto mt-3 h-[3px] w-20 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 shadow-[0_0_18px_rgba(99,102,241,0.35)]"></span>
             </h2>
             <p class="text-center dark:text-gray-300 text-gray-700 mb-12 mt-6 text-sm">覆盖社交、购物、出行、娱乐全场景生态</p>
 
@@ -839,15 +1093,18 @@
     </section>
 
     <!-- 路线图 -->
-    <section id="roadmap" class="py-20 relative z-10">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-2xl font-bold text-center mb-10 dark:text-white text-gray-900 section-title">优化与未来规划</h2>
+    <section id="roadmap" class="py-16 md:py-24 relative z-10">
+        <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12">
+            <h2
+                class="text-2xl md:text-3xl font-bold text-center mb-12 md:mb-16 dark:text-white text-gray-900 section-title">
+                优化与未来规划</h2>
 
-            <div class="grid md:grid-cols-2 gap-6">
+            <div class="grid md:grid-cols-2 gap-5 md:gap-6">
                 <!-- Column 1 -->
                 <div class="glass-card p-8 rounded-2xl">
                     <h3 class="text-lg font-bold text-blue-500 mb-5 flex items-center">
-                        <span class="w-8 h-8 bg-blue-500/10 rounded-full flex items-center justify-center mr-3 text-sm border border-blue-500/20">🚀</span>
+                        <span
+                            class="w-8 h-8 bg-blue-500/10 rounded-full flex items-center justify-center mr-3 text-sm border border-blue-500/20">🚀</span>
                         <!-- Updated Title -->
                         首发版本特性
                     </h3>
@@ -867,7 +1124,8 @@
                 <!-- Column 2 -->
                 <div class="glass-card p-8 rounded-2xl">
                     <h3 class="text-lg font-bold text-purple-500 mb-5 flex items-center">
-                        <span class="w-8 h-8 bg-purple-500/10 rounded-full flex items-center justify-center mr-3 text-sm border border-purple-500/20">🔧</span>
+                        <span
+                            class="w-8 h-8 bg-purple-500/10 rounded-full flex items-center justify-center mr-3 text-sm border border-purple-500/20">🔧</span>
                         未来计划
                     </h3>
                     <div class="space-y-5">
@@ -886,32 +1144,46 @@
     </section>
 
     <!-- Footer -->
-    <footer class="mt-auto dark:bg-black/90 bg-white/80 backdrop-blur-md border-t dark:border-white/5 border-gray-200 py-10 relative z-10">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <footer
+        class="mt-auto dark:bg-black/90 bg-white/80 backdrop-blur-md border-t dark:border-white/5 border-gray-200 py-10 md:py-12 relative z-10">
+        <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 text-center">
             <h3 class="text-xl font-extrabold mb-5 dark:text-white text-gray-900 section-title inline-block">联系我们</h3>
 
             <div class="max-w-3xl mx-auto flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm mb-7">
-                <button id="qq-link" class="inline-flex items-center gap-2 hover:opacity-90 transition glass-card px-4 py-2 rounded-full">
-                    <span class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-black/5 border dark:border-white/10 border-black/10">
-                        <svg class="w-4 h-4 dark:text-white text-gray-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M21 11c0-4.42-4.03-8-9-8S3 6.58 3 11c0 2.16.98 4.12 2.58 5.58L4.5 21l4.36-1.53c.97.33 2.03.53 3.14.53 4.97 0 9-3.58 9-8z"/>
+                <button id="qq-link"
+                    class="inline-flex items-center gap-2 hover:opacity-90 transition glass-card px-4 py-2 rounded-full">
+                    <span
+                        class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-black/5 border dark:border-white/10 border-black/10">
+                        <svg class="w-4 h-4 dark:text-white text-gray-800" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            aria-hidden="true">
+                            <path
+                                d="M21 11c0-4.42-4.03-8-9-8S3 6.58 3 11c0 2.16.98 4.12 2.58 5.58L4.5 21l4.36-1.53c.97.33 2.03.53 3.14.53 4.97 0 9-3.58 9-8z" />
                         </svg>
                     </span>
                     QQ交流群
                 </button>
 
-                <a class="inline-flex items-center gap-2 hover:opacity-90 transition glass-card px-4 py-2 rounded-full" href="https://github.com/ZG0704666/Phone-Agent-project" target="_blank" rel="noreferrer">
-                    <span class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-black/5 border dark:border-white/10 border-black/10">
-                        <svg class="w-4 h-4 dark:text-white text-gray-800" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <path d="M12 .5a11.5 11.5 0 00-3.63 22.42c.57.1.78-.25.78-.55v-1.93c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.27-1.68-1.27-1.68-1.04-.72.08-.71.08-.71 1.15.08 1.75 1.18 1.75 1.18 1.02 1.74 2.67 1.24 3.32.95.1-.74.4-1.24.73-1.53-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .97-.31 3.18 1.18a10.9 10.9 0 015.8 0c2.2-1.49 3.18-1.18 3.18-1.18.62 1.59.23 2.76.11 3.05.73.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.41-5.28 5.7.41.36.78 1.06.78 2.14v3.17c0 .3.2.66.79.55A11.5 11.5 0 0012 .5z"/>
+                <a class="inline-flex items-center gap-2 hover:opacity-90 transition glass-card px-4 py-2 rounded-full"
+                    href="https://github.com/ZG0704666/Phone-Agent-project" target="_blank" rel="noreferrer">
+                    <span
+                        class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-black/5 border dark:border-white/10 border-black/10">
+                        <svg class="w-4 h-4 dark:text-white text-gray-800" viewBox="0 0 24 24" fill="currentColor"
+                            aria-hidden="true">
+                            <path
+                                d="M12 .5a11.5 11.5 0 00-3.63 22.42c.57.1.78-.25.78-.55v-1.93c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.27-1.68-1.27-1.68-1.04-.72.08-.71.08-.71 1.15.08 1.75 1.18 1.75 1.18 1.02 1.74 2.67 1.24 3.32.95.1-.74.4-1.24.73-1.53-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .97-.31 3.18 1.18a10.9 10.9 0 015.8 0c2.2-1.49 3.18-1.18 3.18-1.18.62 1.59.23 2.76.11 3.05.73.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.41-5.28 5.7.41.36.78 1.06.78 2.14v3.17c0 .3.2.66.79.55A11.5 11.5 0 0012 .5z" />
                         </svg>
                     </span>
                     GitHub讨论区
                 </a>
 
-                <a class="inline-flex items-center gap-2 hover:opacity-90 transition glass-card px-4 py-2 rounded-full" href="mailto:zhangyongqi@njit.edu.cn" style="user-select: text; -webkit-user-select: text;">
-                    <span class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-black/5 border dark:border-white/10 border-black/10">
-                        <svg class="w-4 h-4 dark:text-white text-gray-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <a class="inline-flex items-center gap-2 hover:opacity-90 transition glass-card px-4 py-2 rounded-full"
+                    href="mailto:zhangyongqi@njit.edu.cn" style="user-select: text; -webkit-user-select: text;">
+                    <span
+                        class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-black/5 border dark:border-white/10 border-black/10">
+                        <svg class="w-4 h-4 dark:text-white text-gray-800" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            aria-hidden="true">
                             <path d="M4 6h16v12H4z" />
                             <path d="M4 8l8 5 8-5" />
                         </svg>
@@ -919,26 +1191,108 @@
                     zhangyongqi@njit.edu.cn
                 </a>
 
-                
+
             </div>
 
-            <p class="mb-2 dark:text-gray-400 text-gray-600 font-medium text-sm">© 2026 Aries AI Project. All rights reserved.</p>
+            <p class="mb-2 dark:text-gray-400 text-gray-600 font-medium text-sm">© 2026 Aries AI Project. All rights
+                reserved.</p>
             <p class="text-xs dark:text-gray-600 text-gray-400">Powered by AutoGLM & Sherpa-ncnn.</p>
         </div>
     </footer>
 
+    <!-- 下载弹窗 -->
+    <div id="download-modal"
+        class="fixed inset-0 z-50 hidden flex items-center justify-center px-3 sm:px-4 py-4 sm:py-6">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="hideDownloadModal()"></div>
+        <div
+            class="relative glass-card modal-panel w-full max-w-md sm:max-w-lg md:max-w-2xl p-5 sm:p-6 md:p-8 text-left rounded-2xl shadow-2xl dark:text-white text-gray-900 max-h-[90vh] overflow-y-auto">
+            <button id="download-modal-close"
+                class="absolute top-4 right-4 sm:top-5 sm:right-5 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors"
+                type="button" aria-label="关闭" onclick="hideDownloadModal()">✕</button>
+
+            <div class="flex items-start gap-3 sm:gap-4 mb-6 pr-12">
+                <img src="./aries-icon.png" alt="Aries AI 图标"
+                    class="w-12 sm:w-14 md:w-16 h-12 sm:h-14 md:h-16 rounded-xl shadow-md border border-white/20 bg-white/80 flex-shrink-0"
+                    style="object-fit:cover;" />
+                <div class="flex-1">
+                    <p class="text-xs uppercase tracking-[0.2em] text-blue-400 mb-1 sm:mb-2">Aries AI</p>
+                    <h3 class="text-xl sm:text-2xl md:text-3xl font-bold leading-tight">获取安装包</h3>
+                </div>
+            </div>
+
+            <div class="mb-6 sm:mb-8">
+                <p class="text-xs sm:text-sm md:text-base dark:text-gray-300 text-gray-600 leading-relaxed">推荐直接下载
+                    APK；如访问缓慢，可选择 GitHub 备用通道。</p>
+            </div>
+
+            <div class="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
+                <a id="download-direct-link" href="../release/release/app-release.apk" download
+                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full px-4 sm:px-5 md:px-6 py-4 sm:py-5 md:py-6 rounded-xl sm:rounded-2xl border dark:border-white/10 border-gray-200 hover:border-blue-400/60 hover:shadow-lg transition bg-white/80 dark:bg-white/5 gap-2 sm:gap-3 active:scale-95 cursor-pointer min-h-[48px] sm:min-h-[56px]">
+                    <div class="flex-1">
+                        <div class="text-sm sm:text-base md:text-lg font-semibold">直接下载 APK（推荐）</div>
+                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">同仓库内置，国内快速</div>
+                    </div>
+                    <span
+                        class="text-xs sm:text-sm font-semibold text-blue-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">高速</span>
+                </a>
+
+                <a id="download-github-link"
+                    href="https://github.com/ZG0704666/Aries-AI/releases/latest/download/app-release.apk"
+                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full px-4 sm:px-5 md:px-6 py-4 sm:py-5 md:py-6 rounded-xl sm:rounded-2xl border dark:border-white/10 border-gray-200 hover:border-purple-400/60 hover:shadow-lg transition bg-white/80 dark:bg-white/5 gap-2 sm:gap-3 active:scale-95 cursor-pointer min-h-[48px] sm:min-h-[56px]"
+                    target="_blank" rel="noreferrer">
+                    <div class="flex-1">
+                        <div class="text-sm sm:text-base md:text-lg font-semibold">GitHub 备用下载</div>
+                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">官方 Releases，更可信</div>
+                    </div>
+                    <span
+                        class="text-xs sm:text-sm font-semibold text-purple-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">备用</span>
+                </a>
+            </div>
+
+            <div
+                class="text-xs sm:text-sm dark:text-gray-400 text-gray-500 leading-relaxed pt-4 sm:pt-6 border-t dark:border-white/10 border-gray-200">
+                <p class="font-semibold text-[13px] sm:text-[14px]">💡 下载提示：如点击无响应，请右键"复制链接"在新标签页打开，或加 QQ 群：<span
+                        class="text-blue-400 font-bold">746434973</span></p>
+            </div>
+        </div>
+    </div>
     <script>
+        // --- 下载弹窗 ---
+        const directApkUrl = '../release/release/app-release.apk';
+        const githubApkUrl = 'https://github.com/ZG0704666/Aries-AI/releases/latest/download/app-release.apk';
+
+        function showDownloadModal() {
+            const modal = document.getElementById('download-modal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.classList.add('overflow-hidden');
+            // 延迟触发动画
+            setTimeout(() => {
+                modal.classList.add('animate-fade-in');
+            }, 10);
+        }
+
+        function hideDownloadModal() {
+            const modal = document.getElementById('download-modal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            modal.classList.remove('animate-fade-in');
+            document.body.classList.remove('overflow-hidden');
+        }
+
         // --- 1. 生成星空 ---
         function generateStars() {
             const container = document.getElementById('stars-container');
-            const starCount = 60; 
+            const starCount = 60;
             for (let i = 0; i < starCount; i++) {
                 const star = document.createElement('div');
                 star.classList.add('star');
                 const x = Math.random() * 100;
                 const y = Math.random() * 100;
-                const size = Math.random() * 2 + 1; 
-                const duration = Math.random() * 3 + 2; 
+                const size = Math.random() * 2 + 1;
+                const duration = Math.random() * 3 + 2;
                 const delay = Math.random() * 5;
                 const opacity = Math.random() * 0.7 + 0.3;
 
@@ -1040,11 +1394,11 @@
         function initMarquee(elementId, items, direction) {
             const wrapper = document.getElementById(elementId);
             const track = wrapper.querySelector('.marquee-track');
-            
+
             // 重复填充内容
-            const repeatCount = 10; 
+            const repeatCount = 10;
             let html = '';
-            for(let i=0; i<repeatCount; i++) {
+            for (let i = 0; i < repeatCount; i++) {
                 items.forEach(item => {
                     html += `<span class="app-capsule">${item}</span>`;
                 });
@@ -1056,29 +1410,29 @@
             const maxSpeed = 4.0;      // 触发时的最大速度
             let currentSpeed = baseSpeed;
             let hasTriggeredRush = false; // 标记是否已经触发过冲刺
-            
+
             const totalWidth = track.scrollWidth;
 
             // 衰减系数 (0.96 比较平滑)
-            const decayFactor = 0.96; 
+            const decayFactor = 0.96;
 
             function animate() {
                 // 检测是否进入视口
                 const rect = wrapper.getBoundingClientRect();
                 const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-                
+
                 // 视口���测逻辑：当它快进入视口中心时触发冲刺
                 if (isVisible) {
-                     // 简单起见，只要在屏幕内且速度很慢，且未触发过（或者每次滚动进来都触发，这里设计为每次进入视口若速度低则触发）
-                     const centerY = window.innerHeight / 2;
-                     const wrapperCenter = rect.top + rect.height / 2;
-                     const dist = Math.abs(centerY - wrapperCenter);
+                    // 简单起见，只要在屏幕内且速度很慢，且未触发过（或者每次滚动进来都触发，这里设计为每次进入视口若速度低则触发）
+                    const centerY = window.innerHeight / 2;
+                    const wrapperCenter = rect.top + rect.height / 2;
+                    const dist = Math.abs(centerY - wrapperCenter);
 
-                     // 距离中心点一定范围内，且当前速度接近基础速度时，给予冲量
-                     if (dist < window.innerHeight * 0.4 && Math.abs(currentSpeed - baseSpeed) < 0.1 && !hasTriggeredRush) {
-                         currentSpeed = maxSpeed;
-                         hasTriggeredRush = true; // 锁定，防止一直触发
-                     }
+                    // 距离中心点一定范围内，且当前速度接近基础速度时，给予冲量
+                    if (dist < window.innerHeight * 0.4 && Math.abs(currentSpeed - baseSpeed) < 0.1 && !hasTriggeredRush) {
+                        currentSpeed = maxSpeed;
+                        hasTriggeredRush = true; // 锁定，防止一直触发
+                    }
                 } else {
                     // 离开视口后重置 trigger，保证下次回来还能加速
                     hasTriggeredRush = false;
@@ -1105,7 +1459,7 @@
                 } else {
                     // Right
                     let move = position % (totalWidth / 2);
-                    track.style.transform = `translateX(${ - (totalWidth / 2) + move }px)`;
+                    track.style.transform = `translateX(${- (totalWidth / 2) + move}px)`;
                 }
 
                 requestAnimationFrame(animate);
@@ -1115,9 +1469,55 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
+            // 绑定下载弹窗按钮
+            // 绑定下载按钮事件
+            const downloadButtons = [
+                document.getElementById('btn-download-hero'),
+                document.getElementById('btn-download-nav')
+            ];
+            downloadButtons.forEach(btn => {
+                if (!btn) return;
+                const handleDownload = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showDownloadModal();
+                };
+                btn.addEventListener('click', handleDownload);
+                // 移动端也支持触摸
+                btn.addEventListener('touchstart', handleDownload);
+            });
+
+            // 弹窗关闭事件
+            const closeBtn = document.getElementById('download-modal-close');
+            if (closeBtn) {
+                const handleClose = (e) => {
+                    e?.preventDefault?.();
+                    e?.stopPropagation?.();
+                    hideDownloadModal();
+                };
+                closeBtn.addEventListener('click', handleClose);
+                closeBtn.addEventListener('touchend', handleClose);
+            }
+
+            // 下载链接
+            const directLink = document.getElementById('download-direct-link');
+            if (directLink) directLink.href = directApkUrl;
+            const ghLink = document.getElementById('download-github-link');
+            if (ghLink) ghLink.href = githubApkUrl;
+
+            // ESC 和点击背景关闭
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') hideDownloadModal();
+            });
+
+            const modalOverlay = document.querySelector('#download-modal > div:first-child');
+            if (modalOverlay) {
+                modalOverlay.addEventListener('click', hideDownloadModal);
+            }
+
             generateStars();
             setTimeout(() => {
-                if(!hasScrolled) tooltip.style.opacity = '1';
+                if (!hasScrolled) tooltip.style.opacity = '1';
             }, 500);
 
             (function initConstellation() {
@@ -1356,4 +1756,5 @@
     </script>
 
 </body>
+
 </html>
