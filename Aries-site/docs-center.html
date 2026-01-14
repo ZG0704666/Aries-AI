@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aries AI 文档中心</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          animation: {
+            'ring-flow': 'ringFlow 4.5s linear infinite',
+            'ring-pulse': 'ringPulse 2.8s ease-in-out infinite',
+          },
+          keyframes: {
+            ringFlow: {
+              '0%': { transform: 'rotate(0deg)' },
+              '100%': { transform: 'rotate(360deg)' },
+            },
+            ringPulse: {
+              '0%, 100%': { opacity: '0.55' },
+              '50%': { opacity: '0.95' },
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .bg-grid {
+      background-image:
+        radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.06) 1px, transparent 0);
+      background-size: 22px 22px;
+    }
+
+    html.dark .page-bg {
+      background: radial-gradient(1200px 600px at 50% 20%, rgba(88, 28, 135, 0.35), transparent 60%),
+        radial-gradient(900px 500px at 15% 35%, rgba(30, 64, 175, 0.35), transparent 55%),
+        radial-gradient(900px 500px at 85% 55%, rgba(190, 24, 93, 0.25), transparent 60%),
+        radial-gradient(circle at center, #0a0a12 0%, #000000 100%);
+    }
+
+    .constellation-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .35s ease;
+    }
+
+    html.dark .constellation-layer {
+      opacity: 1;
+    }
+
+    html.light .page-bg {
+      background: radial-gradient(900px 520px at 50% 10%, rgba(37, 99, 235, 0.18), transparent 58%),
+        radial-gradient(980px 560px at 20% 45%, rgba(124, 58, 237, 0.16), transparent 60%),
+        radial-gradient(900px 520px at 85% 35%, rgba(219, 39, 119, 0.10), transparent 62%),
+        #eef2ff;
+    }
+
+    html.light .constellation-layer {
+      opacity: 0;
+    }
+
+    html.light #meteor-canvas {
+      opacity: 0;
+    }
+
+    html.light .brand-icon {
+      background: rgba(255, 255, 255, 0.92);
+      color: #0f172a;
+      border: 1px solid rgba(15, 23, 42, 0.14);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
+    }
+
+    .glass {
+      backdrop-filter: blur(26px);
+      -webkit-backdrop-filter: blur(26px);
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .glass::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(900px 260px at 20% 0%, rgba(255,255,255,0.16), transparent 60%),
+        radial-gradient(700px 240px at 85% 20%, rgba(255,255,255,0.10), transparent 62%);
+      opacity: 0.65;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .glass::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 2px 2px, rgba(255,255,255,0.10) 1px, transparent 0);
+      background-size: 18px 18px;
+      opacity: 0.08;
+      mix-blend-mode: overlay;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    html.light .glass::after {
+      opacity: 0.04;
+    }
+
+    html.dark .glass {
+      background: rgba(16, 16, 22, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      box-shadow:
+        0 16px 60px rgba(0, 0, 0, 0.60),
+        0 0 0 1px rgba(255,255,255,0.05) inset;
+    }
+
+    html.light .glass {
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(15, 23, 42, 0.10);
+      box-shadow:
+        0 16px 46px rgba(15, 23, 42, 0.10),
+        0 0 0 1px rgba(15,23,42,0.04) inset;
+    }
+
+    .glass > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .nav-item {
+      border-radius: 10px;
+      transition: background-color .2s ease, color .2s ease;
+    }
+
+    html.dark .nav-item:hover { background: rgba(255,255,255,0.06); }
+    html.light .nav-item:hover { background: rgba(0,0,0,0.04); }
+
+    .capsule {
+      position: relative;
+      border-radius: 9999px;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .capsule::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: inherit;
+      background: conic-gradient(from 180deg, rgba(96,165,250,0.0), rgba(96,165,250,0.95), rgba(192,132,252,0.95), rgba(244,114,182,0.95), rgba(96,165,250,0.0));
+      filter: blur(10px);
+      opacity: 0.7;
+      animation: ringFlow 4.5s linear infinite;
+      z-index: -2;
+    }
+
+    .capsule::after {
+      content: '';
+      position: absolute;
+      inset: 1px;
+      border-radius: inherit;
+      background: rgba(0,0,0,0.35);
+      z-index: -1;
+      transition: background-color .25s ease;
+    }
+
+    html.light .capsule::after {
+      background: rgba(255,255,255,0.9);
+    }
+
+    .capsule:hover::before {
+      opacity: 0.95;
+      animation-duration: 3.5s;
+    }
+
+    .capsule:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 36px rgba(96,165,250,0.15);
+    }
+
+    .hero-pill {
+      box-shadow:
+        0 18px 60px rgba(0,0,0,0.35),
+        0 0 0 1px rgba(255,255,255,0.06) inset;
+    }
+
+    html.light .hero-pill {
+      box-shadow:
+        0 16px 46px rgba(15, 23, 42, 0.10),
+        0 0 0 1px rgba(15, 23, 42, 0.06) inset;
+    }
+
+    .doc-card {
+      position: relative;
+      overflow: hidden;
+      border-radius: 16px;
+      transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease, background-color .25s ease;
+      min-height: 116px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .doc-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      flex-shrink: 0;
+    }
+
+    html.light .doc-icon {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(15, 23, 42, 0.10);
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.10);
+    }
+
+    .doc-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background:
+        radial-gradient(800px 220px at 15% 0%, rgba(255,255,255,0.15), transparent 60%),
+        radial-gradient(600px 200px at 85% 15%, rgba(255,255,255,0.10), transparent 62%);
+      opacity: 0.7;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .doc-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background-image:
+        radial-gradient(circle at 2px 2px, rgba(255,255,255,0.10) 1px, transparent 0);
+      background-size: 18px 18px;
+      opacity: 0.07;
+      mix-blend-mode: overlay;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .doc-card > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    html.dark .doc-card {
+      background: rgba(18, 18, 24, 0.20);
+      border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(26px);
+      -webkit-backdrop-filter: blur(26px);
+      box-shadow:
+        0 10px 34px rgba(0,0,0,0.42),
+        0 0 0 1px rgba(255,255,255,0.05) inset;
+    }
+
+    html.light .doc-card {
+      background: rgba(255,255,255,0.66);
+      border: 1px solid rgba(15, 23, 42, 0.10);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow:
+        0 10px 28px rgba(15,23,42,0.10),
+        0 0 0 1px rgba(15,23,42,0.04) inset;
+    }
+
+    .doc-card:hover {
+      transform: translateY(-3px);
+    }
+
+    html.dark .doc-card:hover {
+      border-color: rgba(255,255,255,0.20);
+      box-shadow:
+        0 18px 58px rgba(0,0,0,0.62),
+        0 0 0 1px rgba(255,255,255,0.07) inset;
+      background: rgba(18, 18, 24, 0.26);
+    }
+
+    html.light .doc-card:hover {
+      border-color: rgba(37,99,235,0.25);
+      box-shadow:
+        0 16px 44px rgba(37,99,235,0.14),
+        0 0 0 1px rgba(37,99,235,0.06) inset;
+    }
+
+    .doc-card .shine {
+      position: absolute;
+      top: 0;
+      left: -120%;
+      width: 80%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.24), transparent);
+      transform: skewX(-18deg);
+      transition: left .75s ease;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0.8;
+    }
+
+    .doc-card:hover .shine {
+      left: 140%;
+    }
+
+    #meteor-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .35s ease;
+    }
+
+    html.dark #meteor-canvas {
+      opacity: 0.9;
+    }
+
+    html.light #meteor-canvas {
+      opacity: 0;
+    }
+  </style>
+</head>
+
+<body class="dark:text-white text-slate-900 bg-white dark:bg-black">
+
+  <div class="page-bg min-h-screen">
+    <canvas id="constellation-canvas" class="constellation-layer"></canvas>
+    <canvas id="meteor-canvas"></canvas>
+    <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 py-4">
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.href='index.html'">
+          <div class="brand-icon w-10 h-10 rounded-xl bg-white/10 text-white font-bold flex items-center justify-center shadow-lg shadow-blue-500/20 border border-white/10">A</div>
+          <div class="font-extrabold text-lg dark:text-white text-slate-900">Aries AI</div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button class="capsule px-5 py-2 text-sm font-semibold transition" onclick="toggleTheme()">
+            <span id="theme-label" class="relative z-10">切换日/夜</span>
+          </button>
+          <a class="capsule px-5 py-2 text-sm font-semibold transition" href="index.html">
+            <span class="relative z-10">返回主页</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-5" style="height: calc(100vh - 96px);">
+        <aside class="lg:col-span-3 glass p-4 relative" style="z-index: 1;">
+          <div class="text-sm font-semibold dark:text-slate-200 text-slate-800 mb-3">文档导航</div>
+          <nav class="space-y-1 text-sm">
+            <a class="nav-item block px-3 py-2 dark:text-slate-200 text-slate-700" href="#quick">快速使用</a>
+            <a class="nav-item block px-3 py-2 dark:text-slate-200 text-slate-700" href="#setup">基础配置</a>
+            <a class="nav-item block px-3 py-2 dark:text-slate-200 text-slate-700" href="#automation">自动化能力</a>
+            <a class="nav-item block px-3 py-2 dark:text-slate-200 text-slate-700" href="#faq">常见问题</a>
+            <div class="mt-4 pt-4 border-t dark:border-white/10 border-black/10">
+              <div class="text-xs dark:text-slate-400 text-slate-500 mb-2">外部链接</div>
+              <a class="nav-item block px-3 py-2 dark:text-slate-200 text-slate-700" href="https://github.com/ZG0704666/Phone-Agent-project" target="_blank" rel="noreferrer">GitHub</a>
+            </div>
+          </nav>
+        </aside>
+
+        <main class="lg:col-span-9 relative" style="z-index: 3;">
+          <div class="glass p-8 sm:p-10 rounded-2xl h-full flex flex-col">
+            <div class="text-center">
+              <div class="text-3xl sm:text-4xl font-extrabold tracking-tight">欢迎来到 Aries AI 文档中心</div>
+              <div class="mt-4 text-sm sm:text-base dark:text-slate-300 text-slate-600 leading-relaxed max-w-4xl mx-auto">
+                Aries AI 是一款智能手机 Agent 助手：支持多模态屏幕理解、离线语音与自动化执行。
+                你可以在此快速找到使用指南、配置说明与自动化能力介绍。
+              </div>
+            </div>
+
+            <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              <a id="quick" class="doc-card p-5" href="#">
+                <div class="shine"></div>
+                <div class="flex items-start gap-4">
+                  <div class="doc-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-sky-400"><path d="M12 2v20"/><path d="M2 12h20"/></svg>
+                  </div>
+                  <div>
+                    <div class="text-sm font-semibold">快速使用</div>
+                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">一步步带你跑通 Aries 的基本使用流程。</div>
+                  </div>
+                </div>
+              </a>
+              <a id="setup" class="doc-card p-5" href="#">
+                <div class="shine"></div>
+                <div class="flex items-start gap-4">
+                  <div class="doc-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-cyan-400"><path d="M12 1v22"/><path d="M5 5h14"/><path d="M5 19h14"/></svg>
+                  </div>
+                  <div>
+                    <div class="text-sm font-semibold">基础配置</div>
+                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">权限、语音、模型与更新等配置说明。</div>
+                  </div>
+                </div>
+              </a>
+              <a id="automation" class="doc-card p-5" href="#">
+                <div class="shine"></div>
+                <div class="flex items-start gap-4">
+                  <div class="doc-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-violet-400"><path d="M12 2l4 8-4 12-4-12 4-8z"/></svg>
+                  </div>
+                  <div>
+                    <div class="text-sm font-semibold">自动化能力</div>
+                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">对话驱动的点击/输入/滑动与可靠性策略。</div>
+                  </div>
+                </div>
+              </a>
+              <a class="doc-card p-5" href="#">
+                <div class="shine"></div>
+                <div class="flex items-start gap-4">
+                  <div class="doc-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><path d="M21 16V8"/><path d="M17 12H7"/><path d="M3 16V8"/></svg>
+                  </div>
+                  <div>
+                    <div class="text-sm font-semibold">接口与扩展</div>
+                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">未来开放的能力与可扩展点（占位）。</div>
+                  </div>
+                </div>
+              </a>
+              <a id="faq" class="doc-card p-5" href="#">
+                <div class="shine"></div>
+                <div class="flex items-start gap-4">
+                  <div class="doc-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-400"><path d="M12 18h.01"/><path d="M9.09 9a3 3 0 1 1 5.82 1c-.7 1.2-2.91 1.2-2.91 3"/><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0"/></svg>
+                  </div>
+                  <div>
+                    <div class="text-sm font-semibold">常见问题</div>
+                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">安装、权限、稳定性与常见故障排查。</div>
+                  </div>
+                </div>
+              </a>
+              <a class="doc-card p-5" href="#">
+                <div class="shine"></div>
+                <div class="flex items-start gap-4">
+                  <div class="doc-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fuchsia-400"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v7h-7"/></svg>
+                  </div>
+                  <div>
+                    <div class="text-sm font-semibold">版本与更新</div>
+                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">版本变更记录与更新策略（占位）。</div>
+                  </div>
+                </div>
+              </a>
+            </div>
+            <div class="mt-8 pt-7 border-t border-white/10">
+              <div class="text-center">
+                <div class="text-xl font-extrabold mb-4">联系我们</div>
+                <div class="max-w-3xl mx-auto flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm">
+                  <button id="qq-link" class="inline-flex items-center gap-2 hover:opacity-90 transition dark:text-slate-100 text-slate-800" type="button">
+                    <span class="doc-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dark:text-slate-200 text-slate-700">
+                        <path d="M21 11c0-4.42-4.03-8-9-8S3 6.58 3 11c0 2.16.98 4.12 2.58 5.58L4.5 21l4.36-1.53c.97.33 2.03.53 3.14.53 4.97 0 9-3.58 9-8z"/>
+                      </svg>
+                    </span>
+                    QQ交流群
+                  </button>
+
+                  <a class="inline-flex items-center gap-2 hover:opacity-90 transition dark:text-slate-100 text-slate-800" href="https://github.com/ZG0704666/Phone-Agent-project" target="_blank" rel="noreferrer">
+                    <span class="doc-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="dark:text-slate-200 text-slate-700">
+                        <path d="M12 .5a11.5 11.5 0 00-3.63 22.42c.57.1.78-.25.78-.55v-1.93c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.27-1.68-1.27-1.68-1.04-.72.08-.71.08-.71 1.15.08 1.75 1.18 1.75 1.18 1.02 1.74 2.67 1.24 3.32.95.1-.74.4-1.24.73-1.53-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .97-.31 3.18 1.18a10.9 10.9 0 015.8 0c2.2-1.49 3.18-1.18 3.18-1.18.62 1.59.23 2.76.11 3.05.73.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.41-5.28 5.7.41.36.78 1.06.78 2.14v3.17c0 .3.2.66.79.55A11.5 11.5 0 0012 .5z"/>
+                      </svg>
+                    </span>
+                    GitHub讨论区
+                  </a>
+
+                  <a class="inline-flex items-center gap-2 hover:opacity-90 transition dark:text-slate-100 text-slate-800" href="mailto:zhangyongqi@njit.edu.cn" style="user-select: text; -webkit-user-select: text;">
+                    <span class="doc-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dark:text-slate-200 text-slate-700">
+                        <path d="M4 6h16v12H4z" />
+                        <path d="M4 8l8 5 8-5" />
+                      </svg>
+                    </span>
+                    zhangyongqi@njit.edu.cn
+                  </a>
+                </div>
+
+                <div class="mt-5 text-xs dark:text-slate-400 text-slate-500">
+                  © 2026 Aries AI Project. All rights reserved.
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function applyThemeClass(theme) {
+      const html = document.documentElement;
+      html.classList.remove('dark', 'light');
+      html.classList.add(theme);
+      const label = document.getElementById('theme-label');
+      if (label) label.textContent = theme === 'dark' ? '切换到日间' : '切换到夜间';
+    }
+
+    function getStoredTheme() {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('theme', next);
+      applyThemeClass(next);
+    }
+
+    applyThemeClass(getStoredTheme());
+
+    // Contact links
+    (function initContactLinks() {
+      const qqGroupId = '746434973';
+      const qqLink = document.getElementById('qq-link');
+      if (!qqLink) return;
+
+      const qqJoinUrl = 'https://qm.qq.com/q/ASVDJPrIxq';
+
+      qqLink.addEventListener('click', async () => {
+        const url = qqJoinUrl;
+        try {
+          await navigator.clipboard.writeText(qqGroupId);
+        } catch (e) {
+        }
+        window.open(url, '_blank');
+      });
+    })();
+
+    (function initCosmicBackground() {
+      const constellationCanvas = document.getElementById('constellation-canvas');
+      const meteorCanvas = document.getElementById('meteor-canvas');
+      if (!constellationCanvas || !meteorCanvas) return;
+
+      const cctx = constellationCanvas.getContext('2d');
+      const mctx = meteorCanvas.getContext('2d');
+      if (!cctx || !mctx) return;
+
+      let w = 0;
+      let h = 0;
+      let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+      const points = [];
+      const pointCount = 60;
+      const linkDist = 250;
+      const repelRadius = 200;
+      const repelStrength = 1.05;
+      let mouseX = -9999;
+      let mouseY = -9999;
+
+      const meteors = [];
+      const maxMeteors = 2;
+      let nextMeteorAt = performance.now() + 1600;
+
+      function isDark() {
+        return document.documentElement.classList.contains('dark');
+      }
+
+      function rand(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function resize() {
+        dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        w = Math.floor(window.innerWidth);
+        h = Math.floor(window.innerHeight);
+        for (const canvas of [constellationCanvas, meteorCanvas]) {
+          canvas.width = Math.floor(w * dpr);
+          canvas.height = Math.floor(h * dpr);
+          canvas.style.width = w + 'px';
+          canvas.style.height = h + 'px';
+        }
+        cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        mctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function resetPoints() {
+        points.length = 0;
+        for (let i = 0; i < pointCount; i++) {
+          points.push({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            vx: (Math.random() - 0.5) * 0.28,
+            vy: (Math.random() - 0.5) * 0.28,
+            tw: Math.random() * Math.PI * 2,
+          });
+        }
+      }
+
+      function spawnMeteor() {
+        const fromLeft = Math.random() < 0.5;
+        const startX = fromLeft ? rand(-w * 0.2, w * 0.05) : rand(w * 0.95, w * 1.2);
+        const startY = rand(h * 0.05, h * 0.55);
+        const angle = fromLeft ? rand(0.15, 0.35) : Math.PI + rand(-0.35, -0.15);
+        const speed = rand(900, 1350);
+        const len = rand(1100, 1900);
+        meteors.push({
+          x: startX,
+          y: startY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          len,
+          life: 0,
+          maxLife: rand(0.9, 1.4),
+        });
+      }
+
+      function onMove(e) {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+      }
+
+      function onLeave() {
+        mouseX = -9999;
+        mouseY = -9999;
+      }
+
+      window.addEventListener('resize', () => {
+        resize();
+        resetPoints();
+      });
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseleave', onLeave);
+
+      resize();
+      resetPoints();
+
+      let last = performance.now();
+      function step(now) {
+        const dt = Math.min(0.033, (now - last) / 1000);
+        last = now;
+
+        cctx.clearRect(0, 0, w, h);
+
+        if (!isDark()) {
+          mctx.clearRect(0, 0, w, h);
+          requestAnimationFrame(step);
+          return;
+        }
+
+        // Constellation points
+        cctx.save();
+        cctx.globalCompositeOperation = 'lighter';
+        for (const p of points) {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.tw += dt * 1.2;
+
+          if (p.x < -20) p.x = w + 20;
+          if (p.x > w + 20) p.x = -20;
+          if (p.y < -20) p.y = h + 20;
+          if (p.y > h + 20) p.y = -20;
+
+          const dx = p.x - mouseX;
+          const dy = p.y - mouseY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 0.001 && dist < repelRadius) {
+            const force = (1 - dist / repelRadius) * repelStrength;
+            p.x += (dx / dist) * force * 24 * dt;
+            p.y += (dy / dist) * force * 24 * dt;
+          }
+        }
+
+        // Lines
+        for (let i = 0; i < points.length; i++) {
+          const a = points[i];
+          for (let j = i + 1; j < points.length; j++) {
+            const b = points[j];
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d < linkDist) {
+              const alpha = (1 - d / linkDist) * 0.28;
+              cctx.strokeStyle = `rgba(180, 220, 255, ${alpha})`;
+              cctx.lineWidth = 1;
+              cctx.beginPath();
+              cctx.moveTo(a.x, a.y);
+              cctx.lineTo(b.x, b.y);
+              cctx.stroke();
+            }
+          }
+        }
+
+        // Nodes glow
+        for (const p of points) {
+          const pulse = 0.55 + (Math.sin(p.tw) * 0.18);
+          cctx.fillStyle = `rgba(255,255,255,${pulse})`;
+          cctx.shadowColor = 'rgba(140, 200, 255, 0.55)';
+          cctx.shadowBlur = 10;
+          cctx.beginPath();
+          cctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
+          cctx.fill();
+          cctx.shadowBlur = 0;
+        }
+        cctx.restore();
+
+        mctx.clearRect(0, 0, w, h);
+
+        if (now > nextMeteorAt && meteors.length < maxMeteors) {
+          spawnMeteor();
+          nextMeteorAt = now + rand(3500, 9000);
+        }
+
+        for (let i = meteors.length - 1; i >= 0; i--) {
+          const m = meteors[i];
+          m.life += dt;
+          m.x += m.vx * dt;
+          m.y += m.vy * dt;
+          const t = Math.min(1, m.life / m.maxLife);
+          const a = (1 - t);
+
+          const tailX = m.x - (m.vx / 1100) * m.len;
+          const tailY = m.y - (m.vy / 1100) * m.len;
+          const grad = mctx.createLinearGradient(m.x, m.y, tailX, tailY);
+          grad.addColorStop(0.00, `rgba(255,255,255,${1.00 * a})`);
+          grad.addColorStop(0.07, `rgba(120,235,255,${0.95 * a})`);
+          grad.addColorStop(0.20, `rgba(255,210,140,${0.45 * a})`);
+          grad.addColorStop(1.00, 'rgba(255,255,255,0)');
+
+          mctx.save();
+          mctx.globalCompositeOperation = 'lighter';
+          mctx.strokeStyle = grad;
+          mctx.lineWidth = 2.6;
+          mctx.beginPath();
+          mctx.moveTo(m.x, m.y);
+          mctx.lineTo(tailX, tailY);
+          mctx.stroke();
+
+          mctx.fillStyle = `rgba(170, 240, 255, ${1.00 * a})`;
+          mctx.shadowColor = 'rgba(140, 235, 255, 0.95)';
+          mctx.shadowBlur = 28;
+          mctx.beginPath();
+          mctx.arc(m.x, m.y, 2.2, 0, Math.PI * 2);
+          mctx.fill();
+          mctx.restore();
+
+          if (t >= 1 || m.x < -1000 || m.x > w + 1000 || m.y < -1000 || m.y > h + 1000) {
+            meteors.splice(i, 1);
+          }
+        }
+
+        requestAnimationFrame(step);
+      }
+
+      requestAnimationFrame(step);
+    })();
+  </script>
+</body>
+
+</html>

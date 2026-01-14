@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aries AI - 开启手机智能新交互</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    animation: {
+                        'spin-slow': 'spin 8s linear infinite',
+                        'flow-border': 'flowBorder 3s linear infinite',
+                        'bounce-slight': 'bounceSlight 2s infinite',
+                        'fade-in-tooltip': 'fadeInTooltip 0.8s ease-out forwards 0.5s',
+                        'shimmer': 'shimmer 2s infinite',
+                        'rush-in-left': 'rushInLeft 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+                        'rush-in-right': 'rushInRight 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+                        'pulse-glow': 'pulseGlow 3s infinite',
+                        'text-flow': 'textFlow 3s linear infinite',
+                        'icon-float': 'iconFloat 3s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        flowBorder: {
+                            '0%, 100%': { backgroundPosition: '0% 50%' },
+                            '50%': { backgroundPosition: '100% 50%' },
+                        },
+                        bounceSlight: {
+                            '0%, 100%': { transform: 'translate(-50%, 0)' },
+                            '50%': { transform: 'translate(-50%, -3px)' },
+                        },
+                        fadeInTooltip: {
+                            '0%': { opacity: '0', transform: 'translate(-50%, -10px)' },
+                            '100%': { opacity: '1', transform: 'translate(-50%, 0)' },
+                        },
+                        shimmer: {
+                            '0%': { transform: 'translateX(-150%) skewX(-20deg)' },
+                            '100%': { transform: 'translateX(200%) skewX(-20deg)' }
+                        },
+                        rushInLeft: {
+                            '0%': { transform: 'translateX(-100px)', opacity: '0' },
+                            '100%': { transform: 'translateX(0)', opacity: '1' }
+                        },
+                        rushInRight: {
+                            '0%': { transform: 'translateX(100px)', opacity: '0' },
+                            '100%': { transform: 'translateX(0)', opacity: '1' }
+                        },
+                        pulseGlow: {
+                            '0%, 100%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.1)' },
+                            '50%': { boxShadow: '0 0 40px rgba(59, 130, 246, 0.4)' }
+                        },
+                        textFlow: {
+                            '0%': { backgroundPosition: '0% center' },
+                            '100%': { backgroundPosition: '200% center' }
+                        },
+                        iconFloat: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-6px)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.5s ease, color 0.5s ease;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* --- 1. 动态极光背景 & 星空 --- */
+        .aurora-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+            transition: background 0.5s ease;
+        }
+
+        html.dark .aurora-container {
+            background: radial-gradient(circle at center, #0a0a12 0%, #000000 100%);
+        }
+
+        html.light .aurora-container {
+            background: radial-gradient(900px 520px at 50% 10%, rgba(37, 99, 235, 0.16), transparent 58%),
+                        radial-gradient(980px 560px at 20% 45%, rgba(124, 58, 237, 0.14), transparent 60%),
+                        radial-gradient(900px 520px at 85% 35%, rgba(219, 39, 119, 0.10), transparent 62%),
+                        #f3f7ff;
+        }
+
+        /* 星星层 */
+        .stars-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .constellation-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.35s ease;
+        }
+
+        html.dark .constellation-layer {
+            opacity: 1;
+        }
+
+        html.light .stars-layer {
+            opacity: 0.25;
+        }
+
+        html.light .constellation-layer {
+            opacity: 0;
+        }
+        
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0;
+            animation: twinkle var(--duration) ease-in-out infinite;
+            animation-delay: var(--delay);
+        }
+
+        @keyframes twinkle {
+            0% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: var(--opacity); transform: scale(1); box-shadow: 0 0 4px rgba(255,255,255,0.8); }
+            100% { opacity: 0; transform: scale(0.5); }
+        }
+
+        .aurora-blob {
+            position: absolute;
+            filter: blur(80px);
+            opacity: 0.4;
+            animation: move 15s infinite alternate;
+            border-radius: 50%;
+            will-change: transform;
+        }
+
+        .blob-1 {
+            top: -10%; left: -10%; width: 50vw; height: 50vw;
+            background: #1e3a8a;
+            animation-delay: 0s;
+        }
+        .blob-2 {
+            bottom: -10%; right: -10%; width: 60vw; height: 60vw;
+            background: #4c1d95;
+            animation-delay: -5s;
+        }
+        .blob-3 {
+            top: 30%; left: 40%; width: 30vw; height: 30vw;
+            background: #be185d;
+            animation-delay: -2s;
+            opacity: 0.2;
+        }
+
+        html.light .blob-1 { background: #93c5fd; opacity: 0.5; }
+        html.light .blob-2 { background: #fdba74; opacity: 0.5; }
+        html.light .blob-3 { background: #c4b5fd; opacity: 0.4; }
+
+        @keyframes move {
+            from { transform: translate(0, 0) scale(1) rotate(0deg); }
+            to { transform: translate(30px, -30px) scale(1.1) rotate(5deg); }
+        }
+
+        /* --- 2. 玻璃拟态卡片 --- */
+        .glass-card {
+            position: relative;
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-radius: 1rem;
+            transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.4s ease, background-color 0.4s ease;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        html.dark .glass-card {
+            background: rgba(30, 30, 40, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        html.light .glass-card {
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid rgba(15, 23, 42, 0.10);
+            box-shadow: 0 18px 60px rgba(15, 23, 42, 0.08);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-4px) scale(1.002);
+        }
+
+        html.dark .glass-card:hover {
+            background: rgba(40, 40, 55, 0.6);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.6);
+        }
+
+        html.light .glass-card:hover {
+            background: rgba(255, 255, 255, 0.95);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 15px 45px rgba(59, 130, 246, 0.1);
+        }
+
+        html.light footer .glass-card {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(15, 23, 42, 0.10);
+            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+        }
+
+        html.light footer .glass-card,
+        html.light footer .glass-card span,
+        html.light footer .glass-card svg {
+            color: #0f172a;
+        }
+
+        html.light footer .glass-card svg {
+            stroke: #0f172a;
+        }
+
+        html.light footer .glass-card span {
+            background: rgba(15, 23, 42, 0.04) !important;
+            border-color: rgba(15, 23, 42, 0.14) !important;
+        }
+
+        html.light footer .glass-card:hover {
+            background: rgba(255, 255, 255, 0.98);
+            border-color: rgba(59, 130, 246, 0.22);
+            box-shadow: 0 16px 40px rgba(59, 130, 246, 0.12);
+        }
+
+        html.light footer .glass-card::before {
+            background: linear-gradient(120deg, transparent 35%, rgba(59,130,246,0.12) 50%, transparent 65%);
+        }
+
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.08) 50%, transparent 70%);
+            transform: translateX(-100%);
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 2;
+            pointer-events: none;
+        }
+        .glass-card:hover::before {
+            transform: translateX(100%);
+            transition: transform 0.8s ease-in-out;
+        }
+
+        /* --- 3. 导航栏 --- */
+        .nav-glass {
+            backdrop-filter: blur(20px);
+            transition: all 0.3s ease;
+        }
+        html.dark .nav-glass {
+            background: rgba(5, 5, 10, 0.6);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        html.light .nav-glass {
+            background: rgba(255, 255, 255, 0.8);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        /* --- 4. 渐变文字 --- */
+        .gradient-text-fix {
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+            background-size: 200% auto;
+            animation: shine 5s linear infinite;
+            display: inline-block;
+            position: relative;
+            z-index: 10;
+        }
+
+        html.dark .gradient-text-fix {
+            background-image: linear-gradient(to right, #60a5fa, #c084fc, #f472b6, #60a5fa);
+            text-shadow: 0 0 30px rgba(96, 165, 250, 0.3);
+        }
+
+        html.light .gradient-text-fix {
+            background-image: linear-gradient(to right, #2563eb, #7c3aed, #db2777, #2563eb);
+        }
+
+        @keyframes shine {
+            to { background-position: 200% center; }
+        }
+
+        /* --- 5. Marquee --- */
+        .marquee-wrapper {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+            padding: 10px 0;
+        }
+        
+        .marquee-track {
+            display: flex;
+            width: fit-content;
+            gap: 24px;
+            will-change: transform;
+        }
+
+        .app-capsule {
+            padding: 0.85rem 1.75rem; 
+            border-radius: 9999px;
+            font-size: 1rem;
+            font-weight: 600;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            transition: all 0.3s;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        html.dark .app-capsule {
+            background: rgba(255,255,255,0.05);
+            color: #e2e8f0;
+        }
+        html.dark .app-capsule:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255,255,255,0.1);
+        }
+
+        html.light .app-capsule {
+            background: rgba(255,255,255,0.7);
+            color: #334155;
+            border-color: rgba(0,0,0,0.05);
+        }
+        html.light .app-capsule:hover {
+            background: #fff;
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+
+        /* --- 6. 切换开关 --- */
+        .theme-toggle {
+            cursor: pointer;
+            width: 52px;
+            height: 28px;
+            border-radius: 50px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 3px;
+            transition: all 0.3s;
+        }
+        
+        html.dark .theme-toggle {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        html.light .theme-toggle {
+            background: #e2e8f0;
+            border: 1px solid #cbd5e1;
+        }
+
+        .toggle-dot {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            transition: all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        html.dark .toggle-dot { transform: translateX(24px); background: #3b82f6; color: white; }
+        html.light .toggle-dot { transform: translateX(0); background: #ffffff; color: #f59e0b; }
+
+        .toggle-tooltip {
+            position: absolute;
+            top: 150%;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            opacity: 0;
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            transition: opacity 0.5s ease;
+        }
+        
+        /* Banner & Titles */
+        .banner-glow-border {
+            position: absolute;
+            inset: 0;
+            border-radius: 9999px;
+            padding: 2px;
+            background: linear-gradient(90deg, #60a5fa, #c084fc, #f472b6, #60a5fa);
+            background-size: 300% 100%;
+            animation: flowBorder 3s linear infinite;
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            opacity: 0.8; 
+        }
+        
+        .streamer-glow {
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+            transform: skewX(-20deg);
+            display: none;
+        }
+
+        .section-title {
+            position: relative;
+            display: inline-block;
+        }
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px; 
+            height: 4px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        }
+        
+        .text-gradient-flow {
+            background-image: linear-gradient(to right, #60a5fa, #d8b4fe, #fca5a5, #60a5fa);
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+            background-clip: text;
+            animation: none;
+        }
+
+        @keyframes ringSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes ringTempo {
+            0% { filter: blur(10px); }
+            35% { filter: blur(14px); }
+            70% { filter: blur(10px); }
+            100% { filter: blur(12px); }
+        }
+
+        .hero-capsule {
+            position: relative;
+            border-radius: 9999px;
+            overflow: hidden;
+            isolation: isolate;
+        }
+
+        .hero-capsule::before {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            border-radius: inherit;
+            background: conic-gradient(from 180deg, rgba(96,165,250,0.0), rgba(96,165,250,0.95), rgba(192,132,252,0.95), rgba(244,114,182,0.95), rgba(96,165,250,0.0));
+            filter: blur(10px);
+            opacity: 0.7;
+            animation: ringSpin 7.2s linear infinite, ringTempo 4.2s linear infinite;
+            z-index: -2;
+        }
+
+        .hero-capsule::after {
+            content: '';
+            position: absolute;
+            inset: 1px;
+            border-radius: inherit;
+            background: rgba(0,0,0,0.35);
+            z-index: -1;
+            transition: background-color .25s ease;
+        }
+
+        html.light .hero-capsule::after {
+            background: rgba(255,255,255,0.9);
+        }
+
+        .hero-capsule:hover::before {
+            opacity: 0.95;
+        }
+
+        /* --- 新增：高级图标样式 --- */
+        .tech-icon-box {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            /* 玻璃质感背景 */
+            background: rgba(255,255,255,0.05);
+            box-shadow: inset 0 0 10px rgba(255,255,255,0.05);
+            overflow: visible;
+        }
+        
+        html.dark .tech-icon-box {
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        html.light .tech-icon-box {
+            background: rgba(255,255,255,0.8);
+            border: 1px solid rgba(0,0,0,0.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        /* 图标背后的光晕 */
+        .tech-icon-glow {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 16px;
+            filter: blur(15px);
+            opacity: 0.6;
+            z-index: 0;
+            animation: pulse-glow 3s infinite;
+        }
+
+        .icon-svg {
+            position: relative;
+            z-index: 10;
+            width: 32px;
+            height: 32px;
+            stroke-width: 1.5;
+        }
+
+        /* 特定图标颜色 */
+        .icon-cloud .tech-icon-glow { background: rgba(59, 130, 246, 0.5); }
+        .icon-cloud .icon-svg { stroke: #60a5fa; fill: none; }
+        
+        .icon-client .tech-icon-glow { background: rgba(168, 85, 247, 0.5); }
+        .icon-client .icon-svg { stroke: #c084fc; fill: none; }
+        
+        .icon-action .tech-icon-glow { background: rgba(245, 158, 11, 0.5); }
+        .icon-action .icon-svg { stroke: #fbbf24; fill: none; }
+
+    </style>
+</head>
+
+<body class="antialiased selection:bg-blue-500 selection:text-white text-gray-100 dark:text-white bg-black dark:bg-black transition-colors duration-500">
+
+    <!-- 背景层 -->
+    <div class="aurora-container">
+        <div class="aurora-blob blob-1"></div>
+        <div class="aurora-blob blob-2"></div>
+        <div class="aurora-blob blob-3"></div>
+        <div id="stars-container" class="stars-layer"></div>
+        <canvas id="constellation-canvas" class="constellation-layer"></canvas>
+    </div>
+
+    <!-- 导航栏 -->
+    <nav class="nav-glass fixed w-full z-50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-20 items-center">
+                <!-- Logo -->
+                <div class="flex items-center gap-3 cursor-pointer group" onclick="window.scrollTo(0,0)">
+                    <div class="w-9 h-9 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300">
+                        A
+                    </div>
+                    <span class="text-xl font-bold tracking-tight dark:text-white text-gray-900 transition-colors">Aries AI</span>
+                </div>
+
+                <!-- Menu (Order Updated) -->
+                <div class="hidden md:flex items-center space-x-8 font-medium text-sm">
+                    <a href="#features" class="dark:text-gray-300 text-gray-600 hover:text-blue-400 dark:hover:text-blue-300 transition">核心能力</a>
+                    <!-- Swapped Cases and Apps -->
+                    <a href="#cases" class="dark:text-gray-300 text-gray-600 hover:text-blue-400 dark:hover:text-blue-300 transition">成功案例</a>
+                    <a href="#apps" class="dark:text-gray-300 text-gray-600 hover:text-blue-400 dark:hover:text-blue-300 transition">支持应用</a>
+                    <a href="#roadmap" class="dark:text-gray-300 text-gray-600 hover:text-blue-400 dark:hover:text-blue-300 transition">开发路线</a>
+                    
+                    <!-- Theme Toggle -->
+                    <div class="relative flex flex-col items-center">
+                        <div class="theme-toggle" onclick="toggleTheme()">
+                            <div class="toggle-dot">
+                                <svg class="w-3 h-3 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                                <svg class="w-3 h-3 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                            </div>
+                        </div>
+                        <div id="theme-tooltip" class="toggle-tooltip animate-fade-in-tooltip animate-bounce-slight bg-white/90 dark:bg-white text-black shadow-xl">
+                            点击切换日/夜模式
+                        </div>
+                    </div>
+
+                    <button class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-2 rounded-full hover:shadow-lg hover:shadow-blue-500/40 transition font-semibold transform hover:scale-105 active:scale-95 border border-white/10 text-sm">
+                        立即体验
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="relative min-h-screen flex items-center justify-center text-center px-4 pt-20 overflow-hidden">
+        <div class="relative z-10 max-w-5xl mx-auto flex flex-col items-center">
+
+            <!-- 动态通知 Banner (胶囊升级：更强流光，字体扫描) -->
+            <div class="hero-capsule relative inline-block glass-card rounded-full px-12 py-5 mb-10 cursor-pointer hover:scale-105 transition-transform duration-300 group shadow-[0_0_35px_rgba(59,130,246,0.3)] border border-blue-400/30">
+                <!-- 边框流光 -->
+                <div class="banner-glow-border"></div>
+                <!-- 扫光动画 -->
+                <div class="streamer-glow"></div>
+                
+                <span class="relative z-10 font-bold text-lg flex items-center gap-3 text-gradient-flow tracking-wide">
+                   <span class="animate-bounce-slight">✨</span> 想旅行？说走就走！Aries 支持一句话定高铁票/机票！
+                </span>
+            </div>
+
+            <!-- 主标题 -->
+            <div class="mb-8 relative animate-fade-in-up">
+                <span class="inline-block px-3 py-1 mb-6 text-xs font-bold tracking-[0.2em] text-blue-400 uppercase bg-blue-500/5 rounded-full border border-blue-500/20 backdrop-blur-sm">
+                    Based on AutoGLM-Aries-9B
+                </span>
+                <h1 class="text-5xl md:text-7xl lg:text-8xl font-extrabold dark:text-white text-gray-900 tracking-tight leading-none drop-shadow-2xl">
+                    开启手机智能<br>
+                    <span class="gradient-text-fix mt-2 pb-4">新交互时代</span>
+                </h1>
+            </div>
+
+            <p class="text-lg md:text-xl dark:text-gray-300 text-gray-600 mb-12 font-light max-w-3xl mx-auto leading-relaxed animate-delay-200 fade-in-up opacity-90">
+                多模态自动化操控手机<br class="hidden md:block">
+                离线语音极速响应，屏幕感知一语即达。
+            </p>
+
+            <div class="flex flex-col sm:flex-row justify-center gap-6 w-full sm:w-auto">
+                <button class="relative overflow-hidden group bg-white dark:bg-gray-100 text-black px-8 py-3.5 rounded-full font-bold text-base hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] transition transform hover:-translate-y-1">
+                    <span class="relative z-10">下载首发版 Alpha</span>
+                    <div class="absolute inset-0 bg-gradient-to-r from-gray-100 to-white opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                </button>
+                <button onclick="window.location.href='docs-center.html'" class="glass-card px-8 py-3.5 rounded-full font-medium text-base hover:bg-white/10 dark:text-white text-gray-800 transition border dark:border-white/10 border-gray-300/50 backdrop-blur-md">
+                    查看技术文档
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 核心能力 -->
+    <section id="features" class="py-24 relative z-10">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-stretch">
+
+                <!-- 左侧：文字介绍 (Titles Centered) -->
+                <div class="glass-card p-8 lg:p-10 flex flex-col justify-center animate-rush-in-left h-full">
+                    <!-- Title Centered -->
+                    <div class="text-center w-full mb-8">
+                        <h2 class="text-3xl md:text-4xl font-bold dark:text-white text-gray-900 section-title inline-block">什么是 Aries AI?</h2>
+                    </div>
+                    
+                    <p class="text-base dark:text-gray-300 text-gray-600 leading-relaxed mb-10 text-center lg:text-left">
+                        Aries AI 是一个基于 <strong>AutoGLM</strong> 构建的手机端智能助理。它抛弃了传统的脚本方式，像人类一样通过“视觉”理解屏幕，自动帮您完成复杂的跨应用操作。
+                    </p>
+
+                    <div class="space-y-6">
+                        <!-- Feature 1 -->
+                        <div class="flex gap-5 items-start group">
+                            <div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center justify-center transition transform group-hover:scale-110 flex-shrink-0">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-bold dark:text-white text-gray-800 mb-1 group-hover:text-blue-400 transition">多模态感知</h4>
+                                <p class="text-sm dark:text-gray-400 text-gray-500">基于 VLM 视觉模型，像人眼一样看懂 APP 界面布局与语义。</p>
+                            </div>
+                        </div>
+                        <!-- Feature 2 -->
+                        <div class="flex gap-5 items-start group">
+                            <div class="w-12 h-12 rounded-xl bg-orange-500/10 text-orange-500 border border-orange-500/20 flex items-center justify-center transition transform group-hover:scale-110 flex-shrink-0">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-bold dark:text-white text-gray-800 mb-1 group-hover:text-orange-400 transition">离线语音识别</h4>
+                                <p class="text-sm dark:text-gray-400 text-gray-500">集成 Sherpa-ncnn 引擎，本地处理无需联网，隐私更安全。</p>
+                            </div>
+                        </div>
+                        <!-- Feature 3 -->
+                        <div class="flex gap-5 items-start group">
+                            <div class="w-12 h-12 rounded-xl bg-green-500/10 text-green-500 border border-green-500/20 flex items-center justify-center transition transform group-hover:scale-110 flex-shrink-0">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-bold dark:text-white text-gray-800 mb-1 group-hover:text-green-400 transition">安全接管</h4>
+                                <p class="text-sm dark:text-gray-400 text-gray-500">敏感操作（如支付）自动暂停确认，失败操作自动重试修复。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧：架构图 (Icons Redesigned & Titles Centered) -->
+                <div class="glass-card rounded-[1.5rem] p-8 relative overflow-hidden flex flex-col justify-center animate-rush-in-right h-full">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 blur-[80px] rounded-full"></div>
+                    <div class="absolute bottom-0 left-0 w-64 h-64 bg-purple-600/10 blur-[80px] rounded-full"></div>
+
+                    <!-- Title Centered -->
+                    <div class="text-center w-full mb-10">
+                         <h3 class="text-xl font-bold dark:text-white text-gray-900 section-title inline-block">云端大脑 + 本地执行</h3>
+                    </div>
+
+                    <div class="space-y-6 relative z-10 pl-4 pr-4">
+                        <div class="absolute left-[3.75rem] top-10 bottom-10 w-0.5 bg-gradient-to-b from-blue-500/40 via-purple-500/40 to-yellow-500/40 -z-10"></div>
+
+                        <!-- Card 1: Cloud Brain (Redesigned Icon) -->
+                        <div class="glass-card p-5 rounded-xl flex gap-6 items-center dark:bg-white/5 bg-white/60 hover:bg-blue-500/5 transition-all group">
+                            <div class="tech-icon-box icon-cloud animate-icon-float">
+                                <div class="tech-icon-glow"></div>
+                                <svg class="icon-svg" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+                            </div>
+                            <div class="flex-1">
+                                <span class="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1 block">Cloud Brain</span>
+                                <h4 class="text-lg font-bold dark:text-white text-gray-900">AutoGLM-Aries-9B</h4>
+                                <p class="text-xs dark:text-gray-400 text-gray-500 mt-1">多模态智能规划与决策中心</p>
+                            </div>
+                        </div>
+
+                        <!-- Card 2: Client (Redesigned Icon) -->
+                        <div class="glass-card p-5 rounded-xl flex gap-6 items-center dark:bg-white/5 bg-white/60 hover:bg-purple-500/5 transition-all group" style="animation-delay: 0.2s">
+                            <div class="tech-icon-box icon-client animate-icon-float" style="animation-delay: 1s;">
+                                <div class="tech-icon-glow"></div>
+                                <svg class="icon-svg" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                            </div>
+                            <div class="flex-1">
+                                <span class="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1 block">Client</span>
+                                <h4 class="text-lg font-bold dark:text-white text-gray-900">Android 终端</h4>
+                                <p class="text-xs dark:text-gray-400 text-gray-500 mt-1">Sherpa-ncnn / 悬浮窗 / 自动化执行</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Card 3: Action (Redesigned Icon) -->
+                        <div class="glass-card p-5 rounded-xl flex gap-6 items-center dark:bg-white/5 bg-white/60 hover:bg-yellow-500/5 transition-all group" style="animation-delay: 0.4s">
+                            <div class="tech-icon-box icon-action animate-icon-float" style="animation-delay: 2s;">
+                                <div class="tech-icon-glow"></div>
+                                <svg class="icon-svg" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
+                            </div>
+                            <div class="flex-1">
+                                <span class="text-[10px] font-bold text-yellow-400 uppercase tracking-widest mb-1 block">Action</span>
+                                <h4 class="text-lg font-bold dark:text-white text-gray-900">执行层</h4>
+                                <p class="text-xs dark:text-gray-400 text-gray-500 mt-1">模拟点击 / 滑动 / 截图反馈</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 成功案例 (Moved UP) -->
+    <section id="cases" class="py-20 relative z-10 border-t dark:border-white/5 border-gray-200">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-2xl font-bold text-center mb-12 dark:text-white text-gray-900 section-title">已实现的智能场景</h2>
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Case 1 -->
+                <div class="glass-card p-6 rounded-2xl group cursor-pointer">
+                    <div class="w-14 h-14 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center mb-5 text-2xl shadow-lg shadow-orange-500/20 group-hover:scale-110 group-hover:rotate-3 transition duration-300">
+                        🍲
+                    </div>
+                    <h3 class="text-lg font-bold mb-2 dark:text-white text-gray-900">美团订座</h3>
+                    <p class="dark:text-gray-400 text-gray-600 text-sm leading-relaxed">
+                        “帮我定明天中午火锅店座位，四个人。”<br>
+                        自动打开美团，选择店铺、时间人数，一步到位直达付款界面。
+                    </p>
+                </div>
+                <!-- Case 2 -->
+                <div class="glass-card p-6 rounded-2xl group cursor-pointer">
+                    <div class="w-14 h-14 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-2xl flex items-center justify-center mb-5 text-2xl shadow-lg shadow-blue-500/20 group-hover:scale-110 group-hover:rotate-3 transition duration-300">
+                        🛍️
+                    </div>
+                    <h3 class="text-lg font-bold mb-2 dark:text-white text-gray-900">淘宝物</h3>
+                    <p class="dark:text-gray-400 text-gray-600 text-sm leading-relaxed">
+                        “搜索蓝牙耳机，要销量最高的。”<br>
+                        自动筛选销量排序，精准识别并进入商品详情页。
+                    </p>
+                </div>
+                <!-- Case 3 -->
+                <div class="glass-card p-6 rounded-2xl group cursor-pointer">
+                    <div class="w-14 h-14 bg-gradient-to-br from-purple-400 to-pink-500 rounded-2xl flex items-center justify-center mb-5 text-2xl shadow-lg shadow-purple-500/20 group-hover:scale-110 group-hover:rotate-3 transition duration-300">
+                        🎵
+                    </div>
+                    <h3 class="text-lg font-bold mb-2 dark:text-white text-gray-900">抖音互动</h3>
+                    <p class="dark:text-gray-400 text-gray-600 text-sm leading-relaxed">
+                        “给这个视频点个赞，评论‘真不错’。”<br>
+                        自动点赞视频，并进入评论区输入指定内容。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 支持应用 (Moved DOWN & Dynamics Updated) -->
+    <section id="apps" class="py-20 relative z-10 dark:bg-white/5 bg-white/30 backdrop-blur-sm overflow-hidden">
+        <div class="relative z-10 w-full flex flex-col items-center">
+            <div class="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[980px] h-[420px] rounded-full bg-gradient-to-r from-blue-500/25 via-purple-500/25 to-pink-500/25 blur-[70px]"></div>
+            <div class="pointer-events-none absolute -bottom-28 left-1/2 -translate-x-1/2 w-[820px] h-[380px] rounded-full bg-gradient-to-r from-cyan-400/15 via-sky-500/15 to-fuchsia-500/15 blur-[80px]"></div>
+
+            <h2 class="text-2xl font-bold text-center mb-4 dark:text-white text-gray-900 section-title relative">
+                适配100+款主流应用
+                <span class="block mx-auto mt-3 h-[3px] w-20 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 shadow-[0_0_18px_rgba(99,102,241,0.35)]"></span>
+            </h2>
+            <p class="text-center dark:text-gray-300 text-gray-700 mb-12 mt-6 text-sm">覆盖社交、购物、出行、娱乐全场景生态</p>
+
+            <!-- Speed control handled by JS with decay -->
+            <div class="marquee-wrapper w-full" id="marquee-row-1" data-direction="-1">
+                <div class="marquee-track"></div>
+            </div>
+
+            <div class="marquee-wrapper w-full" id="marquee-row-2" data-direction="1">
+                <div class="marquee-track"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 路线图 -->
+    <section id="roadmap" class="py-20 relative z-10">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-2xl font-bold text-center mb-10 dark:text-white text-gray-900 section-title">优化与未来规划</h2>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Column 1 -->
+                <div class="glass-card p-8 rounded-2xl">
+                    <h3 class="text-lg font-bold text-blue-500 mb-5 flex items-center">
+                        <span class="w-8 h-8 bg-blue-500/10 rounded-full flex items-center justify-center mr-3 text-sm border border-blue-500/20">🚀</span>
+                        <!-- Updated Title -->
+                        首发版本特性
+                    </h3>
+                    <div class="space-y-5">
+                        <div class="pl-4 border-l-2 border-blue-500/30">
+                            <h4 class="font-bold dark:text-gray-200 text-gray-800 text-sm">Sherpa-ncnn 离线语音</h4>
+                            <p class="text-xs dark:text-gray-400 text-gray-600 mt-1">采用 Sherpa-ncnn 引擎，支持流式中英双语识别。</p>
+                        </div>
+                        <div class="pl-4 border-l-2 border-blue-500/30">
+                            <!-- Updated Title -->
+                            <h4 class="font-bold dark:text-gray-200 text-gray-800 text-sm">悬浮窗</h4>
+                            <p class="text-xs dark:text-gray-400 text-gray-600 mt-1">全新的胶囊式悬浮窗，支持拖拽、百分比进度显示、智能收缩动画。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Column 2 -->
+                <div class="glass-card p-8 rounded-2xl">
+                    <h3 class="text-lg font-bold text-purple-500 mb-5 flex items-center">
+                        <span class="w-8 h-8 bg-purple-500/10 rounded-full flex items-center justify-center mr-3 text-sm border border-purple-500/20">🔧</span>
+                        未来计划
+                    </h3>
+                    <div class="space-y-5">
+                        <div class="pl-4 border-l-2 border-purple-500/30">
+                            <h4 class="font-bold dark:text-gray-200 text-gray-800 text-sm">本地技能库</h4>
+                            <p class="text-xs dark:text-gray-400 text-gray-600 mt-1">针对 12306、美团等高频场景内置固定脚本，提升稳定性。</p>
+                        </div>
+                        <div class="pl-4 border-l-2 border-purple-500/30">
+                            <h4 class="font-bold dark:text-gray-200 text-gray-800 text-sm">语音交互集成</h4>
+                            <p class="text-xs dark:text-gray-400 text-gray-600 mt-1">集成 STT 模块，支持用户通过自然语音下达指令。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="mt-auto dark:bg-black/90 bg-white/80 backdrop-blur-md border-t dark:border-white/5 border-gray-200 py-10 relative z-10">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h3 class="text-xl font-extrabold mb-5 dark:text-white text-gray-900 section-title inline-block">联系我们</h3>
+
+            <div class="max-w-3xl mx-auto flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm mb-7">
+                <button id="qq-link" class="inline-flex items-center gap-2 hover:opacity-90 transition glass-card px-4 py-2 rounded-full">
+                    <span class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-black/5 border dark:border-white/10 border-black/10">
+                        <svg class="w-4 h-4 dark:text-white text-gray-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 11c0-4.42-4.03-8-9-8S3 6.58 3 11c0 2.16.98 4.12 2.58 5.58L4.5 21l4.36-1.53c.97.33 2.03.53 3.14.53 4.97 0 9-3.58 9-8z"/>
+                        </svg>
+                    </span>
+                    QQ交流群
+                </button>
+
+                <a class="inline-flex items-center gap-2 hover:opacity-90 transition glass-card px-4 py-2 rounded-full" href="https://github.com/ZG0704666/Phone-Agent-project" target="_blank" rel="noreferrer">
+                    <span class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-black/5 border dark:border-white/10 border-black/10">
+                        <svg class="w-4 h-4 dark:text-white text-gray-800" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M12 .5a11.5 11.5 0 00-3.63 22.42c.57.1.78-.25.78-.55v-1.93c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.27-1.68-1.27-1.68-1.04-.72.08-.71.08-.71 1.15.08 1.75 1.18 1.75 1.18 1.02 1.74 2.67 1.24 3.32.95.1-.74.4-1.24.73-1.53-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .97-.31 3.18 1.18a10.9 10.9 0 015.8 0c2.2-1.49 3.18-1.18 3.18-1.18.62 1.59.23 2.76.11 3.05.73.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.41-5.28 5.7.41.36.78 1.06.78 2.14v3.17c0 .3.2.66.79.55A11.5 11.5 0 0012 .5z"/>
+                        </svg>
+                    </span>
+                    GitHub讨论区
+                </a>
+
+                <a class="inline-flex items-center gap-2 hover:opacity-90 transition glass-card px-4 py-2 rounded-full" href="mailto:zhangyongqi@njit.edu.cn" style="user-select: text; -webkit-user-select: text;">
+                    <span class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-black/5 border dark:border-white/10 border-black/10">
+                        <svg class="w-4 h-4 dark:text-white text-gray-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M4 6h16v12H4z" />
+                            <path d="M4 8l8 5 8-5" />
+                        </svg>
+                    </span>
+                    zhangyongqi@njit.edu.cn
+                </a>
+
+                
+            </div>
+
+            <p class="mb-2 dark:text-gray-400 text-gray-600 font-medium text-sm">© 2026 Aries AI Project. All rights reserved.</p>
+            <p class="text-xs dark:text-gray-600 text-gray-400">Powered by AutoGLM & Sherpa-ncnn.</p>
+        </div>
+    </footer>
+
+    <script>
+        // --- 1. 生成星空 ---
+        function generateStars() {
+            const container = document.getElementById('stars-container');
+            const starCount = 60; 
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const x = Math.random() * 100;
+                const y = Math.random() * 100;
+                const size = Math.random() * 2 + 1; 
+                const duration = Math.random() * 3 + 2; 
+                const delay = Math.random() * 5;
+                const opacity = Math.random() * 0.7 + 0.3;
+
+                star.style.left = `${x}%`;
+                star.style.top = `${y}%`;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.setProperty('--duration', `${duration}s`);
+                star.style.setProperty('--delay', `${delay}s`);
+                star.style.setProperty('--opacity', opacity);
+
+                container.appendChild(star);
+            }
+        }
+
+        // --- 2. 主题切换 ---
+        function toggleTheme() {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                html.classList.add('light');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.remove('light');
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.add('light');
+        } else {
+            document.documentElement.classList.remove('light');
+            document.documentElement.classList.add('dark');
+        }
+
+        // --- 3. 滚动事件监听 (Tooltip) ---
+        let hasScrolled = false;
+        const tooltip = document.getElementById('theme-tooltip');
+        window.addEventListener('scroll', () => {
+            if (!hasScrolled && window.scrollY > 20) {
+                tooltip.style.opacity = '0';
+                tooltip.style.transform = 'translate(-50%, -20px)';
+                hasScrolled = true;
+            }
+        });
+
+        // --- 4. JS 驱动的无缝双瀑布流 (动力学优化版) ---
+        const adaptedApps = [
+            "微信",
+            "QQ",
+            "支付宝",
+            "淘宝",
+            "拼多多",
+            "京东",
+            "京东秒送",
+            "美团",
+            "饿了么",
+            "滴滴出行",
+            "高德地图",
+            "百度地图",
+            "大众点评",
+            "携程",
+            "去哪儿",
+            "去哪儿旅行",
+            "铁路12306",
+            "航旅纵横",
+            "肯德基",
+            "麦当劳",
+            "抖音",
+            "快手",
+            "哔哩哔哩",
+            "今日头条",
+            "小红书",
+            "知乎",
+            "豆瓣",
+            "喜马拉雅",
+            "网易云音乐",
+            "汽水音乐",
+            "优酷视频",
+            "腾讯视频",
+            "芒果TV",
+            "红果短剧",
+            "番茄小说",
+            "七猫免费小说",
+            "崩坏：星穹铁道",
+            "恋与深空",
+            "飞书",
+            "安居客",
+            "贝壳找房",
+            "美柚",
+            "腾讯新闻"
+        ];
+
+        const appsRow1 = adaptedApps.filter((_, i) => i % 2 === 0);
+        const appsRow2 = adaptedApps.filter((_, i) => i % 2 === 1);
+
+        function initMarquee(elementId, items, direction) {
+            const wrapper = document.getElementById(elementId);
+            const track = wrapper.querySelector('.marquee-track');
+            
+            // 重复填充内容
+            const repeatCount = 10; 
+            let html = '';
+            for(let i=0; i<repeatCount; i++) {
+                items.forEach(item => {
+                    html += `<span class="app-capsule">${item}</span>`;
+                });
+            }
+            track.innerHTML = html;
+
+            let position = 0;
+            const baseSpeed = 0.3;     // 慢速巡航速度
+            const maxSpeed = 4.0;      // 触发时的最大速度
+            let currentSpeed = baseSpeed;
+            let hasTriggeredRush = false; // 标记是否已经触发过冲刺
+            
+            const totalWidth = track.scrollWidth;
+
+            // 衰减系数 (0.96 比较平滑)
+            const decayFactor = 0.96; 
+
+            function animate() {
+                // 检测是否进入视口
+                const rect = wrapper.getBoundingClientRect();
+                const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
+                
+                // 视口���测逻辑：当它快进入视口中心时触发冲刺
+                if (isVisible) {
+                     // 简单起见，只要在屏幕内且速度很慢，且未触发过（或者每次滚动进来都触发，这里设计为每次进入视口若速度低则触发）
+                     const centerY = window.innerHeight / 2;
+                     const wrapperCenter = rect.top + rect.height / 2;
+                     const dist = Math.abs(centerY - wrapperCenter);
+
+                     // 距离中心点一定范围内，且当前速度接近基础速度时，给予冲量
+                     if (dist < window.innerHeight * 0.4 && Math.abs(currentSpeed - baseSpeed) < 0.1 && !hasTriggeredRush) {
+                         currentSpeed = maxSpeed;
+                         hasTriggeredRush = true; // 锁定，防止一直触发
+                     }
+                } else {
+                    // 离开视口后重置 trigger，保证下次回来还能加速
+                    hasTriggeredRush = false;
+                }
+
+                // 物理衰减逻辑：每一帧都乘以衰减系数，直到降到 baseSpeed
+                if (currentSpeed > baseSpeed) {
+                    currentSpeed *= decayFactor;
+                }
+                // 托底，不能低于基础速度
+                if (currentSpeed < baseSpeed) {
+                    currentSpeed = baseSpeed;
+                }
+
+                position += currentSpeed * direction;
+
+                // 无限循环逻辑
+                if (direction === -1) {
+                    // Left
+                    if (Math.abs(position) >= (totalWidth / 2)) {
+                        position = 0;
+                    }
+                    track.style.transform = `translateX(${position}px)`;
+                } else {
+                    // Right
+                    let move = position % (totalWidth / 2);
+                    track.style.transform = `translateX(${ - (totalWidth / 2) + move }px)`;
+                }
+
+                requestAnimationFrame(animate);
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            generateStars();
+            setTimeout(() => {
+                if(!hasScrolled) tooltip.style.opacity = '1';
+            }, 500);
+
+            (function initConstellation() {
+                const canvas = document.getElementById('constellation-canvas');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                let w = 0;
+                let h = 0;
+                let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+                const points = [];
+                const pointCount = 60;
+                const linkDist = 250;
+                const repelRadius = 200;
+                const repelStrength = 1.05;
+                let mouseX = -9999;
+                let mouseY = -9999;
+
+                const meteors = [];
+                const maxMeteors = 2;
+                let nextMeteorAt = performance.now() + 1600;
+
+                function resize() {
+                    dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+                    w = Math.floor(window.innerWidth);
+                    h = Math.floor(window.innerHeight);
+                    canvas.width = Math.floor(w * dpr);
+                    canvas.height = Math.floor(h * dpr);
+                    canvas.style.width = w + 'px';
+                    canvas.style.height = h + 'px';
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                }
+
+                function isDark() {
+                    return document.documentElement.classList.contains('dark');
+                }
+
+                function resetPoints() {
+                    points.length = 0;
+                    for (let i = 0; i < pointCount; i++) {
+                        points.push({
+                            x: Math.random() * w,
+                            y: Math.random() * h,
+                            vx: (Math.random() - 0.5) * 0.28,
+                            vy: (Math.random() - 0.5) * 0.28,
+                            tw: Math.random() * Math.PI * 2,
+                        });
+                    }
+                }
+
+                function rand(min, max) {
+                    return min + Math.random() * (max - min);
+                }
+
+                function spawnMeteor() {
+                    // One meteor sweeping across the sky with long tail
+                    const fromLeft = Math.random() < 0.5;
+                    const startX = fromLeft ? rand(-w * 0.2, w * 0.05) : rand(w * 0.95, w * 1.2);
+                    const startY = rand(h * 0.05, h * 0.55);
+                    const angle = fromLeft ? rand(0.15, 0.35) : Math.PI + rand(-0.35, -0.15);
+                    const speed = rand(900, 1350);
+                    const len = rand(1100, 1900);
+                    meteors.push({
+                        x: startX,
+                        y: startY,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        len,
+                        life: 0,
+                        maxLife: rand(0.9, 1.4),
+                    });
+                }
+
+                function onMove(e) {
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                }
+
+                function onLeave() {
+                    mouseX = -9999;
+                    mouseY = -9999;
+                }
+
+                window.addEventListener('resize', () => {
+                    resize();
+                    resetPoints();
+                });
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseleave', onLeave);
+
+                resize();
+                resetPoints();
+
+                let last = performance.now();
+                function step(now) {
+                    const dt = Math.min(0.033, (now - last) / 1000);
+                    last = now;
+
+                    ctx.clearRect(0, 0, w, h);
+
+                    if (!isDark()) {
+                        requestAnimationFrame(step);
+                        return;
+                    }
+
+                    // update points
+                    for (const p of points) {
+                        // gentle drift
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.tw += dt * 1.2;
+
+                        // wrap
+                        if (p.x < -20) p.x = w + 20;
+                        if (p.x > w + 20) p.x = -20;
+                        if (p.y < -20) p.y = h + 20;
+                        if (p.y > h + 20) p.y = -20;
+
+                        // mouse repel (push away)
+                        const dx = p.x - mouseX;
+                        const dy = p.y - mouseY;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist > 0.001 && dist < repelRadius) {
+                            const force = (1 - dist / repelRadius) * repelStrength;
+                            p.x += (dx / dist) * force * 24 * dt;
+                            p.y += (dy / dist) * force * 24 * dt;
+                        }
+                    }
+
+                    // draw links
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'lighter';
+                    for (let i = 0; i < points.length; i++) {
+                        const a = points[i];
+                        for (let j = i + 1; j < points.length; j++) {
+                            const b = points[j];
+                            const dx = a.x - b.x;
+                            const dy = a.y - b.y;
+                            const d = Math.sqrt(dx * dx + dy * dy);
+                            if (d < linkDist) {
+                                const alpha = (1 - d / linkDist) * 0.28;
+                                ctx.strokeStyle = `rgba(180, 220, 255, ${alpha})`;
+                                ctx.lineWidth = 1;
+                                ctx.beginPath();
+                                ctx.moveTo(a.x, a.y);
+                                ctx.lineTo(b.x, b.y);
+                                ctx.stroke();
+                            }
+                        }
+                    }
+
+                    // draw nodes (with glow)
+                    for (const p of points) {
+                        const pulse = 0.55 + (Math.sin(p.tw) * 0.18);
+                        ctx.fillStyle = `rgba(255,255,255,${pulse})`;
+                        ctx.shadowColor = 'rgba(140, 200, 255, 0.55)';
+                        ctx.shadowBlur = 10;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
+
+                    // meteor (1-2, high quality)
+                    if (now > nextMeteorAt && meteors.length < maxMeteors) {
+                        spawnMeteor();
+                        nextMeteorAt = now + rand(3500, 9000);
+                    }
+
+                    for (let i = meteors.length - 1; i >= 0; i--) {
+                        const m = meteors[i];
+                        m.life += dt;
+                        m.x += m.vx * dt;
+                        m.y += m.vy * dt;
+                        const t = Math.min(1, m.life / m.maxLife);
+                        const a = (1 - t);
+
+                        const tailX = m.x - (m.vx / 1100) * m.len;
+                        const tailY = m.y - (m.vy / 1100) * m.len;
+                        const grad = ctx.createLinearGradient(m.x, m.y, tailX, tailY);
+                        grad.addColorStop(0.00, `rgba(255,255,255,${1.00 * a})`);
+                        grad.addColorStop(0.07, `rgba(120,235,255,${0.95 * a})`);
+                        grad.addColorStop(0.20, `rgba(255,210,140,${0.45 * a})`);
+                        grad.addColorStop(1.00, 'rgba(255,255,255,0)');
+
+                        ctx.save();
+                        ctx.globalCompositeOperation = 'lighter';
+                        ctx.strokeStyle = grad;
+                        ctx.lineWidth = 2.6;
+                        ctx.beginPath();
+                        ctx.moveTo(m.x, m.y);
+                        ctx.lineTo(tailX, tailY);
+                        ctx.stroke();
+
+                        // glowing head
+                        ctx.fillStyle = `rgba(170, 240, 255, ${1.00 * a})`;
+                        ctx.shadowColor = 'rgba(140, 235, 255, 0.95)';
+                        ctx.shadowBlur = 28;
+                        ctx.beginPath();
+                        ctx.arc(m.x, m.y, 2.2, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+
+                        if (t >= 1 || m.x < -1000 || m.x > w + 1000 || m.y < -1000 || m.y > h + 1000) {
+                            meteors.splice(i, 1);
+                        }
+                    }
+                    ctx.restore();
+
+                    requestAnimationFrame(step);
+                }
+
+                requestAnimationFrame(step);
+            })();
+
+            const qqGroupId = '746434973';
+            const qqLink = document.getElementById('qq-link');
+            if (qqLink) {
+                const qqJoinUrl = 'https://qm.qq.com/q/ASVDJPrIxq';
+                qqLink.addEventListener('click', async () => {
+                    const url = qqJoinUrl;
+                    try {
+                        await navigator.clipboard.writeText(qqGroupId);
+                    } catch (e) {
+                    }
+                    window.open(url, '_blank');
+                });
+            }
+
+            initMarquee('marquee-row-1', appsRow1, -1);
+            initMarquee('marquee-row-2', appsRow2, 1);
+        });
+
+    </script>
+
+</body>
+</html>
