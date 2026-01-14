@@ -78,6 +78,11 @@
             min-height: 100vh;
         }
 
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
         /* --- 1. 动态极光背景 & 星空 --- */
         .aurora-container {
             position: fixed;
@@ -338,6 +343,10 @@
         .nav-glass {
             backdrop-filter: blur(20px);
             transition: all 0.3s ease;
+        }
+
+        .nav-glass {
+            padding-top: var(--safe-top);
         }
 
         html.dark .nav-glass {
@@ -736,11 +745,43 @@
             }
 
             /* 下载链接按钮更大 */
-            #download-direct-link,
-            #download-github-link {
+            #download-modal a {
                 padding: 1rem 1.25rem !important;
                 min-height: 56px;
                 font-size: 0.95rem;
+            }
+
+            /* 导航栏在小屏更紧凑，避免占用过多高度 */
+            nav .h-20 {
+                height: 4.5rem;
+            }
+
+            /* 避免固定导航遮挡首屏内容 */
+            header {
+                padding-top: calc(5.25rem + var(--safe-top));
+            }
+
+            /* Banner 文案在小屏允许换行，避免横向溢出 */
+            .hero-capsule {
+                max-width: 100%;
+            }
+
+            .hero-capsule span {
+                white-space: normal;
+            }
+
+            /* 跑马灯胶囊在手机端更紧凑 */
+            .marquee-wrapper {
+                padding: 6px 0;
+            }
+
+            .marquee-track {
+                gap: 16px;
+            }
+
+            .app-capsule {
+                padding: 0.65rem 1.25rem;
+                font-size: 0.9rem;
             }
 
             /* 防止输入框缩放 */
@@ -1231,12 +1272,12 @@
     <!-- 下载弹窗 -->
     <div id="download-modal"
         class="fixed inset-0 z-50 hidden flex items-center justify-center px-3 sm:px-4 py-4 sm:py-6">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="hideDownloadModal()"></div>
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
         <div
             class="relative glass-card modal-panel w-full max-w-md sm:max-w-lg md:max-w-2xl p-5 sm:p-6 md:p-8 text-left rounded-2xl shadow-2xl dark:text-white text-gray-900 max-h-[90vh] overflow-y-auto">
             <button id="download-modal-close"
                 class="absolute top-4 right-4 sm:top-5 sm:right-5 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors"
-                type="button" aria-label="关闭" onclick="hideDownloadModal()">✕</button>
+                type="button" aria-label="关闭">✕</button>
 
             <div class="flex items-start gap-3 sm:gap-4 mb-6 pr-12">
                 <img src="../app/src/main/res/drawable/ic_launcher_foreground.png" alt="Aries AI 图标"
@@ -1249,48 +1290,24 @@
             </div>
 
             <div class="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
-                <a id="download-mirror-ghfast" href="#"
+                <a id="download-official" href="https://github.com/ZG0704666/Aries-AI/releases/download/v1.0.1/app-release.apk"
+                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full px-4 sm:px-5 md:px-6 py-4 sm:py-5 md:py-6 rounded-xl sm:rounded-2xl border dark:border-white/10 border-gray-200 hover:border-blue-400/60 hover:shadow-lg transition bg-white/80 dark:bg-white/5 gap-2 sm:gap-3 active:scale-95 cursor-pointer min-h-[48px] sm:min-h-[56px]"
+                    target="_blank" rel="noopener noreferrer">
+                    <div class="flex-1">
+                        <div class="text-sm sm:text-base md:text-lg font-semibold">官方直连</div>
+                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">GitHub Releases 原始链接</div>
+                    </div>
+                    <span class="text-xs sm:text-sm font-semibold text-blue-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">官方</span>
+                </a>
+
+                <a id="download-mirror-ghfast" href="https://ghfast.top/https://github.com/ZG0704666/Aries-AI/releases/download/v1.0.1/app-release.apk"
                     class="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full px-4 sm:px-5 md:px-6 py-4 sm:py-5 md:py-6 rounded-xl sm:rounded-2xl border dark:border-white/10 border-gray-200 hover:border-orange-400/60 hover:shadow-lg transition bg-white/80 dark:bg-white/5 gap-2 sm:gap-3 active:scale-95 cursor-pointer min-h-[48px] sm:min-h-[56px]"
                     target="_blank" rel="noopener noreferrer">
                     <div class="flex-1">
-                        <div class="text-sm sm:text-base md:text-lg font-semibold">镜像下载（推荐）</div>
+                        <div class="text-sm sm:text-base md:text-lg font-semibold">镜像加速 1</div>
                         <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">ghfast.top 加速</div>
                     </div>
-                    <span
-                        class="text-xs sm:text-sm font-semibold text-orange-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">推荐</span>
-                </a>
-
-                <a id="download-mirror-gitmirror" href="#"
-                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full px-4 sm:px-5 md:px-6 py-4 sm:py-5 md:py-6 rounded-xl sm:rounded-2xl border dark:border-white/10 border-gray-200 hover:border-cyan-400/60 hover:shadow-lg transition bg-white/80 dark:bg-white/5 gap-2 sm:gap-3 active:scale-95 cursor-pointer min-h-[48px] sm:min-h-[56px]"
-                    target="_blank" rel="noopener noreferrer">
-                    <div class="flex-1">
-                        <div class="text-sm sm:text-base md:text-lg font-semibold">镜像下载（备用 1）</div>
-                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">hub.gitmirror.com 加速</div>
-                    </div>
-                    <span
-                        class="text-xs sm:text-sm font-semibold text-cyan-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">备用</span>
-                </a>
-
-                <a id="download-mirror-jsdelivr" href="#"
-                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full px-4 sm:px-5 md:px-6 py-4 sm:py-5 md:py-6 rounded-xl sm:rounded-2xl border dark:border-white/10 border-gray-200 hover:border-green-400/60 hover:shadow-lg transition bg-white/80 dark:bg-white/5 gap-2 sm:gap-3 active:scale-95 cursor-pointer min-h-[48px] sm:min-h-[56px]"
-                    target="_blank" rel="noopener noreferrer">
-                    <div class="flex-1">
-                        <div class="text-sm sm:text-base md:text-lg font-semibold">镜像下载（备用 2）</div>
-                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">jsDelivr 直连 GitHub（可能受限）</div>
-                    </div>
-                    <span
-                        class="text-xs sm:text-sm font-semibold text-green-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">备用</span>
-                </a>
-
-                <a id="download-github-link" href="#"
-                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full px-4 sm:px-5 md:px-6 py-4 sm:py-5 md:py-6 rounded-xl sm:rounded-2xl border dark:border-white/10 border-gray-200 hover:border-purple-400/60 hover:shadow-lg transition bg-white/80 dark:bg-white/5 gap-2 sm:gap-3 active:scale-95 cursor-pointer min-h-[48px] sm:min-h-[56px]"
-                    target="_blank" rel="noopener noreferrer">
-                    <div class="flex-1">
-                        <div class="text-sm sm:text-base md:text-lg font-semibold">GitHub 官方下载</div>
-                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">Releases 原始链接</div>
-                    </div>
-                    <span
-                        class="text-xs sm:text-sm font-semibold text-purple-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">官方</span>
+                    <span class="text-xs sm:text-sm font-semibold text-orange-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">推荐</span>
                 </a>
             </div>
 
@@ -1301,380 +1318,372 @@
             </div>
         </div>
     </div>
-</div>
+    </div>
 
-<script>
-    const GITHUB_RELEASES_PAGE_URL = 'https://github.com/ZG0704666/Aries-AI/releases';
-    const GITHUB_LATEST_RELEASE_API = 'https://api.github.com/repos/ZG0704666/Aries-AI/releases/latest';
-    const FIXED_APK_URL = 'https://github.com/ZG0704666/Aries-AI/releases/download/v1.0.1/app-release.apk';
+    <script>
+        const GITHUB_RELEASES_PAGE_URL = 'https://github.com/ZG0704666/Aries-AI/releases';
+        const GITHUB_LATEST_RELEASE_API = 'https://api.github.com/repos/ZG0704666/Aries-AI/releases/latest';
+        const FIXED_APK_URL = 'https://github.com/ZG0704666/Aries-AI/releases/download/v1.0.1/app-release.apk';
 
-    function openDownloadInNewTab(url) {
-        window.open(url, '_blank', 'noopener');
-    }
+        (function initDownloadModal() {
+            try {
+                const modal = document.getElementById('download-modal');
+                if (!modal) return;
 
-    function showDownloadModal() {
-        const modal = document.getElementById('download-modal');
-        if (!modal) return;
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
+                const mirrorFast = document.getElementById('download-mirror-ghfast');
+                const ghLink = document.getElementById('download-official');
 
-    function hideDownloadModal() {
-        const modal = document.getElementById('download-modal');
-        if (!modal) return;
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+                const heroBtn = document.getElementById('btn-download-hero');
+                const navBtn = document.getElementById('btn-download-nav');
+                const closeBtn = document.getElementById('download-modal-close');
 
-    const heroBtn = document.getElementById('btn-download-hero');
-    if (heroBtn) heroBtn.addEventListener('click', showDownloadModal);
-    const navBtn = document.getElementById('btn-download-nav');
-    if (navBtn) navBtn.addEventListener('click', showDownloadModal);
+                let resolvedAssetUrl = '';
 
-    function toGhFast(url) {
-        return 'https://ghfast.top/' + url;
-    }
+                function openDownloadInNewTab(url) {
+                    if (!url) return;
+                    window.open(url, '_blank', 'noopener');
+                }
 
-    function toGitMirror(url) {
-        return url.replace('https://github.com/', 'https://hub.gitmirror.com/');
-    }
+                function showDownloadModal() {
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                }
 
-    function setHref(el, url) {
-        if (!el) return;
-        el.href = url || GITHUB_RELEASES_PAGE_URL;
-    }
+                function hideDownloadModal() {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                }
 
-    const mirrorFast = document.getElementById('download-mirror-ghfast');
-    const mirror2 = document.getElementById('download-mirror-gitmirror');
-    const mirror3 = document.getElementById('download-mirror-jsdelivr');
-    const ghLink = document.getElementById('download-github-link');
+                function toGhFast(url) {
+                    return 'https://ghfast.top/' + url;
+                }
 
-    let resolvedAssetUrl = '';
-    function getResolvedAssetUrl() {
-        return resolvedAssetUrl || FIXED_APK_URL;
-    }
+                function getResolvedAssetUrl() {
+                    return resolvedAssetUrl || FIXED_APK_URL;
+                }
 
-    function refreshDownloadHrefs() {
-        const u = getResolvedAssetUrl();
-        setHref(mirrorFast, u ? toGhFast(u) : '');
-        setHref(mirror2, u ? toGitMirror(u) : '');
-        // jsDelivr 不适合直连 release asset，这里改为兜底：打开 Releases
-        setHref(mirror3, GITHUB_RELEASES_PAGE_URL);
-        setHref(ghLink, u || GITHUB_RELEASES_PAGE_URL);
-    }
+                function setHref(el, url) {
+                    if (!el) return;
+                    el.href = url || GITHUB_RELEASES_PAGE_URL;
+                }
 
-    function bindOpenLink(el, getUrl) {
-        if (!el) return;
-        el.addEventListener('click', (e) => {
-            e.preventDefault();
-            const url = getUrl();
-            if (!url) {
-                openDownloadInNewTab(GITHUB_RELEASES_PAGE_URL);
-                return;
-            }
-            openDownloadInNewTab(url);
-        });
-    }
+                function refreshDownloadHrefs() {
+                    const u = getResolvedAssetUrl();
+                    setHref(mirrorFast, u ? toGhFast(u) : '');
+                    setHref(ghLink, u || GITHUB_RELEASES_PAGE_URL);
+                }
 
-    bindOpenLink(mirrorFast, () => {
-        const u = getResolvedAssetUrl();
-        return u ? toGhFast(u) : '';
-    });
+                function bindOpenLink(el, getUrl) {
+                    if (!el) return;
+                    el.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        try {
+                            const url = getUrl();
+                            openDownloadInNewTab(url || GITHUB_RELEASES_PAGE_URL);
+                        } catch (_) {
+                            openDownloadInNewTab(GITHUB_RELEASES_PAGE_URL);
+                        }
+                    });
+                }
 
-    bindOpenLink(mirror2, () => {
-        const u = getResolvedAssetUrl();
-        return u ? toGitMirror(u) : '';
-    });
+                if (heroBtn) heroBtn.addEventListener('click', showDownloadModal);
+                if (navBtn) navBtn.addEventListener('click', showDownloadModal);
+                if (closeBtn) closeBtn.addEventListener('click', hideDownloadModal);
 
-    bindOpenLink(mirror3, () => GITHUB_RELEASES_PAGE_URL);
-    bindOpenLink(ghLink, () => getResolvedAssetUrl() || GITHUB_RELEASES_PAGE_URL);
-
-    async function resolveLatestReleaseApkUrl() {
-        try {
-            const res = await fetch(GITHUB_LATEST_RELEASE_API, {
-                headers: { 'Accept': 'application/vnd.github+json' },
-            });
-            if (!res.ok) return '';
-            const data = await res.json();
-            const assets = Array.isArray(data && data.assets) ? data.assets : [];
-            const apk = assets.find(a => typeof a?.name === 'string' && a.name.toLowerCase().endsWith('.apk'))
-                || assets.find(a => typeof a?.browser_download_url === 'string' && a.browser_download_url.toLowerCase().endsWith('.apk'));
-            const url = apk && typeof apk.browser_download_url === 'string' ? apk.browser_download_url : '';
-            return url;
-        } catch (_) {
-            return '';
-        }
-    }
-
-    refreshDownloadHrefs();
-    resolveLatestReleaseApkUrl().then((url) => {
-        resolvedAssetUrl = url || FIXED_APK_URL;
-        refreshDownloadHrefs();
-    });
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') hideDownloadModal();
-    });
-
-    const modalOverlay = document.querySelector('#download-modal > div:first-child');
-    if (modalOverlay) modalOverlay.addEventListener('click', hideDownloadModal);
-</script>
-
-<script>
-    function applyThemeClass(theme) {
-        const html = document.documentElement;
-        html.classList.remove('dark', 'light');
-        html.classList.add(theme);
-    }
-
-    function getStoredTheme() {
-        const saved = localStorage.getItem('theme');
-        if (saved === 'dark' || saved === 'light') return saved;
-        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-
-    function toggleTheme() {
-        const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-        const next = current === 'dark' ? 'light' : 'dark';
-        localStorage.setItem('theme', next);
-        applyThemeClass(next);
-    }
-
-    applyThemeClass(getStoredTheme());
-
-    (function initStars() {
-        const container = document.getElementById('stars-container');
-        if (!container) return;
-        const starCount = 120;
-        container.innerHTML = '';
-        for (let i = 0; i < starCount; i++) {
-            const star = document.createElement('div');
-            star.className = 'star';
-            const size = Math.random() * 2.2 + 0.6;
-            const opacity = Math.random() * 0.55 + 0.15;
-            const duration = Math.random() * 4 + 2;
-            const delay = Math.random() * 5;
-            star.style.width = size + 'px';
-            star.style.height = size + 'px';
-            star.style.left = Math.random() * 100 + '%';
-            star.style.top = Math.random() * 100 + '%';
-            star.style.setProperty('--opacity', opacity.toString());
-            star.style.setProperty('--duration', duration + 's');
-            star.style.setProperty('--delay', delay + 's');
-            container.appendChild(star);
-        }
-    })();
-
-    (function initConstellation() {
-        const canvas = document.getElementById('constellation-canvas');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        let w = 0;
-        let h = 0;
-        let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-
-        const points = [];
-        const pointCount = 60;
-        const linkDist = 250;
-        const repelRadius = 200;
-        const repelStrength = 1.05;
-        let mouseX = -9999;
-        let mouseY = -9999;
-
-        function resize() {
-            dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-            w = Math.floor(window.innerWidth);
-            h = Math.floor(window.innerHeight);
-            canvas.width = Math.floor(w * dpr);
-            canvas.height = Math.floor(h * dpr);
-            canvas.style.width = w + 'px';
-            canvas.style.height = h + 'px';
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        }
-
-        function isDark() {
-            return document.documentElement.classList.contains('dark');
-        }
-
-        function resetPoints() {
-            points.length = 0;
-            for (let i = 0; i < pointCount; i++) {
-                points.push({
-                    x: Math.random() * w,
-                    y: Math.random() * h,
-                    vx: (Math.random() - 0.5) * 0.28,
-                    vy: (Math.random() - 0.5) * 0.28,
-                    tw: Math.random() * Math.PI * 2,
+                bindOpenLink(mirrorFast, () => {
+                    const u = getResolvedAssetUrl();
+                    return u ? toGhFast(u) : '';
                 });
+                bindOpenLink(ghLink, () => getResolvedAssetUrl() || GITHUB_RELEASES_PAGE_URL);
+
+                (async function resolveLatestReleaseApkUrl() {
+                    try {
+                        const res = await fetch(GITHUB_LATEST_RELEASE_API, {
+                            headers: { 'Accept': 'application/vnd.github+json' },
+                        });
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        const assets = Array.isArray(data && data.assets) ? data.assets : [];
+                        const apk = assets.find(a => typeof a?.name === 'string' && a.name.toLowerCase().endsWith('.apk'))
+                            || assets.find(a => typeof a?.browser_download_url === 'string' && a.browser_download_url.toLowerCase().endsWith('.apk'));
+                        const url = apk && typeof apk.browser_download_url === 'string' ? apk.browser_download_url : '';
+                        resolvedAssetUrl = url || FIXED_APK_URL;
+                    } catch (_) {
+                        resolvedAssetUrl = FIXED_APK_URL;
+                    } finally {
+                        refreshDownloadHrefs();
+                    }
+                })();
+
+                refreshDownloadHrefs();
+
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') hideDownloadModal();
+                });
+
+                const modalOverlay = modal.querySelector('.absolute.inset-0');
+                if (modalOverlay) modalOverlay.addEventListener('click', hideDownloadModal);
+            } catch (_) {
             }
+        })();
+    </script>
+
+    <script>
+        function applyThemeClass(theme) {
+            const html = document.documentElement;
+            html.classList.remove('dark', 'light');
+            html.classList.add(theme);
         }
 
-        function onMove(e) {
-            mouseX = e.clientX;
-            mouseY = e.clientY;
+        function getStoredTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved === 'dark' || saved === 'light') return saved;
+            return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
 
-        function onLeave() {
-            mouseX = -9999;
-            mouseY = -9999;
+        function toggleTheme() {
+            const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+            const next = current === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('theme', next);
+            applyThemeClass(next);
         }
 
-        window.addEventListener('resize', () => {
+        applyThemeClass(getStoredTheme());
+
+        (function initStars() {
+            const container = document.getElementById('stars-container');
+            if (!container) return;
+            const starCount = 120;
+            container.innerHTML = '';
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 2.2 + 0.6;
+                const opacity = Math.random() * 0.55 + 0.15;
+                const duration = Math.random() * 4 + 2;
+                const delay = Math.random() * 5;
+                star.style.width = size + 'px';
+                star.style.height = size + 'px';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.setProperty('--opacity', opacity.toString());
+                star.style.setProperty('--duration', duration + 's');
+                star.style.setProperty('--delay', delay + 's');
+                container.appendChild(star);
+            }
+        })();
+
+
+        (function initConstellation() {
+            const canvas = document.getElementById('constellation-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            let w = 0;
+            let h = 0;
+            let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+            const points = [];
+            const pointCount = 60;
+            const linkDist = 250;
+            const repelRadius = 200;
+            const repelStrength = 1.05;
+            let mouseX = -9999;
+            let mouseY = -9999;
+
+            function resize() {
+                dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+                w = Math.floor(window.innerWidth);
+                h = Math.floor(window.innerHeight);
+                canvas.width = Math.floor(w * dpr);
+                canvas.height = Math.floor(h * dpr);
+                canvas.style.width = w + 'px';
+                canvas.style.height = h + 'px';
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+
+            function isDark() {
+                return document.documentElement.classList.contains('dark');
+            }
+
+            function resetPoints() {
+                points.length = 0;
+                for (let i = 0; i < pointCount; i++) {
+                    points.push({
+                        x: Math.random() * w,
+                        y: Math.random() * h,
+                        vx: (Math.random() - 0.5) * 0.28,
+                        vy: (Math.random() - 0.5) * 0.28,
+                        tw: Math.random() * Math.PI * 2,
+                    });
+                }
+            }
+
+            function onMove(e) {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            }
+
+            function onLeave() {
+                mouseX = -9999;
+                mouseY = -9999;
+            }
+
+            window.addEventListener('resize', () => {
+                resize();
+                resetPoints();
+            });
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseleave', onLeave);
+
             resize();
             resetPoints();
-        });
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseleave', onLeave);
 
-        resize();
-        resetPoints();
+            let last = performance.now();
+            function step(now) {
+                const dt = Math.min(0.033, (now - last) / 1000);
+                last = now;
 
-        let last = performance.now();
-        function step(now) {
-            const dt = Math.min(0.033, (now - last) / 1000);
-            last = now;
+                ctx.clearRect(0, 0, w, h);
 
-            ctx.clearRect(0, 0, w, h);
-
-            if (!isDark()) {
-                requestAnimationFrame(step);
-                return;
-            }
-
-            // update points
-            for (const p of points) {
-                p.x += p.vx;
-                p.y += p.vy;
-                p.tw += dt * 1.2;
-
-                if (p.x < -20) p.x = w + 20;
-                if (p.x > w + 20) p.x = -20;
-                if (p.y < -20) p.y = h + 20;
-                if (p.y > h + 20) p.y = -20;
-
-                const dx = p.x - mouseX;
-                const dy = p.y - mouseY;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist > 0.001 && dist < repelRadius) {
-                    const force = (1 - dist / repelRadius) * repelStrength;
-                    p.x += (dx / dist) * force * 24 * dt;
-                    p.y += (dy / dist) * force * 24 * dt;
+                if (!isDark()) {
+                    requestAnimationFrame(step);
+                    return;
                 }
-            }
 
-            ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            for (let i = 0; i < points.length; i++) {
-                const a = points[i];
-                for (let j = i + 1; j < points.length; j++) {
-                    const b = points[j];
-                    const dx = a.x - b.x;
-                    const dy = a.y - b.y;
-                    const d = Math.sqrt(dx * dx + dy * dy);
-                    if (d < linkDist) {
-                        const alpha = (1 - d / linkDist) * 0.28;
-                        ctx.strokeStyle = `rgba(180, 220, 255, ${alpha})`;
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.moveTo(a.x, a.y);
-                        ctx.lineTo(b.x, b.y);
-                        ctx.stroke();
+                // update points
+                for (const p of points) {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.tw += dt * 1.2;
+
+                    if (p.x < -20) p.x = w + 20;
+                    if (p.x > w + 20) p.x = -20;
+                    if (p.y < -20) p.y = h + 20;
+                    if (p.y > h + 20) p.y = -20;
+
+                    const dx = p.x - mouseX;
+                    const dy = p.y - mouseY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 0.001 && dist < repelRadius) {
+                        const force = (1 - dist / repelRadius) * repelStrength;
+                        p.x += (dx / dist) * force * 24 * dt;
+                        p.y += (dy / dist) * force * 24 * dt;
                     }
                 }
-            }
 
-            for (const p of points) {
-                const pulse = 0.55 + (Math.sin(p.tw) * 0.18);
-                ctx.fillStyle = `rgba(255,255,255,${pulse})`;
-                ctx.shadowColor = 'rgba(140, 200, 255, 0.55)';
-                ctx.shadowBlur = 10;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.shadowBlur = 0;
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                for (let i = 0; i < points.length; i++) {
+                    const a = points[i];
+                    for (let j = i + 1; j < points.length; j++) {
+                        const b = points[j];
+                        const dx = a.x - b.x;
+                        const dy = a.y - b.y;
+                        const d = Math.sqrt(dx * dx + dy * dy);
+                        if (d < linkDist) {
+                            const alpha = (1 - d / linkDist) * 0.28;
+                            ctx.strokeStyle = `rgba(180, 220, 255, ${alpha})`;
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            ctx.moveTo(a.x, a.y);
+                            ctx.lineTo(b.x, b.y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+
+                for (const p of points) {
+                    const pulse = 0.55 + (Math.sin(p.tw) * 0.18);
+                    ctx.fillStyle = `rgba(255,255,255,${pulse})`;
+                    ctx.shadowColor = 'rgba(140, 200, 255, 0.55)';
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+                ctx.restore();
+
+                requestAnimationFrame(step);
             }
-            ctx.restore();
 
             requestAnimationFrame(step);
-        }
+        })();
 
-        requestAnimationFrame(step);
-    })();
+        (function initMarqueeData() {
+            const allApps = [
+                '淘宝', '支付宝', '美团', '高德地图', '微信', 'QQ', '京东', '知乎', 'B站', '抖音', '小红书', '携程',
+                '12306', '饿了么', '拼多多', '闲鱼', '快手', '网易云音乐', '微博', 'Keep', 'WPS', '大众点评', '滴滴出行', '百度地图',
+                'QQ音乐', '腾讯视频', '爱奇艺', '优酷', '哔哩哔哩漫画', '淘宝特价版', '得物', '苏宁易购', '唯品会', '菜鸟',
+                '豆瓣', '小宇宙', '喜马拉雅', '百度网盘', '夸克', 'UC浏览器', '百度', '今日头条', '腾讯新闻', '网易新闻',
+                '微信读书', '飞书', '钉钉', '企业微信', '携程旅行', '去哪儿', '同程旅行', '滴滴',
+            ];
 
-    (function initMarqueeData() {
-        const allApps = [
-            '淘宝', '支付宝', '美团', '高德地图', '微信', 'QQ', '京东', '知乎', 'B站', '抖音', '小红书', '携程',
-            '12306', '饿了么', '拼多多', '闲鱼', '快手', '网易云音乐', '微博', 'Keep', 'WPS', '大众点评', '滴滴出行', '百度地图',
-            'QQ音乐', '腾讯视频', '爱奇艺', '优酷', '哔哩哔哩漫画', '淘宝特价版', '得物', '苏宁易购', '唯品会', '菜鸟',
-            '豆瓣', '小宇宙', '喜马拉雅', '百度网盘', '夸克', 'UC浏览器', '百度', '今日头条', '腾讯新闻', '网易新闻',
-            '微信读书', '飞书', '钉钉', '企业微信', '携程旅行', '去哪儿', '同程旅行', '滴滴',
-        ];
+            const appsRow1 = allApps.filter((_, i) => i % 2 === 0);
+            const appsRow2 = allApps.filter((_, i) => i % 2 === 1);
 
-        const appsRow1 = allApps.filter((_, i) => i % 2 === 0);
-        const appsRow2 = allApps.filter((_, i) => i % 2 === 1);
-
-        function buildBase(trackEl, items) {
-            trackEl.innerHTML = '';
-            for (const name of items) {
-                const el = document.createElement('div');
-                el.className = 'app-capsule';
-                el.textContent = name;
-                trackEl.appendChild(el);
-            }
-        }
-
-        function duplicateOnce(trackEl) {
-            const copy = trackEl.innerHTML;
-            trackEl.insertAdjacentHTML('beforeend', copy);
-        }
-
-        function initMarquee(wrapperId, items, direction) {
-            const wrapper = document.getElementById(wrapperId);
-            if (!wrapper) return;
-            const track = wrapper.querySelector('.marquee-track');
-            if (!track) return;
-
-            function rebuild() {
-                buildBase(track, items);
-                // Duplicate until base covers the viewport, then duplicate once more for seamless CSS loop.
-                let safety = 0;
-                while (track.scrollWidth < window.innerWidth + 60 && safety < 12) {
-                    duplicateOnce(track);
-                    safety++;
+            function buildBase(trackEl, items) {
+                trackEl.innerHTML = '';
+                for (const name of items) {
+                    const el = document.createElement('div');
+                    el.className = 'app-capsule';
+                    el.textContent = name;
+                    trackEl.appendChild(el);
                 }
-                duplicateOnce(track);
-
-                track.classList.remove('marquee-left', 'marquee-right');
-                track.classList.add(direction < 0 ? 'marquee-left' : 'marquee-right');
             }
 
-            rebuild();
-            window.addEventListener('resize', rebuild);
-        }
-
-        initMarquee('marquee-row-1', appsRow1, -1);
-        initMarquee('marquee-row-2', appsRow2, 1);
-    })();
-</script>
-
-<script>
-    (function initQqLink() {
-        const qqGroupId = '746434973';
-        const qqJoinUrl = 'https://qm.qq.com/q/ASVDJPrIxq';
-        const qqLink = document.getElementById('qq-link');
-        if (!qqLink) return;
-
-        qqLink.addEventListener('click', async () => {
-            try {
-                await navigator.clipboard.writeText(qqGroupId);
-            } catch (e) {
+            function duplicateOnce(trackEl) {
+                const copy = trackEl.innerHTML;
+                trackEl.insertAdjacentHTML('beforeend', copy);
             }
-            window.open(qqJoinUrl, '_blank', 'noopener');
-        });
-    })();
-</script>
+
+            function initMarquee(wrapperId, items, direction) {
+                const wrapper = document.getElementById(wrapperId);
+                if (!wrapper) return;
+                const track = wrapper.querySelector('.marquee-track');
+                if (!track) return;
+
+                function rebuild() {
+                    buildBase(track, items);
+                    // Duplicate until base covers the viewport, then duplicate once more for seamless CSS loop.
+                    let safety = 0;
+                    while (track.scrollWidth < window.innerWidth + 60 && safety < 12) {
+                        duplicateOnce(track);
+                        safety++;
+                    }
+                    duplicateOnce(track);
+
+                    track.classList.remove('marquee-left', 'marquee-right');
+                    track.classList.add(direction < 0 ? 'marquee-left' : 'marquee-right');
+                }
+
+                rebuild();
+                window.addEventListener('resize', rebuild);
+            }
+
+            initMarquee('marquee-row-1', appsRow1, -1);
+            initMarquee('marquee-row-2', appsRow2, 1);
+        })();
+    </script>
+
+    <script>
+        (function initQqLink() {
+            const qqGroupId = '746434973';
+            const qqJoinUrl = 'https://qm.qq.com/q/ASVDJPrIxq';
+            const qqLink = document.getElementById('qq-link');
+            if (!qqLink) return;
+
+            qqLink.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(qqGroupId);
+                } catch (e) {
+                }
+                window.open(qqJoinUrl, '_blank', 'noopener');
+            });
+        })();
+    </script>
 
 </body>
 
