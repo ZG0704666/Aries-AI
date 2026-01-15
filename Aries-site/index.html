@@ -876,57 +876,88 @@
     </nav>
 
     <!-- Hero Section -->
-    <header
-        class="relative min-h-screen flex items-center justify-center text-center px-5 sm:px-8 pt-20 overflow-hidden">
-        <div class="relative z-10 max-w-5xl mx-auto flex flex-col items-center">
-
-            <!-- 动态通知 Banner (胶囊升级：更强流光，字体扫描) -->
-            <div
-                class="hero-capsule relative inline-block glass-card rounded-full px-6 sm:px-12 py-4 sm:py-5 mb-8 sm:mb-10 cursor-pointer hover:scale-105 transition-transform duration-300 group shadow-[0_0_35px_rgba(59,130,246,0.3)] border border-blue-400/30">
-                <!-- 边框流光 -->
-                <div class="banner-glow-border"></div>
-                <!-- 扫光动画 -->
-                <div class="streamer-glow"></div>
-
-                <span
-                    class="relative z-10 font-bold text-sm sm:text-xl flex items-center gap-2 sm:gap-3 text-gradient-flow tracking-wide">
-                    <span class="animate-bounce-slight text-base sm:text-2xl">✨</span> <span
-                        class="hidden sm:inline">想旅行？说走就走！Aries 支持一句话定高铁票/机票！</span><span class="sm:hidden">Aries
-                        支持一句话定高铁票/机票！</span>
-                </span>
-            </div>
-
-            <!-- 主标题 -->
-            <div class="mb-6 sm:mb-8 relative animate-fade-in-up">
-                <span
-                    class="inline-block px-3 py-1 mb-4 sm:mb-6 text-xs font-bold tracking-[0.2em] text-blue-400 uppercase bg-blue-500/5 rounded-full border border-blue-500/20 backdrop-blur-sm">
-                    Based on AutoGLM-Aries-9B
-                </span>
-                <h1
-                    class="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold dark:text-white text-gray-900 tracking-tight leading-tight sm:leading-none drop-shadow-2xl">
-                    开启手机智能<br>
-                    <span class="gradient-text-fix mt-2 pb-2 sm:pb-4">新交互时代</span>
-                </h1>
-            </div>
-
-            <p
-                class="text-lg sm:text-xl md:text-2xl dark:text-gray-300 text-gray-600 mb-10 sm:mb-14 font-light max-w-3xl mx-auto leading-relaxed animate-delay-200 fade-in-up opacity-90">
-                多模态自动化操控手机<br class="hidden md:block">
-                离线语音极速响应，屏幕感知一语即达。
-            </p>
-
-            <div class="flex flex-col sm:flex-row justify-center gap-3 sm:gap-5 md:gap-6 w-full sm:w-auto px-2 sm:px-0">
-                <button id="btn-download-hero"
-                    class="relative overflow-hidden group bg-white dark:bg-gray-100 text-black px-6 sm:px-10 md:px-12 py-3 sm:py-4 md:py-5 rounded-full font-bold text-sm sm:text-lg md:text-xl hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] transition transform hover:-translate-y-1 min-h-[48px] sm:min-h-[52px] md:min-h-[56px] flex items-center justify-center cursor-pointer whitespace-nowrap">
-                    <span class="relative z-10">下载首发版 Alpha</span>
+    <header class="relative min-h-screen px-5 sm:px-8 pt-24 pb-14 overflow-hidden">
+        <div class="max-w-7xl mx-auto relative z-10">
+            <div class="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+                <!-- Left: Copy -->
+                <div class="text-left">
                     <div
-                        class="absolute inset-0 bg-gradient-to-r from-gray-100 to-white opacity-0 group-hover:opacity-100 transition-opacity">
+                        class="hero-capsule relative inline-block glass-card rounded-full px-5 sm:px-10 py-3 sm:py-4 mb-7 cursor-pointer hover:scale-105 transition-transform duration-300 group shadow-[0_0_35px_rgba(59,130,246,0.3)] border border-blue-400/30">
+                        <div class="banner-glow-border"></div>
+                        <div class="streamer-glow"></div>
+                        <span
+                            class="relative z-10 font-bold text-sm sm:text-lg flex items-center gap-2 sm:gap-3 text-gradient-flow tracking-wide">
+                            <span class="animate-bounce-slight text-base sm:text-xl">✨</span>
+                            <span>想旅行？说走就走！Aries 支持一句话定高铁票/机票！</span>
+                        </span>
                     </div>
-                </button>
-                <button onclick="window.location.href='docs-center.html'"
-                    class="glass-card px-6 sm:px-10 md:px-12 py-3 sm:py-4 md:py-5 rounded-full font-medium text-sm sm:text-lg md:text-xl hover:bg-white/10 dark:text-white text-gray-800 transition border dark:border-white/10 border-gray-300/50 backdrop-blur-md min-h-[48px] sm:min-h-[52px] md:min-h-[56px] flex items-center justify-center cursor-pointer whitespace-nowrap">
-                    查看技术文档
-                </button>
+
+                    <span
+                        class="inline-block px-3 py-1 mb-4 text-xs font-bold tracking-[0.2em] text-blue-400 uppercase bg-blue-500/5 rounded-full border border-blue-500/20 backdrop-blur-sm">
+                        Based on AutoGLM-Aries-9B
+                    </span>
+
+                    <h1
+                        class="text-4xl sm:text-6xl md:text-7xl font-extrabold dark:text-white text-gray-900 tracking-tight leading-tight">
+                        开启手机智能
+                        <span class="gradient-text-fix mt-2 pb-2 block">新交互时代</span>
+                    </h1>
+
+                    <p
+                        class="text-lg sm:text-xl md:text-2xl dark:text-gray-300 text-gray-600 mt-6 mb-9 font-light max-w-xl leading-relaxed opacity-90">
+                        多模态自动化操控手机<br class="hidden sm:block">
+                        离线语音极速响应，屏幕感知一语即达。
+                    </p>
+
+                    <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
+                        <button id="btn-download-hero"
+                            class="relative overflow-hidden group bg-white dark:bg-gray-100 text-black px-7 sm:px-9 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-base md:text-lg hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] transition transform hover:-translate-y-1 min-h-[48px] flex items-center justify-center cursor-pointer whitespace-nowrap">
+                            <span class="relative z-10">下载首发版 Alpha</span>
+                            <div
+                                class="absolute inset-0 bg-gradient-to-r from-gray-100 to-white opacity-0 group-hover:opacity-100 transition-opacity">
+                            </div>
+                        </button>
+                        <button onclick="window.location.href='docs-center.html'"
+                            class="glass-card px-7 sm:px-9 py-3.5 sm:py-4 rounded-full font-medium text-sm sm:text-base md:text-lg hover:bg-white/10 dark:text-white text-gray-800 transition border dark:border-white/10 border-gray-300/50 backdrop-blur-md min-h-[48px] flex items-center justify-center cursor-pointer whitespace-nowrap">
+                            查看技术文档
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right: Phone mockup (Android-style light frame) -->
+                <div class="relative flex justify-center lg:justify-end">
+                    <div class="relative w-[270px] sm:w-[320px] md:w-[360px] lg:w-[390px]">
+                        <div
+                            class="pointer-events-none absolute -inset-10 rounded-[48px] bg-gradient-to-br from-blue-500/25 via-purple-500/18 to-pink-500/18 blur-[40px] dark:from-blue-500/20 dark:via-purple-500/16 dark:to-pink-500/14">
+                        </div>
+
+                        <div
+                            class="relative rounded-[44px] p-[10px] sm:p-[12px] bg-white/70 dark:bg-white/10 border border-black/10 dark:border-white/15 shadow-[0_35px_90px_rgba(0,0,0,0.20)] dark:shadow-[0_35px_90px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+
+                            <div class="absolute top-[10px] left-1/2 -translate-x-1/2 flex items-center gap-2 z-20">
+                                <div class="w-14 h-[6px] rounded-full bg-black/10 dark:bg-white/10"></div>
+                                <div class="w-[8px] h-[8px] rounded-full bg-black/20 dark:bg-white/15"></div>
+                            </div>
+
+                            <div
+                                class="relative rounded-[34px] overflow-hidden bg-white dark:bg-black border border-black/10 dark:border-white/10">
+                                <img src="微信图片_20260115214956_267_3.jpg" alt="Aries AI 手机界面"
+                                    class="block w-full h-auto select-none" />
+
+                                <div
+                                    class="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/45 via-white/0 to-white/0 dark:from-white/10">
+                                </div>
+                                <div
+                                    class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent dark:from-black/35">
+                                </div>
+                            </div>
+
+                            <div
+                                class="pointer-events-none absolute inset-0 rounded-[44px] ring-1 ring-white/40 dark:ring-white/10">
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
