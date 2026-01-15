@@ -4,45 +4,53 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingStart="@dimen/page_padding"
-    android:paddingTop="@dimen/inner_padding"
-    android:paddingEnd="@dimen/page_padding"
-    android:paddingBottom="@dimen/inner_padding"
-    android:background="@android:color/transparent">
+    android:paddingStart="24dp"
+    android:paddingTop="32dp"
+    android:paddingEnd="24dp"
+    android:paddingBottom="42dp"
+    android:background="@drawable/bg_bottom_sheet_white">
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:background="#E2E8F0"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="24dp"
+        android:backgroundTint="#CBD5E1" />
 
     <TextView
         android:id="@+id/tvPermTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="首次使用权限"
+        android:text="设置中心"
         android:textColor="@color/blue_glass_text"
-        android:textSize="18sp"
+        android:textSize="22sp"
         android:textStyle="bold" />
 
     <TextView
         android:id="@+id/tvPermDesc"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="建议先完成下面权限设置，后续自动化过程将不再弹窗打断。"
-        android:textColor="@color/blue_glass_icon"
-        android:textSize="13sp" />
+        android:layout_marginTop="8dp"
+        android:text="为了让 Aries AI 运行顺畅，我们需要开启以下必要权限。"
+        android:textColor="@color/blue_glass_text_dim"
+        android:textSize="14sp" />
 
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/inner_padding"
-        app:cardCornerRadius="@dimen/card_corner"
+        android:layout_marginTop="24dp"
+        app:cardCornerRadius="24dp"
         app:cardElevation="0dp"
-        app:cardBackgroundColor="@color/white"
-        app:strokeColor="#E0F2FE"
+        app:cardBackgroundColor="#F8FAFC"
+        app:strokeColor="#F1F5F9"
         app:strokeWidth="1dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="@dimen/inner_padding">
+            android:padding="20dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -50,41 +58,51 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/ic_key_24"
+                    app:tint="@color/blue_glass_primary" />
+
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:layout_marginStart="16dp"
                     android:orientation="vertical">
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="无障碍服务（必需）"
+                        android:text="无障碍服务"
                         android:textColor="@color/blue_glass_text"
-                        android:textSize="14sp"
+                        android:textSize="15sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tvPermAccStatus"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="状态：未开启"
-                        android:textColor="@color/blue_glass_icon"
+                        android:text="未激活"
+                        android:textColor="@color/blue_glass_text_dim"
                         android:textSize="12sp" />
                 </LinearLayout>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnPermAcc"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="@dimen/button_height"
+                    android:layout_height="wrap_content"
                     android:text="去开启"
-                    app:cornerRadius="@dimen/button_corner" />
+                    android:textColor="@color/blue_glass_primary"
+                    android:textStyle="bold" />
             </LinearLayout>
 
             <View
                 android:layout_width="match_parent"
-                android:layout_height="10dp" />
+                android:layout_height="1dp"
+                android:background="#F1F5F9"
+                android:layout_marginVertical="16dp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -92,41 +110,51 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/ic_floating_window_24"
+                    app:tint="@color/blue_glass_primary" />
+
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:layout_marginStart="16dp"
                     android:orientation="vertical">
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="悬浮窗（推荐）"
+                        android:text="悬浮窗显示"
                         android:textColor="@color/blue_glass_text"
-                        android:textSize="14sp"
+                        android:textSize="15sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tvPermOverlayStatus"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="状态：未开启"
-                        android:textColor="@color/blue_glass_icon"
+                        android:text="未激活"
+                        android:textColor="@color/blue_glass_text_dim"
                         android:textSize="12sp" />
                 </LinearLayout>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnPermOverlay"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="@dimen/button_height"
+                    android:layout_height="wrap_content"
                     android:text="去设置"
-                    app:cornerRadius="@dimen/button_corner" />
+                    android:textColor="@color/blue_glass_primary"
+                    android:textStyle="bold" />
             </LinearLayout>
 
             <View
                 android:layout_width="match_parent"
-                android:layout_height="10dp" />
+                android:layout_height="1dp"
+                android:background="#F1F5F9"
+                android:layout_marginVertical="16dp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -134,36 +162,44 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/ic_mic_24"
+                    app:tint="@color/blue_glass_primary" />
+
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:layout_marginStart="16dp"
                     android:orientation="vertical">
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="麦克风（语音输入）"
+                        android:text="语音识别支持"
                         android:textColor="@color/blue_glass_text"
-                        android:textSize="14sp"
+                        android:textSize="15sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tvPermMicStatus"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="状态：未授权"
-                        android:textColor="@color/blue_glass_icon"
+                        android:text="未授权"
+                        android:textColor="@color/blue_glass_text_dim"
                         android:textSize="12sp" />
                 </LinearLayout>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnPermMic"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="@dimen/button_height"
+                    android:layout_height="wrap_content"
                     android:text="授权"
-                    app:cornerRadius="@dimen/button_corner" />
+                    android:textColor="@color/blue_glass_primary"
+                    android:textStyle="bold" />
             </LinearLayout>
 
         </LinearLayout>
@@ -173,23 +209,25 @@
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnPermGuide"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/button_height"
-        android:layout_marginTop="@dimen/inner_padding"
-        android:text="一键引导"
-        app:cornerRadius="@dimen/button_corner"
-        app:iconGravity="textStart"
-        app:iconPadding="10dp" />
+        android:layout_height="56dp"
+        android:layout_marginTop="32dp"
+        android:text="一键完成配置"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:backgroundTint="@color/blue_glass_primary"
+        app:cornerRadius="28dp"
+        app:elevation="0dp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnPermDone"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/button_height"
-        android:layout_marginTop="@dimen/inner_padding_small"
-        android:text="稍后再说"
-        app:cornerRadius="@dimen/button_corner"
-        app:backgroundTint="@color/white"
-        app:strokeColor="@color/blue_glass_primary"
-        app:strokeWidth="1dp"
-        android:textColor="@color/blue_glass_primary" />
+        android:layout_height="56dp"
+        android:layout_marginTop="12dp"
+        android:text="了解，先进入应用"
+        android:textColor="@color/blue_glass_text_dim"
+        android:textSize="14sp"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        app:cornerRadius="28dp" />
 
 </LinearLayout>

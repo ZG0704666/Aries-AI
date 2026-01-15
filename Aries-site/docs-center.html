@@ -348,6 +348,191 @@
     html.light #meteor-canvas {
       opacity: 0;
     }
+
+    .doc-prose h1 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .doc-prose h2 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      margin-top: 1.6rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .doc-prose p {
+      line-height: 1.75;
+      margin-top: 0.8rem;
+    }
+
+    .doc-prose ul {
+      margin-top: 0.6rem;
+      padding-left: 1.25rem;
+      list-style: disc;
+    }
+
+    .doc-prose li {
+      margin-top: 0.35rem;
+      line-height: 1.7;
+    }
+
+    .doc-prose code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.92em;
+      padding: 0.15rem 0.35rem;
+      border-radius: 0.4rem;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+
+    html.light .doc-prose code {
+      background: rgba(15,23,42,0.05);
+      border: 1px solid rgba(15,23,42,0.08);
+    }
+
+    .img-slot {
+      border-radius: 14px;
+      border: 1px dashed rgba(255,255,255,0.20);
+      background: rgba(255,255,255,0.06);
+      transition: transform .18s ease, border-color .18s ease, background-color .18s ease;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    html.light .img-slot {
+      border: 1px dashed rgba(15,23,42,0.18);
+      background: rgba(15,23,42,0.03);
+    }
+
+    .img-slot:hover {
+      transform: translateY(-1px);
+      border-color: rgba(96,165,250,0.45);
+      background: rgba(96,165,250,0.08);
+    }
+
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .lightbox.show {
+      display: flex;
+    }
+
+    .lightbox .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .lightbox .panel {
+      position: relative;
+      max-width: min(980px, 96vw);
+      max-height: 92vh;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 30px 90px rgba(0,0,0,0.70);
+    }
+
+    html.light .lightbox .panel {
+      border: 1px solid rgba(15,23,42,0.10);
+      box-shadow: 0 26px 80px rgba(15,23,42,0.18);
+    }
+
+    .lightbox img {
+      display: block;
+      max-width: 100%;
+      max-height: 92vh;
+      background: rgba(0,0,0,0.25);
+    }
+
+    .lightbox .close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 40px;
+      height: 40px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.14);
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal-overlay .backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.62);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .download-panel {
+      position: relative;
+      width: min(920px, 96vw);
+      max-height: 90vh;
+      overflow: auto;
+      border-radius: 20px;
+      padding: 22px;
+    }
+
+    .download-option {
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      transition: transform .18s ease, border-color .18s ease, background-color .18s ease;
+    }
+
+    html.light .download-option {
+      border: 1px solid rgba(15,23,42,0.10);
+      background: rgba(255,255,255,0.64);
+    }
+
+    .download-option:hover {
+      transform: translateY(-2px);
+      border-color: rgba(96,165,250,0.35);
+      background: rgba(96,165,250,0.10);
+    }
+
+    .download-close {
+      width: 44px;
+      height: 44px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.14);
+      color: #fff;
+      font-weight: 900;
+    }
   </style>
 </head>
 
@@ -364,6 +549,19 @@
         </div>
 
         <div class="flex items-center gap-3">
+          <button id="lang-toggle" class="capsule px-5 py-2 text-sm font-semibold transition" type="button" aria-label="切换语言">
+            <span class="relative z-10 inline-flex items-center gap-2">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M2 12h20" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+              <span id="lang-label">CN</span>
+            </span>
+          </button>
+          <a id="btn-download-latest" class="capsule px-5 py-2 text-sm font-semibold transition" href="https://github.com/ZG0704666/Aries-AI/releases" target="_blank" rel="noreferrer">
+            <span class="relative z-10">下载最新版</span>
+          </a>
           <button class="capsule px-5 py-2 text-sm font-semibold transition" onclick="toggleTheme()">
             <span id="theme-label" class="relative z-10">切换日/夜</span>
           </button>
@@ -376,102 +574,12 @@
       <div class="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-5" style="height: calc(100vh - 96px);">
         <aside class="lg:col-span-3 glass p-4 relative" style="z-index: 1;">
           <div class="text-sm font-semibold dark:text-slate-200 text-slate-800 mb-3">文档导航</div>
-          <nav class="space-y-1 text-sm">
-            <a class="nav-item block px-3 py-2 dark:text-slate-200 text-slate-700" href="#quick">快速使用</a>
-            <a class="nav-item block px-3 py-2 dark:text-slate-200 text-slate-700" href="#setup">基础配置</a>
-            <a class="nav-item block px-3 py-2 dark:text-slate-200 text-slate-700" href="#automation">自动化能力</a>
-            <a class="nav-item block px-3 py-2 dark:text-slate-200 text-slate-700" href="#faq">常见问题</a>
-            <div class="mt-4 pt-4 border-t dark:border-white/10 border-black/10">
-              <div class="text-xs dark:text-slate-400 text-slate-500 mb-2">外部链接</div>
-              <a class="nav-item block px-3 py-2 dark:text-slate-200 text-slate-700" href="https://github.com/ZG0704666/Phone-Agent-project" target="_blank" rel="noreferrer">GitHub</a>
-            </div>
-          </nav>
+          <nav id="doc-nav" class="space-y-4 text-sm"></nav>
         </aside>
 
         <main class="lg:col-span-9 relative" style="z-index: 3;">
           <div class="glass p-8 sm:p-10 rounded-2xl h-full flex flex-col">
-            <div class="text-center">
-              <div class="text-3xl sm:text-4xl font-extrabold tracking-tight">欢迎来到 Aries AI 文档中心</div>
-              <div class="mt-4 text-sm sm:text-base dark:text-slate-300 text-slate-600 leading-relaxed max-w-4xl mx-auto">
-                Aries AI 是一款智能手机 Agent 助手：支持多模态屏幕理解、离线语音与自动化执行。
-                你可以在此快速找到使用指南、配置说明与自动化能力介绍。
-              </div>
-            </div>
-
-            <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              <a id="quick" class="doc-card p-5" href="#">
-                <div class="shine"></div>
-                <div class="flex items-start gap-4">
-                  <div class="doc-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-sky-400"><path d="M12 2v20"/><path d="M2 12h20"/></svg>
-                  </div>
-                  <div>
-                    <div class="text-sm font-semibold">快速使用</div>
-                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">一步步带你跑通 Aries 的基本使用流程。</div>
-                  </div>
-                </div>
-              </a>
-              <a id="setup" class="doc-card p-5" href="#">
-                <div class="shine"></div>
-                <div class="flex items-start gap-4">
-                  <div class="doc-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-cyan-400"><path d="M12 1v22"/><path d="M5 5h14"/><path d="M5 19h14"/></svg>
-                  </div>
-                  <div>
-                    <div class="text-sm font-semibold">基础配置</div>
-                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">权限、语音、模型与更新等配置说明。</div>
-                  </div>
-                </div>
-              </a>
-              <a id="automation" class="doc-card p-5" href="#">
-                <div class="shine"></div>
-                <div class="flex items-start gap-4">
-                  <div class="doc-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-violet-400"><path d="M12 2l4 8-4 12-4-12 4-8z"/></svg>
-                  </div>
-                  <div>
-                    <div class="text-sm font-semibold">自动化能力</div>
-                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">对话驱动的点击/输入/滑动与可靠性策略。</div>
-                  </div>
-                </div>
-              </a>
-              <a class="doc-card p-5" href="#">
-                <div class="shine"></div>
-                <div class="flex items-start gap-4">
-                  <div class="doc-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><path d="M21 16V8"/><path d="M17 12H7"/><path d="M3 16V8"/></svg>
-                  </div>
-                  <div>
-                    <div class="text-sm font-semibold">接口与扩展</div>
-                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">未来开放的能力与可扩展点（占位）。</div>
-                  </div>
-                </div>
-              </a>
-              <a id="faq" class="doc-card p-5" href="#">
-                <div class="shine"></div>
-                <div class="flex items-start gap-4">
-                  <div class="doc-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-400"><path d="M12 18h.01"/><path d="M9.09 9a3 3 0 1 1 5.82 1c-.7 1.2-2.91 1.2-2.91 3"/><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0"/></svg>
-                  </div>
-                  <div>
-                    <div class="text-sm font-semibold">常见问题</div>
-                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">安装、权限、稳定性与常见故障排查。</div>
-                  </div>
-                </div>
-              </a>
-              <a class="doc-card p-5" href="#">
-                <div class="shine"></div>
-                <div class="flex items-start gap-4">
-                  <div class="doc-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fuchsia-400"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v7h-7"/></svg>
-                  </div>
-                  <div>
-                    <div class="text-sm font-semibold">版本与更新</div>
-                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">版本变更记录与更新策略（占位）。</div>
-                  </div>
-                </div>
-              </a>
-            </div>
+            <div id="doc-content" class="flex-1 overflow-y-auto pr-1"></div>
             <div class="mt-8 pt-7 border-t border-white/10">
               <div class="text-center">
                 <div class="text-xl font-extrabold mb-4">联系我们</div>
@@ -774,6 +882,452 @@
       }
 
       requestAnimationFrame(step);
+    })();
+  </script>
+
+  <div id="lightbox" class="lightbox" aria-hidden="true">
+    <div class="overlay"></div>
+    <div class="panel glass">
+      <button id="lightbox-close" class="close" type="button" aria-label="关闭">✕</button>
+      <img id="lightbox-img" alt="" />
+    </div>
+  </div>
+
+  <div id="download-modal" class="modal-overlay" aria-hidden="true">
+    <div class="backdrop"></div>
+    <div class="download-panel glass">
+      <div class="flex items-start gap-4 pr-14">
+        <div class="w-14 h-14 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center font-extrabold">A</div>
+        <div class="flex-1">
+          <div class="text-xs uppercase tracking-[0.2em] text-sky-300 mb-1">ARIES AI</div>
+          <div class="text-2xl sm:text-3xl font-extrabold">获取安装包</div>
+        </div>
+        <button id="download-modal-close" class="download-close absolute top-5 right-5" type="button" aria-label="关闭">✕</button>
+      </div>
+
+      <div class="mt-6 grid grid-cols-1 gap-4">
+        <a id="download-github-link" class="download-option p-6 block" href="#" target="_blank" rel="noopener noreferrer">
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <div class="text-lg font-bold">官方直连</div>
+              <div class="mt-1 text-sm dark:text-slate-300 text-slate-600">GitHub Releases 原始链接</div>
+            </div>
+            <div class="text-sky-300 font-bold">官方</div>
+          </div>
+        </a>
+
+        <a id="download-mirror-ghfast" class="download-option p-6 block" href="#" target="_blank" rel="noopener noreferrer">
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <div class="text-lg font-bold">镜像加速 1</div>
+              <div class="mt-1 text-sm dark:text-slate-300 text-slate-600">ghfast.top 加速</div>
+            </div>
+            <div class="text-amber-300 font-bold">推荐</div>
+          </div>
+        </a>
+
+        <a id="download-mirror-gitmirror" class="download-option p-6 block" href="#" target="_blank" rel="noopener noreferrer">
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <div class="text-lg font-bold">镜像加速 2</div>
+              <div class="mt-1 text-sm dark:text-slate-300 text-slate-600">hub.gitmirror.com 加速</div>
+            </div>
+            <div class="text-cyan-300 font-bold">备用</div>
+          </div>
+        </a>
+      </div>
+
+      <div class="mt-6 pt-5 border-t dark:border-white/10 border-black/10 text-sm dark:text-slate-300 text-slate-600">
+        下载提示：如点击无响应，请右键“复制链接”在新标签页打开，或加 QQ 群：<span class="text-sky-300 font-bold">746434973</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function initDocsCenter() {
+      const contentEl = document.getElementById('doc-content');
+      const navEl = document.getElementById('doc-nav');
+      const langBtn = document.getElementById('lang-toggle');
+      const langLabel = document.getElementById('lang-label');
+      const downloadBtn = document.getElementById('btn-download-latest');
+      const lightbox = document.getElementById('lightbox');
+      const lightboxImg = document.getElementById('lightbox-img');
+      const lightboxClose = document.getElementById('lightbox-close');
+
+      if (!contentEl || !navEl) return;
+
+      const GITHUB_RELEASES_PAGE_URL = 'https://github.com/ZG0704666/Aries-AI/releases';
+      const GITHUB_LATEST_RELEASE_API = 'https://api.github.com/repos/ZG0704666/Aries-AI/releases/latest';
+      const FIXED_APK_URL = 'https://github.com/ZG0704666/Aries-AI/releases/download/v1.0.1/app-release.apk';
+
+      const downloadModal = document.getElementById('download-modal');
+      const downloadClose = document.getElementById('download-modal-close');
+      const downloadBackdrop = downloadModal ? downloadModal.querySelector('.backdrop') : null;
+      const mirrorGhFast = document.getElementById('download-mirror-ghfast');
+      const mirrorGitMirror = document.getElementById('download-mirror-gitmirror');
+      const ghLink = document.getElementById('download-github-link');
+
+      let resolvedAssetUrl = '';
+
+      function showDownloadModal() {
+        if (!downloadModal) return;
+        downloadModal.classList.add('show');
+        downloadModal.setAttribute('aria-hidden', 'false');
+      }
+
+      function hideDownloadModal() {
+        if (!downloadModal) return;
+        downloadModal.classList.remove('show');
+        downloadModal.setAttribute('aria-hidden', 'true');
+      }
+
+      function openDownloadInNewTab(url) {
+        window.open(url, '_blank', 'noopener');
+      }
+
+      function toGhFast(url) {
+        return 'https://ghfast.top/' + url;
+      }
+
+      function toGitMirror(url) {
+        return url.replace('https://github.com/', 'https://hub.gitmirror.com/');
+      }
+
+      function getResolvedAssetUrl() {
+        return resolvedAssetUrl || FIXED_APK_URL;
+      }
+
+      function setHref(el, url) {
+        if (!el) return;
+        el.href = url || GITHUB_RELEASES_PAGE_URL;
+      }
+
+      function refreshDownloadHrefs() {
+        const u = getResolvedAssetUrl();
+        setHref(mirrorGhFast, u ? toGhFast(u) : '');
+        setHref(mirrorGitMirror, u ? toGitMirror(u) : '');
+        setHref(ghLink, u || GITHUB_RELEASES_PAGE_URL);
+      }
+
+      function bindOpenLink(el, getUrl) {
+        if (!el) return;
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
+          const url = getUrl();
+          openDownloadInNewTab(url || GITHUB_RELEASES_PAGE_URL);
+        });
+      }
+
+      async function resolveLatestReleaseApkUrl() {
+        try {
+          const res = await fetch(GITHUB_LATEST_RELEASE_API, {
+            headers: { 'Accept': 'application/vnd.github+json' },
+          });
+          if (!res.ok) return '';
+          const data = await res.json();
+          const assets = Array.isArray(data && data.assets) ? data.assets : [];
+          const apk = assets.find(a => typeof a?.name === 'string' && a.name.toLowerCase().endsWith('.apk'))
+            || assets.find(a => typeof a?.browser_download_url === 'string' && a.browser_download_url.toLowerCase().endsWith('.apk'));
+          const url = apk && typeof apk.browser_download_url === 'string' ? apk.browser_download_url : '';
+          return url;
+        } catch (_) {
+          return '';
+        }
+      }
+
+      refreshDownloadHrefs();
+      resolveLatestReleaseApkUrl().then((url) => {
+        resolvedAssetUrl = url || FIXED_APK_URL;
+        refreshDownloadHrefs();
+      });
+
+      if (downloadBtn) {
+        downloadBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          showDownloadModal();
+        });
+      }
+      if (downloadClose) downloadClose.addEventListener('click', hideDownloadModal);
+      if (downloadBackdrop) downloadBackdrop.addEventListener('click', hideDownloadModal);
+
+      bindOpenLink(mirrorGhFast, () => toGhFast(getResolvedAssetUrl()));
+      bindOpenLink(mirrorGitMirror, () => toGitMirror(getResolvedAssetUrl()));
+      bindOpenLink(ghLink, () => getResolvedAssetUrl() || GITHUB_RELEASES_PAGE_URL);
+
+      let lang = localStorage.getItem('docs_lang') || 'CN';
+      function setLang(next) {
+        lang = next;
+        localStorage.setItem('docs_lang', lang);
+        if (langLabel) langLabel.textContent = lang;
+        render();
+      }
+      if (langBtn) langBtn.addEventListener('click', () => setLang(lang === 'CN' ? 'EN' : 'CN'));
+      if (langLabel) langLabel.textContent = lang;
+
+      function escapeHtml(str) {
+        return String(str)
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#039;');
+      }
+
+      function openLightbox(src, alt) {
+        if (!lightbox || !lightboxImg) return;
+        lightboxImg.src = src;
+        lightboxImg.alt = alt || '';
+        lightbox.classList.add('show');
+        lightbox.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeLightbox() {
+        if (!lightbox || !lightboxImg) return;
+        lightbox.classList.remove('show');
+        lightbox.setAttribute('aria-hidden', 'true');
+        lightboxImg.src = '';
+        lightboxImg.alt = '';
+      }
+
+      if (lightbox) {
+        lightbox.addEventListener('click', (e) => {
+          const t = e.target;
+          if (t && t.classList && t.classList.contains('overlay')) closeLightbox();
+        });
+      }
+      if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeLightbox();
+        if (e.key === 'Escape') hideDownloadModal();
+      });
+
+      const IMG_MAP = {
+        'quick-5min': { download: '', accessibility: '', overlay: '' },
+        'automation-permissions': { accessibility: '', screenshot: '', overlay: '' },
+      };
+
+      function imgSlot(pageId, key, title) {
+        const src = (IMG_MAP[pageId] && IMG_MAP[pageId][key]) ? IMG_MAP[pageId][key] : '';
+        const label = title || ('图片占位：' + key);
+        if (!src) {
+          return `
+            <div class="img-slot px-4 py-4 mt-3" data-img-src="">
+              <div class="text-sm font-semibold">${escapeHtml(label)}</div>
+              <div class="mt-1 text-xs dark:text-slate-400 text-slate-600">点击占位块（后续替换为你上传的截图，并支持点击放大）</div>
+            </div>
+          `;
+        }
+        return `
+          <div class="img-slot p-3 mt-3" data-img-src="${escapeHtml(src)}" data-img-alt="${escapeHtml(label)}">
+            <div class="text-xs dark:text-slate-300 text-slate-600 mb-2">${escapeHtml(label)}（点击查看大图）</div>
+            <img src="${escapeHtml(src)}" alt="${escapeHtml(label)}" class="w-full rounded-xl" />
+          </div>
+        `;
+      }
+
+      const NAV = [
+        {
+          title: { CN: '欢迎', EN: 'Welcome' },
+          items: [{ id: 'home', title: { CN: '文档中心首页', EN: 'Home' } }]
+        },
+        {
+          title: { CN: '快速使用', EN: 'Quick Use' },
+          items: [
+            { id: 'quick-5min', title: { CN: '快速上手（5 分钟）', EN: 'Quick Start (5 min)' } },
+            { id: 'ui-buttons', title: { CN: '界面与按钮说明', EN: 'UI & Controls' } },
+          ]
+        },
+        {
+          title: { CN: '模型与配置', EN: 'Model & Config' },
+          items: [
+            { id: 'model-key', title: { CN: '模型与 Key 配置', EN: 'Model & API Key' } },
+          ]
+        },
+        {
+          title: { CN: '自动化操作', EN: 'Automation' },
+          items: [
+            { id: 'automation-permissions', title: { CN: '自动化能力与权限', EN: 'Automation & Permissions' } },
+            { id: 'automation-accessibility', title: { CN: '无障碍开启指南（占位）', EN: 'Accessibility Guide (placeholder)' } },
+          ]
+        },
+        {
+          title: { CN: '开发与贡献', EN: 'Dev' },
+          items: [
+            { id: 'dev-contribute', title: { CN: '开发 / 贡献', EN: 'Dev / Contribute' } },
+          ]
+        },
+        {
+          title: { CN: '常见问题', EN: 'FAQ' },
+          items: [{ id: 'faq', title: { CN: '常见问题（占位）', EN: 'FAQ (placeholder)' } }]
+        },
+      ];
+
+      function buildNav() {
+        navEl.innerHTML = NAV.map(group => {
+          const title = lang === 'CN' ? group.title.CN : group.title.EN;
+          const links = group.items.map(it => {
+            const itTitle = lang === 'CN' ? it.title.CN : it.title.EN;
+            return `<a class="nav-item block px-3 py-2 dark:text-slate-200 text-slate-700" href="#/${escapeHtml(it.id)}">${escapeHtml(itTitle)}</a>`;
+          }).join('');
+          return `
+            <div>
+              <div class="text-xs dark:text-slate-400 text-slate-500 mb-2">${escapeHtml(title)}</div>
+              <div class="space-y-1">${links}</div>
+            </div>
+          `;
+        }).join('') + `
+          <div class="pt-4 border-t dark:border-white/10 border-black/10">
+            <div class="text-xs dark:text-slate-400 text-slate-500 mb-2">${lang === 'CN' ? '外部链接' : 'Links'}</div>
+            <a class="nav-item block px-3 py-2 dark:text-slate-200 text-slate-700" href="https://github.com/ZG0704666/Aries-AI" target="_blank" rel="noreferrer">GitHub</a>
+            <a class="nav-item block px-3 py-2 dark:text-slate-200 text-slate-700" href="${escapeHtml(GITHUB_RELEASES_PAGE_URL)}" target="_blank" rel="noreferrer">Releases</a>
+          </div>
+        `;
+      }
+
+      const PAGES = {
+        home: () => {
+          return `
+            <div class="doc-prose">
+              <div class="text-center">
+                <div class="text-3xl sm:text-4xl font-extrabold tracking-tight">${lang === 'CN' ? '欢迎来到 Aries AI 文档中心' : 'Welcome to Aries AI Docs'}</div>
+                <div class="mt-4 text-sm sm:text-base dark:text-slate-300 text-slate-600 leading-relaxed max-w-4xl mx-auto">
+                  ${lang === 'CN'
+                    ? 'Aries AI 是一款“手机上的智能执行助手（Phone Agent）”：你用自然语言下达目标，它能在真实 App 里理解界面并自动完成点击、输入、滑动等操作。'
+                    : 'Aries AI is a mobile Phone Agent that understands UI and executes real app interactions from natural language goals.'}
+                </div>
+              </div>
+              <h2>${lang === 'CN' ? '三步上手' : 'Get started in 3 steps'}</h2>
+              <ol class="mt-3 space-y-2" style="list-style: decimal; padding-left: 1.25rem;">
+                <li>${lang === 'CN' ? '安装：下载并安装最新 APK。' : 'Install: download and install the latest APK.'}</li>
+                <li>${lang === 'CN' ? '授权：开启无障碍（必须），悬浮窗（推荐），截图（按需）。' : 'Permissions: accessibility (required), overlay (recommended), screenshots (optional).'}</li>
+                <li>${lang === 'CN' ? '第一次任务：输入一句话任务并观察悬浮窗日志。' : 'First task: run a one-sentence task and watch overlay logs.'}</li>
+              </ol>
+              <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <a class="doc-card p-5" href="#/ui-buttons"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '界面与按钮说明' : 'UI & Controls'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '认识悬浮窗、日志与控制按钮。' : 'Learn overlay, logs and controls.'}</div></a>
+                <a class="doc-card p-5" href="#/quick-5min"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '快速上手（5 分钟）' : 'Quick Start (5 min)'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '从安装到跑通一个任务。' : 'Install and complete a first task.'}</div></a>
+                <a class="doc-card p-5" href="#/model-key"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '模型与 Key 配置' : 'Model & API Key'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '配置模型服务与 Key。' : 'Configure provider and key.'}</div></a>
+                <a class="doc-card p-5" href="#/automation-permissions"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '自动化能力与权限' : 'Automation & Permissions'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '无障碍/截图/悬浮窗说明。' : 'Accessibility/screenshots/overlay.'}</div></a>
+                <a class="doc-card p-5" href="#/faq"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '常见问题' : 'FAQ'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '先预留展位，后续补齐。' : 'Placeholder for troubleshooting.'}</div></a>
+                <a class="doc-card p-5" href="#/dev-contribute"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '开发 / 贡献' : 'Dev / Contribute'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '编译、结构、贡献流程。' : 'Build, structure, contribute.'}</div></a>
+              </div>
+            </div>
+          `;
+        },
+        'quick-5min': () => {
+          return `
+            <div class="doc-prose">
+              <h1>${lang === 'CN' ? '快速上手（5 分钟）' : 'Quick Start (5 min)'}</h1>
+              <p>${lang === 'CN' ? '目标：从安装到完成第一次任务，并学会看日志与重试。' : 'Goal: install, run first task, learn logs & retry.'}</p>
+              <h2>${lang === 'CN' ? 'Step 1：安装' : 'Step 1: Install'}</h2>
+              <ul><li>${lang === 'CN' ? '使用顶栏“下载最新版”。网络不稳时可多试几次。' : 'Use “Download Latest” in the top bar. Retry if network is unstable.'}</li></ul>
+              ${imgSlot('quick-5min', 'download', lang === 'CN' ? '下载入口截图（待补充）' : 'Download entry (placeholder)')}
+              <h2>${lang === 'CN' ? 'Step 2：授权' : 'Step 2: Permissions'}</h2>
+              <ul>
+                <li>${lang === 'CN' ? '开启无障碍（必须）。' : 'Enable accessibility (required).'}</li>
+                <li>${lang === 'CN' ? '允许悬浮窗（推荐）。' : 'Allow overlay (recommended).'}</li>
+              </ul>
+              ${imgSlot('quick-5min', 'accessibility', lang === 'CN' ? '无障碍开启截图（待补充）' : 'Accessibility enable (placeholder)')}
+              <h2>${lang === 'CN' ? 'Step 3：第一次任务' : 'Step 3: First task'}</h2>
+              <ul>
+                <li>${lang === 'CN' ? '“打开淘宝，搜索蓝牙耳机，按销量从高到低排序。”' : '“Open Taobao, search Bluetooth earphones, sort by sales desc.”'}</li>
+                <li>${lang === 'CN' ? '“打开美团，帮我订明天中午 4 人火锅店座位。”' : '“Open Meituan, book a hotpot table for 4 tomorrow noon.”'}</li>
+              </ul>
+            </div>
+          `;
+        },
+        'ui-buttons': () => {
+          return `
+            <div class="doc-prose">
+              <h1>${lang === 'CN' ? '界面与按钮说明' : 'UI & Controls'}</h1>
+              <p>${lang === 'CN' ? '本页帮助你快速认识 Aries AI 的关键界面：悬浮窗、日志、暂停/继续/停止等。' : 'Key UI elements: overlay, logs, pause/resume/stop.'}</p>
+              ${imgSlot('quick-5min', 'overlay', lang === 'CN' ? '悬浮窗示意图（待补充）' : 'Overlay (placeholder)')}
+              <h2>${lang === 'CN' ? '日志怎么看？' : 'How to read logs?'}</h2>
+              <ul>
+                <li>${lang === 'CN' ? '权限缺失：提示开启无障碍/悬浮窗/截图。' : 'Missing permissions: asks to enable accessibility/overlay/screenshot.'}</li>
+                <li>${lang === 'CN' ? '页面变化：控件找不到，建议回到正确页面后重试。' : 'UI changed: element not found; navigate back and retry.'}</li>
+              </ul>
+            </div>
+          `;
+        },
+        'model-key': () => {
+          return `
+            <div class="doc-prose">
+              <h1>${lang === 'CN' ? '模型与 Key 配置' : 'Model & API Key'}</h1>
+              <p>${lang === 'CN' ? '在此页面补充：支持的模型服务、Key 填写位置、网络要求与常见报错。' : 'Placeholder: providers, where to set key, network requirements, common errors.'}</p>
+            </div>
+          `;
+        },
+        'automation-permissions': () => {
+          return `
+            <div class="doc-prose">
+              <h1>${lang === 'CN' ? '自动化能力与权限' : 'Automation & Permissions'}</h1>
+              <p>${lang === 'CN' ? '说明三类关键权限：无障碍（必须）、悬浮窗（推荐）、截图（按需）。后续可补不同机型路径截图。' : 'Explain accessibility (required), overlay (recommended), screenshots (optional).'}
+              </p>
+              ${imgSlot('automation-permissions', 'accessibility', lang === 'CN' ? '无障碍开启路径（待补充）' : 'Accessibility path (placeholder)')}
+              ${imgSlot('automation-permissions', 'screenshot', lang === 'CN' ? '截图权限路径（待补充）' : 'Screenshot permission (placeholder)')}
+            </div>
+          `;
+        },
+        'automation-accessibility': () => {
+          return `
+            <div class="doc-prose">
+              <h1>${lang === 'CN' ? '无障碍开启指南（占位）' : 'Accessibility Guide (placeholder)'}</h1>
+              <p>${lang === 'CN' ? '后续按手机厂商补齐：小米/华为/OPPO/VIVO/三星等。' : 'To be completed per OEM: Xiaomi/Huawei/OPPO/VIVO/Samsung...'}
+              </p>
+            </div>
+          `;
+        },
+        'dev-contribute': () => {
+          return `
+            <div class="doc-prose">
+              <h1>${lang === 'CN' ? '开发 / 贡献' : 'Dev / Contribute'}</h1>
+              <ul>
+                <li>${lang === 'CN' ? '仓库：' : 'Repo: '}
+                  <a class="underline underline-offset-4 text-sky-400 hover:opacity-90" href="https://github.com/ZG0704666/Aries-AI" target="_blank" rel="noreferrer">ZG0704666/Aries-AI</a>
+                </li>
+                <li>${lang === 'CN' ? '建议补充：Windows 编译注意事项、项目结构、PR 规范。' : 'Add: Windows build tips, structure, PR guidelines.'}</li>
+              </ul>
+            </div>
+          `;
+        },
+        faq: () => {
+          return `
+            <div class="doc-prose">
+              <h1>${lang === 'CN' ? '常见问题（占位）' : 'FAQ (placeholder)'}</h1>
+              <p>${lang === 'CN' ? '先留展位，后续你反馈真实问题后我来补齐条目与排查步骤。' : 'Reserved; we will add items based on real user issues.'}</p>
+            </div>
+          `;
+        },
+      };
+
+      function getRoute() {
+        const raw = (location.hash || '').trim();
+        const m = raw.match(/^#\/(.+)$/);
+        return m && m[1] ? m[1] : 'home';
+      }
+
+      function bindImgSlots() {
+        contentEl.querySelectorAll('[data-img-src]')
+          .forEach((el) => {
+            el.addEventListener('click', () => {
+              const src = el.getAttribute('data-img-src') || '';
+              const alt = el.getAttribute('data-img-alt') || '';
+              if (!src) return;
+              openLightbox(src, alt);
+            });
+          });
+      }
+
+      function render() {
+        buildNav();
+        const route = getRoute();
+        const page = PAGES[route] || PAGES.home;
+        contentEl.innerHTML = page();
+        bindImgSlots();
+      }
+
+      window.addEventListener('hashchange', render);
+      render();
     })();
   </script>
 </body>
