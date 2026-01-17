@@ -110,6 +110,20 @@ class UiAutomationAgent(
         }
     }
 
+    private fun getActionDelayMs(actionName: String): Long {
+        val normalized = actionName.replace(" ", "").lowercase()
+        return when (normalized) {
+            "launch", "open_app", "start_app" -> 1050L
+            "type", "input", "text", "type_name" -> 260L
+            "tap", "click", "press", "doubletap", "double_tap", "longpress", "long_press" -> 320L
+            "swipe", "scroll" -> 420L
+            "back" -> 220L
+            "home" -> 420L
+            "wait" -> 650L
+            else -> 240L
+        }
+    }
+
     private fun extractFirstActionSnippet(text: String): String? {
         val trimmed = text.trim()
         if (trimmed.startsWith("do") || trimmed.startsWith("finish")) return trimmed
@@ -798,14 +812,7 @@ do(action="Tap", element=[x,y])
                 }
             }
 
-            val extraDelayMs =
-                    when (actionName.replace(" ", "").lowercase()) {
-                        "launch", "open_app", "start_app" -> 1050L
-                        "type", "input", "text" -> 260L
-                        "tap", "click", "press", "doubletap", "double_tap" -> 320L
-                        "swipe", "scroll" -> 420L
-                        else -> 240L
-                    }
+            val extraDelayMs = getActionDelayMs(actionName)
 
             AutomationOverlay.updateProgress(
                     step = step,
