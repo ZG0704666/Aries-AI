@@ -29,8 +29,8 @@ android {
         applicationId = "com.ai.phoneagent"
         minSdk = 30
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1.0"
 
         buildConfigField("String", "GITHUB_TOKEN", "\"\"")
 

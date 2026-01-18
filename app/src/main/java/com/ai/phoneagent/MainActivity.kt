@@ -156,6 +156,11 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var suppressApiInputWatcher: Boolean = false
     @Volatile private var apiNeedsRecheckToastShown: Boolean = false
 
+    private fun normalizeTag(tag: String): String {
+        val t = tag.trim()
+        return if (t.startsWith("v", ignoreCase = true)) t.substring(1) else t
+    }
+
     private fun persistConversations() {
         try {
             val json = com.google.gson.Gson().toJson(conversations)
@@ -237,7 +242,7 @@ class MainActivity : AppCompatActivity() {
         // 1) 先用缓存快速提示（不依赖网络）
         val cached = UpdateStore.loadLatest(this)
         if (cached != null) {
-            val newerCached = VersionComparator.compare(cached.version, currentVersion) > 0
+            val newerCached = VersionComparator.compare(normalizeTag(cached.versionTag), currentVersion) > 0
             if (newerCached && UpdateStore.shouldNotify(this, cached.versionTag)) {
                 // 不再直接弹出大的更新界面，改为只发送通知
                 val posted = UpdateNotificationUtil.notifyNewVersion(this, cached)
@@ -265,10 +270,10 @@ class MainActivity : AppCompatActivity() {
             result
                 .onSuccess { latest ->
                     if (latest == null) return@onSuccess
-                    val newer = VersionComparator.compare(latest.version, currentVersion) > 0
-                    if (!newer) return@onSuccess
-
                     UpdateStore.saveLatest(this@MainActivity, latest)
+
+                    val newer = VersionComparator.compare(normalizeTag(latest.versionTag), currentVersion) > 0
+                    if (!newer) return@onSuccess
 
                     if (!UpdateStore.shouldNotify(this@MainActivity, latest.versionTag)) return@onSuccess
 

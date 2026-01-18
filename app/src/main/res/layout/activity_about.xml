@@ -117,10 +117,11 @@
 
                     <!-- 版本号 -->
                     <TextView
+                        android:id="@+id/tvAppVersion"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:text="v1.0.0 首发版 Alpha"
+                        android:text=""
                         android:textColor="@color/blue_glass_icon"
                         android:textSize="13sp" />
 

@@ -958,7 +958,7 @@
 
       const GITHUB_RELEASES_PAGE_URL = 'https://github.com/ZG0704666/Aries-AI/releases';
       const GITHUB_LATEST_RELEASE_API = 'https://api.github.com/repos/ZG0704666/Aries-AI/releases/latest';
-      const FIXED_APK_URL = 'https://github.com/ZG0704666/Aries-AI/releases/download/V1.0.0/app-release.apk';
+      const FIXED_APK_URL = 'https://github.com/ZG0704666/Aries-AI/releases/download/V1.1.0/app-release.apk';
 
       const downloadModal = document.getElementById('download-modal');
       const downloadClose = document.getElementById('download-modal-close');
@@ -1189,17 +1189,125 @@
           return `
             <div class="doc-prose">
               <div class="text-center">
-                <div class="text-3xl sm:text-4xl font-extrabold tracking-tight">${lang === 'CN' ? '欢迎来到 Aries AI 文档中心' : 'Welcome to Aries AI Docs'}</div>
-                <div class="mt-4 text-sm sm:text-base dark:text-slate-300 text-slate-600 leading-relaxed max-w-4xl mx-auto">
-                  ${lang === 'CN'
-                    ? 'Aries AI 是一款“手机上的智能执行助手（Phone Agent）”：你用自然语言下达目标，它能在真实 App 里理解界面并自动完成点击、输入、滑动等操作。'
-                    : 'Aries AI is a mobile Phone Agent that understands UI and executes real app interactions from natural language goals.'}
+                <div class="text-3xl sm:text-4xl font-extrabold tracking-tight">Aries AI 文档中心</div>
+                <div class="mt-3 text-sm sm:text-base dark:text-slate-300 text-slate-600">快速上手、权限说明、模型配置与常见问题</div>
+              </div>
+
+              <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="doc-card glass p-6 lg:col-span-2">
+                  <div class="flex items-start gap-4">
+                    <div class="doc-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dark:text-sky-200 text-sky-700">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                      </svg>
+                    </div>
+                    <div class="flex-1 text-left">
+                      <div class="text-xs uppercase tracking-[0.22em] text-sky-300">V1.1.0 版本更新</div>
+                      <div class="mt-1 text-xl font-extrabold">动态规划算法加速</div>
+                      <div class="mt-2 text-sm dark:text-slate-300 text-slate-600">
+                        引入动态规划（Dynamic Programming）策略，对关键路径做更优的步骤规划与复用，大幅提升模型处理速度与交互节奏。
+                      </div>
+                      <div class="mt-4 flex flex-wrap gap-2">
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-white/10 border border-white/10">更快的响应</span>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-white/10 border border-white/10">更少的等待</span>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-white/10 border border-white/10">更稳的执行</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="doc-card glass p-6">
+                  <div class="text-left">
+                    <div class="text-xs uppercase tracking-[0.22em] text-amber-300">立即体验</div>
+                    <div class="mt-1 text-xl font-extrabold">下载 V1.1.0</div>
+                    <div class="mt-2 text-sm dark:text-slate-300 text-slate-600">推荐从弹窗中选择镜像源下载，速度更快。</div>
+                    <button class="mt-4 capsule px-5 py-2 text-sm font-semibold transition" onclick="document.getElementById('btn-download-latest')?.click()">
+                      <span class="relative z-10">打开下载面板</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <h2>${lang === 'CN' ? '三步上手' : 'Get started in 3 steps'}</h2>
-              <ol class="mt-3 space-y-2" style="list-style: decimal; padding-left: 1.25rem;">
-                <li>${lang === 'CN' ? '安装：下载并安装最新 APK。' : 'Install: download and install the latest APK.'}</li>
-                <li>${lang === 'CN' ? '授权：开启无障碍（必须），悬浮窗（推荐），截图（按需）。' : 'Permissions: accessibility (required), overlay (recommended), screenshots (optional).'}</li>
+
+              <div class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="doc-card" data-route="#/quick-5min">
+                  <div class="shine"></div>
+                  <div class="flex items-center gap-4">
+                    <div class="doc-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dark:text-sky-200 text-sky-700">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                      </svg>
+                    </div>
+                    <div class="flex-1 text-left">
+                      <div class="text-sm font-semibold">${lang === 'CN' ? '快速上手（5 分钟）' : 'Quick Start (5 min)'}</div>
+                      <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '从安装到跑通一个任务。' : 'Install and complete a first task.'}</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="doc-card" data-route="#/ui-buttons">
+                  <div class="shine"></div>
+                  <div class="flex items-center gap-4">
+                    <div class="doc-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dark:text-sky-200 text-sky-700">
+                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                    </svg>
+                  </div>
+                  <div class="flex-1 text-left">
+                    <div class="text-sm font-semibold">${lang === 'CN' ? '界面与按钮说明' : 'UI & Controls'}</div>
+                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '认识悬浮窗、日志与控制按钮。' : 'Learn overlay, logs and controls.'}</div>
+                  </div>
+                </div>
+                <div class="doc-card" data-route="#/model-key">
+                  <div class="shine"></div>
+                  <div class="flex items-center gap-4">
+                    <div class="doc-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dark:text-sky-200 text-sky-700">
+                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                    </svg>
+                  </div>
+                  <div class="flex-1 text-left">
+                    <div class="text-sm font-semibold">${lang === 'CN' ? '模型与 Key 配置' : 'Model & API Key'}</div>
+                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '配置模型服务与 Key。' : 'Configure provider and key.'}</div>
+                  </div>
+                </div>
+                <div class="doc-card" data-route="#/automation-permissions">
+                  <div class="shine"></div>
+                  <div class="flex items-center gap-4">
+                    <div class="doc-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dark:text-sky-200 text-sky-700">
+                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                    </svg>
+                  </div>
+                  <div class="flex-1 text-left">
+                    <div class="text-sm font-semibold">${lang === 'CN' ? '自动化能力与权限' : 'Automation & Permissions'}</div>
+                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '无障碍/截图/悬浮窗说明。' : 'Accessibility/screenshots/overlay.'}</div>
+                  </div>
+                </div>
+                <div class="doc-card" data-route="#/faq">
+                  <div class="shine"></div>
+                  <div class="flex items-center gap-4">
+                    <div class="doc-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dark:text-sky-200 text-sky-700">
+                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                    </svg>
+                  </div>
+                  <div class="flex-1 text-left">
+                    <div class="text-sm font-semibold">${lang === 'CN' ? '常见问题' : 'FAQ'}</div>
+                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '先预留展位，后续补齐。' : 'Placeholder for troubleshooting.'}</div>
+                  </div>
+                </div>
+                <div class="doc-card" data-route="#/dev-contribute">
+                  <div class="shine"></div>
+                  <div class="flex items-center gap-4">
+                    <div class="doc-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dark:text-sky-200 text-sky-700">
+                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                    </svg>
+                  </div>
+                  <div class="flex-1 text-left">
+                    <div class="text-sm font-semibold">${lang === 'CN' ? '开发 / 贡献' : 'Dev / Contribute'}</div>
+                    <div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '编译、结构、贡献流程。' : 'Build, structure, contribute.'}</div>
+                  </div>
+                </div>
                 <li>${lang === 'CN' ? '第一次任务：输入一句话任务并观察悬浮窗日志。' : 'First task: run a one-sentence task and watch overlay logs.'}</li>
               </ol>
               <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

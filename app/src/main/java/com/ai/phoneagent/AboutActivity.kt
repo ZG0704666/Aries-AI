@@ -60,6 +60,35 @@ class AboutActivity : AppCompatActivity() {
 
     private val releaseRepo = ReleaseRepository()
 
+    private data class InstalledVersion(
+        val versionName: String,
+        val versionCode: Long,
+    )
+
+    private fun getInstalledVersion(): InstalledVersion {
+        return try {
+            val pi = packageManager.getPackageInfo(packageName, 0)
+            val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) pi.longVersionCode else pi.versionCode.toLong()
+            InstalledVersion(versionName = pi.versionName ?: "", versionCode = code)
+        } catch (_: Exception) {
+            InstalledVersion(versionName = "", versionCode = 0)
+        }
+    }
+
+    private fun normalizeTag(tag: String): String {
+        val t = tag.trim()
+        return if (t.startsWith("v", ignoreCase = true)) t.substring(1) else t
+    }
+
+    private fun localReleaseHighlights(): String {
+        val versionName = getInstalledVersion().versionName
+        return if (versionName == "1.1.0") {
+            "\n\nV1.1.0 版本更新说明：\n- 引入动态规划算法，大幅提升模型处理速度！"
+        } else {
+            ""
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAboutBinding.inflate(layoutInflater)
@@ -68,6 +97,11 @@ class AboutActivity : AppCompatActivity() {
         setupEdgeToEdge()
         setupToolbar()
         setupClickListeners()
+
+        // 同步显示当前版本（避免 layout 写死导致版本不一致）
+        val installed = getInstalledVersion()
+        findViewById<TextView>(R.id.tvAppVersion)?.text =
+            if (installed.versionName.isNotBlank()) "v${installed.versionName} (${installed.versionCode})" else ""
 
         // 入场动画
         binding.root.post {
@@ -412,7 +446,7 @@ class AboutActivity : AppCompatActivity() {
     private fun showReleaseDetails(entry: ReleaseEntry) {
         MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
             .setTitle(entry.versionTag)
-            .setMessage(entry.body.ifBlank { "（无更新说明）" })
+            .setMessage((entry.body.ifBlank { "（无更新说明）" }) + localReleaseHighlights())
             .setPositiveButton("打开发布") { _, _ ->
                 ReleaseUiUtil.openUrl(this, entry.releaseUrl)
             }
@@ -466,7 +500,7 @@ class AboutActivity : AppCompatActivity() {
 
         tvTitle.text = "发现新版本 ${entry.versionTag}"
         tvSubtitle.text = "${UpdateConfig.REPO_OWNER}/${UpdateConfig.REPO_NAME}  •  ${UpdateConfig.APK_ASSET_NAME}"
-        tvBody.text = entry.body.ifBlank { "（无更新说明）" }
+        tvBody.text = (entry.body.ifBlank { "（无更新说明）" }) + localReleaseHighlights()
 
         DialogSizingUtil.applyCompactSizing(
             context = this,
@@ -556,12 +590,7 @@ class AboutActivity : AppCompatActivity() {
     }
 
     private fun checkForUpdates(showLinksDialogIfNew: Boolean = false) {
-        val currentVersion =
-            try {
-                packageManager.getPackageInfo(packageName, 0).versionName ?: ""
-            } catch (_: Exception) {
-                ""
-            }
+        val currentVersion = getInstalledVersion().versionName
 
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) { releaseRepo.fetchLatestReleaseResilient(includePrerelease = false) }
@@ -576,7 +605,8 @@ class AboutActivity : AppCompatActivity() {
                         return@onSuccess
                     }
 
-                    val newer = VersionComparator.compare(latest.version, currentVersion) > 0
+                    val latestVersion = normalizeTag(latest.versionTag)
+                    val newer = VersionComparator.compare(latestVersion, currentVersion) > 0
                     if (newer) {
                         UpdateStore.saveLatest(this@AboutActivity, latest)
                         if (showLinksDialogIfNew) {
