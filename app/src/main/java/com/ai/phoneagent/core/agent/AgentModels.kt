@@ -12,8 +12,8 @@ data class AgentConfig(
     val temperature: Float? = 0.0f,              // 温度参数
     val topP: Float? = 0.85f,                    // top_p参数
     val frequencyPenalty: Float? = 0.2f,         // 频率惩罚
-    val maxTokens: Int? = 3000,                  // 最大token数
-    val maxContextTokens: Int = 20000,           // 最大上下文token数
+    val maxTokens: Int? = 4500,                  // 最大token数
+    val maxContextTokens: Int = 24000,           // 最大上下文token数
     val maxUiTreeChars: Int = 3000,              // UI树最大字符数
     val maxHistoryTurns: Int = 6                 // 最多保留对话轮数
 )

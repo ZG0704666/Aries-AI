@@ -54,9 +54,9 @@ class UiAutomationAgent(
             val temperature: Float? = 0.0f,
             val topP: Float? = 0.85f,
             val frequencyPenalty: Float? = 0.2f,
-            val maxTokens: Int? = 3000,
+            val maxTokens: Int? = 4500,
             // 上下文管理参数
-            val maxContextTokens: Int = 20000,  // 留足够余量给输出
+            val maxContextTokens: Int = 24000,  // 留足够余量给输出
             val maxUiTreeChars: Int = 3000,     // 限制UI树大小
             val maxHistoryTurns: Int = 6,       // 最多保留几轮对话
             // 性能优化参数

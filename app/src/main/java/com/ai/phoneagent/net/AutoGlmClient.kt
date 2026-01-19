@@ -104,7 +104,7 @@ object AutoGlmClient {
         private const val DEFAULT_TEMPERATURE = 0.0f
         private const val DEFAULT_TOP_P = 0.85f
         private const val DEFAULT_FREQUENCY_PENALTY = 0.2f
-        private const val DEFAULT_MAX_TOKENS = 3000
+        private const val DEFAULT_MAX_TOKENS = 4500
 
         private val service: AutoGlmService by lazy {
                 Retrofit.Builder()
