@@ -300,3 +300,5 @@ GNU Affero General Public License for more details.
 **如果这个项目对你有帮助，欢迎 ⭐ Star 支持！**
 
 </div>
+## Test PR for Qodo verification
+This is a test PR to verify Qodo Merge configuration is working.
