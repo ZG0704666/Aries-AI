@@ -51,6 +51,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.LinearLayout
 import android.widget.ImageButton
 import android.widget.TextView
+import android.widget.EditText
 import com.ai.phoneagent.helper.StreamRenderHelper
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -98,6 +99,7 @@ import android.view.WindowManager
 import android.graphics.drawable.ColorDrawable
 import android.view.ViewAnimationUtils
 import android.text.Html
+import com.google.android.material.switchmaterial.SwitchMaterial
 
 class MainActivity : AppCompatActivity() {
 
@@ -167,11 +169,21 @@ class MainActivity : AppCompatActivity() {
     private val apiLastCheckKeyPref = "api_last_check_key"
     private val apiLastCheckOkPref = "api_last_check_ok"
     private val apiLastCheckTimePref = "api_last_check_time"
+    private val apiLastCheckSigPref = "api_last_check_sig"
+    private val apiUseThirdPartyPref = "api_use_third_party"
+    private val apiThirdPartyBaseUrlPref = "api_third_party_base_url"
+    private val apiThirdPartyModelPref = "api_third_party_model"
 
     private val permGuideShownPref = "perm_guide_shown"
 
     @Volatile private var suppressApiInputWatcher: Boolean = false
     @Volatile private var apiNeedsRecheckToastShown: Boolean = false
+    private lateinit var apiInput: EditText
+    private lateinit var apiStatus: TextView
+    private lateinit var apiThirdPartySwitch: SwitchMaterial
+    private lateinit var apiThirdPartyContainer: View
+    private lateinit var apiBaseUrlInput: EditText
+    private lateinit var apiModelInput: EditText
 
     private fun persistConversations() {
         try {
@@ -230,9 +242,6 @@ class MainActivity : AppCompatActivity() {
         if (!tryRestoreConversations()) {
             startNewChat(clearUi = true)
         }
-
-        binding.topAppBar.post { attachAnimatedBorderRing(binding.topAppBar, 2f, 18f) }
-        binding.inputContainer.post { attachAnimatedBorderRing(binding.inputContainer, 2f, 20f) }
 
         binding.btnVoice.isEnabled = true
 
@@ -915,9 +924,31 @@ class MainActivity : AppCompatActivity() {
 
         val header = binding.navigationView.getHeaderView(0)
 
-        val apiInput = header.findViewById<android.widget.EditText>(R.id.apiInput)
+        apiInput = header.findViewById<EditText>(R.id.apiInput)
+        apiStatus = header.findViewById<TextView>(R.id.apiStatus)
+        apiThirdPartySwitch = header.findViewById<SwitchMaterial>(R.id.swUseThirdPartyApi)
+        apiThirdPartyContainer = header.findViewById<View>(R.id.apiThirdPartyContainer)
+        apiBaseUrlInput = header.findViewById<EditText>(R.id.apiBaseUrlInput)
+        apiModelInput = header.findViewById<EditText>(R.id.apiModelInput)
 
-        val apiStatus = header.findViewById<TextView>(R.id.apiStatus)
+        apiThirdPartySwitch.isChecked = prefs.getBoolean(apiUseThirdPartyPref, false)
+        apiThirdPartyContainer.visibility =
+                if (apiThirdPartySwitch.isChecked) View.VISIBLE else View.GONE
+        apiThirdPartySwitch.setOnCheckedChangeListener { _, checked ->
+            apiThirdPartyContainer.visibility = if (checked) View.VISIBLE else View.GONE
+            prefs.edit().putBoolean(apiUseThirdPartyPref, checked).apply()
+            prefs.edit()
+                    .remove(apiLastCheckSigPref)
+                    .remove(apiLastCheckKeyPref)
+                    .remove(apiLastCheckOkPref)
+                    .remove(apiLastCheckTimePref)
+                    .apply()
+            apiNeedsRecheckToastShown = false
+            onApiConfigPotentiallyChanged(showNeedsCheckMessage = checked)
+        }
+
+        apiBaseUrlInput.setText(prefs.getString(apiThirdPartyBaseUrlPref, AutoGlmClient.DEFAULT_BASE_URL))
+        apiModelInput.setText(prefs.getString(apiThirdPartyModelPref, AutoGlmClient.DEFAULT_MODEL))
 
         val btnCheck = header.findViewById<android.widget.Button>(R.id.btnCheckApi)
 
@@ -1017,8 +1048,6 @@ class MainActivity : AppCompatActivity() {
                 }
         )
 
-        apiInput.post { attachAnimatedBorderRing(apiInput, 2f, 14f) }
-
         apiInput.addTextChangedListener(
                 object : TextWatcher {
                     override fun beforeTextChanged(
@@ -1051,37 +1080,50 @@ class MainActivity : AppCompatActivity() {
                         }
 
                         if (displayed.isBlank()) {
-                            prefs.edit()
-                                    .remove(apiLastCheckKeyPref)
-                                    .remove(apiLastCheckOkPref)
-                                    .remove(apiLastCheckTimePref)
-                                    .apply()
-                            remoteApiOk = null
-                            remoteApiChecking = false
-                            lastCheckedApiKey = ""
-                            apiStatus.text = "未检查"
-                            updateStatusText()
+                            onApiConfigChanged(clearApiValue = true)
                             return
                         }
 
-                        prefs.edit()
-                                .remove(apiLastCheckKeyPref)
-                                .remove(apiLastCheckOkPref)
-                                .remove(apiLastCheckTimePref)
-                                .apply()
-                        remoteApiOk = null
-                        remoteApiChecking = false
-                        lastCheckedApiKey = ""
-                        apiStatus.text = "请检查API配置"
-                        updateStatusText()
-
-                        if (!apiNeedsRecheckToastShown) {
-                            Toast.makeText(this@MainActivity, "请检查API配置", Toast.LENGTH_SHORT).show()
-                            apiNeedsRecheckToastShown = true
-                        }
+                        onApiConfigPotentiallyChanged()
                     }
                 }
         )
+
+        val thirdPartyConfigWatcher =
+                object : TextWatcher {
+                    override fun beforeTextChanged(
+                            s: CharSequence?,
+                            start: Int,
+                            count: Int,
+                            after: Int
+                    ) {}
+
+                    override fun onTextChanged(
+                            s: CharSequence?,
+                            start: Int,
+                            before: Int,
+                            count: Int
+                    ) {}
+
+                    override fun afterTextChanged(s: Editable?) {
+                        if (suppressApiInputWatcher || !apiThirdPartySwitch.isChecked) return
+
+                        if (apiBaseUrlInput.isFocused) {
+                            prefs.edit()
+                                    .putString(apiThirdPartyBaseUrlPref, apiBaseUrlInput.text.toString().trim())
+                                    .apply()
+                        }
+                        if (apiModelInput.isFocused) {
+                            prefs.edit()
+                                    .putString(apiThirdPartyModelPref, apiModelInput.text.toString().trim())
+                                    .apply()
+                        }
+
+                        onApiConfigPotentiallyChanged()
+                    }
+                }
+        apiBaseUrlInput.addTextChangedListener(thirdPartyConfigWatcher)
+        apiModelInput.addTextChangedListener(thirdPartyConfigWatcher)
 
         btnCheck.setOnClickListener {
             vibrateLight()
@@ -1106,9 +1148,19 @@ class MainActivity : AppCompatActivity() {
             apiInput.setSelection(apiInput.text?.length ?: 0)
             suppressApiInputWatcher = false
 
+            if (apiThirdPartySwitch.isChecked) {
+                prefs.edit().putString(apiThirdPartyBaseUrlPref, apiBaseUrlInput.text.toString().trim()).apply()
+                prefs.edit().putString(apiThirdPartyModelPref, apiModelInput.text.toString().trim()).apply()
+            }
+
             apiNeedsRecheckToastShown = false
 
-            startApiCheck(key = key, force = true)
+            startApiCheck(
+                    key = key,
+                    baseUrl = resolveApiBaseUrl(),
+                    model = resolveApiModel(),
+                    force = true,
+            )
         }
 
         binding.navigationView.setNavigationItemSelectedListener { item ->
@@ -1157,27 +1209,33 @@ class MainActivity : AppCompatActivity() {
 
         val saved = prefs.getString("api_key", "") ?: ""
 
-        val header = binding.navigationView.getHeaderView(0)
-
-        val apiInput = header.findViewById<android.widget.EditText>(R.id.apiInput)
-        val apiStatus = header.findViewById<TextView>(R.id.apiStatus)
-
         apiInput.tag = saved
         suppressApiInputWatcher = true
         apiInput.setText(maskKey(saved))
+        apiInput.setSelection(apiInput.text?.length ?: 0)
+        apiThirdPartySwitch.isChecked = prefs.getBoolean(apiUseThirdPartyPref, false)
+        apiThirdPartyContainer.visibility =
+                if (apiThirdPartySwitch.isChecked) View.VISIBLE else View.GONE
+        apiBaseUrlInput.setText(
+                prefs.getString(apiThirdPartyBaseUrlPref, AutoGlmClient.DEFAULT_BASE_URL)
+        )
+        apiModelInput.setText(
+                prefs.getString(apiThirdPartyModelPref, AutoGlmClient.DEFAULT_MODEL)
+        )
         suppressApiInputWatcher = false
 
         if (saved.isBlank()) {
-            apiStatus.text = "未检查"
+            onApiConfigChanged(clearApiValue = true, showNeedsCheckMessage = false)
             remoteApiOk = null
             remoteApiChecking = false
             updateStatusText()
             return
         }
 
-        val lastKey = prefs.getString(apiLastCheckKeyPref, "").orEmpty().trim()
+        val lastSig = prefs.getString(apiLastCheckSigPref, "").orEmpty()
+        val currentSig = apiConfigSignature(apiKey = saved, baseUrl = resolveApiBaseUrl(), model = resolveApiModel())
         val hasLast = prefs.contains(apiLastCheckOkPref)
-        if (hasLast && lastKey.isNotBlank() && lastKey == saved.trim()) {
+        if (hasLast && lastSig.isNotBlank() && lastSig == currentSig) {
             val ok = prefs.getBoolean(apiLastCheckOkPref, false)
             remoteApiOk = ok
             remoteApiChecking = false
@@ -1187,14 +1245,19 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        lastCheckedApiKey = saved
         remoteApiOk = null
         remoteApiChecking = false
-        lastCheckedApiKey = saved
         apiStatus.text = "未检查"
         updateStatusText()
     }
 
-    private fun startApiCheck(key: String, force: Boolean) {
+    private fun startApiCheck(
+            key: String,
+            baseUrl: String = AutoGlmClient.DEFAULT_BASE_URL,
+            model: String = AutoGlmClient.DEFAULT_MODEL,
+            force: Boolean,
+    ) {
         val k = key.trim()
         if (k.isBlank()) return
 
@@ -1214,20 +1277,102 @@ class MainActivity : AppCompatActivity() {
         updateStatusText()
 
         val seq = ++apiCheckSeq
+        val normalizedBaseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
+        val resolvedModel = model.ifBlank { AutoGlmClient.DEFAULT_MODEL }
         lifecycleScope.launch {
-            val ok = withContext(Dispatchers.IO) { AutoGlmClient.checkApi(k) }
+            val ok =
+                    withContext(Dispatchers.IO) {
+                        AutoGlmClient.checkApi(
+                                apiKey = k,
+                                baseUrl = normalizedBaseUrl,
+                                model = resolvedModel,
+                        )
+                    }
             if (seq != apiCheckSeq) return@launch
 
             remoteApiChecking = false
             remoteApiOk = ok
             apiStatus.text = if (ok) "API 可用" else "API 检查失败"
             prefs.edit()
+                    .putString(apiLastCheckSigPref, apiConfigSignature(k, normalizedBaseUrl, resolvedModel))
                     .putString(apiLastCheckKeyPref, k)
                     .putBoolean(apiLastCheckOkPref, ok)
                     .putLong(apiLastCheckTimePref, System.currentTimeMillis())
                     .apply()
             updateStatusText()
         }
+    }
+
+    private fun onApiConfigChanged(clearApiValue: Boolean = false, showNeedsCheckMessage: Boolean = true) {
+        if (clearApiValue) {
+            remoteApiOk = null
+            remoteApiChecking = false
+            lastCheckedApiKey = ""
+            prefs.edit()
+                    .remove(apiLastCheckSigPref)
+                    .remove(apiLastCheckKeyPref)
+                    .remove(apiLastCheckOkPref)
+                    .remove(apiLastCheckTimePref)
+                    .apply()
+            apiStatus.text = "未检查"
+            updateStatusText()
+            return
+        }
+
+        val currentKey = prefs.getString("api_key", "").orEmpty()
+        if (currentKey.isBlank()) {
+            remoteApiOk = null
+            remoteApiChecking = false
+            lastCheckedApiKey = ""
+            prefs.edit()
+                    .remove(apiLastCheckSigPref)
+                    .remove(apiLastCheckKeyPref)
+                    .remove(apiLastCheckOkPref)
+                    .remove(apiLastCheckTimePref)
+                    .apply()
+            apiStatus.text = "未检查"
+            updateStatusText()
+            return
+        }
+
+        prefs.edit()
+                .remove(apiLastCheckSigPref)
+                .remove(apiLastCheckKeyPref)
+                .remove(apiLastCheckOkPref)
+                .remove(apiLastCheckTimePref)
+                .apply()
+        remoteApiOk = null
+        remoteApiChecking = false
+        lastCheckedApiKey = ""
+        apiStatus.text = "请检查API配置"
+        updateStatusText()
+
+        if (showNeedsCheckMessage && !apiNeedsRecheckToastShown) {
+            Toast.makeText(this@MainActivity, "请检查API配置", Toast.LENGTH_SHORT).show()
+            apiNeedsRecheckToastShown = true
+        }
+    }
+
+    private fun onApiConfigPotentiallyChanged(showNeedsCheckMessage: Boolean = true) {
+        onApiConfigChanged(clearApiValue = false, showNeedsCheckMessage = showNeedsCheckMessage)
+    }
+
+    private fun resolveApiBaseUrl(): String {
+        if (!apiThirdPartySwitch.isChecked) return AutoGlmClient.DEFAULT_BASE_URL
+        val rawUrl = apiBaseUrlInput.text?.toString()?.trim().orEmpty()
+        return rawUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
+    }
+
+    private fun resolveApiModel(): String {
+        if (!apiThirdPartySwitch.isChecked) return AutoGlmClient.DEFAULT_MODEL
+        return apiModelInput.text?.toString()?.trim().orEmpty().ifBlank { AutoGlmClient.DEFAULT_MODEL }
+    }
+
+    private fun apiConfigSignature(apiKey: String, baseUrl: String, model: String): String {
+        val normalizedBaseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
+        val normalizedModel = model.ifBlank { AutoGlmClient.DEFAULT_MODEL }
+        val useThirdParty = apiThirdPartySwitch.isChecked
+        return "${if (useThirdParty) "1" else "0"}|${apiKey.trim()}|$normalizedBaseUrl|$normalizedModel"
     }
 
     private fun updateStatusText() {
@@ -1628,6 +1773,8 @@ class MainActivity : AppCompatActivity() {
 
                     val result = AutoGlmClient.sendChatStreamResult(
                         apiKey = apiKey,
+                        baseUrl = resolveApiBaseUrl(),
+                        model = resolveApiModel(),
                         messages = chatHistory,
                         onReasoningDelta = { delta ->
                             if (delta.isNotBlank()) {

@@ -106,6 +106,104 @@
                 android:textColorHint="#90A4AE"
                 android:layout_marginBottom="12dp" />
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="10dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_public_24"
+                    app:tint="#1F2937" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:text="使用第三方 OpenAI 兼容 API"
+                    android:textStyle="bold"
+                    android:textSize="15sp"
+                    android:textColor="#1F2937" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/swUseThirdPartyApi"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="false" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/apiThirdPartyContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:layout_marginBottom="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Base URL"
+                        android:textSize="12sp"
+                        android:textColor="#1F2937"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginBottom="4dp" />
+
+                    <EditText
+                        android:id="@+id/apiBaseUrlInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="42dp"
+                        android:background="@drawable/bg_input_field_flat"
+                        android:hint="https://api.example.com/v1"
+                        android:paddingHorizontal="14dp"
+                        android:paddingVertical="10dp"
+                        android:inputType="textUri"
+                        android:textSize="14sp"
+                        android:textColor="@color/blue_glass_text"
+                        android:textColorHint="#90A4AE"
+                        android:layout_marginBottom="10dp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Model"
+                        android:textSize="12sp"
+                        android:textColor="#1F2937"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginBottom="4dp" />
+
+                    <EditText
+                        android:id="@+id/apiModelInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="42dp"
+                        android:background="@drawable/bg_input_field_flat"
+                        android:hint="glm-4-flash"
+                        android:paddingHorizontal="14dp"
+                        android:paddingVertical="10dp"
+                        android:inputType="textNoSuggestions"
+                        android:textSize="14sp"
+                        android:textColor="@color/blue_glass_text"
+                        android:textColorHint="#90A4AE" />
+                </LinearLayout>
+            </LinearLayout>
+
             <!-- Get API Key Link -->
             <TextView
                 android:id="@+id/btnGetApiKey"

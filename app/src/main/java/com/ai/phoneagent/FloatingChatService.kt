@@ -230,12 +230,36 @@ class FloatingChatService : Service() {
     var onExpandToFullScreen: (() -> Unit)? = null
     var onClose: (() -> Unit)? = null
 
-    // API Key
-    private var apiKey: String = ""
-
     // 语音输入（系统 SpeechRecognizer）
     private var speechRecognizer: SpeechRecognizer? = null
     private var isListening: Boolean = false
+
+    private fun getAppPrefs(): SharedPreferences = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+
+    private fun resolveApiConfig(): Triple<String, String, String> {
+            val appPrefs = getAppPrefs()
+            val apiKey = appPrefs.getString("api_key", "")?.trim().orEmpty()
+            val useThirdParty = appPrefs.getBoolean("api_use_third_party", false)
+            val baseUrl =
+                    if (!useThirdParty) {
+                        AutoGlmClient.DEFAULT_BASE_URL
+                    } else {
+                        appPrefs.getString("api_third_party_base_url", AutoGlmClient.DEFAULT_BASE_URL)
+                                ?.trim()
+                                ?.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
+                                ?: AutoGlmClient.DEFAULT_BASE_URL
+                    }
+            val model =
+                    if (!useThirdParty) {
+                        AutoGlmClient.DEFAULT_MODEL
+                    } else {
+                        appPrefs.getString("api_third_party_model", AutoGlmClient.DEFAULT_MODEL)
+                                ?.trim()
+                                ?.ifBlank { AutoGlmClient.DEFAULT_MODEL }
+                                ?: AutoGlmClient.DEFAULT_MODEL
+                    }
+            return Triple(apiKey, baseUrl, model)
+    }
 
     private var awaitingReturnAck: Boolean = false
 
@@ -266,10 +290,6 @@ class FloatingChatService : Service() {
         instance = this
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         prefs = getSharedPreferences("floating_chat_prefs", Context.MODE_PRIVATE)
-
-        // 获取 API Key（从主应用的 SharedPreferences）
-        val appPrefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        apiKey = appPrefs.getString("api_key", "") ?: ""
 
         restoreWindowState()
         createNotificationChannel()
@@ -1005,6 +1025,7 @@ class FloatingChatService : Service() {
 
     /** 请求 AI 回复 */
     private fun requestAIResponse(userText: String) {
+        val (apiKey, baseUrl, model) = resolveApiConfig()
         if (apiKey.isBlank()) {
             addMessage("Aries: 请在主界面配置 API Key", isUser = false)
             return
@@ -1110,6 +1131,8 @@ class FloatingChatService : Service() {
             val result =
                     AutoGlmClient.sendChatStreamResult(
                             apiKey = apiKey,
+                            baseUrl = baseUrl,
+                            model = model,
                             messages = chatHistory,
                             onReasoningDelta = { delta ->
                                 if (delta.isNotBlank() && vh != null) {
