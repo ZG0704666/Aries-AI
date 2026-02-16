@@ -40,6 +40,12 @@
             android:textSize="14sp" />
     </LinearLayout>
 
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="12dp"
+        android:background="@color/blue_glass_stroke" />
+
     <TextView
         android:id="@+id/tvBody"
         android:layout_width="match_parent"
@@ -47,11 +53,5 @@
         android:layout_marginTop="12dp"
         android:textColor="@color/blue_glass_text"
         android:textSize="14sp" />
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="12dp"
-        android:background="@android:color/darker_gray" />
 
 </LinearLayout>

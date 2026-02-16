@@ -231,6 +231,8 @@ class MainActivity : AppCompatActivity() {
             startNewChat(clearUi = true)
         }
 
+        binding.topAppBar.post { attachAnimatedBorderRing(binding.topAppBar, 2f, 18f) }
+        binding.inputContainer.post { attachAnimatedBorderRing(binding.inputContainer, 2f, 20f) }
 
         binding.btnVoice.isEnabled = true
 

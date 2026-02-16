@@ -26,7 +26,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.ai.phoneagent.xyla"
+        applicationId = "com.ai.phoneagent"
         minSdk = 30
         targetSdk = 36
         versionCode = 13
