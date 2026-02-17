@@ -114,6 +114,9 @@ class AutomationActivityNew : AppCompatActivity() {
     private val KEY_LAST_RESULT_STEPS = "last_result_steps"
     private val KEY_LAST_RESULT_TIME = "last_result_time"
     private val KEY_LAST_LOG = "last_log"
+    private val apiUseThirdPartyPref = "api_use_third_party"
+    private val apiThirdPartyBaseUrlPref = "api_third_party_base_url"
+    private val apiThirdPartyModelPref = "api_third_party_model"
 
     private val stopFromOverlayReceiver =
             object : BroadcastReceiver() {
@@ -530,12 +533,13 @@ class AutomationActivityNew : AppCompatActivity() {
             return
         }
 
-        val model = AutoGlmClient.PHONE_MODEL
+        val baseUrl = resolveApiBaseUrl()
+        val model = resolveAutomationModel()
 
         tvLog.text = ""
         val modeText = if (isBackgroundMode) "后台虚拟屏模式" else "前端执行模式"
         appendLog("执行模式：$modeText")
-        appendLog("准备开始：model=$model")
+        appendLog("准备开始：baseUrl=$baseUrl, model=$model")
         appendLog("任务：$task")
 
         if (AutomationOverlay.canDrawOverlays(this)) {
@@ -580,6 +584,7 @@ class AutomationActivityNew : AppCompatActivity() {
                         val result =
                                 agent.run(
                                         apiKey = apiKey,
+                                        baseUrl = baseUrl,
                                         model = model,
                                         task = task,
                                         service = svc,
@@ -957,6 +962,23 @@ class AutomationActivityNew : AppCompatActivity() {
         val key = prefs.getString("api_key", "") ?: ""
         if (key.isNotBlank()) return key
         return prefs.getString("autoglm_api_key", "") ?: ""
+    }
+
+    private fun resolveApiBaseUrl(): String {
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        val useThirdParty = prefs.getBoolean(apiUseThirdPartyPref, false)
+        if (!useThirdParty) return AutoGlmClient.DEFAULT_BASE_URL
+        val rawUrl = prefs.getString(apiThirdPartyBaseUrlPref, "")?.trim().orEmpty()
+        return rawUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
+    }
+
+    private fun resolveAutomationModel(): String {
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        val useThirdParty = prefs.getBoolean(apiUseThirdPartyPref, false)
+        if (!useThirdParty) return AutoGlmClient.PHONE_MODEL
+
+        val rawModel = prefs.getString(apiThirdPartyModelPref, "")?.trim().orEmpty()
+        return rawModel.ifBlank { AutoGlmClient.DEFAULT_MODEL }
     }
 
     /** 添加日志 */
