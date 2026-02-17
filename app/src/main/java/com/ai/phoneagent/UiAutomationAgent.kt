@@ -17,6 +17,7 @@
  */
 package com.ai.phoneagent
 
+import android.content.Context
 import com.ai.phoneagent.core.agent.ParsedAgentAction
 import com.ai.phoneagent.core.cache.ScreenshotManager
 import com.ai.phoneagent.core.config.AgentConfiguration
@@ -51,15 +52,30 @@ import kotlinx.coroutines.withContext
  * 3. 处理模型调用和重试
  * 4. 管理任务状态和进度
  */
-class UiAutomationAgent(private val config: AgentConfiguration = AgentConfiguration.DEFAULT) {
+class UiAutomationAgent(
+        private val appContext: Context,
+        private val config: AgentConfiguration = AgentConfiguration.DEFAULT,
+) {
     // 组件实例化
     private val actionParser = ActionParser()
-    private val actionExecutor = ActionExecutor(config)
+    private val actionExecutor = ActionExecutor(appContext, config)
     private var screenshotManager: ScreenshotManager? = null
 
     // Tap+Type 合并执行状态
     private var lastActionWasTap = false
     private var lastTapAction: ParsedAgentAction? = null
+
+    private fun hasNonEmptyDesc(action: ParsedAgentAction): Boolean {
+        val desc = action.fields["desc"] ?: action.fields["description"]
+        return desc?.trim()?.isNotBlank() == true
+    }
+
+    private fun resolveActionSubtitle(action: ParsedAgentAction): String {
+        val actionName = action.actionName.orEmpty()
+        val displayActionName = ActionUtils.getDisplayActionName(actionName, action.fields)
+        val rawDesc = action.fields["desc"] ?: action.fields["description"] ?: action.fields["comment"]
+        return (rawDesc?.trim().orEmpty().ifBlank { displayActionName }).take(config.subtitleMaxLength)
+    }
 
     interface Control {
         fun isPaused(): Boolean
@@ -375,13 +391,13 @@ class UiAutomationAgent(private val config: AgentConfiguration = AgentConfigurat
                                 ?.lowercase()
                                 .orEmpty()
 
-                val displayActionName =
-                        ActionUtils.getDisplayActionName(actionName, currentAction.fields)
+                val overlayActionText = resolveActionSubtitle(currentAction)
+                onLog("[Step $step] 当前动作：$overlayActionText")
                 AutomationOverlay.updateProgress(
                         step = step,
                         phaseInStep = 0.78f,
                         maxSteps = config.maxSteps,
-                        subtitle = "执行 $displayActionName"
+                        subtitle = overlayActionText
                 )
 
                 // Take_over 处理
@@ -493,6 +509,7 @@ class UiAutomationAgent(private val config: AgentConfiguration = AgentConfigurat
                 val fixResult =
                         requestModelWithRetry(
                                 apiKey = apiKey,
+                                baseUrl = baseUrl,
                                 model = model,
                                 messages = history,
                                 step = step,
@@ -524,6 +541,7 @@ class UiAutomationAgent(private val config: AgentConfiguration = AgentConfigurat
                 currentAction =
                         parseActionWithRepair(
                                 apiKey = apiKey,
+                                baseUrl = baseUrl,
                                 model = model,
                                 history = history,
                                 step = step,
@@ -783,14 +801,19 @@ class UiAutomationAgent(private val config: AgentConfiguration = AgentConfigurat
         var action =
                 actionParser.parse(ActionUtils.extractFirstActionSnippet(answerText) ?: answerText)
 
-        if (action.metadata == "do" || action.metadata == "finish") {
+        if (action.metadata == "finish") {
             return action
+        }
+        if (action.metadata == "do" && hasNonEmptyDesc(action)) {
+            return action
+        }
+        if (action.metadata == "do" && !hasNonEmptyDesc(action)) {
+            onLog("[Step $step] 动作缺少 desc，尝试让模型补齐说明")
         }
 
         var attempt = 0
         while (attempt < config.maxParseRepairs &&
-                action.metadata != "do" &&
-                action.metadata != "finish") {
+                !(action.metadata == "finish" || (action.metadata == "do" && hasNonEmptyDesc(action)))) {
             attempt++
             onLog("[Step $step] 输出无法解析为动作，尝试修正（$attempt/${config.maxParseRepairs}）…")
 

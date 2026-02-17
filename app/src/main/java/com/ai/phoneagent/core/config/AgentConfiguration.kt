@@ -44,7 +44,14 @@ data class AgentConfiguration(
      * false: 在前台执行，用户可以看到操作过程
      */
     val useBackgroundVirtualDisplay: Boolean = false,
-    
+
+        /**
+         * 是否启用可选的 Shizuku 交互能力。
+         * true：在非虚拟屏模式下优先使用 Shizuku 模拟输入与截图；失败则回退。
+         * false：继续使用当前 Accessibility + AccessibilityService 截图链路。
+         */
+    val useShizukuInteraction: Boolean = false,
+
     /**
      * 最大执行步数。
      *
@@ -399,4 +406,3 @@ data class AgentConfiguration(
         return dangerousOperationKeywords.any { text.contains(it, ignoreCase = true) }
     }
 }
-

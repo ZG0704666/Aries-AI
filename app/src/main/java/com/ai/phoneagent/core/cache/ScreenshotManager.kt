@@ -17,7 +17,10 @@
  */
 package com.ai.phoneagent.core.cache
 
+import android.graphics.BitmapFactory
+import android.util.Base64
 import com.ai.phoneagent.PhoneAgentAccessibilityService
+import com.ai.phoneagent.ShizukuBridge
 import com.ai.phoneagent.VirtualDisplayController
 import com.ai.phoneagent.core.config.AgentConfiguration
 import kotlinx.coroutines.sync.Mutex
@@ -46,7 +49,7 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
      * 4. 执行截图并压缩优化
      */
     suspend fun getOptimizedScreenshot(
-            service: PhoneAgentAccessibilityService
+            service: PhoneAgentAccessibilityService?
     ): PhoneAgentAccessibilityService.ScreenshotData? {
         // 优先检查虚拟屏模式
         if (config.useBackgroundVirtualDisplay) {
@@ -74,9 +77,14 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
         }
 
         // 执行截图
-        val screenshot = service.tryCaptureScreenshotBase64()
+        val screenshot =
+                if (config.useShizukuInteraction) {
+                    getShizukuScreenshot() ?: service?.tryCaptureScreenshotBase64()
+                } else {
+                    service?.tryCaptureScreenshotBase64()
+                }
         if (screenshot != null && config.enableScreenshotCache) {
-            putToCache(service, screenshot)
+                putToCache(service, screenshot)
             cache.evictExpired()
         }
 
@@ -103,14 +111,37 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
         }
     }
 
+    /** 通过 Shizuku 截图（带回退到原有 Accessibility） */
+    private fun getShizukuScreenshot(): PhoneAgentAccessibilityService.ScreenshotData? {
+        if (!ShizukuBridge.isShizukuAvailable()) return null
+
+        val pngBytes = ShizukuBridge.execBytes("screencap -p")
+        if (pngBytes.isEmpty()) return null
+
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size, options)
+        val width = options.outWidth
+        val height = options.outHeight
+        if (width <= 0 || height <= 0) return null
+
+        val base64Png = runCatching { Base64.encodeToString(pngBytes, Base64.NO_WRAP) }.getOrNull()
+        if (base64Png.isNullOrBlank()) return null
+
+        return PhoneAgentAccessibilityService.ScreenshotData(
+                width = width,
+                height = height,
+                base64Png = base64Png,
+        )
+    }
+
     /** 从缓存获取截图 */
     private fun getFromCache(
-            service: PhoneAgentAccessibilityService
+            service: PhoneAgentAccessibilityService?
     ): PhoneAgentAccessibilityService.ScreenshotData? {
         if (!config.enableScreenshotCache) return null
 
-        val currentApp = service.currentAppPackage()
-        val windowEventTime = service.lastWindowEventTime()
+        val currentApp = service?.currentAppPackage() ?: "unknown"
+        val windowEventTime = service?.lastWindowEventTime() ?: 0L
         val cacheKey = cache.generateKey(currentApp, windowEventTime)
 
         @Suppress("UNCHECKED_CAST")
@@ -119,13 +150,13 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
 
     /** 存储截图到缓存 */
     private fun putToCache(
-            service: PhoneAgentAccessibilityService,
+            service: PhoneAgentAccessibilityService?,
             screenshot: PhoneAgentAccessibilityService.ScreenshotData
     ) {
         if (!config.enableScreenshotCache) return
 
-        val currentApp = service.currentAppPackage()
-        val windowEventTime = service.lastWindowEventTime()
+        val currentApp = service?.currentAppPackage() ?: "unknown"
+        val windowEventTime = service?.lastWindowEventTime() ?: 0L
         val cacheKey = cache.generateKey(currentApp, windowEventTime)
 
         cache.put(cacheKey, screenshot)

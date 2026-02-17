@@ -134,6 +134,15 @@ object AutoGlmClient {
         private fun resolveModel(model: String?): String =
                 model?.trim()?.takeIf { it.isNotBlank() } ?: DEFAULT_MODEL
 
+        private fun normalizeApiKey(apiKey: String): String {
+                val trimmed = apiKey.trim()
+                return if (trimmed.startsWith("Bearer ", ignoreCase = true)) {
+                        trimmed.substringAfter(" ", "").trim()
+                } else {
+                        trimmed
+                }
+        }
+
         private fun getService(baseUrl: String): AutoGlmService {
                 val normalized = normalizeBaseUrl(baseUrl)
                 return serviceCache.getOrPut(normalized) {
@@ -179,6 +188,7 @@ object AutoGlmClient {
         ): Result<Unit> {
                 return withContext(Dispatchers.IO) {
                         try {
+                                val normalizedApiKey = normalizeApiKey(apiKey)
                                 val reqObj =
                                         ChatRequest(
                                                 model = resolveModel(model),
@@ -193,7 +203,7 @@ object AutoGlmClient {
                                 val request =
                                         Request.Builder()
                                                 .url(normalizeBaseUrl(baseUrl) + "chat/completions")
-                                                .addHeader("Authorization", "Bearer $apiKey")
+                                                .addHeader("Authorization", "Bearer $normalizedApiKey")
                                                 .addHeader("Content-Type", "application/json")
                                                 .post(
                                                         bodyJson.toRequestBody(
@@ -309,9 +319,10 @@ object AutoGlmClient {
                 model: String = DEFAULT_MODEL,
         ): Boolean =
                 runCatching {
+                                val normalizedApiKey = normalizeApiKey(apiKey)
                                 val res =
                                         getService(baseUrl).chat(
-                                                auth = "Bearer $apiKey",
+                                                auth = "Bearer $normalizedApiKey",
                                                 request =
                                                         ChatRequest(
                                                                 model = resolveModel(model),
@@ -366,10 +377,11 @@ object AutoGlmClient {
                 useFastTimeouts: Boolean = false,
         ): Result<String> {
                 return try {
+                        val normalizedApiKey = normalizeApiKey(apiKey)
                         val svc = if (useFastTimeouts) getFastService(baseUrl) else getService(baseUrl)
                         val res =
                                 svc.chat(
-                                        auth = "Bearer $apiKey",
+                                        auth = "Bearer $normalizedApiKey",
                                         request =
                                                 ChatRequest(
                                                         model = resolveModel(model),

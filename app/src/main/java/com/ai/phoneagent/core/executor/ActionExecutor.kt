@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -18,6 +18,7 @@
 package com.ai.phoneagent.core.executor
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Context
 import android.content.Intent
 import com.ai.phoneagent.AutomationOverlay
 import com.ai.phoneagent.LaunchProxyActivity
@@ -26,6 +27,7 @@ import com.ai.phoneagent.ShizukuBridge
 import com.ai.phoneagent.VirtualDisplayController
 import com.ai.phoneagent.core.agent.ParsedAgentAction
 import com.ai.phoneagent.core.config.AgentConfiguration
+import com.ai.phoneagent.core.tools.AppPackageManager
 import com.ai.phoneagent.core.utils.ActionUtils
 import kotlinx.coroutines.delay
 
@@ -34,7 +36,10 @@ import kotlinx.coroutines.delay
  *
  * 负责执行所有类型的Agent动作 原逻辑来自 UiAutomationAgent.kt 的 execute 方法
  */
-class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration.DEFAULT) {
+class ActionExecutor(
+        private val context: Context,
+        private val config: AgentConfiguration = AgentConfiguration.DEFAULT,
+) {
     companion object {
         private const val TAG = "ActionExecutor"
     }
@@ -53,18 +58,73 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
         return VirtualDisplayController.getDisplayId() ?: -1
     }
 
-    /** 完全隔离模式：不切换焦点到虚拟屏。 所有 VD 操作通过 displayId 定向注入，焦点始终在主屏。 */
-    private var lastEnsureFocusMs = 0L
+    private fun shouldUseShizukuInteraction(): Boolean {
+        return config.useShizukuInteraction && ShizukuBridge.isShizukuAvailable() && !isVirtualDisplayMode()
+    }
+
+    private fun runShizukuTapCommand(
+            x: Int,
+            y: Int,
+            onLog: (String) -> Unit
+    ): Boolean {
+        val direct = ShizukuBridge.execResult("input tap $x $y")
+        if (direct.exitCode == 0) return true
+
+        val fallback = ShizukuBridge.execResult("input swipe $x $y $x $y 1")
+        if (fallback.exitCode == 0) return true
+
+        onLog("Shizuku tap 失败: exitCode=${direct.exitCode}/${fallback.exitCode}")
+        return false
+    }
+
+    private fun runShizukuLongPressCommand(
+            x: Int,
+            y: Int,
+            durationMs: Long,
+            onLog: (String) -> Unit
+    ): Boolean {
+        val r = ShizukuBridge.execResult("input swipe $x $y $x $y ${durationMs.coerceAtLeast(1L)}")
+        if (r.exitCode == 0) return true
+
+        onLog("Shizuku 长按失败: exitCode=${r.exitCode}")
+        return false
+    }
+
+        private fun runShizukuSwipeCommand(
+            sx: Int,
+            sy: Int,
+            ex: Int,
+            ey: Int,
+            durationMs: Long,
+            onLog: (String) -> Unit
+    ): Boolean {
+        val r = ShizukuBridge.execResult("input swipe $sx $sy $ex $ey ${durationMs.coerceAtLeast(1L)}")
+        if (r.exitCode == 0) return true
+
+        onLog("Shizuku swipe failed: exitCode=${r.exitCode}")
+        return false
+    }
+
+    private fun runShizukuKeyEventCommand(
+            key: String,
+            onLog: (String) -> Unit
+    ): Boolean {
+        val r = ShizukuBridge.execResult("input keyevent $key")
+        if (r.exitCode == 0) return true
+
+        onLog("Shizuku keyevent($key) failed: exitCode=${r.exitCode}")
+        return false
+    }
+
+    /** 键盘焦点保持不切换：虚拟显示注入通过 displayId 指定 */
     private fun ensureVdFocus() {
-        // NO-OP: 焦点隔离模式下，不切换系统焦点到虚拟屏。
-        // 虚拟屏的触摸/按键/文本输入全部通过 displayId 定向注入。
-        // 焦点维持在主屏（display 0），由 VirtualDisplayController 周期性强制执行。
+        // NO-OP
     }
 
     /** 执行动作 */
     suspend fun execute(
             action: ParsedAgentAction,
-            service: PhoneAgentAccessibilityService,
+            service: PhoneAgentAccessibilityService?,
             uiDump: String,
             screenW: Int,
             screenH: Int,
@@ -75,40 +135,30 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
         val nameKey = name.replace(" ", "")
 
         return when (nameKey) {
-            // 启动应用
             "launch",
             "open_app",
             "start_app" -> executeLaunch(action, service, onLog)
-            // 返回/导航
             "back" -> executeBack(service, onLog)
             "home" -> executeHome(service, onLog)
-            // 等待
             "wait",
             "sleep" -> executeWait(action, onLog)
-            // 输入
             "type",
             "input",
             "text",
             "type_name" -> executeType(action, service, uiDump, screenW, screenH, onLog)
-            // 点击
             "tap",
             "click",
             "press" -> executeTap(action, service, uiDump, screenW, screenH, onLog)
-            // 长按
             "longpress",
             "long_press",
             "long press" -> executeLongPress(action, service, screenW, screenH, onLog)
-            // 双击
             "doubletap",
             "double_tap",
             "double tap" -> executeDoubleTap(action, service, screenW, screenH, onLog)
-            // 滑动
             "swipe",
             "scroll" -> executeSwipe(action, service, screenW, screenH, onLog)
-            // 用户接管
             "take_over",
             "takeover" -> executeTakeOver(action, onLog)
-            // 结束任务（不执行，只返回）
             "finish" -> true
             else -> false
         }
@@ -116,7 +166,7 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
 
     private suspend fun executeLaunch(
             action: ParsedAgentAction,
-            service: PhoneAgentAccessibilityService,
+            service: PhoneAgentAccessibilityService?,
             onLog: (String) -> Unit
     ): Boolean {
         val rawTarget =
@@ -126,10 +176,9 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
         val t = rawTarget.trim().trim('"', '\'', ' ')
         if (t.isBlank()) return false
 
-        val pm = service.packageManager
-        val beforeTime = service.lastWindowEventTime()
+        val pm = service?.packageManager ?: context.packageManager
+        val beforeTime = service?.lastWindowEventTime()
 
-        // 检查应用是否已安装
         fun isInstalled(pkgName: String): Boolean {
             return runCatching {
                         @Suppress("DEPRECATION") pm.getPackageInfo(pkgName, 0)
@@ -138,7 +187,6 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
                     .getOrDefault(false)
         }
 
-        // 构建启动Intent
         fun buildLaunchIntent(pkgName: String): android.content.Intent? {
             val direct = pm.getLaunchIntentForPackage(pkgName)
             if (direct != null) return direct
@@ -158,47 +206,31 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
                     .setClassName(ai.packageName, ai.name)
         }
 
-        // 初始化 AppPackageManager 缓存（确保能查询已安装应用）
-        com.ai.phoneagent.core.tools.AppPackageManager.initializeCache(service)
+        AppPackageManager.initializeCache(context)
+        val smartResolved = AppPackageManager.resolvePackageName(t)
 
-        // 智能解析包名 - 使用新的智能匹配逻辑
-        val smartResolved = com.ai.phoneagent.core.tools.AppPackageManager.resolvePackageName(t)
-
-        // 构建候选包名列表 - 优先级：智能解析 > 精确匹配 > 已安装应用列表
         val candidates =
                 buildList {
-                            // 1. 智能解析（包含高优先级关键词匹配、防误匹配逻辑）
-                            if (smartResolved != null) {
-                                add(smartResolved)
-                            }
-                            // 2. 如果输入看起来像包名（包含多个点），优先尝试
-                            if (t.contains('.') && t.count { it == '.' } >= 1) {
-                                add(t)
-                            }
-                            // 3. 已安装应用列表精确匹配
-                            com.ai.phoneagent.core.tools.AppPackageManager.resolvePackageByLabel(
-                                            service,
-                                            t
-                                    )
-                                    ?.let { add(it) }
-                        }
-                        .distinct()
+                    if (smartResolved != null) {
+                        add(smartResolved)
+                    }
+                    if (t.contains('.') && t.count { it == '.' } >= 1) {
+                        add(t)
+                    }
+                    service?.let { AppPackageManager.resolvePackageByLabel(it, t) }?.let { add(it) }
+                }.distinct()
 
-        // 如果候选列表为空，从已安装应用中智能搜索
         val finalCandidates =
                 if (candidates.isEmpty()) {
-                    val allApps =
-                            com.ai.phoneagent.core.tools.AppPackageManager.getAllInstalledApps()
+                    val allApps = AppPackageManager.getAllInstalledApps()
                     allApps
                             .filter { (_, appName) ->
-                                // 智能匹配：应用名包含查询词，或查询词包含应用名（作为完整单词）
                                 appName.contains(t, ignoreCase = true) ||
                                         t.contains(appName, ignoreCase = true) ||
-                                        // 单词边界匹配：避免"云"匹配"阿里云盘"
                                         isWordBoundaryMatch(t, appName)
                             }
                             .map { it.first }
-                            .take(3) // 最多取3个候选，避免误匹配
+                            .take(3)
                 } else {
                     candidates
                 }
@@ -230,16 +262,22 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
 
         return try {
             if (isVirtualDisplayMode()) {
-                // ── 虚拟屏模式：将应用启动到虚拟屏（不切换系统焦点）──
                 val displayId = getVirtualDisplayId()
                 onLog("Launch → 虚拟屏 displayId=$displayId")
-                LaunchProxyActivity.launchOnDisplay(service, intent, displayId)
-                delay(config.launchActionDelayMs) // 等待应用在虚拟屏上启动
-                // 系统可能因 Activity 创建自动切焦，立即恢复
-                VirtualDisplayController.restoreFocusToDefaultDisplayNow()
+                LaunchProxyActivity.launchOnDisplay(context, intent, displayId)
+                if (displayId > 0) {
+                    delay(config.launchActionDelayMs)
+                    VirtualDisplayController.restoreFocusToDefaultDisplayNow()
+                }
             } else {
-                // ── 前台模式 ──
-                LaunchProxyActivity.launch(service, intent)
+                LaunchProxyActivity.launch(context, intent)
+            }
+
+            beforeTime?.let { t ->
+                service?.awaitWindowEvent(
+                        t,
+                        timeoutMs = config.appLaunchWaitTimeoutMs
+                )
             }
             true
         } catch (e: Exception) {
@@ -248,12 +286,10 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
         }
     }
 
-    /** 单词边界匹配 - 避免"云"误匹配"阿里云盘"和"移动云手机" */
     private fun isWordBoundaryMatch(query: String, text: String): Boolean {
         val queryWords = query.lowercase().split(Regex("[\\s_\\-]")).filter { it.length >= 2 }
         val textWords = text.lowercase().split(Regex("[\\s_\\-]"))
 
-        // 查询词必须全部包含在文本中，且至少匹配一个完整单词
         return queryWords.all { word ->
             textWords.any { textWord -> textWord.contains(word) || word.contains(textWord) }
         } &&
@@ -265,40 +301,64 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
     }
 
     private suspend fun executeBack(
-            service: PhoneAgentAccessibilityService,
+            service: PhoneAgentAccessibilityService?,
             onLog: (String) -> Unit
     ): Boolean {
-        onLog("执行：Back")
+        onLog("执行 back")
         if (isVirtualDisplayMode()) {
             ensureVdFocus()
             VirtualDisplayController.injectBackBestEffort(getVirtualDisplayId())
             delay(config.backAwaitWindowTimeoutMs)
             return true
         }
-        val beforeTime = service.lastWindowEventTime()
-        service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
-        service.awaitWindowEvent(beforeTime, timeoutMs = config.backAwaitWindowTimeoutMs)
-        return true
+
+        if (service != null) {
+            val beforeTime = service.lastWindowEventTime()
+            service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+            service.awaitWindowEvent(beforeTime, timeoutMs = config.backAwaitWindowTimeoutMs)
+            return true
+        }
+
+        if (!shouldUseShizukuInteraction()) {
+            onLog("无法执行 back：服务未连接且未开启 Shizuku 交互")
+            return false
+        }
+
+        val ok = runShizukuKeyEventCommand("KEYCODE_BACK", onLog)
+        if (ok) delay(config.backAwaitWindowTimeoutMs)
+        return ok
     }
 
-    private suspend fun executeHome(
-            service: PhoneAgentAccessibilityService,
+        private suspend fun executeHome(
+            service: PhoneAgentAccessibilityService?,
             onLog: (String) -> Unit
     ): Boolean {
-        onLog("执行：Home")
+        onLog("执行 home")
         if (isVirtualDisplayMode()) {
             ensureVdFocus()
             VirtualDisplayController.injectHomeBestEffort(getVirtualDisplayId())
             delay(config.homeAwaitWindowTimeoutMs)
             return true
         }
-        val beforeTime = service.lastWindowEventTime()
-        service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
-        service.awaitWindowEvent(beforeTime, timeoutMs = config.homeAwaitWindowTimeoutMs)
-        return true
+
+        if (service != null) {
+            val beforeTime = service.lastWindowEventTime()
+            service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+            service.awaitWindowEvent(beforeTime, timeoutMs = config.homeAwaitWindowTimeoutMs)
+            return true
+        }
+
+        if (!shouldUseShizukuInteraction()) {
+            onLog("无法执行 home：服务未连接且未开启 Shizuku 交互")
+            return false
+        }
+
+        val ok = runShizukuKeyEventCommand("KEYCODE_HOME", onLog)
+        if (ok) delay(config.homeAwaitWindowTimeoutMs)
+        return ok
     }
 
-    /** 执行 Take_over - 需要用户接管 实际上不执行任何动作，只返回失败，由上层处理 */
+    /** 执行 Take_over - 需要用户接管，不执行动作，仅返回失败，由上层处理 */
     private fun executeTakeOver(action: ParsedAgentAction, onLog: (String) -> Unit): Boolean {
         val message = action.fields["message"].orEmpty().ifBlank { "需要用户协助处理" }
         onLog("Take_over: $message")
@@ -328,17 +388,16 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
         return true
     }
 
-    private suspend fun executeType(
+        private suspend fun executeType(
             action: ParsedAgentAction,
-            service: PhoneAgentAccessibilityService,
+            service: PhoneAgentAccessibilityService?,
             uiDump: String,
             screenW: Int,
             screenH: Int,
             onLog: (String) -> Unit
     ): Boolean {
-        // 敏感内容检查
         if (ActionUtils.looksSensitive(uiDump, config.sensitiveKeywords)) {
-            onLog("检测到支付/验证界面关键词，停止并要求用户接管")
+            onLog("检测到敏感内容，拒绝执行输入操作")
             return false
         }
 
@@ -352,13 +411,12 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
                                 ?: action.fields["target_text"]
         val index = action.fields["index"]?.trim()?.toIntOrNull() ?: 0
 
-        // 如果有坐标，先点击
         val element =
                 ActionUtils.parsePoint(action.fields["element"])
                         ?: ActionUtils.parsePoint(action.fields["point"])
         if (element != null) {
             val (x, y) = ActionUtils.parsePointToScreen(element, screenW, screenH)
-            onLog("执行：先点击输入框(${element.first},${element.second})")
+            onLog("执行输入前先点击(${element.first},${element.second})")
             if (isVirtualDisplayMode()) {
                 ensureVdFocus()
                 VirtualDisplayController.injectTapBestEffort(
@@ -366,71 +424,105 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
                         x.toInt(),
                         y.toInt()
                 )
+            } else if (service != null) {
+                if (shouldUseShizukuInteraction()) {
+                    AutomationOverlay.temporaryHide()
+                    val clicked = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+                    AutomationOverlay.restoreVisibility()
+                    if (!clicked) {
+                        service.clickAwait(x, y)
+                    }
+                } else {
+                    service.clickAwait(x, y)
+                }
             } else {
-                service.clickAwait(x, y)
+                if (!shouldUseShizukuInteraction()) {
+                    onLog("点击聚焦位置失败：服务未连接且未开启 Shizuku")
+                    return false
+                }
+                AutomationOverlay.temporaryHide()
+                val clicked = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+                AutomationOverlay.restoreVisibility()
+                if (!clicked) {
+                    onLog("Shizuku 点击失败，无法落点")
+                    return false
+                }
             }
             delay(300)
         }
 
-        onLog("执行：Type(${inputText.take(config.logInputTextTruncateLength)})")
+        onLog("执行 type(${inputText.take(config.logInputTextTruncateLength)})")
 
         if (isVirtualDisplayMode()) {
-            // 虚拟屏模式：根据文本内容选择最佳输入方式
             ensureVdFocus()
             val displayId = getVirtualDisplayId()
             val ok = injectTextOnVirtualDisplay(displayId, inputText, onLog)
             if (!ok) {
-                onLog("虚拟屏文本输入失败")
+                onLog("虚拟显示器文本输入失败")
             }
             delay(config.typeAwaitWindowTimeoutMs)
             return ok
         }
 
-        var ok =
-                if (resourceId != null ||
-                                contentDesc != null ||
-                                className != null ||
-                                elementText != null
-                ) {
-                    service.setTextOnElement(
-                            text = inputText,
-                            resourceId = resourceId,
-                            elementText = elementText,
-                            contentDesc = contentDesc,
-                            className = className,
-                            index = index
-                    )
-                } else {
-                    service.setTextOnFocused(inputText)
-                }
+        if (service != null) {
+            var ok =
+                    if (resourceId != null ||
+                                    contentDesc != null ||
+                                    className != null ||
+                                    elementText != null
+                    ) {
+                        service.setTextOnElement(
+                                text = inputText,
+                                resourceId = resourceId,
+                                elementText = elementText,
+                                contentDesc = contentDesc,
+                                className = className,
+                                index = index
+                        )
+                    } else {
+                        service.setTextOnFocused(inputText)
+                    }
 
-        if (!ok) {
-            onLog("输入失败，尝试查找并激活输入框…")
-            val inputClicked = service.clickFirstEditableElement()
-            if (inputClicked) {
-                delay(300)
-                ok = service.setTextOnFocused(inputText)
+            if (!ok) {
+                onLog("文本输入失败，尝试点击输入框后重试")
+                val inputClicked = service.clickFirstEditableElement()
+                if (inputClicked) {
+                    delay(300)
+                    ok = service.setTextOnFocused(inputText)
+                }
             }
+
+            service.awaitWindowEvent(
+                    service.lastWindowEventTime(),
+                    timeoutMs = config.typeAwaitWindowTimeoutMs
+            )
+            return ok
         }
 
-        service.awaitWindowEvent(
-                service.lastWindowEventTime(),
-                timeoutMs = config.typeAwaitWindowTimeoutMs
-        )
-        return ok
+        if (!shouldUseShizukuInteraction()) {
+            onLog("无法执行 type：服务未连接且未开启 Shizuku")
+            return false
+        }
+
+        val ok = injectTextOnVirtualDisplay(-1, inputText, onLog)
+        if (!ok) {
+            onLog("Shizuku 输入失败")
+            return false
+        }
+        delay(config.typeAwaitWindowTimeoutMs)
+        return true
     }
 
-    private suspend fun executeTap(
+        private suspend fun executeTap(
             action: ParsedAgentAction,
-            service: PhoneAgentAccessibilityService,
+            service: PhoneAgentAccessibilityService?,
             uiDump: String,
             screenW: Int,
             screenH: Int,
             onLog: (String) -> Unit
     ): Boolean {
-        // 敏感内容检查
         if (ActionUtils.looksSensitive(uiDump, config.sensitiveKeywords)) {
-            onLog("检测到支付/验证界面关键词，停止并要求用户接管")
+            onLog("检测到敏感内容，停止执行点击")
             return false
         }
 
@@ -442,16 +534,15 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
                         ?: action.fields["element_text"] ?: action.fields["label"]
         val index = action.fields["index"]?.trim()?.toIntOrNull() ?: 0
 
-        // 优先使用 selector（仅前台模式，虚拟屏模式下 AccessibilityService 操作的是前台屏幕）
         val selectorOk =
                 if (!isVirtualDisplayMode() &&
+                                service != null &&
                                 (resourceId != null ||
                                         contentDesc != null ||
                                         className != null ||
                                         elementText != null)
                 ) {
-                    onLog("执行：Tap(selector)")
-                    // 临时隐藏悬浮窗，防止点击到悬浮窗
+                    onLog("执行 tap(selector)")
                     AutomationOverlay.temporaryHide()
                     val result =
                             service.clickElement(
@@ -468,14 +559,15 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
                 }
 
         if (selectorOk) {
-            service.awaitWindowEvent(
-                    service.lastWindowEventTime(),
-                    timeoutMs = config.tapAwaitWindowTimeoutMs
-            )
+            if (service != null) {
+                service.awaitWindowEvent(
+                        service.lastWindowEventTime(),
+                        timeoutMs = config.tapAwaitWindowTimeoutMs
+                )
+            }
             return true
         }
 
-        // 回退到坐标点击
         val element =
                 ActionUtils.parsePoint(action.fields["element"])
                         ?: ActionUtils.parsePoint(action.fields["point"])
@@ -484,7 +576,7 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
         val yRel = action.fields["y"]?.trim()?.toIntOrNull() ?: element?.second ?: return false
 
         val (x, y) = ActionUtils.parsePointToScreen(xRel to yRel, screenW, screenH)
-        onLog("执行：Tap($xRel,$yRel)")
+        onLog("执行 tap($xRel,$yRel)")
 
         if (isVirtualDisplayMode()) {
             ensureVdFocus()
@@ -497,20 +589,46 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
             return true
         }
 
-        // 临时隐藏悬浮窗，防止点击到悬浮窗
         AutomationOverlay.temporaryHide()
-        service.clickAwait(x, y)
+        if (service == null) {
+            if (!shouldUseShizukuInteraction()) {
+                onLog("无法执行 tap：未启用 Shizuku 且无服务")
+                AutomationOverlay.restoreVisibility()
+                return false
+            }
+            val ok = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+            AutomationOverlay.restoreVisibility()
+            if (!ok) {
+                onLog("Shizuku 点击失败")
+                return false
+            }
+            delay(config.tapAwaitWindowTimeoutMs)
+            return true
+        }
+
+        if (shouldUseShizukuInteraction()) {
+            val ok = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+            if (!ok) {
+                onLog("Shizuku 点击失败，回退 Accessibility")
+                service.clickAwait(x, y)
+            }
+        } else {
+            service.clickAwait(x, y)
+        }
+
         AutomationOverlay.restoreVisibility()
-        service.awaitWindowEvent(
-                service.lastWindowEventTime(),
-                timeoutMs = config.tapAwaitWindowTimeoutMs
-        )
+        if (service != null) {
+            service.awaitWindowEvent(
+                    service.lastWindowEventTime(),
+                    timeoutMs = config.tapAwaitWindowTimeoutMs
+            )
+        }
         return true
     }
 
-    private suspend fun executeLongPress(
+        private suspend fun executeLongPress(
             action: ParsedAgentAction,
-            service: PhoneAgentAccessibilityService,
+            service: PhoneAgentAccessibilityService?,
             screenW: Int,
             screenH: Int,
             onLog: (String) -> Unit
@@ -518,35 +636,56 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
         val element = ActionUtils.parsePoint(action.fields["element"]) ?: return false
         val (x, y) = ActionUtils.parsePointToScreen(element, screenW, screenH)
 
-        onLog("执行：Long Press(${element.first},${element.second})")
+        onLog("执行 long press(${element.first},${element.second})")
 
         if (isVirtualDisplayMode()) {
             ensureVdFocus()
             val displayId = getVirtualDisplayId()
-            // 长按 = DOWN → delay → UP
-            val downTime = android.os.SystemClock.uptimeMillis()
-            VirtualDisplayController.injectTapBestEffort(displayId, x.toInt(), y.toInt()) // 先发 down
+            VirtualDisplayController.injectTapBestEffort(displayId, x.toInt(), y.toInt())
             delay(config.longPressDurationMs)
-            // 注入 UP 事件完成长按（best-effort：部分 ROM 上 injectTap 已自动发 DOWN+UP，此处补发一次无副作用）
             VirtualDisplayController.injectTapBestEffort(displayId, x.toInt(), y.toInt())
             delay(config.tapAwaitWindowTimeoutMs)
             return true
         }
 
-        // 临时隐藏悬浮窗
         AutomationOverlay.temporaryHide()
-        service.clickAwait(x, y, durationMs = config.longPressDurationMs)
+        if (service == null) {
+            if (!shouldUseShizukuInteraction()) {
+                onLog("无法执行 long press：未启用 Shizuku 且无服务")
+                AutomationOverlay.restoreVisibility()
+                return false
+            }
+
+            val ok = runShizukuLongPressCommand(x.toInt(), y.toInt(), config.longPressDurationMs, onLog)
+            AutomationOverlay.restoreVisibility()
+            if (!ok) onLog("Shizuku 长按失败")
+            if (ok) delay(config.tapAwaitWindowTimeoutMs)
+            return ok
+        }
+
+        if (shouldUseShizukuInteraction()) {
+            val ok = runShizukuLongPressCommand(x.toInt(), y.toInt(), config.longPressDurationMs, onLog)
+            if (!ok) {
+                onLog("Shizuku 长按失败，回退 Accessibility")
+                service.clickAwait(x, y, durationMs = config.longPressDurationMs)
+            }
+        } else {
+            service.clickAwait(x, y, durationMs = config.longPressDurationMs)
+        }
+
         AutomationOverlay.restoreVisibility()
-        service.awaitWindowEvent(
-                service.lastWindowEventTime(),
-                timeoutMs = config.tapAwaitWindowTimeoutMs
-        )
+        if (service != null) {
+            service.awaitWindowEvent(
+                    service.lastWindowEventTime(),
+                    timeoutMs = config.tapAwaitWindowTimeoutMs
+            )
+        }
         return true
     }
 
-    private suspend fun executeDoubleTap(
+        private suspend fun executeDoubleTap(
             action: ParsedAgentAction,
-            service: PhoneAgentAccessibilityService,
+            service: PhoneAgentAccessibilityService?,
             screenW: Int,
             screenH: Int,
             onLog: (String) -> Unit
@@ -554,7 +693,7 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
         val element = ActionUtils.parsePoint(action.fields["element"]) ?: return false
         val (x, y) = ActionUtils.parsePointToScreen(element, screenW, screenH)
 
-        onLog("执行：Double Tap(${element.first},${element.second})")
+        onLog("执行 double tap(${element.first},${element.second})")
 
         if (isVirtualDisplayMode()) {
             ensureVdFocus()
@@ -566,22 +705,61 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
             return true
         }
 
-        // 临时隐藏悬浮窗
         AutomationOverlay.temporaryHide()
-        val ok1 = service.clickAwait(x, y, durationMs = config.clickDurationMs)
+        if (service == null) {
+            if (!shouldUseShizukuInteraction()) {
+                onLog("无法执行 double tap：未启用 Shizuku 且无服务")
+                AutomationOverlay.restoreVisibility()
+                return false
+            }
+            var ok1 = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+            if (ok1) {
+                delay(config.doubleTapIntervalMs)
+                ok1 = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+            }
+            AutomationOverlay.restoreVisibility()
+            return ok1
+        }
+
+        val ok1 =
+                if (shouldUseShizukuInteraction()) {
+                    val tap1 = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+                    if (!tap1) {
+                        onLog("Shizuku 点击第一下失败，回退 Accessibility")
+                        service.clickAwait(x, y, durationMs = config.clickDurationMs)
+                    } else {
+                        true
+                    }
+                } else {
+                    service.clickAwait(x, y, durationMs = config.clickDurationMs)
+                }
         delay(config.doubleTapIntervalMs)
-        val ok2 = service.clickAwait(x, y, durationMs = config.clickDurationMs)
+        val ok2 =
+                if (shouldUseShizukuInteraction()) {
+                    val tap2 = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+                    if (!tap2) {
+                        onLog("Shizuku 点击第二下失败，回退 Accessibility")
+                        service.clickAwait(x, y, durationMs = config.clickDurationMs)
+                    } else {
+                        true
+                    }
+                } else {
+                    service.clickAwait(x, y, durationMs = config.clickDurationMs)
+                }
+
         AutomationOverlay.restoreVisibility()
-        service.awaitWindowEvent(
-                service.lastWindowEventTime(),
-                timeoutMs = config.tapAwaitWindowTimeoutMs
-        )
+        if (service != null) {
+            service.awaitWindowEvent(
+                    service.lastWindowEventTime(),
+                    timeoutMs = config.tapAwaitWindowTimeoutMs
+            )
+        }
         return ok1 && ok2
     }
 
     private suspend fun executeSwipe(
             action: ParsedAgentAction,
-            service: PhoneAgentAccessibilityService,
+            service: PhoneAgentAccessibilityService?,
             screenW: Int,
             screenH: Int,
             onLog: (String) -> Unit
@@ -626,12 +804,39 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
 
         // 临时隐藏悬浮窗
         AutomationOverlay.temporaryHide()
-        service.swipeAwait(sx, sy, ex, ey, dur)
+        if (shouldUseShizukuInteraction()) {
+            val ok = runShizukuSwipeCommand(
+                    sx.toInt(),
+                    sy.toInt(),
+                    ex.toInt(),
+                    ey.toInt(),
+                    dur,
+                    onLog
+            )
+            if (!ok && service != null) {
+                onLog("Shizuku 滑动失败，回退 Accessibility")
+                service.swipeAwait(sx, sy, ex, ey, dur)
+            } else if (!ok) {
+                onLog("Shizuku 滑动失败且服务未连接，无法回退")
+                AutomationOverlay.restoreVisibility()
+                return false
+            }
+        } else if (service != null) {
+            service.swipeAwait(sx, sy, ex, ey, dur)
+        } else {
+            onLog("无法执行 swipe：未启用 Shizuku 且无服务")
+            AutomationOverlay.restoreVisibility()
+            return false
+        }
         AutomationOverlay.restoreVisibility()
-        service.awaitWindowEvent(
-                service.lastWindowEventTime(),
-                timeoutMs = config.swipeAwaitWindowTimeoutMs
-        )
+        if (service != null) {
+            service.awaitWindowEvent(
+                    service.lastWindowEventTime(),
+                    timeoutMs = config.swipeAwaitWindowTimeoutMs
+            )
+        } else {
+            delay(config.swipeAwaitWindowTimeoutMs)
+        }
         return true
     }
 
@@ -650,27 +855,27 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
             text: String,
             onLog: (String) -> Unit
     ): Boolean {
-        if (displayId <= 0 || text.isEmpty()) return false
+        if (text.isEmpty()) return false
 
+        val hasDisplayId = displayId > 0
         val isAsciiOnly = text.all { it.code in 0..127 }
 
         if (isAsciiOnly) {
-            // ASCII 文本直接用 input text 命令
             val escaped = text.replace(" ", "%s").replace("'", "\\'").replace("\"", "\\\"")
-            val cmd = "input -d $displayId text '$escaped'"
+            val cmd = if (hasDisplayId) "input -d $displayId text '$escaped'" else "input text '$escaped'"
             val result = ShizukuBridge.execResult(cmd)
             if (result.exitCode == 0) return true
-            // 带 -d 失败，尝试不带 -d（某些 ROM 不支持）
-            val cmd2 = "input text '$escaped'"
-            val r2 = ShizukuBridge.execResult(cmd2)
-            if (r2.exitCode == 0) return true
+
+            if (hasDisplayId) {
+                val cmd2 = "input text '$escaped'"
+                val r2 = ShizukuBridge.execResult(cmd2)
+                if (r2.exitCode == 0) return true
+            }
             onLog("ASCII input 命令失败，尝试剪贴板方式...")
         }
 
-        // 非 ASCII 或 ASCII 失败 → 使用剪贴板 + 粘贴方式
         if (setClipboardAndPaste(displayId, text, onLog)) return true
 
-        // 回退方案：使用 am broadcast 方式（需要 ADBKeyboard 或类似 IME）
         val broadcastResult =
                 ShizukuBridge.execResult("am broadcast -a ADB_INPUT_TEXT --es msg '$text'")
         if (broadcastResult.exitCode == 0) {
@@ -681,14 +886,12 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
         }
 
         // 最后回退：不带 -d 的 input text（对某些设备可能有效）
-        if (!isAsciiOnly) {
-            val escaped = text.replace(" ", "%s").replace("'", "\\'").replace("\"", "\\\"")
-            val cmd = "input text '$escaped'"
-            val result = ShizukuBridge.execResult(cmd)
-            if (result.exitCode == 0) return true
-        }
+        val escaped = text.replace(" ", "%s").replace("'", "\\'").replace("\"", "\\\"")
+        val cmd = "input text '$escaped'"
+        val result = ShizukuBridge.execResult(cmd)
+        if (result.exitCode == 0) return true
 
-        onLog("所有虚拟屏文本输入方式均失败")
+        onLog("所有文本输入方式均失败")
         return false
     }
 
@@ -698,6 +901,8 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
             text: String,
             onLog: (String) -> Unit
     ): Boolean {
+        if (displayId <= 0) return false
+
         // 方式 1: 使用 cmd clipboard（Android 12+ 可用）
         val escapedText = text.replace("'", "'\\''")
         val clipCmds =
@@ -736,3 +941,4 @@ class ActionExecutor(private val config: AgentConfiguration = AgentConfiguration
         return true
     }
 }
+

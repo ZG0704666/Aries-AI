@@ -580,7 +580,7 @@ class AutomationActivityNew : AppCompatActivity() {
                             }
                         }
 
-                        val agent = UiAutomationAgent(config)
+                        val agent = UiAutomationAgent(this@AutomationActivityNew, config)
                         val result =
                                 agent.run(
                                         apiKey = apiKey,
