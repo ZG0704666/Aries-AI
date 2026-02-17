@@ -82,6 +82,7 @@ class UiAutomationAgent(private val config: AgentConfiguration = AgentConfigurat
     /** 运行Agent执行任务 */
     suspend fun run(
             apiKey: String,
+            baseUrl: String,
             model: String,
             task: String,
             service: PhoneAgentAccessibilityService,
@@ -116,7 +117,7 @@ class UiAutomationAgent(private val config: AgentConfiguration = AgentConfigurat
 
         // try-finally 确保虚拟屏资源在任何退出路径下都被清理
         try {
-            return runAgentLoop(apiKey, model, task, service, control, onLog, screenW, screenH)
+            return runAgentLoop(apiKey, baseUrl, model, task, service, control, onLog, screenW, screenH)
         } finally {
             // 清理虚拟屏及预览悬浮窗
             cleanupVirtualDisplay(service)
@@ -126,6 +127,7 @@ class UiAutomationAgent(private val config: AgentConfiguration = AgentConfigurat
     /** Agent 主循环（从 run 抽出以支持 try-finally 清理） */
     private suspend fun runAgentLoop(
             apiKey: String,
+            baseUrl: String,
             model: String,
             task: String,
             service: PhoneAgentAccessibilityService,
@@ -282,6 +284,7 @@ class UiAutomationAgent(private val config: AgentConfiguration = AgentConfigurat
             val replyResult =
                     requestModelWithRetry(
                             apiKey = apiKey,
+                            baseUrl = baseUrl,
                             model = model,
                             messages = history,
                             step = step,
@@ -328,6 +331,7 @@ class UiAutomationAgent(private val config: AgentConfiguration = AgentConfigurat
             val action =
                     parseActionWithRepair(
                             apiKey = apiKey,
+                            baseUrl = baseUrl,
                             model = model,
                             history = history,
                             step = step,
@@ -769,6 +773,7 @@ class UiAutomationAgent(private val config: AgentConfiguration = AgentConfigurat
     /** 解析动作并修复 */
     private suspend fun parseActionWithRepair(
             apiKey: String,
+            baseUrl: String,
             model: String,
             history: MutableList<ChatRequestMessage>,
             step: Int,
@@ -800,6 +805,7 @@ class UiAutomationAgent(private val config: AgentConfiguration = AgentConfigurat
             val repairResult =
                     requestModelWithRetry(
                             apiKey = apiKey,
+                            baseUrl = baseUrl,
                             model = model,
                             messages = repairHistory,
                             step = step,
@@ -829,6 +835,7 @@ class UiAutomationAgent(private val config: AgentConfiguration = AgentConfigurat
     /** 带重试的模型请求 */
     private suspend fun requestModelWithRetry(
             apiKey: String,
+            baseUrl: String,
             model: String,
             messages: List<ChatRequestMessage>,
             step: Int,
@@ -845,6 +852,7 @@ class UiAutomationAgent(private val config: AgentConfiguration = AgentConfigurat
                     withContext(Dispatchers.IO) {
                         AutoGlmClient.sendChatResult(
                                 apiKey = apiKey,
+                                baseUrl = baseUrl,
                                 messages = messages,
                                 model = model,
                                 temperature = config.temperature,
