@@ -25,6 +25,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.ai.phoneagent.core.utils.DisplayUtils
 import com.ai.phoneagent.input.InputHelper
 import com.ai.phoneagent.vdiso.ShizukuVirtualDisplayEngine
 
@@ -84,37 +85,21 @@ object VirtualScreenPreviewOverlay {
         val overlayW: Int
         val previewH: Int
         if (contentW > 0 && contentH > 0) {
-            overlayW = dp(appCtx, EXPANDED_WIDTH_DP)
+            overlayW = DisplayUtils.dp(appCtx, EXPANDED_WIDTH_DP)
             val ratio = contentH.toFloat() / contentW.toFloat()
             previewH = (overlayW * ratio).toInt()
         } else {
-            overlayW = dp(appCtx, EXPANDED_WIDTH_DP)
-            previewH = dp(appCtx, EXPANDED_HEIGHT_DP)
+            overlayW = DisplayUtils.dp(appCtx, EXPANDED_WIDTH_DP)
+            previewH = DisplayUtils.dp(appCtx, EXPANDED_HEIGHT_DP)
         }
-        val overlayH = previewH + dp(appCtx, HEADER_HEIGHT_DP) + dp(appCtx, CONTROL_BAR_HEIGHT_DP)
+        val overlayH = previewH + DisplayUtils.dp(appCtx, HEADER_HEIGHT_DP) + DisplayUtils.dp(appCtx, CONTROL_BAR_HEIGHT_DP)
 
-        val flags =
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+        val flags = DisplayUtils.createOverlayFlags()
 
-        val baseX = dp(appCtx, 12)
-        val baseY = dm.heightPixels - overlayH - dp(appCtx, 80)
+        val baseX = DisplayUtils.dp(appCtx, 12)
+        val baseY = dm.heightPixels - overlayH - DisplayUtils.dp(appCtx, 80)
 
-        val typeCandidates = buildList {
-            if (svc != null) add(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
-            val overlayOk =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        Settings.canDrawOverlays(appCtx)
-                    } else true
-            if (overlayOk) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    add(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
-                } else {
-                    @Suppress("DEPRECATION") add(WindowManager.LayoutParams.TYPE_PHONE)
-                }
-            }
-        }
+        val typeCandidates = DisplayUtils.getOverlayTypeCandidates()
 
         var lastErr: Throwable? = null
         for (type in typeCandidates.distinct()) {
@@ -200,13 +185,13 @@ object VirtualScreenPreviewOverlay {
         val appCtx = context.applicationContext
         val bgProgress = BackgroundProgressView(appCtx)
 
-        val width = dp(appCtx, 160)
-        val height = dp(appCtx, 44)
+        val width = DisplayUtils.dp(appCtx, 160)
+        val height = DisplayUtils.dp(appCtx, 44)
 
         val lp = WindowManager.LayoutParams(width, height, type, flags, PixelFormat.TRANSLUCENT)
         lp.gravity = Gravity.TOP or Gravity.END
-        lp.x = dp(appCtx, 12)
-        lp.y = dp(appCtx, 48)
+        lp.x = DisplayUtils.dp(appCtx, 12)
+        lp.y = DisplayUtils.dp(appCtx, 48)
 
         bgProgress.attachWindowManager(w, lp)
         bgProgress.onClose = { hide() }

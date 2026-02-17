@@ -1,5 +1,7 @@
 package com.ai.phoneagent.helper
 
+import com.ai.phoneagent.core.utils.ThinkingTags
+
 /**
  * 流式解析器
  *
@@ -57,14 +59,9 @@ class AriesStreamParser {
     private val buffer = StringBuilder()
     private var hasReceivedReasoning = false
 
-    private val ANSWER_START_TAGS = listOf(
-        "【回答开始】",
-        "【回答】",
-    )
-
-    private val ANSWER_END_TAGS = listOf(
-        "【回答结束】",
-    )
+    // 使用 ThinkingTags 常量
+    private val ANSWER_START_TAGS = ThinkingTags.ANSWER_START_TAGS
+    private val ANSWER_END_TAGS = ThinkingTags.ANSWER_END_TAGS
 
     fun reset() {
         currentState = ParseState.IDLE
@@ -334,35 +331,19 @@ class AriesStreamParser {
     }
 
     private fun isPotentialTagStart(content: String): Boolean {
-        val potentials = listOf(
-            "<", "<t", "<th", "<thi", "<thin", "<think",
-            "<思", "<思考", "<思考：", "<思考:",
-            "【", "【思", "【思考", "【思考开", "【思考开始"
-        )
-        return potentials.any { content.endsWith(it) }
+        return ThinkingTags.isPotentialThinkingStart(content)
     }
 
     private fun isPotentialAnswerStart(content: String): Boolean {
-        val potentials = listOf(
-            "【", "【回", "【回答", "【回答开", "【回答开始"
-        )
-        return potentials.any { content.endsWith(it) }
+        return ThinkingTags.isPotentialAnswerStart(content)
     }
 
     private fun isPotentialAnswerEnd(content: String): Boolean {
-        val potentials = listOf(
-            "【", "【回", "【回答", "【回答结", "【回答结束"
-        )
-        return potentials.any { content.endsWith(it) }
+        return ThinkingTags.isPotentialAnswerEnd(content)
     }
 
     private fun isPotentialTagEnd(content: String): Boolean {
-        val potentials = listOf(
-            "<", "</", "</t", "</th", "</thi", "</thin", "</think",
-            "</思", "</思考",
-            "【", "【思", "【思考", "【思考结", "【思考结束", "【回", "【回答"
-        )
-        return potentials.any { content.endsWith(it) }
+        return ThinkingTags.isPotentialThinkingEnd(content)
     }
 
     fun flush(): List<ParsedChunk> {

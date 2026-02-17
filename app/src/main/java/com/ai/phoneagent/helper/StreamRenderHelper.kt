@@ -23,6 +23,7 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.ai.phoneagent.R
+import com.ai.phoneagent.core.utils.ThinkingTags
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

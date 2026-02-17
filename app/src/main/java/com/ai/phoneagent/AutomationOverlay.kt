@@ -25,6 +25,7 @@ import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
 import android.widget.Toast
 import android.widget.TextView
+import com.ai.phoneagent.core.utils.DisplayUtils
 
 object AutomationOverlay {
 
@@ -89,35 +90,16 @@ object AutomationOverlay {
             appCtx.startActivity(i)
         }
 
-        val overlayW = dp(appCtx, 108)
-        val overlayH = dp(appCtx, 108)
+        val overlayW = DisplayUtils.dp(appCtx, 108)
+        val overlayH = DisplayUtils.dp(appCtx, 108)
 
-        val flags =
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+        val flags = DisplayUtils.createOverlayFlags()
 
         val dm = appCtx.resources.displayMetrics
-        val baseX = (dm.widthPixels - overlayW - dp(appCtx, 14)).coerceAtLeast(0)
-        val baseY = dp(appCtx, 88).coerceAtLeast(0)
+        val baseX = (dm.widthPixels - overlayW - DisplayUtils.dp(appCtx, 14)).coerceAtLeast(0)
+        val baseY = DisplayUtils.dp(appCtx, 88).coerceAtLeast(0)
 
-        val typeCandidates = buildList {
-            if (svc != null) add(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
-
-            val overlayPermOk =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        Settings.canDrawOverlays(appCtx)
-                    } else {
-                        true
-                    }
-            if (overlayPermOk) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    add(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
-                } else {
-                    @Suppress("DEPRECATION") add(WindowManager.LayoutParams.TYPE_PHONE)
-                }
-            }
-        }
+        val typeCandidates = DisplayUtils.getOverlayTypeCandidates()
 
         var lastError: Throwable? = null
         for (type in typeCandidates.distinct()) {
