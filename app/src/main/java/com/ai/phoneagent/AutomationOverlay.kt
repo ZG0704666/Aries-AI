@@ -193,7 +193,11 @@ object AutomationOverlay {
         val v = container ?: return
         isShowingThinking = true
         thinkingText = ""
-        v.setTexts("思考中", "等待界面稳定...")
+        v.setTexts(
+                "思考中",
+                "模型推理中",
+                "准备发起动作决策"
+        )
     }
     
     /**
@@ -214,7 +218,7 @@ object AutomationOverlay {
         // 实时提取并显示关键思考信息
         val displayText = extractRealtimeThinking(thinkingText)
         try {
-            v.setTexts("思考中", displayText)
+            v.setTexts("思考中", "模型推理中", displayText)
         } catch (e: Exception) {
             Log.w("AutomationOverlay", "Failed to update thinking display: ${e.message}")
         }
@@ -343,9 +347,9 @@ object AutomationOverlay {
         val sub = subtitle?.trim().orEmpty()
         val title = "执行中"
         if (sub.isNotBlank()) {
-            v.setTexts(title, sub.take(34))
+            v.setTexts(title, sub.take(34), v.detailText())
         } else {
-            v.setTexts(title, v.subtitleText().take(34))
+            v.setTexts(title, v.subtitleText().take(34), v.detailText())
         }
     }
 
@@ -353,13 +357,13 @@ object AutomationOverlay {
         val v = container ?: return
 
         val trimmed = simplifyLine(line).trim()
-        if (trimmed.isNotBlank()) v.setTexts(v.titleText(), trimmed.take(34))
+        if (trimmed.isNotBlank()) v.setDetailText(trimmed.take(34))
     }
 
     fun complete(message: String) {
         val v = container ?: return
         v.setProgress(1f)
-        v.setTexts("已完成", message.take(34))
+        v.setTexts("已完成", message.take(34), "任务完成")
         v.playCompleteEffect {
             hide()
         }
@@ -406,6 +410,7 @@ object AutomationOverlay {
         private val ring = EdgeFlowView(context)
         private val title = TextView(context)
         private val subtitle = TextView(context)
+        private val detail = TextView(context)
 
         private var lp: WindowManager.LayoutParams? = null
         private var wm: WindowManager? = null
@@ -452,6 +457,12 @@ object AutomationOverlay {
             subtitle.maxLines = 2
             subtitle.ellipsize = android.text.TextUtils.TruncateAt.END
 
+            detail.setTextColor(Color.parseColor("#A1AEC2"))
+            detail.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
+            detail.gravity = Gravity.CENTER_HORIZONTAL
+            detail.maxLines = 2
+            detail.ellipsize = android.text.TextUtils.TruncateAt.END
+
             val titleLp = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
             titleLp.gravity = Gravity.CENTER_HORIZONTAL or Gravity.CENTER_VERTICAL
             titleLp.topMargin = dp(-10)
@@ -460,8 +471,13 @@ object AutomationOverlay {
             subLp.gravity = Gravity.CENTER_HORIZONTAL or Gravity.CENTER_VERTICAL
             subLp.topMargin = dp(14)
 
+            val detailLp = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+            detailLp.gravity = Gravity.CENTER_HORIZONTAL or Gravity.CENTER_VERTICAL
+            detailLp.topMargin = dp(30)
+
             textBox.addView(title, titleLp)
             textBox.addView(subtitle, subLp)
+            textBox.addView(detail, detailLp)
 
             isClickable = true
             isFocusable = false
@@ -476,9 +492,18 @@ object AutomationOverlay {
 
         fun subtitleText(): String = subtitle.text?.toString().orEmpty()
 
-        fun setTexts(t: String, s: String) {
+        fun detailText(): String = detail.text?.toString().orEmpty()
+
+        fun setTexts(t: String, s: String, detailText: String? = null) {
             title.text = t
             subtitle.text = s
+            if (detailText != null) {
+                detail.text = detailText
+            }
+        }
+
+        fun setDetailText(s: String) {
+            detail.text = s
         }
 
         fun setProgress(p: Float) {
