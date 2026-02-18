@@ -71,18 +71,35 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-smooth: 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            --transition-bounce: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             transition: background-color 0.5s ease, color 0.5s ease;
             overflow-x: hidden;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-        }
-
-        :root {
-            --safe-top: env(safe-area-inset-top, 0px);
-            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            scroll-behavior: smooth;
         }
 
         /* --- 1. 动态极光背景 & 星空 --- */
@@ -95,6 +112,7 @@
             z-index: -1;
             overflow: hidden;
             transition: background 0.5s ease;
+            pointer-events: none;
         }
 
         html.dark .aurora-container {
@@ -158,7 +176,7 @@
             50% {
                 opacity: var(--opacity);
                 transform: scale(1);
-                box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+                box-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 12px rgba(180, 220, 255, 0.6);
             }
 
             100% {
@@ -173,8 +191,7 @@
             opacity: 0.4;
             animation: move 15s infinite alternate;
             border-radius: 50%;
-            will-change: transform;
-            /* 减少GPU负担 */
+            will-change: transform, opacity;
             transform: translateZ(0);
             backface-visibility: hidden;
         }
@@ -235,27 +252,59 @@
         /* --- 2. 玻璃拟态卡片 --- */
         .glass-card {
             position: relative;
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
+            backdrop-filter: blur(26px);
+            -webkit-backdrop-filter: blur(26px);
             border-radius: 1rem;
-            transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.4s ease, background-color 0.4s ease;
+            transition: transform var(--transition-smooth), box-shadow var(--transition-smooth), background-color var(--transition-smooth), border-color var(--transition-smooth);
             overflow: hidden;
             z-index: 1;
-            /* 优化动画性能 */
             transform: translateZ(0);
             backface-visibility: hidden;
         }
 
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(900px 260px at 20% 0%, rgba(255, 255, 255, 0.16), transparent 60%),
+                radial-gradient(700px 240px at 85% 20%, rgba(255, 255, 255, 0.10), transparent 62%);
+            opacity: 0.65;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glass-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                radial-gradient(circle at 2px 2px, rgba(255, 255, 255, 0.10) 1px, transparent 0);
+            background-size: 18px 18px;
+            opacity: 0.08;
+            mix-blend-mode: overlay;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        html.light .glass-card::after {
+            opacity: 0.04;
+        }
+
         html.dark .glass-card {
-            background: rgba(30, 30, 40, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            background: rgba(10, 10, 16, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow:
+                0 12px 36px rgba(0, 0, 0, 0.32),
+                0 0 0 1px rgba(255, 255, 255, 0.08) inset;
         }
 
         html.light .glass-card {
-            background: rgba(255, 255, 255, 0.78);
+            background: rgba(255, 255, 255, 0.72);
             border: 1px solid rgba(15, 23, 42, 0.10);
-            box-shadow: 0 18px 60px rgba(15, 23, 42, 0.08);
+            box-shadow:
+                0 16px 46px rgba(15, 23, 42, 0.10),
+                0 0 0 1px rgba(15, 23, 42, 0.04) inset;
         }
 
         .glass-card:hover {
@@ -263,15 +312,24 @@
         }
 
         html.dark .glass-card:hover {
-            background: rgba(40, 40, 55, 0.6);
-            border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.6);
+            background: rgba(18, 18, 24, 0.26);
+            border-color: rgba(255, 255, 255, 0.20);
+            box-shadow:
+                0 18px 58px rgba(0, 0, 0, 0.62),
+                0 0 0 1px rgba(255, 255, 255, 0.07) inset;
         }
 
         html.light .glass-card:hover {
             background: rgba(255, 255, 255, 0.95);
-            border-color: rgba(59, 130, 246, 0.3);
-            box-shadow: 0 15px 45px rgba(59, 130, 246, 0.1);
+            border-color: rgba(37, 99, 235, 0.25);
+            box-shadow:
+                0 16px 44px rgba(37, 99, 235, 0.14),
+                0 0 0 1px rgba(37, 99, 235, 0.06) inset;
+        }
+
+        .glass-card>* {
+            position: relative;
+            z-index: 1;
         }
 
         html.light footer .glass-card {
@@ -349,22 +407,53 @@
 
         /* --- 3. 导航栏 --- */
         .nav-glass {
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(26px);
+            -webkit-backdrop-filter: blur(26px);
             transition: all 0.3s ease;
+            position: relative;
         }
 
         .nav-glass {
             padding-top: var(--safe-top);
         }
 
+        .nav-glass::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(900px 260px at 20% 0%, rgba(255, 255, 255, 0.16), transparent 60%),
+                radial-gradient(700px 240px at 85% 20%, rgba(255, 255, 255, 0.10), transparent 62%);
+            opacity: 0.65;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .nav-glass::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                radial-gradient(circle at 2px 2px, rgba(255, 255, 255, 0.10) 1px, transparent 0);
+            background-size: 18px 18px;
+            opacity: 0.08;
+            mix-blend-mode: overlay;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        html.light .nav-glass::after {
+            opacity: 0.04;
+        }
+
         html.dark .nav-glass {
-            background: rgba(5, 5, 10, 0.6);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(10, 10, 16, 0.45);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.18);
         }
 
         html.light .nav-glass {
-            background: rgba(255, 255, 255, 0.8);
-            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            background: rgba(255, 255, 255, 0.72);
+            border-bottom: 1px solid rgba(15, 23, 42, 0.10);
         }
 
         /* --- 4. 渐变文字 --- */
@@ -410,7 +499,6 @@
             width: fit-content;
             gap: 24px;
             will-change: transform;
-            /* 优化动画性能 */
             transform: translateZ(0);
             backface-visibility: hidden;
         }
@@ -538,19 +626,54 @@
 
         .toggle-tooltip {
             position: absolute;
-            top: 150%;
+            top: calc(100% + 12px);
             left: 50%;
             transform: translateX(-50%);
             white-space: nowrap;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 500;
-            opacity: 0;
+            padding: 12px 18px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 1;
             pointer-events: none;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-            transition: opacity 0.5s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), 0 0 20px rgba(59, 130, 246, 0.15);
+            transition: opacity 0.5s ease, transform 0.3s ease;
+            z-index: 9999;
+            line-height: 1.6;
+            min-width: fit-content;
+            width: auto;
+            display: block;
+            overflow: visible;
+            animation: tooltipPulse 2s ease-in-out infinite;
         }
+
+        @keyframes tooltipPulse {
+
+            0%,
+            100% {
+                transform: translateX(-50%) translateY(0);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), 0 0 20px rgba(59, 130, 246, 0.15);
+            }
+
+            50% {
+                transform: translateX(-50%) translateY(-3px);
+                box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3), 0 0 30px rgba(59, 130, 246, 0.25);
+            }
+        }
+
+        html.dark .toggle-tooltip {
+            background: linear-gradient(135deg, rgba(30, 30, 45, 0.98), rgba(20, 20, 35, 0.98));
+            color: white;
+            border: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        html.light .toggle-tooltip {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(240, 249, 255, 0.98));
+            color: #1e40af;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+
 
         /* Banner & Titles */
         .banner-glow-border {
@@ -605,70 +728,38 @@
             animation: none;
         }
 
-        @keyframes ringSpin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        @keyframes ringTempo {
-            0% {
-                filter: blur(10px);
-            }
-
-            35% {
-                filter: blur(14px);
-            }
-
-            70% {
-                filter: blur(10px);
-            }
-
-            100% {
-                filter: blur(12px);
-            }
-        }
-
         .hero-capsule {
             position: relative;
             border-radius: 9999px;
-            overflow: hidden;
-            isolation: isolate;
             white-space: nowrap;
+            transform: translateZ(0);
         }
 
-        .hero-capsule::before {
-            content: '';
-            position: absolute;
-            inset: -3px;
-            border-radius: inherit;
-            background: conic-gradient(from 180deg, rgba(96, 165, 250, 0.0), rgba(96, 165, 250, 0.95), rgba(192, 132, 252, 0.95), rgba(244, 114, 182, 0.95), rgba(96, 165, 250, 0.0));
-            filter: blur(10px);
-            opacity: 0.7;
-            animation: ringSpin 7.2s linear infinite, ringTempo 4.2s linear infinite;
-            z-index: -2;
+        .hero-capsule:hover {
+            transform: none !important;
         }
 
-        .hero-capsule::after {
-            content: '';
-            position: absolute;
-            inset: 1px;
-            border-radius: inherit;
-            background: rgba(0, 0, 0, 0.35);
-            z-index: -1;
-            transition: background-color .25s ease;
+        .hero-capsule.glass-card {
+            overflow: hidden !important;
         }
 
-        html.light .hero-capsule::after {
-            background: rgba(255, 255, 255, 0.9);
+        .hero-capsule.glass-card:hover {
+            transform: scale(1.05) !important;
+            background: inherit !important;
+            box-shadow: inherit !important;
+            border-color: inherit !important;
         }
 
-        .hero-capsule:hover::before {
-            opacity: 0.95;
+        html.dark .hero-capsule.glass-card:hover {
+            background: rgba(10, 10, 16, 0.45) !important;
+            border-color: rgba(255, 255, 255, 0.18) !important;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.08) inset !important;
+        }
+
+        html.light .hero-capsule.glass-card:hover {
+            background: rgba(255, 255, 255, 0.72) !important;
+            border-color: rgba(59, 130, 246, 0.3) !important;
+            box-shadow: 0 16px 46px rgba(15, 23, 42, 0.10), 0 0 0 1px rgba(15, 23, 42, 0.04) inset !important;
         }
 
         /* --- 新增：高级图标样式 --- */
@@ -747,7 +838,6 @@
         /* --- 7. 移动端优化 --- */
         @media (max-width: 640px) {
 
-            /* 增加触摸目标尺寸 */
             button,
             a[role="button"] {
                 min-height: 44px;
@@ -755,7 +845,6 @@
                 padding: 0.75rem 1rem;
             }
 
-            /* 弹窗在移动端全屏适配 */
             #download-modal {
                 padding: 12px !important;
             }
@@ -765,95 +854,76 @@
                 max-height: 95vh;
             }
 
-            /* 下载链接按钮更大 */
             #download-modal a {
                 padding: 1rem 1.25rem !important;
                 min-height: 56px;
                 font-size: 0.95rem;
             }
 
-            /* 导航栏在小屏更紧凑，避免占用过多高度 */
             nav .h-20 {
                 height: 4.5rem;
             }
 
-            /* 避免固定导航遮挡首屏内容 */
             header {
                 padding-top: calc(5.25rem + var(--safe-top));
             }
 
-            /* Banner 文案适配 */
             .hero-capsule {
                 max-width: 100%;
                 height: auto;
                 white-space: normal;
                 padding: 0.75rem 1.25rem;
                 align-items: center;
-                /* 确保垂直居中 */
             }
 
-            @media (max-width: 640px) {
-                .hero-capsule {
-                    /* --- 移动端胶囊终极优化 V2 --- */
-                    border-radius: 9999px !important;
-                    background: rgba(255, 255, 255, 0.15) !important;
-                    /* 极度紧凑内边距：上下 6px，左右 12px */
-                    padding: 6px 12px !important;
-                    display: inline-flex !important;
-                    justify-content: center !important;
-                    align-items: center !important;
-                    /* 移除最小高度限制 */
-                    min-height: auto !important;
-                    height: auto !important;
-                    width: auto !important;
-                    max-width: 95% !important;
-                    margin: 0 auto 1.25rem auto !important;
-                }
+            .hero-capsule {
+                border-radius: 9999px !important;
+                background: rgba(255, 255, 255, 0.15) !important;
+                padding: 6px 12px !important;
+                display: inline-flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                min-height: auto !important;
+                height: auto !important;
+                width: auto !important;
+                max-width: 95% !important;
+                margin: 0 auto 1.25rem auto !important;
+            }
 
-                /* 内部容器 */
-                .hero-capsule>span.flex {
-                    display: flex !important;
-                    flex-direction: row !important;
-                    align-items: center !important;
-                    justify-content: center !important;
-                    flex-wrap: nowrap !important;
-                    gap: 6px !important;
-                }
+            .hero-capsule>span.flex {
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                justify-content: center !important;
+                flex-wrap: nowrap !important;
+                gap: 6px !important;
+            }
 
-                /* 星星图标 */
-                .hero-capsule>span.flex>span:first-child {
-                    flex-shrink: 0;
-                    display: inline-block;
-                    font-size: 1rem !important;
-                    margin-top: -1px;
-                    /* 微调垂直对齐 */
-                }
+            .hero-capsule>span.flex>span:first-child {
+                flex-shrink: 0;
+                display: inline-block;
+                font-size: 1rem !important;
+                margin-top: -1px;
+            }
 
-                /* 文字部分 */
-                .hero-capsule>span.flex>span:last-child {
-                    font-size: 13px !important;
-                    /* 强制小号文字以尝试单行显示 */
-                    line-height: 1.3 !important;
-                    text-align: left;
-                    /* 左对齐更自然 */
-                    white-space: normal !important;
-                }
+            .hero-capsule>span.flex>span:last-child {
+                font-size: 13px !important;
+                line-height: 1.3 !important;
+                text-align: left;
+                white-space: normal !important;
             }
 
             .hero-capsule span {
                 white-space: normal;
                 line-height: inherit;
-                /* 继承父级行高 */
                 text-align: center;
             }
 
             .hero-capsule .flex {
-                /* 桌面端保持 flex */
                 flex-wrap: wrap;
                 justify-content: center;
             }
 
-            /* 跑马灯胶囊在手机端更紧凑 */
             .marquee-wrapper {
                 padding: 6px 0;
             }
@@ -867,7 +937,6 @@
                 font-size: 0.9rem;
             }
 
-            /* 亮色模式下跑马灯胶囊在手机端更清晰 */
             html.light .app-capsule {
                 background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
                 color: #0f172a;
@@ -880,17 +949,42 @@
                 box-shadow: 0 8px 28px rgba(59, 130, 246, 0.25), 0 2px 8px rgba(0, 0, 0, 0.12);
             }
 
-            /* 防止输入框缩放 */
             input,
             button,
             select {
                 font-size: 16px;
             }
+
+            section {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            .glass-card {
+                border-radius: 0.875rem;
+            }
+
+            h1 {
+                font-size: 2.25rem !important;
+                line-height: 1.1 !important;
+            }
+
+            h2 {
+                font-size: 1.5rem !important;
+            }
+
+            .tech-icon-box {
+                width: 52px;
+                height: 52px;
+            }
+
+            .icon-svg {
+                width: 26px;
+                height: 26px;
+            }
         }
 
         @media (max-width: 480px) {
-
-            /* 超小屏幕的额外调整 */
             #download-modal .modal-panel {
                 padding: 1.25rem !important;
             }
@@ -899,6 +993,59 @@
                 padding: 0.875rem 1rem !important;
                 font-size: 0.875rem;
             }
+        }
+
+        .smooth-scroll {
+            scroll-behavior: smooth;
+        }
+
+        .reveal-on-scroll {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+
+        .reveal-on-scroll.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .card-hover-lift {
+            transition: transform var(--transition-smooth), box-shadow var(--transition-smooth);
+        }
+
+        .card-hover-lift:hover {
+            transform: translateY(-8px);
+        }
+
+        .btn-press {
+            transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+        }
+
+        .btn-press:active {
+            transform: scale(0.96);
+        }
+
+        .text-balance {
+            text-wrap: balance;
+        }
+
+        .gradient-border {
+            position: relative;
+        }
+
+        .gradient-border::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            padding: 1px;
+            border-radius: inherit;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.5), rgba(139, 92, 246, 0.5), rgba(236, 72, 153, 0.5));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -965,8 +1112,7 @@
                                 </svg>
                             </div>
                         </div>
-                        <div id="theme-tooltip"
-                            class="toggle-tooltip animate-fade-in-tooltip animate-bounce-slight bg-white/90 dark:bg-white text-black shadow-xl">
+                        <div id="theme-tooltip" class="toggle-tooltip">
                             点击切换日/夜模式
                         </div>
                     </div>
@@ -986,11 +1132,9 @@
             <div class="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
 
                 <!-- Left: Copy -->
-                <div class="text-center max-w-xl lg:max-w-[560px] mx-auto">
+                <div class="text-center max-w-xl lg:max-w-[560px] lg:ml-auto lg:mr-4 mx-auto">
                     <div
                         class="hero-capsule relative inline-flex items-center justify-center text-center max-w-[92%] sm:max-w-[560px] glass-card rounded-full px-5 sm:px-10 py-3 sm:py-4 mb-7 cursor-pointer hover:scale-105 transition-transform duration-300 group shadow-[0_0_35px_rgba(59,130,246,0.3)] border border-blue-400/30">
-                        <div class="banner-glow-border"></div>
-                        <div class="streamer-glow"></div>
                         <span
                             class="relative z-10 font-bold text-sm sm:text-lg flex items-center gap-2 sm:gap-3 text-gradient-flow tracking-wide">
                             <span class="animate-bounce-slight text-base sm:text-xl">✨</span>
@@ -1072,8 +1216,8 @@
         <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12">
             <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-stretch">
 
-                <!-- 左侧：文字介绍 (Titles Centered) -->
-                <div class="glass-card p-6 sm:p-8 lg:p-10 flex flex-col justify-center animate-rush-in-left h-full">
+                <!-- 左侧：文字介绍 -->
+                <div class="glass-card p-6 sm:p-8 lg:p-10 flex flex-col justify-center reveal-on-scroll h-full">
                     <!-- Title Centered -->
                     <div class="text-center w-full mb-6 sm:mb-8">
                         <h2
@@ -1144,9 +1288,9 @@
                     </div>
                 </div>
 
-                <!-- 右侧：架构图 (Icons Redesigned & Titles Centered) -->
+                <!-- 右侧：架构图 -->
                 <div
-                    class="glass-card rounded-[1.5rem] p-8 relative overflow-hidden flex flex-col justify-center animate-rush-in-right h-full">
+                    class="glass-card rounded-[1.5rem] p-8 relative overflow-hidden flex flex-col justify-center reveal-on-scroll h-full">
                     <div class="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 blur-[80px] rounded-full"></div>
                     <div class="absolute bottom-0 left-0 w-64 h-64 bg-purple-600/10 blur-[80px] rounded-full"></div>
 
@@ -1229,39 +1373,48 @@
                 已实现的智能场景</h2>
             <div class="grid md:grid-cols-3 gap-5 md:gap-6">
                 <!-- Case 1 -->
-                <div class="glass-card p-6 rounded-2xl group cursor-pointer">
+                <div class="glass-card p-6 rounded-2xl group cursor-pointer reveal-on-scroll card-hover-lift">
                     <div
-                        class="w-12 sm:w-14 h-12 sm:h-14 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center mb-4 sm:mb-5 text-xl sm:text-2xl shadow-lg shadow-orange-500/20 group-hover:scale-110 group-hover:rotate-3 transition duration-300">
-                        🍲
+                        class="w-12 sm:w-14 h-12 sm:h-14 bg-blue-600/10 border border-blue-500/30 rounded-xl flex items-center justify-center mb-4 sm:mb-5 shadow-lg shadow-blue-500/10 group-hover:scale-105 transition duration-300">
+                        <svg class="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
                     </div>
-                    <h3 class="text-base sm:text-lg font-bold mb-2 dark:text-white text-gray-900">美团订座</h3>
+                    <h3 class="text-base sm:text-lg font-bold mb-2 dark:text-white text-gray-900">生活服务</h3>
                     <p class="dark:text-gray-400 text-gray-600 text-xs sm:text-sm leading-relaxed">
-                        “帮我定明天中午火锅店座位，四个人。”<br>
-                        自动打开美团，选择店铺、时间人数，一步到位直达付款界面。
+                        智能预订餐厅、酒店、机票等<br>
+                        一键完成多步骤操作，高效便捷。
                     </p>
                 </div>
                 <!-- Case 2 -->
-                <div class="glass-card p-6 rounded-2xl group cursor-pointer">
+                <div class="glass-card p-6 rounded-2xl group cursor-pointer reveal-on-scroll card-hover-lift">
                     <div
-                        class="w-12 sm:w-14 h-12 sm:h-14 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-2xl flex items-center justify-center mb-4 sm:mb-5 text-xl sm:text-2xl shadow-lg shadow-blue-500/20 group-hover:scale-110 group-hover:rotate-3 transition duration-300">
-                        🛍️
+                        class="w-12 sm:w-14 h-12 sm:h-14 bg-blue-600/10 border border-blue-500/30 rounded-xl flex items-center justify-center mb-4 sm:mb-5 shadow-lg shadow-blue-500/10 group-hover:scale-105 transition duration-300">
+                        <svg class="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
                     </div>
-                    <h3 class="text-base sm:text-lg font-bold mb-2 dark:text-white text-gray-900">淘宝购物</h3>
+                    <h3 class="text-base sm:text-lg font-bold mb-2 dark:text-white text-gray-900">电商购物</h3>
                     <p class="dark:text-gray-400 text-gray-600 text-xs sm:text-sm leading-relaxed">
-                        “搜索蓝牙耳机，要销量最高的。”<br>
-                        自动筛选销量排序，精准识别并进入商品详情页。
+                        智能筛选商品，精准对比价格<br>
+                        自动化完成下单流程，省心省力。
                     </p>
                 </div>
                 <!-- Case 3 -->
-                <div class="glass-card p-6 rounded-2xl group cursor-pointer">
+                <div class="glass-card p-6 rounded-2xl group cursor-pointer reveal-on-scroll card-hover-lift">
                     <div
-                        class="w-14 h-14 bg-gradient-to-br from-purple-400 to-pink-500 rounded-2xl flex items-center justify-center mb-5 text-2xl shadow-lg shadow-purple-500/20 group-hover:scale-110 group-hover:rotate-3 transition duration-300">
-                        🎵
+                        class="w-12 sm:w-14 h-12 sm:h-14 bg-blue-600/10 border border-blue-500/30 rounded-xl flex items-center justify-center mb-4 sm:mb-5 shadow-lg shadow-blue-500/10 group-hover:scale-105 transition duration-300">
+                        <svg class="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1m2 1V2.5M20 7a2 2 0 012-2H8a2 2 0 012 2v10a2 2 0 01-2 2h8a2 2 0 002-2V7z" />
+                        </svg>
                     </div>
-                    <h3 class="text-base sm:text-lg font-bold mb-2 dark:text-white text-gray-900">抖音互动</h3>
+                    <h3 class="text-base sm:text-lg font-bold mb-2 dark:text-white text-gray-900">社交互动</h3>
                     <p class="dark:text-gray-400 text-gray-600 text-xs sm:text-sm leading-relaxed">
-                        “给这个视频点个赞，评论‘真不错’。”<br>
-                        自动点赞视频，并进入评论区输入指定内容。
+                        自动点赞、评论、消息回复<br>
+                        多平台社交自动化，提升效率。
                     </p>
                 </div>
             </div>

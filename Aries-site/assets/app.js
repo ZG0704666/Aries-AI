@@ -18,6 +18,25 @@
 
   window.ARIES_DATA = ARIES_DATA;
 
+  function throttle(fn, delay) {
+    let last = 0;
+    return function (...args) {
+      const now = performance.now();
+      if (now - last >= delay) {
+        last = now;
+        fn.apply(this, args);
+      }
+    };
+  }
+
+  function debounce(fn, delay) {
+    let timer = null;
+    return function (...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+  }
+
   function applyThemeClass(theme) {
     const html = document.documentElement;
     html.classList.remove('dark', 'light');
@@ -30,11 +49,11 @@
   function getStoredTheme() {
     const saved = localStorage.getItem('theme');
     if (saved === 'dark' || saved === 'light') return saved;
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    return 'dark';
   }
 
   function toggleTheme() {
-    const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+    const current = getStoredTheme();
     const next = current === 'dark' ? 'light' : 'dark';
     localStorage.setItem('theme', next);
     applyThemeClass(next);
@@ -88,9 +107,7 @@
     qqLink.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(ARIES_DATA.qqGroupId);
-      } catch (_) {
-        // ignore
-      }
+      } catch (_) {}
       window.open(ARIES_DATA.qqJoinUrl, '_blank', 'noopener');
     });
   }
@@ -216,14 +233,14 @@
     const container = document.getElementById('stars-container');
     if (!container) return;
 
-    const starCount = 120;
+    const starCount = 80;
     container.innerHTML = '';
 
     for (let i = 0; i < starCount; i++) {
       const star = document.createElement('div');
       star.className = 'star';
       const size = Math.random() * 2.2 + 0.6;
-      const opacity = Math.random() * 0.55 + 0.15;
+      const opacity = Math.random() * 0.65 + 0.25;
       const duration = Math.random() * 4 + 2;
       const delay = Math.random() * 5;
       star.style.width = size + 'px';
@@ -248,10 +265,10 @@
     let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
 
     const points = [];
-    const pointCount = 60;
-    const linkDist = 250;
-    const repelRadius = 200;
-    const repelStrength = 1.05;
+    const pointCount = 40;
+    const linkDist = 200;
+    const repelRadius = 150;
+    const repelStrength = 1.0;
 
     let mouseX = -9999;
     let mouseY = -9999;
@@ -277,9 +294,9 @@
         points.push({
           x: Math.random() * w,
           y: Math.random() * h,
-          vx: (Math.random() - 0.5) * 0.28,
-          vy: (Math.random() - 0.5) * 0.28,
-          tw: Math.random() * Math.PI * 2,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          twinkle: Math.random() * Math.PI * 2,
         });
       }
     }
@@ -294,11 +311,11 @@
       mouseY = -9999;
     }
 
-    window.addEventListener('resize', () => {
+    window.addEventListener('resize', debounce(() => {
       resize();
       resetPoints();
-    });
-    window.addEventListener('mousemove', onMove);
+    }, 100));
+    window.addEventListener('mousemove', throttle(onMove, 16));
     window.addEventListener('mouseleave', onLeave);
 
     resize();
@@ -320,7 +337,7 @@
       for (const p of points) {
         p.x += p.vx;
         p.y += p.vy;
-        p.tw += dt * 1.2;
+        p.twinkle += dt * 2;
 
         if (p.x < -20) p.x = w + 20;
         if (p.x > w + 20) p.x = -20;
@@ -339,6 +356,7 @@
 
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
+
       for (let i = 0; i < points.length; i++) {
         const a = points[i];
         for (let j = i + 1; j < points.length; j++) {
@@ -349,7 +367,7 @@
           if (d < linkDist) {
             const alpha = (1 - d / linkDist) * 0.28;
             ctx.strokeStyle = `rgba(180, 220, 255, ${alpha})`;
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
             ctx.lineTo(b.x, b.y);
@@ -359,12 +377,12 @@
       }
 
       for (const p of points) {
-        const pulse = 0.55 + (Math.sin(p.tw) * 0.18);
-        ctx.fillStyle = `rgba(255,255,255,${pulse})`;
-        ctx.shadowColor = 'rgba(140, 200, 255, 0.55)';
-        ctx.shadowBlur = 10;
+        const pulse = 0.65 + (Math.sin(p.twinkle) * 0.25);
+        ctx.fillStyle = `rgba(255, 255, 255, ${pulse})`;
+        ctx.shadowColor = 'rgba(140, 200, 255, 0.75)';
+        ctx.shadowBlur = 15;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, 2.2, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
       }
@@ -536,17 +554,81 @@
       }
 
       rebuild();
-      window.addEventListener('resize', rebuild);
+      window.addEventListener('resize', debounce(rebuild, 150));
     }
 
     initMarquee('marquee-row-1', appsRow1, -1);
     initMarquee('marquee-row-2', appsRow2, 1);
   }
 
+  function initScrollReveal() {
+    const elements = document.querySelectorAll('.reveal-on-scroll');
+    if (!elements.length) return;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) {
+      elements.forEach(el => el.classList.add('revealed'));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('revealed');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px',
+      }
+    );
+
+    elements.forEach((el, index) => {
+      el.style.transitionDelay = `${index * 0.1}s`;
+      observer.observe(el);
+    });
+  }
+
+  function initSmoothScroll() {
+    document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+      anchor.addEventListener('click', function (e) {
+        const href = this.getAttribute('href');
+        if (!href || href === '#') return;
+        const target = document.querySelector(href);
+        if (!target) return;
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  }
+
+  function initTooltipScroll() {
+    const tooltip = document.getElementById('theme-tooltip');
+    if (!tooltip) return;
+
+    let hasScrolled = false;
+
+    function onScroll() {
+      if (hasScrolled) return;
+      hasScrolled = true;
+      tooltip.style.opacity = '0';
+      tooltip.style.pointerEvents = 'none';
+      window.removeEventListener('scroll', onScroll);
+    }
+
+    window.addEventListener('scroll', onScroll);
+  }
+
   function initCommon() {
     initTheme();
     initQqLink();
     initDownloadModal();
+    initScrollReveal();
+    initSmoothScroll();
+    initTooltipScroll();
   }
 
   function initHome() {
