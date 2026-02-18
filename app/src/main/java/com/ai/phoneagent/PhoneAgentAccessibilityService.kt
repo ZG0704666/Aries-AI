@@ -125,6 +125,8 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             val contentDesc: String?,
             val resourceId: String?,
             val bounds: String,
+            val boundsNorm: String,
+            val centerNorm: String,
             val clickable: Boolean,
             val enabled: Boolean,
             val focused: Boolean,
@@ -364,11 +366,37 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
 
     private fun Rect.toBoundsString(): String = toShortString()
 
+    private fun Rect.toNormalizedBoundsString(screenWidth: Int, screenHeight: Int): String {
+        val safeWidth = screenWidth.coerceAtLeast(1)
+        val safeHeight = screenHeight.coerceAtLeast(1)
+        val leftNorm = ((left.coerceIn(0, safeWidth) * 1000f) / safeWidth).toInt().coerceIn(0, 1000)
+        val topNorm = ((top.coerceIn(0, safeHeight) * 1000f) / safeHeight).toInt().coerceIn(0, 1000)
+        val rightNorm = ((right.coerceIn(0, safeWidth) * 1000f) / safeWidth).toInt().coerceIn(0, 1000)
+        val bottomNorm = ((bottom.coerceIn(0, safeHeight) * 1000f) / safeHeight).toInt().coerceIn(0, 1000)
+        return "[$leftNorm,$topNorm][$rightNorm,$bottomNorm]"
+    }
+
+    private fun Rect.toNormalizedCenterString(screenWidth: Int, screenHeight: Int): String {
+        val safeWidth = screenWidth.coerceAtLeast(1)
+        val safeHeight = screenHeight.coerceAtLeast(1)
+        val cxNorm =
+                ((centerX().coerceIn(0, safeWidth) * 1000f) / safeWidth)
+                        .toInt()
+                        .coerceIn(0, 1000)
+        val cyNorm =
+                ((centerY().coerceIn(0, safeHeight) * 1000f) / safeHeight)
+                        .toInt()
+                        .coerceIn(0, 1000)
+        return "[$cxNorm,$cyNorm]"
+    }
+
     private fun buildNodeSnapshot(
             node: AccessibilityNodeInfo,
             detailLevel: UiDetailLevel,
             maxNodes: Int,
             counter: IntArray,
+            screenWidth: Int,
+            screenHeight: Int,
     ): UiNodeSnapshot? {
         if (counter[0] >= maxNodes) return null
         counter[0]++
@@ -393,7 +421,15 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         for (i in 0 until childCount) {
             if (counter[0] >= maxNodes) break
             node.getChild(i)?.let { child ->
-                buildNodeSnapshot(child, detailLevel, maxNodes, counter)?.let { children.add(it) }
+                buildNodeSnapshot(
+                                child,
+                                detailLevel,
+                                maxNodes,
+                                counter,
+                                screenWidth,
+                                screenHeight,
+                        )
+                        ?.let { children.add(it) }
             }
         }
 
@@ -405,6 +441,8 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
                 contentDesc = contentDesc,
                 resourceId = resourceId,
                 bounds = bounds.toBoundsString(),
+                boundsNorm = bounds.toNormalizedBoundsString(screenWidth, screenHeight),
+                centerNorm = bounds.toNormalizedCenterString(screenWidth, screenHeight),
                 clickable = node.isClickable,
                 enabled = node.isEnabled,
                 focused = node.isFocused,
@@ -460,6 +498,8 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         appendAttr("content-desc", node.contentDesc)
         appendAttr("resource-id", node.resourceId)
         appendAttr("bounds", node.bounds)
+        appendAttr("bounds-norm", node.boundsNorm)
+        appendAttr("center", node.centerNorm)
 
         // summary/full detail flags
         if (detailLevel != UiDetailLevel.MINIMAL) {
@@ -501,6 +541,8 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         if (!node.contentDesc.isNullOrEmpty()) obj.put("content_desc", node.contentDesc)
         if (!node.resourceId.isNullOrEmpty()) obj.put("resource_id", node.resourceId)
         obj.put("bounds", node.bounds)
+        obj.put("bounds_norm", node.boundsNorm)
+        obj.put("center", node.centerNorm)
         if (detailLevel != UiDetailLevel.MINIMAL) {
             obj.put("clickable", node.clickable)
             obj.put("focused", node.focused)
@@ -523,10 +565,13 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
 
     fun dumpUiTreeXml(maxNodes: Int = 30, detail: String = "minimal"): String {
         val root = rootInActiveWindow ?: return "(no active window)"
+        val metrics = resources.displayMetrics
+        val screenWidth = metrics.widthPixels.coerceAtLeast(1)
+        val screenHeight = metrics.heightPixels.coerceAtLeast(1)
         val detailLevel = normalizeDetailLevel(detail)
         val counter = intArrayOf(0)
         val snapshot =
-                buildNodeSnapshot(root, detailLevel, maxNodes, counter)
+                buildNodeSnapshot(root, detailLevel, maxNodes, counter, screenWidth, screenHeight)
                         ?: return "(no active window)"
 
         val pkg = sanitizeAttr(root.packageName, 120).orEmpty()
@@ -534,6 +579,8 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
 
         val sb = StringBuilder()
         sb.append("<ui_hierarchy")
+        sb.append(" screen-width=\"").append(screenWidth).append('"')
+        sb.append(" screen-height=\"").append(screenHeight).append('"')
         if (pkg.isNotBlank()) sb.append(" package=\"").append(escapeXml(pkg)).append('\"')
         if (!activity.isNullOrBlank())
                 sb.append(" activity=\"").append(escapeXml(activity)).append('\"')
@@ -554,13 +601,20 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
 
     fun dumpUiTreeJson(maxNodes: Int = 30, detail: String = "minimal"): String {
         val root = rootInActiveWindow ?: return "{}"
+        val metrics = resources.displayMetrics
+        val screenWidth = metrics.widthPixels.coerceAtLeast(1)
+        val screenHeight = metrics.heightPixels.coerceAtLeast(1)
         val detailLevel = normalizeDetailLevel(detail)
         val counter = intArrayOf(0)
-        val snapshot = buildNodeSnapshot(root, detailLevel, maxNodes, counter) ?: return "{}"
+        val snapshot =
+                buildNodeSnapshot(root, detailLevel, maxNodes, counter, screenWidth, screenHeight)
+                        ?: return "{}"
 
         val rootObj = JSONObject()
         sanitizeAttr(root.packageName, 120)?.let { rootObj.put("package", it) }
         sanitizeAttr(root.className, 120)?.let { rootObj.put("activity", it) }
+        rootObj.put("screen_width", screenWidth)
+        rootObj.put("screen_height", screenHeight)
         rootObj.put("tree", nodeToJson(snapshot, detailLevel))
         if (counter[0] >= maxNodes) {
             rootObj.put("truncated", true)
