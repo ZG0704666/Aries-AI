@@ -1348,7 +1348,7 @@ class MainActivity : AppCompatActivity() {
         updateStatusText()
 
         if (showNeedsCheckMessage && !apiNeedsRecheckToastShown) {
-            Toast.makeText(this@MainActivity, "请检查API配置", Toast.LENGTH_SHORT).show()
+            // 仅更新状态文案，避免在任务切回主界面时反复弹出干扰性提示
             apiNeedsRecheckToastShown = true
         }
     }

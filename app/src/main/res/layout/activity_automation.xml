@@ -195,18 +195,9 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/spacing_sm"
                         android:paddingTop="@dimen/spacing_xs"
-                        android:text="Shizuku 模拟交互"
+                        android:text="Shizuku 模式"
                         android:textColor="@color/blue_glass_text"
                         android:textSize="14sp" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/spacing_xs"
-                        android:padding="@dimen/spacing_xs"
-                        android:text="开启后优先走 Shizuku 的点击/滑动/长按，未开启则回退 Accessibility。"
-                        android:textColor="#64748B"
-                        android:textSize="12sp" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -432,3 +423,4 @@
     </androidx.core.widget.NestedScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
+

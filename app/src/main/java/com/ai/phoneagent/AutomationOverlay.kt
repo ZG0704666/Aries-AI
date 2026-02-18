@@ -14,6 +14,8 @@ import android.graphics.LinearGradient
 import android.graphics.Matrix
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.util.TypedValue
 import android.util.Log
@@ -31,6 +33,7 @@ object AutomationOverlay {
 
     private var wm: WindowManager? = null
     private var container: OverlayContainer? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private var maxSteps: Int = 1
     
@@ -41,6 +44,14 @@ object AutomationOverlay {
     // 【优化新增】流式思考显示
     private var isShowingThinking: Boolean = false
     private var thinkingText: String = ""
+
+    private inline fun runOnMain(crossinline action: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            action()
+        } else {
+            mainHandler.post { action() }
+        }
+    }
 
     fun canDrawOverlays(context: Context): Boolean {
         if (PhoneAgentAccessibilityService.instance != null) return true
@@ -190,14 +201,12 @@ object AutomationOverlay {
      * 开始流式思考显示
      */
     fun startThinking() {
-        val v = container ?: return
         isShowingThinking = true
         thinkingText = ""
-        v.setTexts(
-                "思考中",
-                "模型推理中",
-                "准备发起动作决策"
-        )
+        runOnMain {
+            val v = container ?: return@runOnMain
+            v.setTexts("思考中", "模型推理中", "准备生成下一步动作")
+        }
     }
     
     /**
@@ -206,21 +215,20 @@ object AutomationOverlay {
      */
     fun updateThinking(delta: String) {
         if (!isShowingThinking) return
-        val v = container
-        if (v == null) {
-            Log.w("AutomationOverlay", "Container is null in updateThinking, attempting to restore")
-            isShowingThinking = false
-            return
-        }
-        
         thinkingText += delta
-        
-        // 实时提取并显示关键思考信息
         val displayText = extractRealtimeThinking(thinkingText)
-        try {
-            v.setTexts("思考中", "模型推理中", displayText)
-        } catch (e: Exception) {
-            Log.w("AutomationOverlay", "Failed to update thinking display: ${e.message}")
+        runOnMain {
+            val v = container
+            if (v == null) {
+                Log.w("AutomationOverlay", "Container is null in updateThinking, attempting to restore")
+                isShowingThinking = false
+                return@runOnMain
+            }
+            try {
+                v.setTexts("思考中", "模型推理中", displayText)
+            } catch (e: Exception) {
+                Log.w("AutomationOverlay", "Failed to update thinking display: ${e.message}")
+            }
         }
     }
     
@@ -334,49 +342,53 @@ object AutomationOverlay {
     }
 
     fun updateProgress(step: Int, phaseInStep: Float, maxSteps: Int? = null, subtitle: String? = null) {
-        val v = container ?: return
-        // 【优化】不再用 maxSteps 参数覆盖预估值
-        // maxSteps 参数现在仅作为配置上限参考，不参与进度计算
-        if (maxSteps != null && !hasEstimatedSteps) {
-            this.maxSteps = maxSteps.coerceAtLeast(1)
-        }
-
-        val frac = calculateProgressFraction(step = step, phaseInStep = phaseInStep)
-        v.setProgress(frac)
-
-        val sub = subtitle?.trim().orEmpty()
-        val title = "执行中"
-        if (sub.isNotBlank()) {
-            v.setTexts(title, sub.take(34), v.detailText())
-        } else {
-            v.setTexts(title, v.subtitleText().take(34), v.detailText())
+        runOnMain {
+            val v = container ?: return@runOnMain
+            if (maxSteps != null && !hasEstimatedSteps) {
+                this.maxSteps = maxSteps.coerceAtLeast(1)
+            }
+            val frac = calculateProgressFraction(step = step, phaseInStep = phaseInStep)
+            v.setProgress(frac)
+            val sub = subtitle?.trim().orEmpty()
+            val title = "执行中"
+            if (sub.isNotBlank()) {
+                v.setTexts(title, sub.take(34), v.detailText())
+            } else {
+                v.setTexts(title, v.subtitleText().take(34), v.detailText())
+            }
         }
     }
 
     fun updateFromLogLine(line: String) {
-        val v = container ?: return
-
         val trimmed = simplifyLine(line).trim()
-        if (trimmed.isNotBlank()) v.setDetailText(trimmed.take(34))
+        if (trimmed.isBlank()) return
+        runOnMain {
+            val v = container ?: return@runOnMain
+            v.setDetailText(trimmed.take(34))
+        }
     }
 
     fun complete(message: String) {
-        val v = container ?: return
-        v.setProgress(1f)
-        v.setTexts("已完成", message.take(34), "任务完成")
-        v.playCompleteEffect {
-            hide()
+        runOnMain {
+            val v = container ?: return@runOnMain
+            v.setProgress(1f)
+            v.setTexts("已完成", message.take(34), "任务完成")
+            v.playCompleteEffect {
+                hide()
+            }
         }
     }
 
     fun hide() {
         val w = wm
         val v = container
-        if (w != null && v != null) {
-            runCatching { w.removeView(v) }
-        }
         container = null
         wm = null
+        if (w != null && v != null) {
+            runOnMain {
+                runCatching { w.removeView(v) }
+            }
+        }
     }
 
     private fun parseStep(line: String): Int? {

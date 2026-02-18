@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -59,7 +59,7 @@ class ActionExecutor(
     }
 
     private fun shouldUseShizukuInteraction(): Boolean {
-        return config.useShizukuInteraction && ShizukuBridge.isShizukuAvailable() && !isVirtualDisplayMode()
+        return config.useShizukuInteraction && !isVirtualDisplayMode()
     }
 
     private fun runShizukuTapCommand(
@@ -312,6 +312,12 @@ class ActionExecutor(
             return true
         }
 
+        if (shouldUseShizukuInteraction()) {
+            val ok = runShizukuKeyEventCommand("KEYCODE_BACK", onLog)
+            if (ok) delay(config.backAwaitWindowTimeoutMs)
+            return ok
+        }
+
         if (service != null) {
             val beforeTime = service.lastWindowEventTime()
             service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
@@ -319,17 +325,11 @@ class ActionExecutor(
             return true
         }
 
-        if (!shouldUseShizukuInteraction()) {
-            onLog("无法执行 back：服务未连接且未开启 Shizuku 交互")
-            return false
-        }
-
-        val ok = runShizukuKeyEventCommand("KEYCODE_BACK", onLog)
-        if (ok) delay(config.backAwaitWindowTimeoutMs)
-        return ok
+        onLog("无法执行 back：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+        return false
     }
 
-        private suspend fun executeHome(
+    private suspend fun executeHome(
             service: PhoneAgentAccessibilityService?,
             onLog: (String) -> Unit
     ): Boolean {
@@ -341,6 +341,12 @@ class ActionExecutor(
             return true
         }
 
+        if (shouldUseShizukuInteraction()) {
+            val ok = runShizukuKeyEventCommand("KEYCODE_HOME", onLog)
+            if (ok) delay(config.homeAwaitWindowTimeoutMs)
+            return ok
+        }
+
         if (service != null) {
             val beforeTime = service.lastWindowEventTime()
             service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
@@ -348,14 +354,8 @@ class ActionExecutor(
             return true
         }
 
-        if (!shouldUseShizukuInteraction()) {
-            onLog("无法执行 home：服务未连接且未开启 Shizuku 交互")
-            return false
-        }
-
-        val ok = runShizukuKeyEventCommand("KEYCODE_HOME", onLog)
-        if (ok) delay(config.homeAwaitWindowTimeoutMs)
-        return ok
+        onLog("无法执行 home：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+        return false
     }
 
     /** 执行 Take_over - 需要用户接管，不执行动作，仅返回失败，由上层处理 */
@@ -424,29 +424,25 @@ class ActionExecutor(
                         x.toInt(),
                         y.toInt()
                 )
-            } else if (service != null) {
-                if (shouldUseShizukuInteraction()) {
-                    AutomationOverlay.temporaryHide()
-                    val clicked = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
-                    AutomationOverlay.restoreVisibility()
-                    if (!clicked) {
-                        service.clickAwait(x, y)
-                    }
-                } else {
-                    service.clickAwait(x, y)
-                }
-            } else {
-                if (!shouldUseShizukuInteraction()) {
-                    onLog("点击聚焦位置失败：服务未连接且未开启 Shizuku")
-                    return false
-                }
+            } else if (shouldUseShizukuInteraction()) {
                 AutomationOverlay.temporaryHide()
                 val clicked = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
                 AutomationOverlay.restoreVisibility()
                 if (!clicked) {
-                    onLog("Shizuku 点击失败，无法落点")
+                    onLog("Shizuku 点击失败")
                     return false
                 }
+            } else if (service != null) {
+                val clicked = service.clickAwait(x, y)
+                if (!clicked) {
+                    onLog("Accessibility 点击失败")
+                    return false
+                } else {
+                    delay(300)
+                }
+            } else {
+                onLog("输入前点击失败：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+                return false
             }
             delay(300)
         }
@@ -464,13 +460,9 @@ class ActionExecutor(
             return ok
         }
 
-        if (service != null) {
+        if (service != null && !shouldUseShizukuInteraction()) {
             var ok =
-                    if (resourceId != null ||
-                                    contentDesc != null ||
-                                    className != null ||
-                                    elementText != null
-                    ) {
+                    if (resourceId != null || contentDesc != null || className != null || elementText != null) {
                         service.setTextOnElement(
                                 text = inputText,
                                 resourceId = resourceId,
@@ -499,8 +491,8 @@ class ActionExecutor(
             return ok
         }
 
-        if (!shouldUseShizukuInteraction()) {
-            onLog("无法执行 type：服务未连接且未开启 Shizuku")
+        if (!shouldUseShizukuInteraction() && service == null) {
+            onLog("无法执行 type：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
             return false
         }
 
@@ -536,6 +528,7 @@ class ActionExecutor(
 
         val selectorOk =
                 if (!isVirtualDisplayMode() &&
+                                !shouldUseShizukuInteraction() &&
                                 service != null &&
                                 (resourceId != null ||
                                         contentDesc != null ||
@@ -590,12 +583,7 @@ class ActionExecutor(
         }
 
         AutomationOverlay.temporaryHide()
-        if (service == null) {
-            if (!shouldUseShizukuInteraction()) {
-                onLog("无法执行 tap：未启用 Shizuku 且无服务")
-                AutomationOverlay.restoreVisibility()
-                return false
-            }
+        if (shouldUseShizukuInteraction()) {
             val ok = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
             AutomationOverlay.restoreVisibility()
             if (!ok) {
@@ -606,14 +594,12 @@ class ActionExecutor(
             return true
         }
 
-        if (shouldUseShizukuInteraction()) {
-            val ok = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
-            if (!ok) {
-                onLog("Shizuku 点击失败，回退 Accessibility")
-                service.clickAwait(x, y)
-            }
-        } else {
+        if (service != null) {
             service.clickAwait(x, y)
+        } else {
+            onLog("无法执行 tap：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+            AutomationOverlay.restoreVisibility()
+            return false
         }
 
         AutomationOverlay.restoreVisibility()
@@ -649,13 +635,7 @@ class ActionExecutor(
         }
 
         AutomationOverlay.temporaryHide()
-        if (service == null) {
-            if (!shouldUseShizukuInteraction()) {
-                onLog("无法执行 long press：未启用 Shizuku 且无服务")
-                AutomationOverlay.restoreVisibility()
-                return false
-            }
-
+        if (shouldUseShizukuInteraction()) {
             val ok = runShizukuLongPressCommand(x.toInt(), y.toInt(), config.longPressDurationMs, onLog)
             AutomationOverlay.restoreVisibility()
             if (!ok) onLog("Shizuku 长按失败")
@@ -663,14 +643,12 @@ class ActionExecutor(
             return ok
         }
 
-        if (shouldUseShizukuInteraction()) {
-            val ok = runShizukuLongPressCommand(x.toInt(), y.toInt(), config.longPressDurationMs, onLog)
-            if (!ok) {
-                onLog("Shizuku 长按失败，回退 Accessibility")
-                service.clickAwait(x, y, durationMs = config.longPressDurationMs)
-            }
-        } else {
+        if (service != null) {
             service.clickAwait(x, y, durationMs = config.longPressDurationMs)
+        } else {
+            onLog("无法执行 long press：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+            AutomationOverlay.restoreVisibility()
+            return false
         }
 
         AutomationOverlay.restoreVisibility()
@@ -706,46 +684,27 @@ class ActionExecutor(
         }
 
         AutomationOverlay.temporaryHide()
-        if (service == null) {
-            if (!shouldUseShizukuInteraction()) {
-                onLog("无法执行 double tap：未启用 Shizuku 且无服务")
-                AutomationOverlay.restoreVisibility()
-                return false
-            }
+        if (shouldUseShizukuInteraction()) {
             var ok1 = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
             if (ok1) {
                 delay(config.doubleTapIntervalMs)
                 ok1 = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+            } else {
+                onLog("Shizuku 双击第一次点击失败")
             }
             AutomationOverlay.restoreVisibility()
             return ok1
         }
 
-        val ok1 =
-                if (shouldUseShizukuInteraction()) {
-                    val tap1 = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
-                    if (!tap1) {
-                        onLog("Shizuku 点击第一下失败，回退 Accessibility")
-                        service.clickAwait(x, y, durationMs = config.clickDurationMs)
-                    } else {
-                        true
-                    }
-                } else {
-                    service.clickAwait(x, y, durationMs = config.clickDurationMs)
-                }
+        if (service == null) {
+            onLog("无法执行 double tap：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+            AutomationOverlay.restoreVisibility()
+            return false
+        }
+
+        val ok1 = service.clickAwait(x, y, durationMs = config.clickDurationMs)
         delay(config.doubleTapIntervalMs)
-        val ok2 =
-                if (shouldUseShizukuInteraction()) {
-                    val tap2 = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
-                    if (!tap2) {
-                        onLog("Shizuku 点击第二下失败，回退 Accessibility")
-                        service.clickAwait(x, y, durationMs = config.clickDurationMs)
-                    } else {
-                        true
-                    }
-                } else {
-                    service.clickAwait(x, y, durationMs = config.clickDurationMs)
-                }
+        val ok2 = service.clickAwait(x, y, durationMs = config.clickDurationMs)
 
         AutomationOverlay.restoreVisibility()
         if (service != null) {
@@ -813,18 +772,20 @@ class ActionExecutor(
                     dur,
                     onLog
             )
-            if (!ok && service != null) {
-                onLog("Shizuku 滑动失败，回退 Accessibility")
-                service.swipeAwait(sx, sy, ex, ey, dur)
-            } else if (!ok) {
-                onLog("Shizuku 滑动失败且服务未连接，无法回退")
+            if (!ok) {
+                onLog("Shizuku 滑动失败")
                 AutomationOverlay.restoreVisibility()
                 return false
             }
-        } else if (service != null) {
+            delay(config.swipeAwaitWindowTimeoutMs)
+            AutomationOverlay.restoreVisibility()
+            return true
+        }
+
+        if (service != null) {
             service.swipeAwait(sx, sy, ex, ey, dur)
         } else {
-            onLog("无法执行 swipe：未启用 Shizuku 且无服务")
+            onLog("无法执行 swipe：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
             AutomationOverlay.restoreVisibility()
             return false
         }
@@ -941,4 +902,3 @@ class ActionExecutor(
         return true
     }
 }
-

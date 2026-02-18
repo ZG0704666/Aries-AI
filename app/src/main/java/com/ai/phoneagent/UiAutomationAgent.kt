@@ -29,8 +29,6 @@ import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -101,21 +99,25 @@ class UiAutomationAgent(
             baseUrl: String,
             model: String,
             task: String,
-            service: PhoneAgentAccessibilityService,
+            service: PhoneAgentAccessibilityService?,
             control: Control = NoopControl,
             onLog: (String) -> Unit,
     ): AgentResult {
-        val metrics = service.resources.displayMetrics
+        val metrics = (service?.resources ?: appContext.resources).displayMetrics
         var screenW = metrics.widthPixels
         var screenH = metrics.heightPixels
 
         // 初始化截图管理器
         screenshotManager = ScreenshotManager(config)
 
+        if (config.useShizukuInteraction && !ShizukuBridge.isShizukuAvailable()) {
+            return AgentResult(false, "Shizuku 模式未授权，请先在设置中授权 Shizuku 后重试", 0)
+        }
+
         // 如果启用虚拟屏模式，先准备虚拟屏
         if (config.useBackgroundVirtualDisplay) {
             onLog("【虚拟屏模式】正在准备后台虚拟屏...")
-            val context = service as? android.content.Context ?: service.applicationContext
+            val context = service ?: appContext
             val displayId = VirtualDisplayController.prepareForTask(context, "")
             if (displayId != null && displayId > 0) {
                 onLog("【虚拟屏模式】虚拟屏已准备就绪，displayId=$displayId")
@@ -146,7 +148,7 @@ class UiAutomationAgent(
             baseUrl: String,
             model: String,
             task: String,
-            service: PhoneAgentAccessibilityService,
+            service: PhoneAgentAccessibilityService?,
             control: Control,
             onLog: (String) -> Unit,
             screenW: Int,
@@ -162,7 +164,7 @@ class UiAutomationAgent(
         if (config.useBackgroundVirtualDisplay && VirtualDisplayController.isVirtualDisplayStarted()
         ) {
             onLog("【虚拟屏模式】启动预览悬浮窗...")
-            val ctx = service as? android.content.Context ?: service.applicationContext
+            val ctx = service ?: appContext
             VirtualScreenPreviewOverlay.show(ctx)
         }
 
@@ -194,7 +196,7 @@ class UiAutomationAgent(
             if (config.useBackgroundVirtualDisplay &&
                             VirtualDisplayController.isVirtualDisplayStarted()
             ) {
-                val (vw, vh) = VirtualDisplayController.getContentSizeBestEffort(service)
+                val (vw, vh) = VirtualDisplayController.getContentSizeBestEffort(service ?: appContext)
                 if (vw > 0 && vh > 0) {
                     currentScreenW = vw
                     currentScreenH = vh
@@ -212,24 +214,33 @@ class UiAutomationAgent(
             // 严格隔离模式：截图阶段不抢焦点，避免主屏返回键误作用到虚拟屏
 
             // 并行获取截图和UI树
-            val (screenshot, rawUiDump) =
-                    coroutineScope {
-                        val screenshotDeferred = async {
-                            screenshotManager?.getOptimizedScreenshot(service)
-                        }
-                        val uiDumpDeferred = async {
-                            if (config.useBackgroundVirtualDisplay &&
-                                            VirtualDisplayController.isVirtualDisplayStarted()
-                            ) {
-                                // 虚拟屏模式：纯视觉驱动，UI树置空
-                                // AccessibilityService 的 rootInActiveWindow 返回的是前台窗口的 UI 树，对虚拟屏无效
-                                "[虚拟屏模式-纯视觉驱动]"
-                            } else {
-                                service.dumpUiTreeWithRetry(maxNodes = config.uiTreeMaxNodes)
-                            }
-                        }
-                        Pair(screenshotDeferred.await(), uiDumpDeferred.await())
+            val shizukuUiDump =
+                    if (!config.useBackgroundVirtualDisplay && config.useShizukuInteraction) {
+                        ShizukuBridge.dumpUiHierarchyXml()
+                    } else {
+                        null
                     }
+            val rawUiDump =
+                    if (config.useBackgroundVirtualDisplay &&
+                                    VirtualDisplayController.isVirtualDisplayStarted()
+                    ) {
+                        "[虚拟屏模式-纯视觉驱动]"
+                    } else if (config.useShizukuInteraction) {
+                        shizukuUiDump ?: "[Shizuku UI层级不可用]"
+                    } else {
+                        service?.dumpUiTreeWithRetry(maxNodes = config.uiTreeMaxNodes)
+                                ?: throw IllegalStateException("无障碍服务未连接，无法读取 UI 树")
+                    }
+            val screenshot = screenshotManager?.getOptimizedScreenshot(service)
+            if (config.useShizukuInteraction && shizukuUiDump == null) {
+                onLog("[Step $step] Shizuku UI 层级读取失败，降级为截图驱动")
+            }
+            if (config.useShizukuInteraction && screenshot == null) {
+                onLog("[Step $step] Shizuku 模式未获取到截图，继续仅使用 UI 树分析")
+            }
+            if (config.useShizukuInteraction && screenshot == null && shizukuUiDump == null) {
+                return AgentResult(false, "Shizuku 截图与UI层级均不可用，请先解锁屏幕并保持前台后重试", step)
+            }
 
             // 更新进度
             AutomationOverlay.updateProgress(
@@ -242,7 +253,7 @@ class UiAutomationAgent(
             // 截断UI树
             val uiDump = ActionUtils.truncateUiTree(rawUiDump, config.maxUiTreeChars)
 
-            val currentApp = service.currentAppPackage()
+            val currentApp = service?.currentAppPackage().orEmpty()
             val screenInfo = "{\"current_app\":\"${currentApp.replace("\"", "")}\"}"
 
             // 记录截图信息
@@ -590,9 +601,9 @@ class UiAutomationAgent(
     } // end of run()
 
     /** 清理虚拟屏及预览悬浮窗资源 */
-    private fun cleanupVirtualDisplay(service: PhoneAgentAccessibilityService) {
+    private fun cleanupVirtualDisplay(service: PhoneAgentAccessibilityService?) {
         if (config.useBackgroundVirtualDisplay) {
-            val ctx = service as? android.content.Context ?: service.applicationContext
+            val ctx = service ?: appContext
             VirtualScreenPreviewOverlay.hide()
             VirtualDisplayController.cleanup(ctx)
         }
@@ -601,9 +612,13 @@ class UiAutomationAgent(
     /** 检测用户任务中是否包含需要打开的应用，如果包含则自动启动 */
     private suspend fun trySmartAppLaunch(
             task: String,
-            service: PhoneAgentAccessibilityService,
+            service: PhoneAgentAccessibilityService?,
             onLog: (String) -> Unit,
     ): Boolean {
+        if (service == null) {
+            onLog("[⚡快速启动] 无无障碍连接，跳过预启动")
+            return false
+        }
         val launchPatterns =
                 listOf(
                         Regex(
@@ -715,7 +730,7 @@ class UiAutomationAgent(
 
     /** 合并执行 Tap+Type 操作 */
     private suspend fun executeTapAndTypeCombined(
-            service: PhoneAgentAccessibilityService,
+            service: PhoneAgentAccessibilityService?,
             tapAction: ParsedAgentAction,
             typeAction: ParsedAgentAction,
             uiDump: String,
@@ -754,6 +769,13 @@ class UiAutomationAgent(
 
             val result = actionExecutor.injectTextOnVirtualDisplay(displayId, inputText, onLog)
             return result
+        }
+
+        if (service == null) {
+            onLog("[合并执行] 无无障碍连接，回退到分别执行")
+            val tapOk = actionExecutor.execute(tapAction, null, uiDump, screenW, screenH, onLog)
+            if (!tapOk) return false
+            return actionExecutor.execute(typeAction, null, uiDump, screenW, screenH, onLog)
         }
 
         // 前台模式

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -47,7 +47,7 @@ data class AgentConfiguration(
 
         /**
          * 是否启用可选的 Shizuku 交互能力。
-         * true：在非虚拟屏模式下优先使用 Shizuku 模拟输入与截图；失败则回退。
+         * true: 在非虚拟屏模式下优先使用 Shizuku 模式（视图树读取、坐标点击与输入）；失败则直接报错，不回退到 Accessibility。
          * false：继续使用当前 Accessibility + AccessibilityService 截图链路。
          */
     val useShizukuInteraction: Boolean = false,
@@ -406,3 +406,4 @@ data class AgentConfiguration(
         return dangerousOperationKeywords.any { text.contains(it, ignoreCase = true) }
     }
 }
+

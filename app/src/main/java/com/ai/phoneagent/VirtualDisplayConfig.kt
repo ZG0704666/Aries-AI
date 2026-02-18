@@ -42,6 +42,7 @@ object VirtualDisplayConfig {
     private const val KEY_WIDTH = "virtual_display_width"
     private const val KEY_HEIGHT = "virtual_display_height"
     private const val KEY_USE_VIRTUAL_DISPLAY = "use_virtual_display"
+    private const val KEY_USE_SHIZUKU_INTERACTION = "use_shizuku_interaction"
 
     // ════════════════════════════════════════════
     //  16 像素对齐
@@ -135,6 +136,14 @@ object VirtualDisplayConfig {
     /** 读取执行模式选择 */
     fun getUseVirtualDisplay(context: Context): Boolean {
         return prefs(context).getBoolean(KEY_USE_VIRTUAL_DISPLAY, false)
+    }
+
+    fun getUseShizukuInteraction(context: Context): Boolean {
+        return prefs(context).getBoolean(KEY_USE_SHIZUKU_INTERACTION, false)
+    }
+
+    fun setUseShizukuInteraction(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_USE_SHIZUKU_INTERACTION, value).apply()
     }
 
     /** 返回摘要字符串（调试 / 日志用） */

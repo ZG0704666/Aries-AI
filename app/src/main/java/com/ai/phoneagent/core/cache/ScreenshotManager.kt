@@ -79,7 +79,7 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
         // 执行截图
         val screenshot =
                 if (config.useShizukuInteraction) {
-                    getShizukuScreenshot() ?: service?.tryCaptureScreenshotBase64()
+                    getShizukuScreenshot()
                 } else {
                     service?.tryCaptureScreenshotBase64()
                 }
@@ -111,7 +111,7 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
         }
     }
 
-    /** 通过 Shizuku 截图（带回退到原有 Accessibility） */
+    /** 通过 Shizuku 截图（仅在 Shizuku 模式下使用） */
     private fun getShizukuScreenshot(): PhoneAgentAccessibilityService.ScreenshotData? {
         if (!ShizukuBridge.isShizukuAvailable()) return null
 
@@ -187,3 +187,4 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
         )
     }
 }
+
