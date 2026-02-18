@@ -565,8 +565,8 @@ class ActionExecutor(
                 ActionUtils.parsePoint(action.fields["element"])
                         ?: ActionUtils.parsePoint(action.fields["point"])
                                 ?: ActionUtils.parsePoint(action.fields["pos"])
-        val xRel = action.fields["x"]?.trim()?.toIntOrNull() ?: element?.first ?: return false
-        val yRel = action.fields["y"]?.trim()?.toIntOrNull() ?: element?.second ?: return false
+        val xRel = ActionUtils.parseCoordinate(action.fields["x"]) ?: element?.first ?: return false
+        val yRel = ActionUtils.parseCoordinate(action.fields["y"]) ?: element?.second ?: return false
 
         val (x, y) = ActionUtils.parsePointToScreen(xRel to yRel, screenW, screenH)
         onLog("执行 tap($xRel,$yRel)")
@@ -726,10 +726,10 @@ class ActionExecutor(
         val start = ActionUtils.parsePoint(action.fields["start"])
         val end = ActionUtils.parsePoint(action.fields["end"])
 
-        val sxRel = action.fields["start_x"]?.trim()?.toIntOrNull() ?: start?.first ?: return false
-        val syRel = action.fields["start_y"]?.trim()?.toIntOrNull() ?: start?.second ?: return false
-        val exRel = action.fields["end_x"]?.trim()?.toIntOrNull() ?: end?.first ?: return false
-        val eyRel = action.fields["end_y"]?.trim()?.toIntOrNull() ?: end?.second ?: return false
+        val sxRel = ActionUtils.parseCoordinate(action.fields["start_x"]) ?: start?.first ?: return false
+        val syRel = ActionUtils.parseCoordinate(action.fields["start_y"]) ?: start?.second ?: return false
+        val exRel = ActionUtils.parseCoordinate(action.fields["end_x"]) ?: end?.first ?: return false
+        val eyRel = ActionUtils.parseCoordinate(action.fields["end_y"]) ?: end?.second ?: return false
 
         val durRaw = action.fields["duration"].orEmpty().trim()
         val dur =
