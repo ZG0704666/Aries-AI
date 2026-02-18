@@ -5,6 +5,8 @@ import java.util.concurrent.ConcurrentHashMap
 /** 动作工具类 - 动作名称转换、延迟计算等 */
 object ActionUtils {
 
+    private val numberRegex = Regex("""[-+]?\d+(?:\.\d+)?""")
+
     /** 获取用于显示的动作名称（中文友好） */
     fun getDisplayActionName(actionName: String, fields: Map<String, String>): String {
         val normalizedName = actionName.replace(" ", "").lowercase()
@@ -75,14 +77,41 @@ object ActionUtils {
         return total
     }
 
+    /**
+     * 解析单个坐标值（兼容整数 / 浮点 / 百分比）
+     *
+     * 例如：
+     * - `500` -> 500
+     * - `500.7` -> 501
+     * - `50%` -> 500（按 0-1000 相对坐标系转换）
+     */
+    fun parseCoordinate(raw: String?): Int? {
+        if (raw.isNullOrBlank()) return null
+        val cleaned = raw.trim().trim('"', '\'', ' ')
+        if (cleaned.isEmpty()) return null
+
+        if (cleaned.endsWith("%")) {
+            val percent = cleaned.dropLast(1).trim().toFloatOrNull() ?: return null
+            return ((percent / 100f) * 1000f).toInt().coerceIn(0, 1000)
+        }
+
+        cleaned.toIntOrNull()?.let { return it }
+
+        cleaned.toFloatOrNull()?.let { return kotlin.math.round(it).toInt() }
+
+        // 兼容 "x=500.4" / "500px" 这类噪声格式
+        val number = numberRegex.find(cleaned)?.value?.toFloatOrNull() ?: return null
+        return kotlin.math.round(number).toInt()
+    }
+
     /** 解析坐标点 */
     fun parsePoint(raw: String?): Pair<Int, Int>? {
         if (raw.isNullOrBlank()) return null
         val v = raw.trim().removeSurrounding("[", "]")
         val parts = v.split(',').map { it.trim() }
         if (parts.size < 2) return null
-        val x = parts[0].toIntOrNull() ?: return null
-        val y = parts[1].toIntOrNull() ?: return null
+        val x = parseCoordinate(parts[0]) ?: return null
+        val y = parseCoordinate(parts[1]) ?: return null
         return x to y
     }
 

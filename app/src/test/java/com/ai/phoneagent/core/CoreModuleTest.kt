@@ -120,6 +120,16 @@ class CoreModuleTest {
         assertNotNull(point)
         assertEquals(500, point?.first)
         assertEquals(600, point?.second)
+
+        val floatPoint = utils.parsePoint("[500.6, 200.4]")
+        assertNotNull(floatPoint)
+        assertEquals(501, floatPoint?.first)
+        assertEquals(200, floatPoint?.second)
+
+        val percentPoint = utils.parsePoint("[50%,25%]")
+        assertNotNull(percentPoint)
+        assertEquals(500, percentPoint?.first)
+        assertEquals(250, percentPoint?.second)
     }
     
     @Test
@@ -246,7 +256,6 @@ class PerformanceTest {
         assertTrue("截断100次大文本耗时: ${elapsed}ms", elapsed < 500)
     }
 }
-
 
 
 
