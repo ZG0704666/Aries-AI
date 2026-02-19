@@ -80,6 +80,12 @@ object ShizukuBridge {
     }
 
     @JvmStatic
+    fun execBytesArgs(args: List<String>): ByteArray {
+        val r = execResultArgs(args)
+        return if (r.exitCode == 0) r.stdout else ByteArray(0)
+    }
+
+    @JvmStatic
     fun execText(command: String): String {
         val bytes = execBytes(command)
         if (bytes.isEmpty()) return ""
@@ -92,11 +98,24 @@ object ShizukuBridge {
 
     @JvmStatic
     fun execResult(command: String): ExecResult {
+        return execResultInternal(arrayOf("sh", "-c", command), command)
+    }
+
+    @JvmStatic
+    fun execResultArgs(args: List<String>): ExecResult {
+        if (args.isEmpty()) return ExecResult(exitCode = -3, stdout = ByteArray(0), stderr = ByteArray(0))
+        val printable = args.joinToString(" ") { part ->
+            if (part.any { it.isWhitespace() }) "\"$part\"" else part
+        }
+        return execResultInternal(args.toTypedArray(), printable)
+    }
+
+    private fun execResultInternal(processArgs: Array<String>, commandLabel: String): ExecResult {
         return try {
             if (!pingBinder()) return ExecResult(exitCode = -1, stdout = ByteArray(0), stderr = ByteArray(0))
             if (!hasPermission()) return ExecResult(exitCode = -2, stdout = ByteArray(0), stderr = ByteArray(0))
 
-            val process = newProcess(arrayOf("sh", "-c", command))
+            val process = newProcess(processArgs)
             val cls = process.javaClass
             val inputStream = cls.getMethod("getInputStream").invoke(process) as java.io.InputStream
             val errorStream = cls.getMethod("getErrorStream").invoke(process) as java.io.InputStream
@@ -116,7 +135,7 @@ object ShizukuBridge {
                 } catch (_: Exception) {
                     ""
                 }
-                Log.w(TAG, "Shizuku exec failed: exitCode=$exitCode cmd=$command stderr=${stderrText.take(500)} stdout=${stdoutText.take(500)}")
+                Log.w(TAG, "Shizuku exec failed: exitCode=$exitCode cmd=$commandLabel stderr=${stderrText.take(500)} stdout=${stdoutText.take(500)}")
             }
 
             ExecResult(exitCode = exitCode, stdout = outBytes, stderr = errBytes)

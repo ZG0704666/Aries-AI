@@ -166,9 +166,14 @@ class ActionParser {
         val fields = mutableMapOf<String, String>()
         val regex = Regex("""(\w+)\s*=\s*(?:\[(.*?)\]|"(.*?)"|'([^']*)'|([^,)]+))""")
         regex.findAll(paramsStr).forEach { m ->
-            val key = m.groupValues[1].lowercase()
+            val key = m.groupValues[1].trim()
+            if (key.isBlank()) return@forEach
             val value = m.groupValues.drop(2).firstOrNull { it.isNotEmpty() } ?: ""
             fields[key] = value
+            val lowerKey = key.lowercase()
+            if (!fields.containsKey(lowerKey)) {
+                fields[lowerKey] = value
+            }
         }
         return fields
     }

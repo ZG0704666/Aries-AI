@@ -139,10 +139,7 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
             service: PhoneAgentAccessibilityService?
     ): PhoneAgentAccessibilityService.ScreenshotData? {
         if (!config.enableScreenshotCache) return null
-
-        val currentApp = service?.currentAppPackage() ?: "unknown"
-        val windowEventTime = service?.lastWindowEventTime() ?: 0L
-        val cacheKey = cache.generateKey(currentApp, windowEventTime)
+        val cacheKey = resolveCacheKey(service) ?: return null
 
         @Suppress("UNCHECKED_CAST")
         return cache.get(cacheKey) as? PhoneAgentAccessibilityService.ScreenshotData
@@ -154,12 +151,15 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
             screenshot: PhoneAgentAccessibilityService.ScreenshotData
     ) {
         if (!config.enableScreenshotCache) return
-
-        val currentApp = service?.currentAppPackage() ?: "unknown"
-        val windowEventTime = service?.lastWindowEventTime() ?: 0L
-        val cacheKey = cache.generateKey(currentApp, windowEventTime)
+        val cacheKey = resolveCacheKey(service) ?: return
 
         cache.put(cacheKey, screenshot)
+    }
+
+    private fun resolveCacheKey(service: PhoneAgentAccessibilityService?): String? {
+        // Shizuku-only 场景下 service 可能为 null，若继续使用固定 key 会导致截图长期陈旧。
+        val svc = service ?: return null
+        return cache.generateKey(svc.currentAppPackage(), svc.lastWindowEventTime())
     }
 
     /** 清理截图缓存（在任务开始/结束时调用） */

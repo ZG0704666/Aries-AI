@@ -738,13 +738,27 @@ class UiAutomationAgent(
             onLog("[⚡快速启动] Shizuku 不可用，无法快速启动 $packageName")
             return false
         }
+        if (!packageName.matches(Regex("^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)+$"))) {
+            onLog("[⚡快速启动] 包名不合法，拒绝执行 Shizuku 启动：$packageName")
+            return false
+        }
 
-        val monkey = ShizukuBridge.execResult(
-                "monkey -p $packageName -c android.intent.category.LAUNCHER 1"
+        val monkey = ShizukuBridge.execResultArgs(
+                listOf(
+                        "monkey",
+                        "-p",
+                        packageName,
+                        "-c",
+                        "android.intent.category.LAUNCHER",
+                        "1"
+                )
         )
         if (monkey.exitCode == 0) return true
 
-        val resolve = ShizukuBridge.execResult("cmd package resolve-activity --brief $packageName")
+        val resolve =
+                ShizukuBridge.execResultArgs(
+                        listOf("cmd", "package", "resolve-activity", "--brief", packageName)
+                )
         val component =
                 resolve.stdoutText().lineSequence().map { it.trim() }.firstOrNull {
                     it.contains("/") &&
@@ -752,15 +766,35 @@ class UiAutomationAgent(
                             !it.startsWith("No activity", ignoreCase = true)
                 }
         if (!component.isNullOrBlank()) {
-            val byComponent = ShizukuBridge.execResult(
-                    "am start -n $component -a android.intent.action.MAIN -c android.intent.category.LAUNCHER"
-            )
+            val byComponent =
+                    ShizukuBridge.execResultArgs(
+                            listOf(
+                                    "am",
+                                    "start",
+                                    "-n",
+                                    component,
+                                    "-a",
+                                    "android.intent.action.MAIN",
+                                    "-c",
+                                    "android.intent.category.LAUNCHER"
+                            )
+                    )
             if (byComponent.exitCode == 0) return true
         }
 
-        val byPackage = ShizukuBridge.execResult(
-                "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p $packageName"
-        )
+        val byPackage =
+                ShizukuBridge.execResultArgs(
+                        listOf(
+                                "am",
+                                "start",
+                                "-a",
+                                "android.intent.action.MAIN",
+                                "-c",
+                                "android.intent.category.LAUNCHER",
+                                "-p",
+                                packageName
+                        )
+                )
         if (byPackage.exitCode == 0) return true
 
         onLog(

@@ -135,6 +135,17 @@ class ActionExecutor(
         }
     }
 
+    private fun readField(fields: Map<String, String>, vararg keys: String): String? {
+        for (key in keys) {
+            val exact = fields[key]
+            if (!exact.isNullOrBlank()) return exact
+
+            val lower = fields[key.lowercase()]
+            if (!lower.isNullOrBlank()) return lower
+        }
+        return null
+    }
+
     /** 执行动作 */
     suspend fun execute(
             action: ParsedAgentAction,
@@ -415,14 +426,20 @@ class ActionExecutor(
             return false
         }
 
-        val inputText = action.fields["text"].orEmpty()
-        val resourceId = action.fields["resourceId"] ?: action.fields["resource_id"]
-        val contentDesc = action.fields["contentDesc"] ?: action.fields["content_desc"]
-        val className = action.fields["className"] ?: action.fields["class_name"]
+        val inputText = readField(action.fields, "text").orEmpty()
+        val resourceId = readField(action.fields, "resourceId", "resource_id", "resourceid")
+        val contentDesc = readField(action.fields, "contentDesc", "content_desc", "contentdesc")
+        val className = readField(action.fields, "className", "class_name", "classname")
         val elementText =
-                action.fields["elementText"]
-                        ?: action.fields["element_text"] ?: action.fields["targetText"]
-                                ?: action.fields["target_text"]
+                readField(
+                        action.fields,
+                        "elementText",
+                        "element_text",
+                        "elementtext",
+                        "targetText",
+                        "target_text",
+                        "targettext"
+                )
         val index = action.fields["index"]?.trim()?.toIntOrNull() ?: 0
 
         val element =
@@ -532,12 +549,17 @@ class ActionExecutor(
             return false
         }
 
-        val resourceId = action.fields["resourceId"] ?: action.fields["resource_id"]
-        val contentDesc = action.fields["contentDesc"] ?: action.fields["content_desc"]
-        val className = action.fields["className"] ?: action.fields["class_name"]
+        val resourceId = readField(action.fields, "resourceId", "resource_id", "resourceid")
+        val contentDesc = readField(action.fields, "contentDesc", "content_desc", "contentdesc")
+        val className = readField(action.fields, "className", "class_name", "classname")
         val elementText =
-                action.fields["elementText"]
-                        ?: action.fields["element_text"] ?: action.fields["label"]
+                readField(
+                        action.fields,
+                        "elementText",
+                        "element_text",
+                        "elementtext",
+                        "label"
+                )
         val index = action.fields["index"]?.trim()?.toIntOrNull() ?: 0
 
         val selectorOk =
@@ -825,14 +847,22 @@ class ActionExecutor(
         val isAsciiOnly = text.all { it.code in 0..127 }
 
         if (isAsciiOnly) {
-            val escaped = text.replace(" ", "%s").replace("'", "\\'").replace("\"", "\\\"")
-            val cmd = if (hasDisplayId) "input -d $displayId text '$escaped'" else "input text '$escaped'"
-            val result = ShizukuBridge.execResult(cmd)
+            val encoded = text.replace(" ", "%s")
+            val args =
+                    mutableListOf<String>().apply {
+                        add("input")
+                        if (hasDisplayId) {
+                            add("-d")
+                            add(displayId.toString())
+                        }
+                        add("text")
+                        add(encoded)
+                    }
+            val result = ShizukuBridge.execResultArgs(args)
             if (result.exitCode == 0) return true
 
             if (hasDisplayId) {
-                val cmd2 = "input text '$escaped'"
-                val r2 = ShizukuBridge.execResult(cmd2)
+                val r2 = ShizukuBridge.execResultArgs(listOf("input", "text", encoded))
                 if (r2.exitCode == 0) return true
             }
             onLog("ASCII input 命令失败，尝试剪贴板方式...")
@@ -841,7 +871,9 @@ class ActionExecutor(
         if (setClipboardAndPaste(displayId, text, onLog)) return true
 
         val broadcastResult =
-                ShizukuBridge.execResult("am broadcast -a ADB_INPUT_TEXT --es msg '$text'")
+                ShizukuBridge.execResultArgs(
+                        listOf("am", "broadcast", "-a", "ADB_INPUT_TEXT", "--es", "msg", text)
+                )
         if (broadcastResult.exitCode == 0) {
             val output = broadcastResult.stdoutText()
             if (output.contains("result=0") || output.contains("result=-1")) {
@@ -850,9 +882,8 @@ class ActionExecutor(
         }
 
         // 最后回退：不带 -d 的 input text（对某些设备可能有效）
-        val escaped = text.replace(" ", "%s").replace("'", "\\'").replace("\"", "\\\"")
-        val cmd = "input text '$escaped'"
-        val result = ShizukuBridge.execResult(cmd)
+        val encoded = text.replace(" ", "%s")
+        val result = ShizukuBridge.execResultArgs(listOf("input", "text", encoded))
         if (result.exitCode == 0) return true
 
         onLog("所有文本输入方式均失败")
@@ -868,16 +899,32 @@ class ActionExecutor(
         if (displayId <= 0) return false
 
         // 方式 1: 使用 cmd clipboard（Android 12+ 可用）
-        val escapedText = text.replace("'", "'\\''")
         val clipCmds =
                 listOf(
-                        "cmd clipboard set-text '$escapedText'",
-                        "service call clipboard 2 i32 1 i64 0 s16 'com.android.shell' s16 '$escapedText' i32 0 i32 0",
+                        listOf("cmd", "clipboard", "set-text", text),
+                        listOf(
+                                "service",
+                                "call",
+                                "clipboard",
+                                "2",
+                                "i32",
+                                "1",
+                                "i64",
+                                "0",
+                                "s16",
+                                "com.android.shell",
+                                "s16",
+                                text,
+                                "i32",
+                                "0",
+                                "i32",
+                                "0",
+                        ),
                 )
 
         var clipboardSet = false
         for (cmd in clipCmds) {
-            val r = ShizukuBridge.execResult(cmd)
+            val r = ShizukuBridge.execResultArgs(cmd)
             if (r.exitCode == 0) {
                 clipboardSet = true
                 break

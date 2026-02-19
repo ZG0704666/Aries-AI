@@ -34,6 +34,7 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 import com.ai.phoneagent.BuildConfig
 import java.io.IOException
+import java.util.LinkedHashMap
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -123,8 +124,27 @@ object AutoGlmClient {
         private const val DEFAULT_FREQUENCY_PENALTY = 0.2f
         private const val DEFAULT_MAX_TOKENS = 4096
 
-        private val serviceCache = mutableMapOf<String, AutoGlmService>()
-        private val fastServiceCache = mutableMapOf<String, AutoGlmService>()
+        private const val SERVICE_CACHE_MAX_ENTRIES = 8
+
+        private val serviceCacheLock = Any()
+        private val fastServiceCacheLock = Any()
+
+        private val serviceCache =
+                object : LinkedHashMap<String, AutoGlmService>(16, 0.75f, true) {
+                        override fun removeEldestEntry(
+                                eldest: MutableMap.MutableEntry<String, AutoGlmService>?
+                        ): Boolean {
+                                return size > SERVICE_CACHE_MAX_ENTRIES
+                        }
+                }
+        private val fastServiceCache =
+                object : LinkedHashMap<String, AutoGlmService>(16, 0.75f, true) {
+                        override fun removeEldestEntry(
+                                eldest: MutableMap.MutableEntry<String, AutoGlmService>?
+                        ): Boolean {
+                                return size > SERVICE_CACHE_MAX_ENTRIES
+                        }
+                }
 
         private fun normalizeBaseUrl(baseUrl: String): String {
                 val trimmed = baseUrl.trim().ifBlank { DEFAULT_BASE_URL }
@@ -145,25 +165,33 @@ object AutoGlmClient {
 
         private fun getService(baseUrl: String): AutoGlmService {
                 val normalized = normalizeBaseUrl(baseUrl)
-                return serviceCache.getOrPut(normalized) {
-                        Retrofit.Builder()
-                                .baseUrl(normalized)
-                                .client(SharedHttpClient.instance)
-                                .addConverterFactory(GsonConverterFactory.create())
-                                .build()
-                                .create(AutoGlmService::class.java)
+                synchronized(serviceCacheLock) {
+                        serviceCache[normalized]?.let { return it }
+                        val created =
+                                Retrofit.Builder()
+                                        .baseUrl(normalized)
+                                        .client(SharedHttpClient.instance)
+                                        .addConverterFactory(GsonConverterFactory.create())
+                                        .build()
+                                        .create(AutoGlmService::class.java)
+                        serviceCache[normalized] = created
+                        return created
                 }
         }
 
         private fun getFastService(baseUrl: String): AutoGlmService {
                 val normalized = normalizeBaseUrl(baseUrl)
-                return fastServiceCache.getOrPut(normalized) {
-                        Retrofit.Builder()
-                                .baseUrl(normalized)
-                                .client(SharedHttpClient.fastInstance)
-                                .addConverterFactory(GsonConverterFactory.create())
-                                .build()
-                                .create(AutoGlmService::class.java)
+                synchronized(fastServiceCacheLock) {
+                        fastServiceCache[normalized]?.let { return it }
+                        val created =
+                                Retrofit.Builder()
+                                        .baseUrl(normalized)
+                                        .client(SharedHttpClient.fastInstance)
+                                        .addConverterFactory(GsonConverterFactory.create())
+                                        .build()
+                                        .create(AutoGlmService::class.java)
+                        fastServiceCache[normalized] = created
+                        return created
                 }
         }
 
