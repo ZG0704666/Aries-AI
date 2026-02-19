@@ -56,6 +56,13 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
             return getVirtualDisplayScreenshot()
         }
 
+        // Shizuku 交互路径使用实时截图：
+        // 1) 不使用缓存（避免 service 为空/事件不更新时出现陈旧截图）
+        // 2) 不使用节流（避免无缓存时被节流导致截图空档）
+        if (config.useShizukuInteraction) {
+            return getShizukuScreenshot()
+        }
+
         // 检查节流器
         if (!throttler.canTakeScreenshot()) {
             val remainingWait = throttler.getRemainingWaitTime()
