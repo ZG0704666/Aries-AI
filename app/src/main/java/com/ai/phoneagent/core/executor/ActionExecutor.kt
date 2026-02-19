@@ -121,6 +121,20 @@ class ActionExecutor(
         // NO-OP
     }
 
+    /**
+     * 临时隐藏自动化悬浮窗并保证在任意返回路径恢复，避免 Shizuku 路径中途异常导致悬浮窗消失。
+     */
+    private suspend inline fun <T> withAutomationOverlayHidden(
+            crossinline block: suspend () -> T
+    ): T {
+        AutomationOverlay.temporaryHide()
+        return try {
+            block()
+        } finally {
+            AutomationOverlay.restoreVisibility()
+        }
+    }
+
     /** 执行动作 */
     suspend fun execute(
             action: ParsedAgentAction,
@@ -425,9 +439,9 @@ class ActionExecutor(
                         y.toInt()
                 )
             } else if (shouldUseShizukuInteraction()) {
-                AutomationOverlay.temporaryHide()
-                val clicked = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
-                AutomationOverlay.restoreVisibility()
+                val clicked = withAutomationOverlayHidden {
+                    runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+                }
                 if (!clicked) {
                     onLog("Shizuku 点击失败")
                     return false
@@ -536,17 +550,15 @@ class ActionExecutor(
                                         elementText != null)
                 ) {
                     onLog("执行 tap(selector)")
-                    AutomationOverlay.temporaryHide()
-                    val result =
-                            service.clickElement(
-                                    resourceId = resourceId,
-                                    text = elementText,
-                                    contentDesc = contentDesc,
-                                    className = className,
-                                    index = index
-                            )
-                    AutomationOverlay.restoreVisibility()
-                    result
+                    withAutomationOverlayHidden {
+                        service.clickElement(
+                                resourceId = resourceId,
+                                text = elementText,
+                                contentDesc = contentDesc,
+                                className = className,
+                                index = index
+                        )
+                    }
                 } else {
                     false
                 }
@@ -582,34 +594,29 @@ class ActionExecutor(
             return true
         }
 
-        AutomationOverlay.temporaryHide()
-        if (shouldUseShizukuInteraction()) {
-            val ok = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
-            AutomationOverlay.restoreVisibility()
-            if (!ok) {
-                onLog("Shizuku 点击失败")
-                return false
+        return withAutomationOverlayHidden {
+            if (shouldUseShizukuInteraction()) {
+                val ok = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+                if (!ok) {
+                    onLog("Shizuku 点击失败")
+                    return@withAutomationOverlayHidden false
+                }
+                delay(config.tapAwaitWindowTimeoutMs)
+                return@withAutomationOverlayHidden true
             }
-            delay(config.tapAwaitWindowTimeoutMs)
-            return true
-        }
 
-        if (service != null) {
-            service.clickAwait(x, y)
-        } else {
+            if (service != null) {
+                service.clickAwait(x, y)
+                service.awaitWindowEvent(
+                        service.lastWindowEventTime(),
+                        timeoutMs = config.tapAwaitWindowTimeoutMs
+                )
+                return@withAutomationOverlayHidden true
+            }
+
             onLog("无法执行 tap：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
-            AutomationOverlay.restoreVisibility()
-            return false
+            false
         }
-
-        AutomationOverlay.restoreVisibility()
-        if (service != null) {
-            service.awaitWindowEvent(
-                    service.lastWindowEventTime(),
-                    timeoutMs = config.tapAwaitWindowTimeoutMs
-            )
-        }
-        return true
     }
 
         private suspend fun executeLongPress(
@@ -634,31 +641,30 @@ class ActionExecutor(
             return true
         }
 
-        AutomationOverlay.temporaryHide()
-        if (shouldUseShizukuInteraction()) {
-            val ok = runShizukuLongPressCommand(x.toInt(), y.toInt(), config.longPressDurationMs, onLog)
-            AutomationOverlay.restoreVisibility()
-            if (!ok) onLog("Shizuku 长按失败")
-            if (ok) delay(config.tapAwaitWindowTimeoutMs)
-            return ok
-        }
+        val useShizuku = shouldUseShizukuInteraction()
+        val ok = withAutomationOverlayHidden {
+            if (useShizuku) {
+                val r = runShizukuLongPressCommand(x.toInt(), y.toInt(), config.longPressDurationMs, onLog)
+                if (!r) onLog("Shizuku 长按失败")
+                if (r) delay(config.tapAwaitWindowTimeoutMs)
+                return@withAutomationOverlayHidden r
+            }
 
-        if (service != null) {
-            service.clickAwait(x, y, durationMs = config.longPressDurationMs)
-        } else {
+            if (service != null) {
+                service.clickAwait(x, y, durationMs = config.longPressDurationMs)
+                return@withAutomationOverlayHidden true
+            }
+
             onLog("无法执行 long press：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
-            AutomationOverlay.restoreVisibility()
-            return false
+            false
         }
-
-        AutomationOverlay.restoreVisibility()
-        if (service != null) {
+        if (ok && !useShizuku && service != null) {
             service.awaitWindowEvent(
                     service.lastWindowEventTime(),
                     timeoutMs = config.tapAwaitWindowTimeoutMs
             )
         }
-        return true
+        return ok
     }
 
         private suspend fun executeDoubleTap(
@@ -683,37 +689,36 @@ class ActionExecutor(
             return true
         }
 
-        AutomationOverlay.temporaryHide()
-        if (shouldUseShizukuInteraction()) {
-            var ok1 = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
-            if (ok1) {
-                delay(config.doubleTapIntervalMs)
-                ok1 = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
-            } else {
-                onLog("Shizuku 双击第一次点击失败")
+        val useShizuku = shouldUseShizukuInteraction()
+        val ok = withAutomationOverlayHidden {
+            if (useShizuku) {
+                var ok1 = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+                if (ok1) {
+                    delay(config.doubleTapIntervalMs)
+                    ok1 = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+                } else {
+                    onLog("Shizuku 双击第一次点击失败")
+                }
+                return@withAutomationOverlayHidden ok1
             }
-            AutomationOverlay.restoreVisibility()
-            return ok1
+
+            if (service == null) {
+                onLog("无法执行 double tap：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+                return@withAutomationOverlayHidden false
+            }
+
+            val ok1 = service.clickAwait(x, y, durationMs = config.clickDurationMs)
+            delay(config.doubleTapIntervalMs)
+            val ok2 = service.clickAwait(x, y, durationMs = config.clickDurationMs)
+            ok1 && ok2
         }
-
-        if (service == null) {
-            onLog("无法执行 double tap：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
-            AutomationOverlay.restoreVisibility()
-            return false
-        }
-
-        val ok1 = service.clickAwait(x, y, durationMs = config.clickDurationMs)
-        delay(config.doubleTapIntervalMs)
-        val ok2 = service.clickAwait(x, y, durationMs = config.clickDurationMs)
-
-        AutomationOverlay.restoreVisibility()
-        if (service != null) {
+        if (ok && !useShizuku && service != null) {
             service.awaitWindowEvent(
                     service.lastWindowEventTime(),
                     timeoutMs = config.tapAwaitWindowTimeoutMs
             )
         }
-        return ok1 && ok2
+        return ok
     }
 
     private suspend fun executeSwipe(
@@ -761,44 +766,42 @@ class ActionExecutor(
             return true
         }
 
-        // 临时隐藏悬浮窗
-        AutomationOverlay.temporaryHide()
-        if (shouldUseShizukuInteraction()) {
-            val ok = runShizukuSwipeCommand(
-                    sx.toInt(),
-                    sy.toInt(),
-                    ex.toInt(),
-                    ey.toInt(),
-                    dur,
-                    onLog
-            )
-            if (!ok) {
-                onLog("Shizuku 滑动失败")
-                AutomationOverlay.restoreVisibility()
-                return false
+        val useShizuku = shouldUseShizukuInteraction()
+        val ok = withAutomationOverlayHidden {
+            if (useShizuku) {
+                val r = runShizukuSwipeCommand(
+                        sx.toInt(),
+                        sy.toInt(),
+                        ex.toInt(),
+                        ey.toInt(),
+                        dur,
+                        onLog
+                )
+                if (!r) {
+                    onLog("Shizuku 滑动失败")
+                    return@withAutomationOverlayHidden false
+                }
+                delay(config.swipeAwaitWindowTimeoutMs)
+                return@withAutomationOverlayHidden true
             }
-            delay(config.swipeAwaitWindowTimeoutMs)
-            AutomationOverlay.restoreVisibility()
-            return true
-        }
 
-        if (service != null) {
-            service.swipeAwait(sx, sy, ex, ey, dur)
-        } else {
+            if (service != null) {
+                service.swipeAwait(sx, sy, ex, ey, dur)
+                return@withAutomationOverlayHidden true
+            }
+
             onLog("无法执行 swipe：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
-            AutomationOverlay.restoreVisibility()
-            return false
+            false
         }
-        AutomationOverlay.restoreVisibility()
-        if (service != null) {
+        if (ok && !useShizuku && service != null) {
             service.awaitWindowEvent(
                     service.lastWindowEventTime(),
                     timeoutMs = config.swipeAwaitWindowTimeoutMs
             )
-        } else {
+        } else if (ok) {
             delay(config.swipeAwaitWindowTimeoutMs)
         }
-        return true
+        return ok
     }
 
     // ─── 虚拟屏文本输入 ───

@@ -253,7 +253,6 @@ class MainActivity : AppCompatActivity() {
             startNewChat(clearUi = true)
         }
 
-        binding.btnVoice.isEnabled = true
         binding.topAppBar.post { attachAnimatedBorderRing(binding.topAppBar, 2f, 18f) }
 
         initSherpaModel()

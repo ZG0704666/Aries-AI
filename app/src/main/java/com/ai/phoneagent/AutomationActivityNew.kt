@@ -491,7 +491,7 @@ class AutomationActivityNew : AppCompatActivity() {
         try {
             val useShizukuInteraction = switchShizukuInteraction.isChecked
             val state = collectRuntimeConnectionState()
-            val canStart = if (useShizukuInteraction) state.shizukuReady else state.accessibilityConnected
+            val canStart = resolveRuntimeInteractionPreference(useShizukuInteraction, state) != null
             val accLine =
                     when {
                         state.accessibilityConnected -> "无障碍：已连接"
@@ -537,6 +537,23 @@ class AutomationActivityNew : AppCompatActivity() {
             btnStartAgent?.isEnabled = canStart && agentJob == null
         } catch (e: Exception) {
             Log.e("AutomationActivityNew", "检查无障碍服务状态失败: ${e.message}", e)
+        }
+    }
+
+    /**
+     * 根据用户偏好与运行时连接状态，解析本次应走的交互通道。
+     * 返回 true=Shizuku，false=Accessibility，null=两者都不可用。
+     */
+    private fun resolveRuntimeInteractionPreference(
+            preferShizuku: Boolean,
+            state: RuntimeConnectionState
+    ): Boolean? {
+        return when {
+            preferShizuku && state.shizukuReady -> true
+            preferShizuku && state.accessibilityConnected -> false
+            !preferShizuku && state.accessibilityConnected -> false
+            !preferShizuku && state.shizukuReady -> true
+            else -> null
         }
     }
 
@@ -591,32 +608,28 @@ class AutomationActivityNew : AppCompatActivity() {
         val model = resolveAutomationModel()
         val useShizukuInteraction = switchShizukuInteraction.isChecked
         val state = collectRuntimeConnectionState()
+        val effectiveUseShizuku = resolveRuntimeInteractionPreference(useShizukuInteraction, state)
 
-        if (useShizukuInteraction) {
-            if (!state.shizukuReady) {
-                val msg =
-                        if (!state.shizukuBinderConnected) {
-                            "Shizuku 模式未连接，请先启动并连接 Shizuku 服务"
-                        } else {
-                            ensureShizukuPermissionGranted()
-                            "Shizuku 模式未授权，已发起授权请求，请授权后再开始"
-                        }
-                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-                checkAccessibilityStatus()
-                return
-            }
-        } else if (!state.accessibilityConnected) {
+        if (effectiveUseShizuku == null) {
             val msg =
-                    if (state.shizukuReady) {
-                        "当前仅检测到 Shizuku 连接，请先开启 Shizuku 模式后再开始"
+                    if (!state.shizukuBinderConnected && !state.accessibilityConnected) {
+                        "未检测到可用连接，请先连接 Shizuku 或无障碍服务"
+                    } else if (useShizukuInteraction && state.shizukuBinderConnected && !state.shizukuPermissionGranted) {
+                        ensureShizukuPermissionGranted()
+                        "Shizuku 未授权，已发起授权请求，请授权后重试"
                     } else if (state.accessibilityEnabled) {
                         "无障碍服务正在连接，请稍候后重试"
                     } else {
-                        "无障碍服务未连接，请先开启无障碍服务后再开始"
+                        "当前无可用连接，请检查 Shizuku/无障碍状态"
                     }
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
             checkAccessibilityStatus()
             return
+        }
+        if (useShizukuInteraction && !effectiveUseShizuku) {
+            appendLog("Shizuku 未就绪，已自动回退到无障碍执行")
+        } else if (!useShizukuInteraction && effectiveUseShizuku) {
+            appendLog("无障碍未连接，已自动回退到 Shizuku 执行")
         }
 
         tvLog.text = ""
@@ -653,24 +666,24 @@ class AutomationActivityNew : AppCompatActivity() {
                 lifecycleScope.launch(Dispatchers.Default) {
                     try {
                         val svc =
-                                if (useShizukuInteraction) {
+                                if (effectiveUseShizuku) {
                                     PhoneAgentAccessibilityService.instance
                                 } else {
                                     waitForAccessibilityServiceConnection()
                                 }
-                        if (!useShizukuInteraction && svc == null) {
+                        if (!effectiveUseShizuku && svc == null) {
                             appendLog("无障碍服务连接失败：未获取到服务实例")
                             AutomationOverlay.complete("无障碍服务未连接")
                             return@launch
                         }
-                        if (useShizukuInteraction && svc == null) {
+                        if (effectiveUseShizuku && svc == null) {
                             appendLog("Shizuku 模式：未检测到无障碍连接，将以 Shizuku-only 路径执行")
                         }
 
                         val config =
                                 AgentConfiguration(
                                         useBackgroundVirtualDisplay = isBackgroundMode,
-                                        useShizukuInteraction = useShizukuInteraction
+                                        useShizukuInteraction = effectiveUseShizuku
                                 )
 
                         // 更新虚拟屏状态显示

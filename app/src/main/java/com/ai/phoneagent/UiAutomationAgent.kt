@@ -778,36 +778,37 @@ class UiAutomationAgent(
             return actionExecutor.execute(typeAction, null, uiDump, screenW, screenH, onLog)
         }
 
-        // 前台模式
-        // 隐藏悬浮窗
+        // 前台模式：确保任意异常路径都恢复悬浮窗
         AutomationOverlay.temporaryHide()
-        delay(30)
+        try {
+            delay(30)
 
-        // 执行点击
-        val clickOk = service.clickAwait(x.toFloat(), y.toFloat())
-        if (!clickOk) {
-            AutomationOverlay.restoreVisibility()
-            return false
-        }
-
-        // 等待键盘弹出
-        delay(config.tapTypeCombineKeyboardWaitMs)
-
-        // 执行输入
-        var ok = service.setTextOnFocused(inputText)
-
-        // 如果失败，尝试查找可编辑元素
-        if (!ok) {
-            onLog("[合并执行] 直接输入失败，尝试查找输入框...")
-            val inputClicked = service.clickFirstEditableElement()
-            if (inputClicked) {
-                delay(200)
-                ok = service.setTextOnFocused(inputText)
+            // 执行点击
+            val clickOk = service.clickAwait(x.toFloat(), y.toFloat())
+            if (!clickOk) {
+                return false
             }
-        }
 
-        AutomationOverlay.restoreVisibility()
-        return ok
+            // 等待键盘弹出
+            delay(config.tapTypeCombineKeyboardWaitMs)
+
+            // 执行输入
+            var ok = service.setTextOnFocused(inputText)
+
+            // 如果失败，尝试查找可编辑元素
+            if (!ok) {
+                onLog("[合并执行] 直接输入失败，尝试查找输入框...")
+                val inputClicked = service.clickFirstEditableElement()
+                if (inputClicked) {
+                    delay(200)
+                    ok = service.setTextOnFocused(inputText)
+                }
+            }
+
+            return ok
+        } finally {
+            AutomationOverlay.restoreVisibility()
+        }
     }
 
     /** 解析动作并修复 */

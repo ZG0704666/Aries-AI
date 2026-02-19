@@ -374,7 +374,12 @@ object AutomationOverlay {
             v.setProgress(1f)
             v.setTexts("已完成", message.take(34), "任务完成")
             v.playCompleteEffect {
-                hide()
+                runOnMain {
+                    // 仅在回调对应的仍是当前悬浮窗实例时才隐藏，避免上一次任务回调误关当前任务悬浮窗
+                    if (container === v) {
+                        hide()
+                    }
+                }
             }
         }
     }
