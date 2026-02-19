@@ -157,9 +157,13 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
     }
 
     private fun resolveCacheKey(service: PhoneAgentAccessibilityService?): String? {
-        // Shizuku-only 场景下 service 可能为 null，若继续使用固定 key 会导致截图长期陈旧。
+        // Shizuku 交互路径下，窗口事件/前台包名可能缺失或长期不更新，禁用缓存避免陈旧截图。
+        if (config.useShizukuInteraction) return null
+
         val svc = service ?: return null
-        return cache.generateKey(svc.currentAppPackage(), svc.lastWindowEventTime())
+        val currentApp = svc.currentAppPackage().takeIf { it.isNotBlank() } ?: return null
+        val windowEventTime = svc.lastWindowEventTime().takeIf { it > 0L } ?: return null
+        return cache.generateKey(currentApp, windowEventTime)
     }
 
     /** 清理截图缓存（在任务开始/结束时调用） */
