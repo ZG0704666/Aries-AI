@@ -615,10 +615,6 @@ class UiAutomationAgent(
             service: PhoneAgentAccessibilityService?,
             onLog: (String) -> Unit,
     ): Boolean {
-        if (service == null) {
-            onLog("[⚡快速启动] 无无障碍连接，跳过预启动")
-            return false
-        }
         val launchPatterns =
                 listOf(
                         Regex(
@@ -631,7 +627,7 @@ class UiAutomationAgent(
                 )
 
         // 初始化应用包名管理器
-        com.ai.phoneagent.core.tools.AppPackageManager.initializeCache(service)
+        com.ai.phoneagent.core.tools.AppPackageManager.initializeCache(service ?: appContext)
 
         var resolvedPackage: String? = null
         var matchedAppName: String? = null
@@ -671,52 +667,61 @@ class UiAutomationAgent(
             return false
         }
 
-        val currentApp = service.currentAppPackage()
-        if (currentApp == resolvedPackage) {
+        val currentApp = service?.currentAppPackage().orEmpty()
+        if (currentApp.isNotBlank() && currentApp == resolvedPackage) {
             onLog("[⚡快速启动] ${matchedAppName} 已在前台，跳过启动（无需连接模型）")
             return true
         }
 
-        val pm = service.packageManager
-        val intent = pm.getLaunchIntentForPackage(resolvedPackage)
-        if (intent == null) {
-            onLog("[⚡快速启动] 未找到 ${matchedAppName}(${resolvedPackage}) 的启动入口")
-            return false
-        }
-
-        intent.addFlags(
-                android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
-                        android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION or
-                        android.content.Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
-        )
-
         try {
-            val beforeTime = service.lastWindowEventTime()
-
-            if (config.useBackgroundVirtualDisplay &&
-                            VirtualDisplayController.isVirtualDisplayStarted()
-            ) {
-                // 虚拟屏模式：启动到虚拟屏（不切换系统焦点）
-                val displayId = VirtualDisplayController.getDisplayId() ?: -1
-                LaunchProxyActivity.launchOnDisplay(service, intent, displayId)
-                onLog("[⚡快速启动] 虚拟屏启动 ${matchedAppName}（displayId=$displayId）")
-                delay(config.appLaunchExtraDelayMs + 500) // 虚拟屏启动需要稍长时间
-                // 启动完成后立即把系统焦点还给主屏（系统可能因 Activity 创建自动切焦）
-                VirtualDisplayController.restoreFocusToDefaultDisplayNow()
-            } else {
-                // 前台模式
-                LaunchProxyActivity.launch(service, intent)
-                onLog("[⚡快速启动] 后台启动 ${matchedAppName}（无需连接模型，节省时间）")
-                service.awaitWindowEvent(beforeTime, timeoutMs = config.appLaunchWaitTimeoutMs)
-                delay(config.appLaunchExtraDelayMs)
-
-                // 验证应用是否真的启动了
-                val newApp = service.currentAppPackage()
-                if (newApp != resolvedPackage) {
-                    onLog("[⚡快速启动] ${matchedAppName} 启动验证失败（当前：$newApp），将在后续步骤中处理")
-                } else {
-                    onLog("[⚡快速启动] ${matchedAppName} 启动成功，继续后续操作...")
+            if (service != null) {
+                val pm = service.packageManager
+                val intent = pm.getLaunchIntentForPackage(resolvedPackage)
+                if (intent == null) {
+                    onLog("[⚡快速启动] 未找到 ${matchedAppName}(${resolvedPackage}) 的启动入口")
+                    return false
                 }
+
+                intent.addFlags(
+                        android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                                android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION or
+                                android.content.Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                )
+
+                val beforeTime = service.lastWindowEventTime()
+                if (config.useBackgroundVirtualDisplay &&
+                                VirtualDisplayController.isVirtualDisplayStarted()
+                ) {
+                    // 虚拟屏模式：启动到虚拟屏（不切换系统焦点）
+                    val displayId = VirtualDisplayController.getDisplayId() ?: -1
+                    LaunchProxyActivity.launchOnDisplay(service, intent, displayId)
+                    onLog("[⚡快速启动] 虚拟屏启动 ${matchedAppName}（displayId=$displayId）")
+                    delay(config.appLaunchExtraDelayMs + 500) // 虚拟屏启动需要稍长时间
+                    // 启动完成后立即把系统焦点还给主屏（系统可能因 Activity 创建自动切焦）
+                    VirtualDisplayController.restoreFocusToDefaultDisplayNow()
+                } else {
+                    // 前台模式
+                    LaunchProxyActivity.launch(service, intent)
+                    onLog("[⚡快速启动] 后台启动 ${matchedAppName}（无需连接模型，节省时间）")
+                    service.awaitWindowEvent(beforeTime, timeoutMs = config.appLaunchWaitTimeoutMs)
+                    delay(config.appLaunchExtraDelayMs)
+
+                    // 验证应用是否真的启动了
+                    val newApp = service.currentAppPackage()
+                    if (newApp != resolvedPackage) {
+                        onLog("[⚡快速启动] ${matchedAppName} 启动验证失败（当前：$newApp），将在后续步骤中处理")
+                    } else {
+                        onLog("[⚡快速启动] ${matchedAppName} 启动成功，继续后续操作...")
+                    }
+                }
+            } else if (config.useShizukuInteraction) {
+                val launched = launchAppViaShizuku(resolvedPackage, onLog)
+                if (!launched) return false
+                onLog("[⚡快速启动] Shizuku 启动 ${matchedAppName} 成功")
+                delay(config.appLaunchExtraDelayMs)
+            } else {
+                onLog("[⚡快速启动] 无可用启动通道（无障碍未连接，且未启用 Shizuku）")
+                return false
             }
 
             // 清理截图缓存，确保获取最新的应用界面截图
@@ -726,6 +731,42 @@ class UiAutomationAgent(
             onLog("[⚡快速启动] 启动失败: ${e.message}")
             return false
         }
+    }
+
+    private fun launchAppViaShizuku(packageName: String, onLog: (String) -> Unit): Boolean {
+        if (!ShizukuBridge.isShizukuAvailable()) {
+            onLog("[⚡快速启动] Shizuku 不可用，无法快速启动 $packageName")
+            return false
+        }
+
+        val monkey = ShizukuBridge.execResult(
+                "monkey -p $packageName -c android.intent.category.LAUNCHER 1"
+        )
+        if (monkey.exitCode == 0) return true
+
+        val resolve = ShizukuBridge.execResult("cmd package resolve-activity --brief $packageName")
+        val component =
+                resolve.stdoutText().lineSequence().map { it.trim() }.firstOrNull {
+                    it.contains("/") &&
+                            !it.startsWith("priority=", ignoreCase = true) &&
+                            !it.startsWith("No activity", ignoreCase = true)
+                }
+        if (!component.isNullOrBlank()) {
+            val byComponent = ShizukuBridge.execResult(
+                    "am start -n $component -a android.intent.action.MAIN -c android.intent.category.LAUNCHER"
+            )
+            if (byComponent.exitCode == 0) return true
+        }
+
+        val byPackage = ShizukuBridge.execResult(
+                "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p $packageName"
+        )
+        if (byPackage.exitCode == 0) return true
+
+        onLog(
+                "[⚡快速启动] Shizuku 启动失败：pkg=$packageName, exit=${monkey.exitCode}/${byPackage.exitCode}"
+        )
+        return false
     }
 
     /** 合并执行 Tap+Type 操作 */
