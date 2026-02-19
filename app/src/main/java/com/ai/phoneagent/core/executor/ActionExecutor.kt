@@ -896,8 +896,30 @@ class ActionExecutor(
             text: String,
             onLog: (String) -> Unit
     ): Boolean {
-        if (displayId <= 0) return false
+        if (!setClipboardText(text)) {
+            onLog("剪贴板设置失败，跳过粘贴方式")
+            return false
+        }
 
+        // 等待剪贴板同步
+        try {
+            Thread.sleep(100)
+        } catch (_: InterruptedException) {}
+
+        if (!triggerPaste(displayId)) {
+            onLog("剪贴板粘贴触发失败，跳过粘贴方式")
+            return false
+        }
+
+        // 等待粘贴完成
+        try {
+            Thread.sleep(200)
+        } catch (_: InterruptedException) {}
+
+        return true
+    }
+
+    private fun setClipboardText(text: String): Boolean {
         // 方式 1: 使用 cmd clipboard（Android 12+ 可用）
         val clipCmds =
                 listOf(
@@ -922,33 +944,24 @@ class ActionExecutor(
                         ),
                 )
 
-        var clipboardSet = false
         for (cmd in clipCmds) {
             val r = ShizukuBridge.execResultArgs(cmd)
-            if (r.exitCode == 0) {
-                clipboardSet = true
-                break
-            }
+            if (r.exitCode == 0) return true
+        }
+        return false
+    }
+
+    private fun triggerPaste(displayId: Int): Boolean {
+        if (displayId > 0) {
+            VirtualDisplayController.injectPasteBestEffort(displayId)
+            return true
         }
 
-        if (!clipboardSet) {
-            onLog("剪贴板设置失败，跳过粘贴方式")
-            return false
-        }
+        val pasteKeyEvent =
+                ShizukuBridge.execResultArgs(listOf("input", "keyevent", "KEYCODE_PASTE"))
+        if (pasteKeyEvent.exitCode == 0) return true
 
-        // 等待剪贴板同步
-        try {
-            Thread.sleep(100)
-        } catch (_: InterruptedException) {}
-
-        // 在虚拟屏上注入 Ctrl+V（粘贴）
-        VirtualDisplayController.injectPasteBestEffort(displayId)
-
-        // 等待粘贴完成
-        try {
-            Thread.sleep(200)
-        } catch (_: InterruptedException) {}
-
-        return true
+        val pasteKeyCode = ShizukuBridge.execResultArgs(listOf("input", "keyevent", "279"))
+        return pasteKeyCode.exitCode == 0
     }
 }
