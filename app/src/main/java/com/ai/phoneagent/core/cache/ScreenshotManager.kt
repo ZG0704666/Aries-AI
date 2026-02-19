@@ -108,7 +108,8 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
                 PhoneAgentAccessibilityService.ScreenshotData(
                         base64Png = b64,
                         width = vw,
-                        height = vh
+                        height = vh,
+                        mimeType = "image/png",
                 )
             } else {
                 null
@@ -138,6 +139,7 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
                 width = width,
                 height = height,
                 base64Png = base64Png,
+                mimeType = "image/png",
         )
     }
 

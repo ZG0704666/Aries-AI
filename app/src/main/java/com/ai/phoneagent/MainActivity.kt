@@ -1288,6 +1288,20 @@ class MainActivity : AppCompatActivity() {
 
         val seq = ++apiCheckSeq
         val normalizedBaseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
+        val baseUrlSecurityError = validateBaseUrlSecurity(normalizedBaseUrl)
+        if (baseUrlSecurityError != null) {
+            remoteApiChecking = false
+            remoteApiOk = false
+            apiStatus.text = "API 地址不安全"
+            updateStatusText()
+            if (force) {
+                Toast.makeText(this, baseUrlSecurityError, Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+        if (force) {
+            maybeWarnInsecureHttpBaseUrl(normalizedBaseUrl)
+        }
         val resolvedModel = model.ifBlank { AutoGlmClient.DEFAULT_MODEL }
         lifecycleScope.launch {
             val ok =
@@ -1370,7 +1384,39 @@ class MainActivity : AppCompatActivity() {
     private fun resolveApiBaseUrl(): String {
         if (!apiThirdPartySwitch.isChecked) return AutoGlmClient.DEFAULT_BASE_URL
         val rawUrl = apiBaseUrlInput.text?.toString()?.trim().orEmpty()
-        return rawUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
+        if (rawUrl.isBlank()) return AutoGlmClient.DEFAULT_BASE_URL
+        return if (
+                rawUrl.startsWith("http://", ignoreCase = true) ||
+                        rawUrl.startsWith("https://", ignoreCase = true)
+        ) {
+            rawUrl
+        } else {
+            "https://$rawUrl"
+        }
+    }
+
+    private fun validateBaseUrlSecurity(baseUrl: String): String? {
+        val parsed = runCatching { Uri.parse(baseUrl.trim()) }.getOrNull()
+        val scheme = parsed?.scheme?.lowercase()
+        val host = parsed?.host?.lowercase()
+        if (scheme.isNullOrBlank() || host.isNullOrBlank()) {
+            return "API Base URL 格式错误，请检查后重试"
+        }
+        if (scheme != "https" && scheme != "http") {
+            return "API Base URL 必须以 https:// 或 http:// 开头"
+        }
+        return null
+    }
+
+    private fun maybeWarnInsecureHttpBaseUrl(baseUrl: String) {
+        val parsed = runCatching { Uri.parse(baseUrl.trim()) }.getOrNull() ?: return
+        val scheme = parsed.scheme?.lowercase()
+        val host = parsed.host?.lowercase()
+        val localHosts = setOf("localhost", "127.0.0.1", "0.0.0.0", "::1")
+        if (scheme == "http" && host !in localHosts) {
+            Toast.makeText(this, "当前使用 http:// 地址，API Key 可能明文传输，请确认网络安全", Toast.LENGTH_LONG)
+                    .show()
+        }
     }
 
     private fun resolveApiModel(): String {
@@ -1701,6 +1747,15 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        val resolvedBaseUrl = resolveApiBaseUrl()
+        val baseUrlSecurityError = validateBaseUrlSecurity(resolvedBaseUrl)
+        if (baseUrlSecurityError != null) {
+            Toast.makeText(this, baseUrlSecurityError, Toast.LENGTH_LONG).show()
+            return
+        }
+        maybeWarnInsecureHttpBaseUrl(resolvedBaseUrl)
+        val resolvedModel = resolveApiModel()
+
         val c = requireActiveConversation()
         if (c.title.isBlank()) {
             c.title = text.take(18)
@@ -1795,8 +1850,8 @@ class MainActivity : AppCompatActivity() {
 
                     val result = AutoGlmClient.sendChatStreamResult(
                         apiKey = apiKey,
-                        baseUrl = resolveApiBaseUrl(),
-                        model = resolveApiModel(),
+                        baseUrl = resolvedBaseUrl,
+                        model = resolvedModel,
                         messages = chatHistory,
                         onReasoningDelta = { delta ->
                             if (delta.isNotBlank()) {

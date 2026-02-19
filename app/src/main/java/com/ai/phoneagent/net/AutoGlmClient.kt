@@ -34,6 +34,7 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 import com.ai.phoneagent.BuildConfig
 import java.io.IOException
+import java.net.URI
 import java.util.LinkedHashMap
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
@@ -148,7 +149,29 @@ object AutoGlmClient {
 
         private fun normalizeBaseUrl(baseUrl: String): String {
                 val trimmed = baseUrl.trim().ifBlank { DEFAULT_BASE_URL }
-                return if (trimmed.endsWith("/")) trimmed else "$trimmed/"
+                val withScheme =
+                        if (
+                                trimmed.startsWith("http://", ignoreCase = true) ||
+                                        trimmed.startsWith("https://", ignoreCase = true)
+                        ) {
+                                trimmed
+                        } else {
+                                "https://$trimmed"
+                        }
+
+                val uri = runCatching { URI(withScheme) }.getOrNull()
+                val scheme = uri?.scheme?.lowercase()
+                val host = uri?.host
+
+                require(!scheme.isNullOrBlank() && !host.isNullOrBlank()) {
+                        "Invalid baseUrl: $baseUrl"
+                }
+                require(scheme == "https" || scheme == "http") {
+                        "Unsupported baseUrl scheme: $withScheme"
+                }
+
+                val canonical = "${uri.scheme}://${uri.authority}${uri.path.orEmpty()}"
+                return if (canonical.endsWith("/")) canonical else "$canonical/"
         }
 
         private fun resolveModel(model: String?): String =

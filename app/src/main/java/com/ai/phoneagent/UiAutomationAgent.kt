@@ -280,7 +280,7 @@ class UiAutomationAgent(
                                         "image_url" to
                                                 mapOf(
                                                         "url" to
-                                                                "data:image/jpeg;base64,${screenshot.base64Png}"
+                                                                "data:${screenshot.mimeType};base64,${screenshot.base64Png}"
                                                 )
                                 ),
                                 mapOf("type" to "text", "text" to userMsg)

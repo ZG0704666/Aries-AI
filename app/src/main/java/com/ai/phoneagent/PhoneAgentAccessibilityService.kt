@@ -198,6 +198,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             val width: Int,
             val height: Int,
             val base64Png: String,
+            val mimeType: String = "image/jpeg",
     )
 
     fun currentAppPackage(): String {
@@ -316,9 +317,15 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
                                         // 返回原始尺寸供坐标计算使用
                                         val result =
                                                 ScreenshotData(
-                                                        originalWidth,
-                                                        originalHeight,
-                                                        base64
+                                                        width = originalWidth,
+                                                        height = originalHeight,
+                                                        base64Png = base64,
+                                                        mimeType =
+                                                                if (USE_JPEG_COMPRESSION) {
+                                                                    "image/jpeg"
+                                                                } else {
+                                                                    "image/png"
+                                                                },
                                                 )
                                         bmpForCompress.recycle()
                                         if (cont.isActive) cont.resume(result)
