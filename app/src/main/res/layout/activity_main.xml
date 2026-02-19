@@ -40,9 +40,9 @@
             android:id="@+id/statusText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingStart="16dp"
+            android:paddingStart="12dp"
             android:paddingTop="8dp"
-            android:paddingEnd="16dp"
+            android:paddingEnd="12dp"
             android:paddingBottom="8dp"
             android:text="@string/status_disconnected"
             android:textColor="@color/blue_glass_text" />
@@ -63,68 +63,10 @@
                 android:orientation="vertical" />
         </ScrollView>
 
-        <LinearLayout
-            android:id="@+id/inputBar"
+        <androidx.compose.ui.platform.ComposeView
+            android:id="@+id/inputBarCompose"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="12dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:background="@color/blue_glass_light">
-
-            <LinearLayout
-                android:id="@+id/inputContainer"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="@drawable/bg_glass_pane"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingStart="12dp"
-                android:paddingEnd="6dp"
-                android:paddingTop="6dp"
-                android:paddingBottom="6dp">
-
-                <EditText
-                    android:id="@+id/inputMessage"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:minHeight="48dp"
-                    android:maxHeight="120dp"
-                    android:background="@android:color/transparent"
-                    android:hint="@string/input_hint"
-                    android:gravity="top|start"
-                    android:inputType="textMultiLine"
-                    android:maxLines="5"
-                    android:scrollbars="vertical"
-                    android:textColor="@android:color/black"
-                    android:textColorHint="@android:color/black" />
-
-                <ImageButton
-                    android:id="@+id/btnVoice"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:layout_marginStart="6dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/voice_input"
-                    app:tint="@color/blue_glass_icon"
-                    app:srcCompat="@drawable/ic_mic_24" />
-
-                <ImageButton
-                    android:id="@+id/btnSend"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:layout_marginStart="2dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/send"
-                    app:tint="@color/blue_glass_icon"
-                    app:srcCompat="@drawable/ic_send_24" />
-
-            </LinearLayout>
-        </LinearLayout>
+            android:layout_height="wrap_content" />
     </LinearLayout>
 
     <com.google.android.material.navigation.NavigationView

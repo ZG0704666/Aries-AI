@@ -64,6 +64,9 @@ class SherpaSpeechRecognizer(private val context: Context) {
         /** 最终结果（识别结束） */
         fun onFinalResult(text: String)
 
+        /** 音量振幅 (0.0 ~ 1.0) */
+        fun onAmplitude(amplitude: Float) {}
+
         /** 识别出错 */
         fun onError(exception: Exception)
 
@@ -357,6 +360,18 @@ class SherpaSpeechRecognizer(private val context: Context) {
                                 break
                             }
                             if (ret > 0) {
+                                // 计算振幅 (RMS)
+                                var sum = 0.0
+                                for (i in 0 until ret) {
+                                    sum += audioBuffer[i] * audioBuffer[i]
+                                }
+                                val rms = Math.sqrt(sum / ret)
+                                // 简单的归一化处理 (32768 为最大值，但语音输入通常到不了那么大，这里取一个经验值 3000-5000)
+                                val amplitude = (rms / 3000.0).toFloat().coerceIn(0f, 1f)
+                                withContext(Dispatchers.Main) {
+                                    listener?.onAmplitude(amplitude)
+                                }
+
                                 val samples = FloatArray(ret) { i -> audioBuffer[i] / 32768.0f }
                                 val currentRecognizer = recognizer ?: break
 

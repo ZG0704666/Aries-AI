@@ -988,6 +988,10 @@ class AutomationActivityNew : AppCompatActivity() {
                         }
                     }
 
+                    override fun onAmplitude(amplitude: Float) {
+                        // AutomationActivityNew doesn't need amplitude visualization yet
+                    }
+
                     override fun onFinalResult(text: String) {
                         runOnUiThread {
                             stopVoiceInputAnimation()
