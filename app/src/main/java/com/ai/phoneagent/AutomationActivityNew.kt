@@ -158,8 +158,8 @@ class AutomationActivityNew : AppCompatActivity() {
     private val recommendTasks =
             listOf(
                     "打开大众点评帮我预订一个明天中午11点的周围火锅店的位置，4个人",
-                    "打开12306订一张2月5日南京到北京的票，选最便宜的",
-                    "打开航旅纵横订一张2月5日从南京飞往成都的机票"
+                "打开12306订一张明天南京到北京的票，选最便宜的",
+                "打开航旅纵横订一张明天从南京飞往成都的机票"
             )
     private var currentRecommendIndex = 0
 

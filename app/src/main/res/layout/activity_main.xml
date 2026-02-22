@@ -25,7 +25,7 @@
             android:theme="@style/ThemeOverlay.MaterialComponents.Light"
             android:layout_marginStart="12dp"
             android:layout_marginEnd="12dp"
-            android:layout_marginTop="0dp"
+            android:layout_marginTop="1dp"
             app:navigationIconTint="@color/blue_glass_icon"
             app:titleTextColor="@color/blue_glass_text"
             app:titleTextAppearance="@style/TextAppearance.Aries.ToolbarTitle"
@@ -40,11 +40,11 @@
             android:id="@+id/statusText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingStart="12dp"
+            android:paddingStart="20dp"
             android:paddingTop="8dp"
             android:paddingEnd="12dp"
             android:paddingBottom="8dp"
-            android:text="@string/status_disconnected"
+            android:text="@string/status_ready"
             android:textColor="@color/blue_glass_text" />
 
         <ScrollView
@@ -66,7 +66,20 @@
         <androidx.compose.ui.platform.ComposeView
             android:id="@+id/inputBarCompose"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="2dp" />
+
+        <TextView
+            android:id="@+id/aiNoticeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
+            android:text="@string/ai_generated_notice"
+            android:gravity="center"
+            android:textSize="10sp"
+            android:textColor="@color/blue_glass_text_dim"
+            android:paddingBottom="4dp" />
     </LinearLayout>
 
     <com.google.android.material.navigation.NavigationView

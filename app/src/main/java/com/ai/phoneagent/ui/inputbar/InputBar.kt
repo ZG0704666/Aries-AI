@@ -84,28 +84,35 @@ fun InputBar(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 7.dp),
             shape = RoundedCornerShape(24.dp),
             color = ColorWhite,
             shadowElevation = 4.dp
         ) {
+            val sideSlotWidth = 72.dp
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 左侧图标：文本模式显示麦克风，语音模式显示键盘
-                IconButton(
-                    onClick = { onModeChange(!isVoiceMode) },
-                    modifier = Modifier.size(32.dp)
+                // 左侧等宽槽位：模式切换按钮
+                Box(
+                    modifier = Modifier.width(sideSlotWidth),
+                    contentAlignment = Alignment.CenterStart
                 ) {
-                    Icon(
-                        imageVector = if (isVoiceMode) Icons.Default.Keyboard else Icons.Default.Mic,
-                        contentDescription = if (isVoiceMode) "切换键盘" else "语音输入",
-                        tint = ColorTextSecondary,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    IconButton(
+                        onClick = { onModeChange(!isVoiceMode) },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isVoiceMode) Icons.Default.Keyboard else Icons.Default.Mic,
+                            contentDescription = if (isVoiceMode) "切换键盘" else "语音输入",
+                            tint = ColorTextSecondary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -178,17 +185,44 @@ fun InputBar(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // 右侧按钮
-                IconButton(
-                    onClick = if (text.isNotEmpty() && !isVoiceMode) onSend else onAttachmentClick,
-                    modifier = Modifier.size(32.dp)
+                // 右侧等宽槽位：附件 + 发送
+                Box(
+                    modifier = Modifier.width(sideSlotWidth),
+                    contentAlignment = Alignment.CenterEnd
                 ) {
-                    Icon(
-                        painter = painterResource(id = if (text.isNotEmpty() && !isVoiceMode) R.drawable.ic_send_24 else R.drawable.ic_add_24),
-                        contentDescription = "操作",
-                        tint = if (text.isNotEmpty() && !isVoiceMode) ColorMainBlue else ColorTextSecondary,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        IconButton(
+                            onClick = onAttachmentClick,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "附件",
+                                tint = ColorTextSecondary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        // 发送按钮 (圆形背景，黑色)
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(if (text.isNotEmpty()) Color.Black else Color.LightGray.copy(alpha = 0.4f))
+                                .clickable(enabled = text.isNotEmpty(), onClick = onSend),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_send_24),
+                                contentDescription = "发送",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -228,7 +262,7 @@ fun VoiceInputOverlayContent(
 
         // 提示文字
         Text(
-            text = if (isCancelled) "松开取消" else "松开发送，上滑取消",
+            text = if (isCancelled) "松开取消" else "松开输入，上滑取消",
             fontSize = 14.sp,
             color = ColorTextSecondary,
             fontWeight = FontWeight.Medium,

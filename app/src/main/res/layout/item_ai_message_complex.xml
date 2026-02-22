@@ -167,15 +167,17 @@
                 android:layout_marginStart="8dp">
 
                 <ImageView
+                    android:id="@+id/iv_retry_icon"
                     android:layout_width="16dp"
                     android:layout_height="16dp"
                     android:src="@drawable/ic_refresh_24"
                     app:tint="#80505050" />
 
                 <TextView
+                    android:id="@+id/tv_retry_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="重试"
+                    android:text="@string/retry"
                     android:textSize="12sp"
                     android:textColor="#80505050"
                     android:layout_marginStart="4dp"/>

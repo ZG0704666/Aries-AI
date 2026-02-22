@@ -1,10 +1,14 @@
 <resources>
     <string name="app_name">Aries AI</string>
     <string name="app_title">Aries AI</string>
+    <string name="status_ready">语音模型已就绪</string>
     <string name="status_disconnected">未连接模型</string>
     <string name="input_hint">请输入你的问题…</string>
     <string name="voice_input">语音输入</string>
     <string name="send">发送</string>
+    <string name="ai_generated_notice">内容由AI生成</string>
+    <string name="retry">重试</string>
+    <string name="retrying">重试中...</string>
 
     <string name="accessibility_service_label">Aries AI 自动化</string>
     <string name="accessibility_service_desc">用于执行点击/滑动/返回等自动化动作（需要在系统无障碍中手动开启）</string>
