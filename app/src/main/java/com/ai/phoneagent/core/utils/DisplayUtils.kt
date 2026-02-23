@@ -39,12 +39,7 @@ object DisplayUtils {
         val accessibilityService = AccessibilityServiceHelper.getAccessibilityService()
 
         return buildList {
-            // 1. 辅助功能服务优先
-            if (accessibilityService != null) {
-                add(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
-            }
-
-            // 2. 检查悬浮窗权限
+            // 1. 检查悬浮窗权限，优先使用 APPLICATION_OVERLAY（更稳定）
             val overlayPermOk =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         Settings.canDrawOverlays(appCtx)
@@ -58,6 +53,16 @@ object DisplayUtils {
                 } else {
                     @Suppress("DEPRECATION") add(WindowManager.LayoutParams.TYPE_PHONE)
                 }
+            }
+
+            // 2. 无障碍服务作为兜底（用于无悬浮窗权限或机型兼容）
+            if (accessibilityService != null) {
+                add(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
+            }
+
+            // 3. 防御性兜底，确保不返回空列表
+            if (isEmpty()) {
+                addAll(getDefaultOverlayTypes())
             }
         }
     }
@@ -103,11 +108,10 @@ object DisplayUtils {
     private object AccessibilityServiceHelper {
         fun getAccessibilityService(): Any? {
             return try {
-                val field =
-                        Class.forName("com.ai.phoneagent.PhoneAgentAccessibilityService")
-                                .getField("INSTANCE")
-                                .get(null)
-                field
+                val clazz = Class.forName("com.ai.phoneagent.PhoneAgentAccessibilityService")
+                val field = clazz.getDeclaredField("instance")
+                field.isAccessible = true
+                field.get(null)
             } catch (e: Exception) {
                 null
             }

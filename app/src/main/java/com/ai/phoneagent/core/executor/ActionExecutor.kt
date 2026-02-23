@@ -44,6 +44,16 @@ class ActionExecutor(
         private const val TAG = "ActionExecutor"
     }
 
+    private var shizukuAutoFocusConsumed = false
+
+    private val editableFocusedNodeRegex =
+            Regex("""<node[^>]*(editable="true"[^>]*focused="true"|focused="true"[^>]*editable="true")""")
+    private val nodeTagRegex = Regex("""<node\b[^>]*>""")
+    private val boundsAttrRegex = Regex("""\bbounds="([^"]+)"""")
+    private val centerAttrRegex = Regex("""\bcenter="([^"]+)"""")
+    private val classAttrRegex = Regex("""\bclass="([^"]+)"""")
+    private val editableAttrRegex = Regex("""\beditable="true"""")
+
     // ─── 虚拟屏模式辅助方法 ───
 
     /** 判断当前是否应使用虚拟屏执行路径 */
@@ -144,6 +154,10 @@ class ActionExecutor(
             if (!lower.isNullOrBlank()) return lower
         }
         return null
+    }
+
+    internal fun resetSessionState() {
+        shizukuAutoFocusConsumed = false
     }
 
     /** 执行动作 */
@@ -445,6 +459,7 @@ class ActionExecutor(
         val element =
                 ActionUtils.parsePoint(action.fields["element"])
                         ?: ActionUtils.parsePoint(action.fields["point"])
+        val hasExplicitTapTarget = element != null
         if (element != null) {
             val (x, y) = ActionUtils.parsePointToScreen(element, screenW, screenH)
             onLog("执行输入前先点击(${element.first},${element.second})")
@@ -525,6 +540,10 @@ class ActionExecutor(
         if (!shouldUseShizukuInteraction() && service == null) {
             onLog("无法执行 type：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
             return false
+        }
+
+        if (shouldUseShizukuInteraction() && !isVirtualDisplayMode() && !hasExplicitTapTarget) {
+            prepareShizukuInputFocusIfNeeded(uiDump, onLog)
         }
 
         val ok = injectTextOnVirtualDisplay(-1, inputText, onLog)
@@ -845,6 +864,7 @@ class ActionExecutor(
 
         val hasDisplayId = displayId > 0
         val isAsciiOnly = text.all { it.code in 0..127 }
+        logShizukuTypeStage(onLog, "mode", "start", if (hasDisplayId) "display=$displayId" else "foreground")
 
         if (isAsciiOnly) {
             val encoded = text.replace(" ", "%s")
@@ -859,34 +879,35 @@ class ActionExecutor(
                         add(encoded)
                     }
             val result = ShizukuBridge.execResultArgs(args)
-            if (result.exitCode == 0) return true
+            if (result.exitCode == 0) {
+                logShizukuTypeStage(onLog, "final", "ok", "via=ascii_input")
+                return true
+            }
 
             if (hasDisplayId) {
                 val r2 = ShizukuBridge.execResultArgs(listOf("input", "text", encoded))
-                if (r2.exitCode == 0) return true
+                if (r2.exitCode == 0) {
+                    logShizukuTypeStage(onLog, "final", "ok", "via=ascii_input_fallback")
+                    return true
+                }
             }
-            onLog("ASCII input 命令失败，尝试剪贴板方式...")
+            logShizukuTypeStage(onLog, "ascii_input", "fail", "fallback=clipboard")
         }
 
-        if (setClipboardAndPaste(displayId, text, onLog)) return true
-
-        val broadcastResult =
-                ShizukuBridge.execResultArgs(
-                        listOf("am", "broadcast", "-a", "ADB_INPUT_TEXT", "--es", "msg", text)
-                )
-        if (broadcastResult.exitCode == 0) {
-            val output = broadcastResult.stdoutText()
-            if (output.contains("result=0") || output.contains("result=-1")) {
-                return true
-            }
+        if (setClipboardAndPaste(displayId, text, onLog)) {
+            logShizukuTypeStage(onLog, "final", "ok", "via=clipboard_paste")
+            return true
         }
 
         // 最后回退：不带 -d 的 input text（对某些设备可能有效）
         val encoded = text.replace(" ", "%s")
         val result = ShizukuBridge.execResultArgs(listOf("input", "text", encoded))
-        if (result.exitCode == 0) return true
+        if (result.exitCode == 0) {
+            logShizukuTypeStage(onLog, "final", "ok", "via=input_text_fallback")
+            return true
+        }
 
-        onLog("所有文本输入方式均失败")
+        logShizukuTypeStage(onLog, "final", "fail", "all_fallbacks_failed")
         return false
     }
 
@@ -897,9 +918,10 @@ class ActionExecutor(
             onLog: (String) -> Unit
     ): Boolean {
         if (!setClipboardText(text)) {
-            onLog("剪贴板设置失败，跳过粘贴方式")
+            logShizukuTypeStage(onLog, "clipboard_set", "fail")
             return false
         }
+        logShizukuTypeStage(onLog, "clipboard_set", "ok")
 
         // 等待剪贴板同步
         try {
@@ -907,9 +929,10 @@ class ActionExecutor(
         } catch (_: InterruptedException) {}
 
         if (!triggerPaste(displayId)) {
-            onLog("剪贴板粘贴触发失败，跳过粘贴方式")
+            logShizukuTypeStage(onLog, "paste", "fail")
             return false
         }
+        logShizukuTypeStage(onLog, "paste", "ok")
 
         // 等待粘贴完成
         try {
@@ -963,5 +986,84 @@ class ActionExecutor(
 
         val pasteKeyCode = ShizukuBridge.execResultArgs(listOf("input", "keyevent", "279"))
         return pasteKeyCode.exitCode == 0
+    }
+
+    private suspend fun prepareShizukuInputFocusIfNeeded(
+            uiDump: String,
+            onLog: (String) -> Unit
+    ) {
+        if (config.shizukuAutoFocusFirstTypeOnly && shizukuAutoFocusConsumed) {
+            logShizukuTypeStage(onLog, "focus_prep", "skipped_once")
+            return
+        }
+        if (config.shizukuAutoFocusFirstTypeOnly) {
+            shizukuAutoFocusConsumed = true
+        }
+
+        if (editableFocusedNodeRegex.containsMatchIn(uiDump)) {
+            logShizukuTypeStage(onLog, "focus_prep", "skipped_focused")
+            return
+        }
+
+        val center = findFirstEditableCenter(uiDump)
+        if (center == null) {
+            logShizukuTypeStage(onLog, "focus_prep", "miss", "editable_not_found")
+            return
+        }
+
+        val (x, y) = center
+        val tapped = withAutomationOverlayHidden { runShizukuTapCommand(x, y, onLog) }
+        if (tapped) {
+            logShizukuTypeStage(onLog, "focus_prep", "hit", "tap=[$x,$y]")
+            delay(220)
+        } else {
+            logShizukuTypeStage(onLog, "focus_prep", "fail", "tap=[$x,$y]")
+        }
+    }
+
+    private fun findFirstEditableCenter(uiDump: String): Pair<Int, Int>? {
+        for (match in nodeTagRegex.findAll(uiDump)) {
+            val nodeTag = match.value
+            val className =
+                    classAttrRegex.find(nodeTag)?.groupValues?.getOrNull(1).orEmpty()
+            val editable =
+                    editableAttrRegex.containsMatchIn(nodeTag) ||
+                            className.contains("EditText", ignoreCase = true) ||
+                            className.contains("AutoCompleteTextView", ignoreCase = true)
+            if (!editable) continue
+
+            val centerAttr = centerAttrRegex.find(nodeTag)?.groupValues?.getOrNull(1).orEmpty()
+            parseCenterPoint(centerAttr)?.let { return it }
+
+            val bounds = boundsAttrRegex.find(nodeTag)?.groupValues?.getOrNull(1).orEmpty()
+            parseCenterFromBounds(bounds)?.let { return it }
+        }
+        return null
+    }
+
+    private fun parseCenterPoint(raw: String): Pair<Int, Int>? {
+        val match = Regex("""\[(\d+),(\d+)]""").find(raw) ?: return null
+        val x = match.groupValues[1].toIntOrNull() ?: return null
+        val y = match.groupValues[2].toIntOrNull() ?: return null
+        return x to y
+    }
+
+    private fun parseCenterFromBounds(bounds: String): Pair<Int, Int>? {
+        val match = Regex("""\[(\d+),(\d+)]\[(\d+),(\d+)]""").find(bounds) ?: return null
+        val l = match.groupValues[1].toIntOrNull() ?: return null
+        val t = match.groupValues[2].toIntOrNull() ?: return null
+        val r = match.groupValues[3].toIntOrNull() ?: return null
+        val b = match.groupValues[4].toIntOrNull() ?: return null
+        return ((l + r) / 2) to ((t + b) / 2)
+    }
+
+    private fun logShizukuTypeStage(
+            onLog: (String) -> Unit,
+            stage: String,
+            status: String,
+            detail: String = ""
+    ) {
+        val suffix = if (detail.isBlank()) "" else " $detail"
+        onLog("[Type][Shizuku] $stage=$status$suffix")
     }
 }

@@ -34,6 +34,8 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private const val ENABLE_SHIZUKU_UI_TREE = false
+
 /**
  * UiAutomationAgent - 重构后的主Agent
  *
@@ -214,8 +216,11 @@ class UiAutomationAgent(
             // 严格隔离模式：截图阶段不抢焦点，避免主屏返回键误作用到虚拟屏
 
             // 并行获取截图和UI树
+            if (config.useShizukuInteraction && !ENABLE_SHIZUKU_UI_TREE) {
+                onLog("[Step $step] Shizuku UI树采集已禁用，将仅靠截图解析")
+            }
             val shizukuUiDump =
-                    if (!config.useBackgroundVirtualDisplay && config.useShizukuInteraction) {
+                    if (!config.useBackgroundVirtualDisplay && config.useShizukuInteraction && ENABLE_SHIZUKU_UI_TREE) {
                         ShizukuBridge.dumpUiHierarchyXml()
                     } else {
                         null
@@ -226,13 +231,17 @@ class UiAutomationAgent(
                     ) {
                         "[虚拟屏模式-纯视觉驱动]"
                     } else if (config.useShizukuInteraction) {
-                        shizukuUiDump ?: "[Shizuku UI层级不可用]"
+                        if (ENABLE_SHIZUKU_UI_TREE) {
+                            shizukuUiDump ?: "[Shizuku UI层级不可用]"
+                        } else {
+                            "[Shizuku UI树采集已禁用，使用截图驱动]"
+                        }
                     } else {
                         service?.dumpUiTreeWithRetry(maxNodes = config.uiTreeMaxNodes)
                                 ?: throw IllegalStateException("无障碍服务未连接，无法读取 UI 树")
                     }
             val screenshot = screenshotManager?.getOptimizedScreenshot(service)
-            if (config.useShizukuInteraction && shizukuUiDump == null) {
+            if (config.useShizukuInteraction && ENABLE_SHIZUKU_UI_TREE && shizukuUiDump == null) {
                 onLog("[Step $step] Shizuku UI 层级读取失败，降级为截图驱动")
             }
             if (config.useShizukuInteraction && screenshot == null) {

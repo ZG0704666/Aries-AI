@@ -183,7 +183,11 @@ object ShizukuBridge {
             // Ensure temp file is clean before dump.
             execResult("rm -f '$outputPath'")
 
-            val dumpResult = execResult("uiautomator dump '$outputPath'")
+            var dumpResult = execResult("uiautomator dump '$outputPath'")
+            if (dumpResult.exitCode != 0) {
+                // 某些机型在默认 dump 路径上更容易触发异常，尝试 compressed 兜底。
+                dumpResult = execResult("uiautomator dump --compressed '$outputPath'")
+            }
             if (dumpResult.exitCode != 0) {
                 lastMessage = "dump cmd exit=${dumpResult.exitCode}"
                 return@repeat
@@ -199,7 +203,7 @@ object ShizukuBridge {
             }.trim()
             val resolvedPath = parseDumpPath(dumpOutput).ifBlank { outputPath }
             val raw = execResult("cat '$resolvedPath'").stdoutText()
-            val xml = raw.trim()
+            val xml = raw.replace("\u0000", "").trim()
             if (xml.contains("<hierarchy") || xml.contains("<node")) {
                 return xml
             }
@@ -207,7 +211,7 @@ object ShizukuBridge {
             // Some ROMs print path text but fail to return valid XML on first read.
             val fallbackRaw =
                     if (resolvedPath != outputPath) execResult("cat '$outputPath'").stdoutText() else ""
-            val fallbackXml = fallbackRaw.trim()
+            val fallbackXml = fallbackRaw.replace("\u0000", "").trim()
             if (fallbackXml.contains("<hierarchy") || fallbackXml.contains("<node")) {
                 return fallbackXml
             }

@@ -1,5 +1,6 @@
 package com.ai.phoneagent
 
+import java.util.concurrent.atomic.AtomicInteger
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -44,6 +45,8 @@ object AutomationOverlay {
     // 【优化新增】流式思考显示
     private var isShowingThinking: Boolean = false
     private var thinkingText: String = ""
+    // 【修复】临时隐藏引用计数，防止并发调用导致竞态
+    private val hideCounter = AtomicInteger(0)
 
     private inline fun runOnMain(crossinline action: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -82,13 +85,14 @@ object AutomationOverlay {
         // 【优化】重置预估步骤数
         this.estimatedTotalSteps = 0
         this.hasEstimatedSteps = false
+        // 【修复】重置隐藏计数器
+        this.hideCounter.set(0)
 
         val appCtx = context.applicationContext
-        val svc = PhoneAgentAccessibilityService.instance
-        val windowCtx = svc ?: appCtx
-        val w = windowCtx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        // 统一使用应用级 WindowManager，避免依赖无障碍服务生命周期导致窗口被系统移除。
+        val w = appCtx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-        val view = OverlayContainer(windowCtx)
+        val view = OverlayContainer(appCtx)
         view.setTexts(title, subtitle)
         view.setProgress(0f)
         view.setOnClickListener {
@@ -171,18 +175,29 @@ object AutomationOverlay {
     
     /**
      * 临时隐藏悬浮窗（执行点击操作时使用，防止点击到悬浮窗）
+     * 使用引用计数：多处并发调用 temporaryHide 时，只有所有调用方都
+     * restoreVisibility 后才真正恢复显示，避免竞态导致悬浮窗消失。
      */
     fun temporaryHide() {
         val v = container ?: return
-        v.post { v.visibility = View.GONE }
+        val count = hideCounter.incrementAndGet()
+        if (count == 1) {
+            // 仅第一次隐藏时才设置 GONE
+            v.post { v.visibility = View.GONE }
+        }
     }
     
     /**
-     * 恢复悬浮窗显示
+     * 恢复悬浮窗显示（与 temporaryHide 配对调用）
      */
     fun restoreVisibility() {
         val v = container ?: return
-        v.post { v.visibility = View.VISIBLE }
+        val count = hideCounter.decrementAndGet()
+        if (count <= 0) {
+            // 所有调用方都已恢复，真正设为 VISIBLE
+            hideCounter.set(0) // 防止负数
+            v.post { v.visibility = View.VISIBLE }
+        }
     }
     
     /**

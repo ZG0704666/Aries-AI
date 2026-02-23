@@ -222,6 +222,18 @@ data class AgentConfiguration(
     // ========== UI树参数 ==========
     /** UI 树最多保留节点数（用于摘要/精简）。越大信息越全但 token 越多 */
     val uiTreeMaxNodes: Int = 30,
+
+    /** Shizuku UI 树摘要节点上限（结构化精简专用） */
+    val shizukuUiTreeMaxNodes: Int = 40,
+
+    /** Shizuku UI 树摘要最大字符数（与 maxUiTreeChars 分离，便于单独调优） */
+    val shizukuUiTreeMaxChars: Int = 3200,
+
+    /** Shizuku UI 树摘要详情等级：minimal / summary / full */
+    val shizukuUiTreeDetail: String = "summary",
+
+    /** Shizuku 输入自动聚焦策略：true=仅首轮 Type 前自动聚焦一次 */
+    val shizukuAutoFocusFirstTypeOnly: Boolean = true,
     
     // ========== Tap+Type合并执行参数 ==========
     val tapTypeCombineKeyboardWaitMs: Long = 400L,
