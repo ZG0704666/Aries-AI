@@ -724,8 +724,19 @@ class UiAutomationAgent(
                     }
                 }
             } else if (config.useShizukuInteraction) {
-                val launched = launchAppViaShizuku(resolvedPackage, onLog)
+                val targetDisplayId =
+                        if (config.useBackgroundVirtualDisplay &&
+                                        VirtualDisplayController.isVirtualDisplayStarted()
+                        ) {
+                            VirtualDisplayController.getDisplayId() ?: -1
+                        } else {
+                            -1
+                        }
+                val launched = launchAppViaShizuku(resolvedPackage, targetDisplayId, onLog)
                 if (!launched) return false
+                if (targetDisplayId > 0) {
+                    VirtualDisplayController.restoreFocusToDefaultDisplayNow()
+                }
                 onLog("[⚡快速启动] Shizuku 启动 ${matchedAppName} 成功")
                 delay(config.appLaunchExtraDelayMs)
             } else {
@@ -742,7 +753,11 @@ class UiAutomationAgent(
         }
     }
 
-    private fun launchAppViaShizuku(packageName: String, onLog: (String) -> Unit): Boolean {
+    private fun launchAppViaShizuku(
+            packageName: String,
+            targetDisplayId: Int = -1,
+            onLog: (String) -> Unit
+    ): Boolean {
         if (!ShizukuBridge.isShizukuAvailable()) {
             onLog("[⚡快速启动] Shizuku 不可用，无法快速启动 $packageName")
             return false
@@ -750,6 +765,10 @@ class UiAutomationAgent(
         if (!packageName.matches(Regex("^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)+$"))) {
             onLog("[⚡快速启动] 包名不合法，拒绝执行 Shizuku 启动：$packageName")
             return false
+        }
+
+        if (targetDisplayId > 0) {
+            return launchAppViaShizukuOnDisplay(packageName, targetDisplayId, onLog)
         }
 
         val monkey = ShizukuBridge.execResultArgs(
@@ -813,6 +832,92 @@ class UiAutomationAgent(
     }
 
     /** 合并执行 Tap+Type 操作 */
+    private fun launchAppViaShizukuOnDisplay(
+            packageName: String,
+            displayId: Int,
+            onLog: (String) -> Unit
+    ): Boolean {
+        val resolve =
+                ShizukuBridge.execResultArgs(
+                        listOf("cmd", "package", "resolve-activity", "--brief", packageName)
+                )
+        val component =
+                resolve.stdoutText().lineSequence().map { it.trim() }.firstOrNull {
+                    it.contains("/") &&
+                            !it.startsWith("priority=", ignoreCase = true) &&
+                            !it.startsWith("No activity", ignoreCase = true)
+                }
+
+        if (!component.isNullOrBlank()) {
+            val byComponent = launchViaDisplayCandidates(component, displayId, usePackage = false)
+            if (byComponent) return true
+        }
+
+        val byPackage = launchViaDisplayCandidates(packageName, displayId, usePackage = true)
+        if (byPackage) return true
+
+        onLog("[quick-launch] Shizuku launch failed on virtual display: pkg=$packageName, displayId=$displayId")
+        return false
+    }
+
+    private fun launchViaDisplayCandidates(
+            target: String,
+            displayId: Int,
+            usePackage: Boolean
+    ): Boolean {
+        val activityArgs =
+                mutableListOf(
+                        "-a",
+                        "android.intent.action.MAIN",
+                        "-c",
+                        "android.intent.category.LAUNCHER"
+                )
+        if (usePackage) {
+            activityArgs += listOf("-p", target)
+        } else {
+            activityArgs += listOf("-n", target)
+        }
+
+        val candidates =
+                listOf(
+                        listOf(
+                                "cmd",
+                                "activity",
+                                "start-activity",
+                                "--user",
+                                "0",
+                                "--display",
+                                displayId.toString(),
+                                "--windowingMode",
+                                "1"
+                        ) + activityArgs,
+                        listOf(
+                                "cmd",
+                                "activity",
+                                "start-activity",
+                                "--user",
+                                "0",
+                                "--display",
+                                displayId.toString()
+                        ) + activityArgs,
+                        listOf(
+                                "am",
+                                "start",
+                                "--user",
+                                "0",
+                                "--display",
+                                displayId.toString()
+                        ) + activityArgs,
+                        listOf("am", "start", "--display", displayId.toString()) + activityArgs
+                )
+
+        for (args in candidates) {
+            val result = ShizukuBridge.execResultArgs(args)
+            if (result.exitCode == 0) return true
+        }
+        return false
+    }
+
     private suspend fun executeTapAndTypeCombined(
             service: PhoneAgentAccessibilityService?,
             tapAction: ParsedAgentAction,

@@ -13,6 +13,8 @@ import android.graphics.PixelFormat
 import android.graphics.SurfaceTexture
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.util.TypedValue
@@ -63,6 +65,7 @@ object VirtualScreenPreviewOverlay {
     @Volatile private var isExpanded: Boolean = true
     @Volatile private var isBound: Boolean = false
     @Volatile private var isPaused: Boolean = false
+    private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 
     // ════════════════════════════════════════════
     //  公开 API
@@ -70,6 +73,10 @@ object VirtualScreenPreviewOverlay {
 
     /** 显示虚拟屏预览悬浮窗 */
     fun show(context: Context) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { show(context) }
+            return
+        }
         hide()
 
         val appCtx = context.applicationContext
@@ -139,6 +146,10 @@ object VirtualScreenPreviewOverlay {
 
     /** 隐藏并清理所有悬浮窗 */
     fun hide() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { hide() }
+            return
+        }
         unbindPreview()
         removeView(containerView)
         removeView(miniView)

@@ -552,7 +552,6 @@ class AutomationActivityNew : AppCompatActivity() {
             preferShizuku && state.shizukuReady -> true
             preferShizuku && state.accessibilityConnected -> false
             !preferShizuku && state.accessibilityConnected -> false
-            !preferShizuku && state.shizukuReady -> true
             else -> null
         }
     }
@@ -614,6 +613,8 @@ class AutomationActivityNew : AppCompatActivity() {
             val msg =
                     if (!state.shizukuBinderConnected && !state.accessibilityConnected) {
                         "未检测到可用连接，请先连接 Shizuku 或无障碍服务"
+                    } else if (!useShizukuInteraction && !state.accessibilityConnected) {
+                        "Shizuku 模式已关闭且无障碍未开启，请先开启无障碍或切换到 Shizuku 模式"
                     } else if (useShizukuInteraction && state.shizukuBinderConnected && !state.shizukuPermissionGranted) {
                         ensureShizukuPermissionGranted()
                         "Shizuku 未授权，已发起授权请求，请授权后重试"
@@ -628,8 +629,6 @@ class AutomationActivityNew : AppCompatActivity() {
         }
         if (useShizukuInteraction && !effectiveUseShizuku) {
             appendLog("Shizuku 未就绪，已自动回退到无障碍执行")
-        } else if (!useShizukuInteraction && effectiveUseShizuku) {
-            appendLog("无障碍未连接，已自动回退到 Shizuku 执行")
         }
 
         tvLog.text = ""

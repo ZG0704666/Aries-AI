@@ -18,6 +18,8 @@
 package com.ai.phoneagent.core.executor
 
 import android.accessibilityservice.AccessibilityService
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import com.ai.phoneagent.AutomationOverlay
@@ -866,49 +868,50 @@ class ActionExecutor(
         val isAsciiOnly = text.all { it.code in 0..127 }
         logShizukuTypeStage(onLog, "mode", "start", if (hasDisplayId) "display=$displayId" else "foreground")
 
-        if (isAsciiOnly) {
-            val encoded = text.replace(" ", "%s")
-            val args =
-                    mutableListOf<String>().apply {
-                        add("input")
-                        if (hasDisplayId) {
-                            add("-d")
-                            add(displayId.toString())
-                        }
-                        add("text")
-                        add(encoded)
-                    }
-            val result = ShizukuBridge.execResultArgs(args)
-            if (result.exitCode == 0) {
-                logShizukuTypeStage(onLog, "final", "ok", "via=ascii_input")
+        if (!isAsciiOnly) {
+            logShizukuTypeStage(onLog, "mode", "non_ascii", "clipboard_first=true")
+            if (setClipboardAndPaste(displayId, text, onLog)) {
+                logShizukuTypeStage(onLog, "final", "ok", "via=clipboard_paste")
                 return true
             }
-
-            if (hasDisplayId) {
-                val r2 = ShizukuBridge.execResultArgs(listOf("input", "text", encoded))
-                if (r2.exitCode == 0) {
-                    logShizukuTypeStage(onLog, "final", "ok", "via=ascii_input_fallback")
-                    return true
-                }
-            }
-            logShizukuTypeStage(onLog, "ascii_input", "fail", "fallback=clipboard")
+            logShizukuTypeStage(onLog, "clipboard_paste", "fail", "fallback=direct_input")
         }
 
-        if (setClipboardAndPaste(displayId, text, onLog)) {
-            logShizukuTypeStage(onLog, "final", "ok", "via=clipboard_paste")
+        if (runDirectInputText(if (hasDisplayId) displayId else -1, text)) {
+            val via = if (isAsciiOnly) "direct_input" else "direct_input_fallback"
+            logShizukuTypeStage(onLog, "final", "ok", "via=$via")
             return true
         }
 
-        // 最后回退：不带 -d 的 input text（对某些设备可能有效）
-        val encoded = text.replace(" ", "%s")
-        val result = ShizukuBridge.execResultArgs(listOf("input", "text", encoded))
-        if (result.exitCode == 0) {
-            logShizukuTypeStage(onLog, "final", "ok", "via=input_text_fallback")
+        // 对 displayId 定向失败时，尝试前台 direct input 兜底（仍不走粘贴）
+        if (hasDisplayId && runDirectInputText(-1, text)) {
+            val via = if (isAsciiOnly) "direct_input_fallback" else "direct_input_foreground_fallback"
+            logShizukuTypeStage(onLog, "final", "ok", "via=$via")
             return true
         }
 
-        logShizukuTypeStage(onLog, "final", "fail", "all_fallbacks_failed")
+        if (isAsciiOnly && setClipboardAndPaste(displayId, text, onLog)) {
+            logShizukuTypeStage(onLog, "final", "ok", "via=clipboard_paste_fallback")
+            return true
+        }
+
+        logShizukuTypeStage(onLog, "final", "fail", if (isAsciiOnly) "ascii_all_failed" else "non_ascii_all_failed")
         return false
+    }
+
+    private fun runDirectInputText(displayId: Int, text: String): Boolean {
+        val encoded = text.replace(" ", "%s")
+        val args =
+                mutableListOf<String>().apply {
+                    add("input")
+                    if (displayId > 0) {
+                        add("-d")
+                        add(displayId.toString())
+                    }
+                    add("text")
+                    add(encoded)
+                }
+        return ShizukuBridge.execResultArgs(args).exitCode == 0
     }
 
     /** 通过剪贴板 + Ctrl+V 粘贴方式输入文本 */
@@ -943,7 +946,19 @@ class ActionExecutor(
     }
 
     private fun setClipboardText(text: String): Boolean {
-        // 方式 1: 使用 cmd clipboard（Android 12+ 可用）
+        // 方式 1: 优先使用应用侧 ClipboardManager（不依赖 ROM 的 shell clipboard 命令）
+        val appClipboardOk =
+                runCatching {
+                    val cm =
+                            context.getSystemService(Context.CLIPBOARD_SERVICE)
+                                    as? ClipboardManager ?: return@runCatching false
+                    cm.setPrimaryClip(ClipData.newPlainText("Aries", text))
+                    true
+                }
+                        .getOrDefault(false)
+        if (appClipboardOk) return true
+
+        // 方式 2: 使用 shell clipboard 命令（部分 ROM 可能不实现 cmd clipboard）
         val clipCmds =
                 listOf(
                         listOf("cmd", "clipboard", "set-text", text),
