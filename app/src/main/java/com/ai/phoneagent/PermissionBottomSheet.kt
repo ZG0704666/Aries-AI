@@ -13,15 +13,18 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.button.MaterialButton
+import rikka.shizuku.Shizuku
 
 class PermissionBottomSheet : BottomSheetDialogFragment() {
 
     companion object {
         const val TAG = "PermissionBottomSheet"
         private const val REQ_RECORD_AUDIO = 101
+        private const val REQ_SHIZUKU_PERMISSION = 2026
     }
 
     private var tvAccStatus: TextView? = null
@@ -215,6 +218,22 @@ class PermissionBottomSheet : BottomSheetDialogFragment() {
     private fun guideAll() {
         val ctx = context ?: return
 
+        if (ShizukuBridge.pingBinder() && !ShizukuBridge.hasPermission()) {
+            runCatching { Shizuku.requestPermission(REQ_SHIZUKU_PERMISSION) }
+            Toast.makeText(ctx, "请先完成 Shizuku 授权后再点一键配置", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (ShizukuBridge.isShizukuAvailable()) {
+            val autoGranted = grantPermissionsViaShizuku(ctx)
+            if (autoGranted) {
+                Toast.makeText(ctx, "已通过 Shizuku 完成权限配置", Toast.LENGTH_SHORT).show()
+                dismissAllowingStateLoss()
+                return
+            }
+            updateUi()
+        }
+
         if (!isAccessibilityEnabled(ctx)) {
             openAccessibilitySettings()
             return
@@ -233,5 +252,99 @@ class PermissionBottomSheet : BottomSheetDialogFragment() {
         }
 
         dismissAllowingStateLoss()
+    }
+
+    private fun grantPermissionsViaShizuku(context: Context): Boolean {
+        val accessibilityGranted = grantAccessibilityServiceViaShizuku(context)
+        if (!accessibilityGranted) {
+            return false
+        }
+
+        val overlayGranted = grantOverlayPermissionViaShizuku(context)
+        if (!overlayGranted) {
+            return false
+        }
+
+        return grantMicrophonePermissionViaShizuku(context)
+    }
+
+    private fun grantAccessibilityServiceViaShizuku(context: Context): Boolean {
+        if (isAccessibilityEnabled(context)) return true
+
+        val serviceId = "${context.packageName}/${PhoneAgentAccessibilityService::class.java.name}"
+        val existing =
+                Settings.Secure.getString(
+                        context.contentResolver,
+                        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                )
+                        ?: ""
+        val serviceSet = existing.split(':').map { it.trim() }.filter { it.isNotEmpty() }.toMutableSet()
+
+        if (!serviceSet.any { it.equals(serviceId, ignoreCase = true) }) {
+            serviceSet.add(serviceId)
+        }
+
+        val enableList = serviceSet.joinToString(":")
+        val setServicesResult =
+                runCatching {
+                    ShizukuBridge.execResultArgs(
+                            listOf("settings", "put", "secure", "enabled_accessibility_services", enableList)
+                    )
+                }.getOrNull()
+        val enableServiceResult =
+                runCatching {
+                    ShizukuBridge.execResultArgs(listOf("settings", "put", "secure", "accessibility_enabled", "1"))
+                }.getOrNull()
+
+        if (setServicesResult == null || setServicesResult.exitCode != 0) {
+            return false
+        }
+        if (enableServiceResult == null || enableServiceResult.exitCode != 0) {
+            return false
+        }
+
+        return isAccessibilityEnabled(context)
+    }
+
+    private fun grantOverlayPermissionViaShizuku(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
+        if (hasOverlayPermission(context)) return true
+
+        val result =
+                runCatching {
+                    ShizukuBridge.execResultArgs(
+                            listOf("appops", "set", context.packageName, "SYSTEM_ALERT_WINDOW", "allow")
+                    )
+                }.getOrNull()
+
+        return hasOverlayPermission(context) || (result != null && result.exitCode == 0)
+    }
+
+    private fun grantMicrophonePermissionViaShizuku(context: Context): Boolean {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                        PackageManager.PERMISSION_GRANTED
+        ) {
+            return true
+        }
+
+        runCatching {
+            ShizukuBridge.execResultArgs(
+                    listOf("pm", "grant", context.packageName, Manifest.permission.RECORD_AUDIO)
+            )
+        }
+
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                        PackageManager.PERMISSION_GRANTED
+        ) {
+            return true
+        }
+
+        val fallback =
+                runCatching {
+                    ShizukuBridge.execResultArgs(listOf("appops", "set", context.packageName, "RECORD_AUDIO", "allow"))
+                }.getOrNull()
+
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED || (fallback != null && fallback.exitCode == 0)
     }
 }

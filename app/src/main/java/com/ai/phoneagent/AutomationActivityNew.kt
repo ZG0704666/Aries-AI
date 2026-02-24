@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -96,7 +96,7 @@ class AutomationActivityNew : AppCompatActivity() {
     private lateinit var tvLog: TextView
     private lateinit var etTask: EditText
     private lateinit var btnVoiceTask: View
-    private lateinit var btnOpenAccessibility: View
+    private lateinit var btnOpenAccessibility: MaterialButton
     private lateinit var btnRefreshAccessibility: View
     private lateinit var btnStartAgent: MaterialButton
     private lateinit var btnPauseAgent: MaterialButton
@@ -343,7 +343,7 @@ class AutomationActivityNew : AppCompatActivity() {
 
         btnOpenAccessibility.setOnClickListener {
             vibrateLight()
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            handleAccessibilityActionClick()
         }
 
         btnRefreshAccessibility.setOnClickListener {
@@ -531,12 +531,91 @@ class AutomationActivityNew : AppCompatActivity() {
                         "请先满足当前模式的连接条件后再开始"
                     }
             etTask?.isEnabled = true
-            btnOpenAccessibility?.visibility =
-                    if (!useShizukuInteraction && !state.accessibilityConnected) View.VISIBLE
-                    else View.GONE
+            val canOneTapGrantAccessibility = !state.accessibilityEnabled && state.shizukuBinderConnected
+            val shouldShowAccessibilityAction =
+                    !state.accessibilityEnabled || (!useShizukuInteraction && !state.accessibilityConnected)
+            btnOpenAccessibility.visibility = if (shouldShowAccessibilityAction) View.VISIBLE else View.GONE
+            btnOpenAccessibility.text = if (canOneTapGrantAccessibility) "一键授权" else "去开启"
             btnStartAgent?.isEnabled = canStart && agentJob == null
         } catch (e: Exception) {
             Log.e("AutomationActivityNew", "检查无障碍服务状态失败: ${e.message}", e)
+        }
+    }
+
+    private fun handleAccessibilityActionClick() {
+        val state = collectRuntimeConnectionState()
+        if (!state.accessibilityEnabled && state.shizukuBinderConnected) {
+            if (!state.shizukuPermissionGranted) {
+                ensureShizukuPermissionGranted()
+                Toast.makeText(this, "请先完成 Shizuku 授权后再点一键授权", Toast.LENGTH_SHORT).show()
+                return
+            }
+            val granted = grantAccessibilityViaShizuku()
+            if (granted) {
+                Toast.makeText(this, "已通过 Shizuku 授权无障碍服务", Toast.LENGTH_SHORT).show()
+                val latestState = collectRuntimeConnectionState()
+                if (latestState.shizukuReady && !switchShizukuInteraction.isChecked) {
+                    switchShizukuInteraction.isChecked = true
+                }
+                checkAccessibilityStatus()
+                refreshStatusAfterOneTapAuthorize()
+                return
+            }
+            Toast.makeText(this, "一键授权失败，已打开无障碍设置", Toast.LENGTH_SHORT).show()
+        }
+        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+    }
+
+    private fun grantAccessibilityViaShizuku(): Boolean {
+        if (isAccessibilityServiceEnabled()) return true
+        if (!ShizukuBridge.isShizukuAvailable()) return false
+
+        val existing =
+                Settings.Secure.getString(
+                        contentResolver,
+                        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                )
+                        ?: ""
+        val services = existing.split(':').map { it.trim() }.filter { it.isNotEmpty() }.toMutableSet()
+        if (!services.any { it.equals(serviceId, ignoreCase = true) }) {
+            services.add(serviceId)
+        }
+
+        val enableList = services.joinToString(":")
+        val setServicesResult =
+                runCatching {
+                    ShizukuBridge.execResultArgs(
+                            listOf("settings", "put", "secure", "enabled_accessibility_services", enableList)
+                    )
+                }.getOrNull()
+        val enableServiceResult =
+                runCatching {
+                    ShizukuBridge.execResultArgs(
+                            listOf("settings", "put", "secure", "accessibility_enabled", "1")
+                    )
+                }.getOrNull()
+
+        if (setServicesResult == null || setServicesResult.exitCode != 0) return false
+        if (enableServiceResult == null || enableServiceResult.exitCode != 0) return false
+        return isAccessibilityServiceEnabled()
+    }
+
+    private fun refreshStatusAfterOneTapAuthorize() {
+        lifecycleScope.launch {
+            repeat(12) {
+                val state = collectRuntimeConnectionState()
+                if (state.shizukuReady && !switchShizukuInteraction.isChecked) {
+                    switchShizukuInteraction.isChecked = true
+                }
+                checkAccessibilityStatus()
+                val canStart =
+                        resolveRuntimeInteractionPreference(
+                                switchShizukuInteraction.isChecked,
+                                state
+                        ) != null
+                if (canStart) return@launch
+                delay(250L)
+            }
         }
     }
 

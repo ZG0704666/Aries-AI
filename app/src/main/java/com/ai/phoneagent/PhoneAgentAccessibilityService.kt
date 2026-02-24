@@ -19,6 +19,8 @@ package com.ai.phoneagent
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
@@ -677,7 +679,9 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         }
         val args = Bundle()
         args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
-        return focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        val ok = focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        if (ok) return true
+        return pasteTextWithAccessibility(focused, text)
     }
 
     private fun findFirstEditableFocused(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
@@ -695,6 +699,30 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             }
         }
         return null
+    }
+
+    private fun pasteTextWithAccessibility(target: AccessibilityNodeInfo, text: String): Boolean {
+        val clipboard = getSystemService(CLIPBOARD_SERVICE) as? ClipboardManager ?: return false
+        val clipSet =
+                runCatching {
+                    clipboard.setPrimaryClip(ClipData.newPlainText("AriesInput", text))
+                    true
+                }.getOrDefault(false)
+        if (!clipSet) return false
+
+        if (!target.isFocused) {
+            target.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+        }
+        if (target.performAction(AccessibilityNodeInfo.ACTION_PASTE)) {
+            return true
+        }
+
+        val root = rootInActiveWindow ?: return false
+        val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) ?: return false
+        if (!focused.isFocused) {
+            focused.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+        }
+        return focused.performAction(AccessibilityNodeInfo.ACTION_PASTE)
     }
 
     /** 查找并点击第一个可编辑的输入框元素 */
@@ -1242,7 +1270,9 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         if (!target.isFocused) {
             target.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
         }
-        return target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        val retryOk = target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        if (retryOk) return true
+        return pasteTextWithAccessibility(target, text)
     }
 
     private fun findClickableAncestor(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {

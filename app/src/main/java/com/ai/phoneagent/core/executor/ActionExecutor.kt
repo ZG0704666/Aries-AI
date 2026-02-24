@@ -867,15 +867,13 @@ class ActionExecutor(
         val hasDisplayId = displayId > 0
         val isAsciiOnly = text.all { it.code in 0..127 }
         logShizukuTypeStage(onLog, "mode", "start", if (hasDisplayId) "display=$displayId" else "foreground")
+        logShizukuTypeStage(onLog, "mode", "clipboard_first", "policy=always")
 
-        if (!isAsciiOnly) {
-            logShizukuTypeStage(onLog, "mode", "non_ascii", "clipboard_first=true")
-            if (setClipboardAndPaste(displayId, text, onLog)) {
-                logShizukuTypeStage(onLog, "final", "ok", "via=clipboard_paste")
-                return true
-            }
-            logShizukuTypeStage(onLog, "clipboard_paste", "fail", "fallback=direct_input")
+        if (setClipboardAndPaste(displayId, text, onLog)) {
+            logShizukuTypeStage(onLog, "final", "ok", "via=clipboard_paste")
+            return true
         }
+        logShizukuTypeStage(onLog, "clipboard_paste", "fail", "fallback=direct_input")
 
         if (runDirectInputText(if (hasDisplayId) displayId else -1, text)) {
             val via = if (isAsciiOnly) "direct_input" else "direct_input_fallback"
@@ -887,11 +885,6 @@ class ActionExecutor(
         if (hasDisplayId && runDirectInputText(-1, text)) {
             val via = if (isAsciiOnly) "direct_input_fallback" else "direct_input_foreground_fallback"
             logShizukuTypeStage(onLog, "final", "ok", "via=$via")
-            return true
-        }
-
-        if (isAsciiOnly && setClipboardAndPaste(displayId, text, onLog)) {
-            logShizukuTypeStage(onLog, "final", "ok", "via=clipboard_paste_fallback")
             return true
         }
 
@@ -946,21 +939,27 @@ class ActionExecutor(
     }
 
     private fun setClipboardText(text: String): Boolean {
-        // 方式 1: 优先使用应用侧 ClipboardManager（不依赖 ROM 的 shell clipboard 命令）
+        // App clipboard write + readback verification.
         val appClipboardOk =
                 runCatching {
                     val cm =
                             context.getSystemService(Context.CLIPBOARD_SERVICE)
                                     as? ClipboardManager ?: return@runCatching false
                     cm.setPrimaryClip(ClipData.newPlainText("Aries", text))
-                    true
+                    val readBack =
+                            cm.primaryClip
+                                    ?.takeIf { it.itemCount > 0 }
+                                    ?.getItemAt(0)
+                                    ?.coerceToText(context)
+                                    ?.toString()
+                    readBack == text
                 }
                         .getOrDefault(false)
-        if (appClipboardOk) return true
 
-        // 方式 2: 使用 shell clipboard 命令（部分 ROM 可能不实现 cmd clipboard）
+        // Shell clipboard fallback for ROM compatibility.
         val clipCmds =
                 listOf(
+                        listOf("cmd", "clipboard", "set", "text", text),
                         listOf("cmd", "clipboard", "set-text", text),
                         listOf(
                                 "service",
@@ -986,7 +985,7 @@ class ActionExecutor(
             val r = ShizukuBridge.execResultArgs(cmd)
             if (r.exitCode == 0) return true
         }
-        return false
+        return appClipboardOk
     }
 
     private fun triggerPaste(displayId: Int): Boolean {
