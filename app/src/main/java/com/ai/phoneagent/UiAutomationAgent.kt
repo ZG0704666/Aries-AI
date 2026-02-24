@@ -70,6 +70,10 @@ class UiAutomationAgent(
         return desc?.trim()?.isNotBlank() == true
     }
 
+    private fun isValidDoAction(action: ParsedAgentAction, enforceDesc: Boolean): Boolean {
+        return action.metadata == "do" && (!enforceDesc || hasNonEmptyDesc(action))
+    }
+
     private fun resolveActionSubtitle(action: ParsedAgentAction): String {
         val actionName = action.actionName.orEmpty()
         val displayActionName = ActionUtils.getDisplayActionName(actionName, action.fields)
@@ -100,6 +104,7 @@ class UiAutomationAgent(
             apiKey: String,
             baseUrl: String,
             model: String,
+            useThirdPartyApi: Boolean = false,
             task: String,
             service: PhoneAgentAccessibilityService?,
             control: Control = NoopControl,
@@ -137,7 +142,18 @@ class UiAutomationAgent(
 
         // try-finally 确保虚拟屏资源在任何退出路径下都被清理
         try {
-            return runAgentLoop(apiKey, baseUrl, model, task, service, control, onLog, screenW, screenH)
+            return runAgentLoop(
+                    apiKey,
+                    baseUrl,
+                    model,
+                    useThirdPartyApi,
+                    task,
+                    service,
+                    control,
+                    onLog,
+                    screenW,
+                    screenH
+            )
         } finally {
             // 清理虚拟屏及预览悬浮窗
             cleanupVirtualDisplay(service)
@@ -149,6 +165,7 @@ class UiAutomationAgent(
             apiKey: String,
             baseUrl: String,
             model: String,
+            useThirdPartyApi: Boolean,
             task: String,
             service: PhoneAgentAccessibilityService?,
             control: Control,
@@ -369,6 +386,7 @@ class UiAutomationAgent(
                             apiKey = apiKey,
                             baseUrl = baseUrl,
                             model = model,
+                            enforceDesc = useThirdPartyApi,
                             history = history,
                             step = step,
                             answerText = answer,
@@ -563,6 +581,7 @@ class UiAutomationAgent(
                                 apiKey = apiKey,
                                 baseUrl = baseUrl,
                                 model = model,
+                                enforceDesc = useThirdPartyApi,
                                 history = history,
                                 step = step,
                                 answerText = fixAnswer,
@@ -1005,6 +1024,7 @@ class UiAutomationAgent(
             apiKey: String,
             baseUrl: String,
             model: String,
+            enforceDesc: Boolean,
             history: MutableList<ChatRequestMessage>,
             step: Int,
             answerText: String,
@@ -1016,16 +1036,16 @@ class UiAutomationAgent(
         if (action.metadata == "finish") {
             return action
         }
-        if (action.metadata == "do" && hasNonEmptyDesc(action)) {
+        if (isValidDoAction(action, enforceDesc)) {
             return action
         }
-        if (action.metadata == "do" && !hasNonEmptyDesc(action)) {
+        if (enforceDesc && action.metadata == "do" && !hasNonEmptyDesc(action)) {
             onLog("[Step $step] 动作缺少 desc，尝试让模型补齐说明")
         }
 
         var attempt = 0
         while (attempt < config.maxParseRepairs &&
-                !(action.metadata == "finish" || (action.metadata == "do" && hasNonEmptyDesc(action)))) {
+                !(action.metadata == "finish" || isValidDoAction(action, enforceDesc))) {
             attempt++
             onLog("[Step $step] 输出无法解析为动作，尝试修正（$attempt/${config.maxParseRepairs}）…")
 

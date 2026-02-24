@@ -605,6 +605,8 @@ class AutomationActivityNew : AppCompatActivity() {
 
         val baseUrl = resolveApiBaseUrl()
         val model = resolveAutomationModel()
+        val useThirdPartyApi =
+                getSharedPreferences("app_prefs", MODE_PRIVATE).getBoolean(apiUseThirdPartyPref, false)
         val useShizukuInteraction = switchShizukuInteraction.isChecked
         val state = collectRuntimeConnectionState()
         val effectiveUseShizuku = resolveRuntimeInteractionPreference(useShizukuInteraction, state)
@@ -698,6 +700,7 @@ class AutomationActivityNew : AppCompatActivity() {
                                         apiKey = apiKey,
                                         baseUrl = baseUrl,
                                         model = model,
+                                        useThirdPartyApi = useThirdPartyApi,
                                         task = task,
                                         service = svc,
                                         control =
