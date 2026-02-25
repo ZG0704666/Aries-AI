@@ -37,6 +37,25 @@
     };
   }
 
+  function prefersReducedMotion() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  function runWhenIdle(fn, timeout = 1200) {
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(fn, { timeout });
+      return;
+    }
+    const delay = typeof timeout === 'number' ? Math.max(0, timeout) : 0;
+    setTimeout(fn, delay);
+  }
+
+  function isLowEndDevice() {
+    const cores = typeof navigator.hardwareConcurrency === 'number' ? navigator.hardwareConcurrency : 8;
+    const memory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : 8;
+    return cores <= 4 || memory <= 4;
+  }
+
   function applyThemeClass(theme) {
     const html = document.documentElement;
     html.classList.remove('dark', 'light');
@@ -129,6 +148,8 @@
     ].filter(Boolean);
 
     let resolvedAssetUrl = '';
+    let latestReleaseResolved = false;
+    let latestReleasePromise = null;
 
     function openInNewTab(url) {
       window.open(url, '_blank', 'noopener');
@@ -139,6 +160,7 @@
       modal.classList.add('flex');
       modal.classList.add('show');
       modal.setAttribute('aria-hidden', 'false');
+      ensureLatestReleaseResolved();
     }
 
     function hide() {
@@ -172,6 +194,36 @@
       setHref(mirrorGitMirror, u ? toGitMirror(u) : '');
     }
 
+    async function resolveLatestReleaseApkUrl() {
+      try {
+        const res = await fetch(ARIES_DATA.githubLatestReleaseApi, {
+          headers: { 'Accept': 'application/vnd.github+json' },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const assets = Array.isArray(data && data.assets) ? data.assets : [];
+        const apk = assets.find(a => typeof a?.name === 'string' && a.name.toLowerCase().endsWith('.apk'))
+          || assets.find(a => typeof a?.browser_download_url === 'string' && a.browser_download_url.toLowerCase().endsWith('.apk'));
+        const url = apk && typeof apk.browser_download_url === 'string' ? apk.browser_download_url : '';
+        resolvedAssetUrl = url || ARIES_DATA.fixedApkUrl;
+      } catch (_) {
+        resolvedAssetUrl = ARIES_DATA.fixedApkUrl;
+      } finally {
+        refreshHrefs();
+      }
+    }
+
+    function ensureLatestReleaseResolved() {
+      if (latestReleaseResolved) return;
+      if (latestReleasePromise) return;
+      latestReleasePromise = resolveLatestReleaseApkUrl()
+        .catch(() => { })
+        .finally(() => {
+          latestReleaseResolved = true;
+          latestReleasePromise = null;
+        });
+    }
+
     function bindOpenLink(el, getUrl) {
       if (!el) return;
       el.addEventListener('click', (e) => {
@@ -196,25 +248,7 @@
     });
 
     refreshHrefs();
-
-    (async function resolveLatestReleaseApkUrl() {
-      try {
-        const res = await fetch(ARIES_DATA.githubLatestReleaseApi, {
-          headers: { 'Accept': 'application/vnd.github+json' },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        const assets = Array.isArray(data && data.assets) ? data.assets : [];
-        const apk = assets.find(a => typeof a?.name === 'string' && a.name.toLowerCase().endsWith('.apk'))
-          || assets.find(a => typeof a?.browser_download_url === 'string' && a.browser_download_url.toLowerCase().endsWith('.apk'));
-        const url = apk && typeof apk.browser_download_url === 'string' ? apk.browser_download_url : '';
-        resolvedAssetUrl = url || ARIES_DATA.fixedApkUrl;
-      } catch (_) {
-        resolvedAssetUrl = ARIES_DATA.fixedApkUrl;
-      } finally {
-        refreshHrefs();
-      }
-    })();
+    runWhenIdle(ensureLatestReleaseResolved, 4000);
 
     bindOpenLink(mirrorFast, () => {
       const u = getResolvedAssetUrl();
@@ -232,9 +266,13 @@
   function initStars() {
     const container = document.getElementById('stars-container');
     if (!container) return;
+    if (prefersReducedMotion()) {
+      container.innerHTML = '';
+      return;
+    }
 
     const isMobile = window.innerWidth <= 640;
-    const starCount = isMobile ? 20 : 80;
+    const starCount = isMobile ? 14 : (isLowEndDevice() ? 36 : 64);
     container.innerHTML = '';
 
     for (let i = 0; i < starCount; i++) {
@@ -260,7 +298,7 @@
     if (!canvas) return;
 
     // 移动端性能优化：禁用星座动画
-    if (window.innerWidth <= 640) {
+    if (window.innerWidth <= 640 || prefersReducedMotion()) {
       canvas.style.display = 'none';
       return;
     }
@@ -273,7 +311,7 @@
     let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
 
     const points = [];
-    const pointCount = 40;
+    const pointCount = isLowEndDevice() ? 26 : 40;
     const linkDist = 200;
     const repelRadius = 150;
     const repelStrength = 1.0;
@@ -294,6 +332,10 @@
 
     function isDark() {
       return document.documentElement.classList.contains('dark');
+    }
+
+    function shouldAnimate() {
+      return isDark() && !document.hidden && !prefersReducedMotion();
     }
 
     function resetPoints() {
@@ -322,9 +364,9 @@
     window.addEventListener('resize', debounce(() => {
       resize();
       resetPoints();
-    }, 100));
-    window.addEventListener('mousemove', throttle(onMove, 16));
-    window.addEventListener('mouseleave', onLeave);
+    }, 120));
+    window.addEventListener('mousemove', throttle(onMove, isLowEndDevice() ? 32 : 16), { passive: true });
+    window.addEventListener('mouseleave', onLeave, { passive: true });
 
     resize();
     resetPoints();
@@ -337,8 +379,8 @@
 
       ctx.clearRect(0, 0, w, h);
 
-      if (!isDark()) {
-        requestAnimationFrame(step);
+      if (!shouldAnimate()) {
+        setTimeout(() => requestAnimationFrame(step), 250);
         return;
       }
 
@@ -407,17 +449,22 @@
     if (!meteorCanvas) return;
     const mctx = meteorCanvas.getContext('2d');
     if (!mctx) return;
+    if (window.innerWidth <= 640 || prefersReducedMotion()) return;
 
     let w = 0;
     let h = 0;
     let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
 
     const meteors = [];
-    const maxMeteors = 2;
+    const maxMeteors = isLowEndDevice() ? 1 : 2;
     let nextMeteorAt = performance.now() + 1600;
 
     function isDark() {
       return document.documentElement.classList.contains('dark');
+    }
+
+    function shouldAnimate() {
+      return isDark() && !document.hidden && !prefersReducedMotion();
     }
 
     function rand(min, max) {
@@ -454,7 +501,7 @@
       });
     }
 
-    window.addEventListener('resize', resize);
+    window.addEventListener('resize', debounce(resize, 120));
     resize();
 
     let last = performance.now();
@@ -462,9 +509,9 @@
       const dt = Math.min(0.033, (now - last) / 1000);
       last = now;
 
-      if (!isDark()) {
+      if (!shouldAnimate()) {
         mctx.clearRect(0, 0, w, h);
-        requestAnimationFrame(step);
+        setTimeout(() => requestAnimationFrame(step), 250);
         return;
       }
 
@@ -627,7 +674,7 @@
       window.removeEventListener('scroll', onScroll);
     }
 
-    window.addEventListener('scroll', onScroll);
+    window.addEventListener('scroll', onScroll, { passive: true });
   }
 
   function initCommon() {
@@ -641,13 +688,13 @@
 
   function initHome() {
     initStars();
-    initConstellation();
     initMarqueeHome();
+    runWhenIdle(initConstellation, 1200);
   }
 
   function initDocs() {
-    initConstellation();
-    initMeteorBackground();
+    runWhenIdle(initConstellation, 1200);
+    runWhenIdle(initMeteorBackground, 1800);
   }
 
   function boot() {

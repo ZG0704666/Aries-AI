@@ -8,6 +8,13 @@
     <!-- Favicons -->
     <link rel="icon" type="image/png" href="./assets/favicon.png?v=3">
     <link rel="apple-touch-icon" href="./assets/favicon.png?v=3">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//fonts.gstatic.com">
+    <link rel="dns-prefetch" href="//static.cloudflareinsights.com">
+    <link rel="preload" as="image" href="./app-screen-q82.jpg" fetchpriority="high">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -69,8 +76,6 @@
         }
     </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
         :root {
             --safe-top: env(safe-area-inset-top, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -100,6 +105,11 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             scroll-behavior: smooth;
+        }
+
+        .defer-render {
+            content-visibility: auto;
+            contain-intrinsic-size: 1px 900px;
         }
 
         /* --- 1. 动态极光背景 & 星空 --- */
@@ -1166,7 +1176,7 @@
             <div class="flex justify-between h-20 items-center">
                 <!-- Logo -->
                 <div class="flex items-center gap-3 cursor-pointer group" onclick="window.scrollTo(0,0)">
-                    <img src="./assets/favicon.png" alt="Aries AI"
+                    <img src="./assets/favicon.png" alt="Aries AI" decoding="async"
                         class="w-10 h-10 rounded-xl shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300 object-cover">
                     <span class="text-xl font-bold tracking-tight dark:text-white text-gray-900 transition-colors">Aries
                         AI</span>
@@ -1299,7 +1309,8 @@
 
                             <div
                                 class="relative rounded-[34px] overflow-hidden bg-white dark:bg-black border border-black/10 dark:border-white/10">
-                                <img src="APP界面.jpg" alt="Aries AI 手机界面" class="block w-full h-auto select-none" />
+                                <img src="app-screen-q82.jpg" alt="Aries AI 手机界面" width="1170" height="2532"
+                                    fetchpriority="high" decoding="async" class="block w-full h-auto select-none" />
 
                                 <div
                                     class="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/45 via-white/0 to-white/0 dark:from-white/10">
@@ -1335,7 +1346,8 @@
                         </div>
                         <div
                             class="relative rounded-[34px] overflow-hidden bg-white dark:bg-black border border-black/10 dark:border-white/10">
-                            <img src="APP界面.jpg" alt="Aries AI 手机界面" class="block w-full h-auto select-none" />
+                            <img src="app-screen-q82.jpg" alt="Aries AI 手机界面" width="1170" height="2532" loading="lazy"
+                                decoding="async" class="block w-full h-auto select-none" />
                             <div
                                 class="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/45 via-white/0 to-white/0 dark:from-white/10">
                             </div>
@@ -1361,7 +1373,7 @@
     </section>
 
     <!-- 核心能力 -->
-    <section id="features" class="py-16 md:py-24 relative z-10">
+    <section id="features" class="py-16 md:py-24 relative z-10 defer-render">
         <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12">
             <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-stretch">
 
@@ -1515,7 +1527,7 @@
     </section>
 
     <!-- 成功案例 (Moved UP) -->
-    <section id="cases" class="py-16 md:py-24 relative z-10 border-t dark:border-white/5 border-gray-200">
+    <section id="cases" class="py-16 md:py-24 relative z-10 border-t dark:border-white/5 border-gray-200 defer-render">
         <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12">
             <h2
                 class="text-2xl md:text-3xl font-bold text-center mb-12 md:mb-16 dark:text-white text-gray-900 section-title">
@@ -1572,7 +1584,7 @@
 
     <!-- 支持应用 (Moved DOWN & Dynamics Updated) -->
     <section id="apps"
-        class="py-16 md:py-24 relative z-10 dark:bg-white/5 bg-white/30 backdrop-blur-sm overflow-hidden">
+        class="py-16 md:py-24 relative z-10 dark:bg-white/5 bg-white/30 backdrop-blur-sm overflow-hidden defer-render">
         <div class="relative z-10 w-full flex flex-col items-center">
             <div
                 class="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[980px] h-[420px] rounded-full bg-gradient-to-r from-blue-500/25 via-purple-500/25 to-pink-500/25 blur-[70px]">
@@ -1600,7 +1612,7 @@
     </section>
 
     <!-- 路线图 -->
-    <section id="roadmap" class="py-16 md:py-24 relative z-10">
+    <section id="roadmap" class="py-16 md:py-24 relative z-10 defer-render">
         <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12">
             <h2
                 class="text-2xl md:text-3xl font-bold text-center mb-12 md:mb-16 dark:text-white text-gray-900 section-title">
@@ -1650,7 +1662,7 @@
 
     <!-- Footer -->
     <footer
-        class="mt-auto dark:bg-black/90 bg-white/80 backdrop-blur-md border-t dark:border-white/5 border-gray-200 py-10 md:py-12 relative z-10">
+        class="mt-auto dark:bg-black/90 bg-white/80 backdrop-blur-md border-t dark:border-white/5 border-gray-200 py-10 md:py-12 relative z-10 defer-render">
         <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 text-center">
             <h3 class="text-xl font-extrabold mb-5 dark:text-white text-gray-900 section-title inline-block">联系我们</h3>
 
@@ -1716,7 +1728,7 @@
                 type="button" aria-label="关闭">✕</button>
 
             <div class="flex items-start gap-3 sm:gap-4 mb-6 pr-12">
-                <img src="./assets/favicon.png" alt="Aries AI 图标"
+                <img src="./assets/favicon.png" alt="Aries AI 图标" loading="lazy" decoding="async"
                     class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl shadow-xl border border-white/20 flex-shrink-0 object-cover" />
                 <div class="flex-1 pt-1">
                     <p class="text-xs uppercase tracking-[0.2em] text-blue-400 mb-1 sm:mb-2">Aries AI</p>
@@ -1766,8 +1778,7 @@
     </div>
     </div>
 
-    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
-    <script src="./assets/app.js"></script>
+    <script src="./assets/app.js" defer></script>
     <script>
         // Fallback / Inline script to ensure mobile menu works even if app.js fails or is cached
         function toggleMobileMenu() {
@@ -1793,11 +1804,6 @@
         // Expose to window immediately
         window.toggleMobileMenu = toggleMobileMenu;
     </script>
-
-
-    <!-- Cloudflare Pages Analytics -->
-    <script defer src='https://static.cloudflareinsights.com/beacon.min.js'
-        data-cf-beacon='{"token": "156f8e672ec9456e96bfed3333888630"}'></script><!-- Cloudflare Pages Analytics -->
     <script defer
         src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015"
         integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ=="
