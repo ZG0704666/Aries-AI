@@ -82,12 +82,12 @@
     const backdrop = document.getElementById('mobile-sidebar-backdrop');
     if (!sidebar) return;
 
-    if (sidebar.classList.contains('-translate-x-full')) {
-      sidebar.classList.remove('-translate-x-full');
+    if (sidebar.classList.contains('translate-x-full')) {
+      sidebar.classList.remove('translate-x-full');
       if (backdrop) backdrop.classList.remove('opacity-0', 'pointer-events-none');
       document.body.style.overflow = 'hidden';
     } else {
-      sidebar.classList.add('-translate-x-full');
+      sidebar.classList.add('translate-x-full');
       if (backdrop) backdrop.classList.add('opacity-0', 'pointer-events-none');
       document.body.style.overflow = '';
     }
@@ -107,7 +107,7 @@
     qqLink.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(ARIES_DATA.qqGroupId);
-      } catch (_) {}
+      } catch (_) { }
       window.open(ARIES_DATA.qqJoinUrl, '_blank', 'noopener');
     });
   }
@@ -233,7 +233,8 @@
     const container = document.getElementById('stars-container');
     if (!container) return;
 
-    const starCount = 80;
+    const isMobile = window.innerWidth <= 640;
+    const starCount = isMobile ? 20 : 80;
     container.innerHTML = '';
 
     for (let i = 0; i < starCount; i++) {
@@ -257,6 +258,13 @@
   function initConstellation() {
     const canvas = document.getElementById('constellation-canvas');
     if (!canvas) return;
+
+    // 移动端性能优化：禁用星座动画
+    if (window.innerWidth <= 640) {
+      canvas.style.display = 'none';
+      return;
+    }
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 

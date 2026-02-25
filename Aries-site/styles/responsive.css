@@ -1,0 +1,229 @@
+/**
+ * 移动端响应式样式
+ */
+
+@media (max-width: 640px) {
+  /* 移动端性能优化：禁用或简化动画 */
+  .aurora-blob {
+    animation: none !important;
+    opacity: 0.25 !important;
+  }
+
+  .star {
+    animation: none !important;
+    opacity: 0.4 !important;
+  }
+
+  /* 按钮和触摸目标 */
+  button,
+  a[role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.6rem 0.9rem;
+  }
+
+  /* 下载弹窗 */
+  #download-modal {
+    padding: 12px !important;
+  }
+
+  #download-modal .modal-panel {
+    border-radius: 1rem;
+    max-height: 95vh;
+  }
+
+  #download-modal a {
+    padding: 0.875rem 1rem !important;
+    min-height: 52px;
+    font-size: 0.875rem;
+  }
+
+  /* 导航栏 */
+  nav .h-20 {
+    height: 4rem;
+  }
+
+  /* Hero 区域 */
+  header {
+    padding-top: calc(5rem + var(--safe-top)) !important;
+    padding-bottom: 4rem !important;
+  }
+
+  .hero-capsule {
+    border-radius: 9999px !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    padding: 8px 14px !important;
+    display: inline-flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    min-height: auto !important;
+    height: auto !important;
+    width: auto !important;
+    max-width: 95% !important;
+    margin: 0 auto 1.5rem auto !important;
+  }
+
+  .hero-capsule>span.flex {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+  }
+
+  .hero-capsule>span.flex>span:first-child {
+    flex-shrink: 0;
+    display: inline-block;
+    font-size: 0.95rem !important;
+    margin-top: -1px;
+  }
+
+  .hero-capsule>span.flex>span:last-child {
+    font-size: 13px !important;
+    line-height: 1.3 !important;
+    text-align: left;
+    white-space: normal !important;
+  }
+
+  .hero-capsule span {
+    white-space: normal;
+    line-height: inherit;
+    text-align: center;
+  }
+
+  .hero-capsule .flex {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* 输入框字体大小（防止自动缩放） */
+  input,
+  button,
+  select {
+    font-size: 16px;
+  }
+
+  /* 区块间距 */
+  section {
+    padding-left: 0.875rem;
+    padding-right: 0.875rem;
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+
+  /* 玻璃卡片 */
+  .glass-card {
+    border-radius: 0.75rem;
+    padding: 1.25rem !important;
+  }
+
+  /* 字体大小 */
+  h1 {
+    font-size: 2rem !important;
+    line-height: 1.15 !important;
+  }
+
+  h2 {
+    font-size: 1.35rem !important;
+  }
+
+  h3 {
+    font-size: 1.1rem !important;
+  }
+
+  h4 {
+    font-size: 0.95rem !important;
+  }
+
+  p {
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+  }
+
+  /* 技术图标 */
+  .tech-icon-box {
+    width: 44px;
+    height: 44px;
+  }
+
+  .icon-svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* 模型徽章 */
+  .model-badge {
+    font-size: 10px !important;
+    padding: 5px 12px !important;
+    margin-bottom: 1rem !important;
+  }
+
+  /* Hero 网格 */
+  header .grid {
+    gap: 2rem !important;
+  }
+
+  header h1 {
+    margin-bottom: 1rem !important;
+  }
+
+  header p {
+    margin-top: 1rem !important;
+    margin-bottom: 2rem !important;
+  }
+
+  /* 按钮 */
+  #btn-download-hero,
+  #btn-download-nav,
+  header button {
+    font-size: 0.9rem !important;
+    padding: 0.85rem 1.75rem !important;
+    min-height: 48px !important;
+  }
+
+  header .flex.flex-col {
+    gap: 1rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #download-modal .modal-panel {
+    padding: 1rem !important;
+  }
+
+  button[id*="download"] {
+    padding: 0.85rem 1rem !important;
+    font-size: 0.85rem;
+  }
+
+  h1 {
+    font-size: 1.75rem !important;
+  }
+
+  h2 {
+    font-size: 1.2rem !important;
+  }
+
+  header {
+    padding-top: calc(4.5rem + var(--safe-top)) !important;
+    padding-bottom: 3rem !important;
+  }
+
+  .hero-capsule {
+    padding: 6px 10px !important;
+  }
+
+  .hero-capsule>span.flex>span:first-child {
+    font-size: 0.85rem !important;
+  }
+
+  .hero-capsule>span.flex>span:last-child {
+    font-size: 12px !important;
+  }
+
+  p {
+    font-size: 0.9rem !important;
+  }
+}
+

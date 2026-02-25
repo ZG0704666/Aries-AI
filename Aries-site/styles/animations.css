@@ -1,0 +1,187 @@
+/**
+ * 背景和动画效果样式
+ */
+
+/* 极光背景容器 */
+.aurora-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+  transition: background 0.5s ease;
+  pointer-events: none;
+}
+
+html.dark .aurora-container {
+  background: radial-gradient(circle at center, #0a0a12 0%, #000000 100%);
+}
+
+html.light .aurora-container {
+  background: radial-gradient(900px 520px at 50% 10%, rgba(37, 99, 235, 0.16), transparent 58%),
+    radial-gradient(980px 560px at 20% 45%, rgba(124, 58, 237, 0.14), transparent 60%),
+    radial-gradient(900px 520px at 85% 35%, rgba(219, 39, 119, 0.10), transparent 62%),
+    #f3f7ff;
+}
+
+/* 星星层 */
+.stars-layer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.constellation-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+html.dark .constellation-layer {
+  opacity: 1;
+}
+
+html.light .stars-layer {
+  opacity: 0.25;
+}
+
+html.light .constellation-layer {
+  opacity: 0;
+}
+
+.star {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  opacity: 0;
+  animation: twinkle var(--duration) ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+@keyframes twinkle {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: var(--opacity);
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 12px rgba(180, 220, 255, 0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+/* 极光光斑 */
+.aurora-blob {
+  position: absolute;
+  filter: blur(80px);
+  opacity: 0.4;
+  animation: move 15s infinite alternate;
+  border-radius: 50%;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.blob-1 {
+  top: -10%;
+  left: -10%;
+  width: 50vw;
+  height: 50vw;
+  background: #1e3a8a;
+  animation-delay: 0s;
+}
+
+.blob-2 {
+  bottom: -10%;
+  right: -10%;
+  width: 60vw;
+  height: 60vw;
+  background: #4c1d95;
+  animation-delay: -5s;
+}
+
+.blob-3 {
+  top: 30%;
+  left: 40%;
+  width: 30vw;
+  height: 30vw;
+  background: #be185d;
+  animation-delay: -2s;
+  opacity: 0.2;
+}
+
+html.light .blob-1 {
+  background: #93c5fd;
+  opacity: 0.5;
+}
+
+html.light .blob-2 {
+  background: #fdba74;
+  opacity: 0.5;
+}
+
+html.light .blob-3 {
+  background: #c4b5fd;
+  opacity: 0.4;
+}
+
+@keyframes move {
+  from {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  to {
+    transform: translate(30px, -30px) scale(1.1) rotate(5deg);
+  }
+}
+
+/* 流星画布 */
+#meteor-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .35s ease;
+}
+
+html.dark #meteor-canvas {
+  opacity: 0.9;
+}
+
+html.light #meteor-canvas {
+  opacity: 0;
+}
+
+/* 页面背景 */
+html.dark .page-bg {
+  background: radial-gradient(1200px 600px at 50% 20%, rgba(88, 28, 135, 0.35), transparent 60%),
+    radial-gradient(900px 500px at 15% 35%, rgba(30, 64, 175, 0.35), transparent 55%),
+    radial-gradient(900px 500px at 85% 55%, rgba(190, 24, 93, 0.25), transparent 60%),
+    radial-gradient(circle at center, #0a0a12 0%, #000000 100%);
+}
+
+html.light .page-bg {
+  background: radial-gradient(900px 520px at 50% 10%, rgba(37, 99, 235, 0.18), transparent 58%),
+    radial-gradient(980px 560px at 20% 45%, rgba(124, 58, 237, 0.16), transparent 60%),
+    radial-gradient(900px 520px at 85% 35%, rgba(219, 39, 119, 0.10), transparent 62%),
+    #eef2ff;
+}
+
+.bg-grid {
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.06) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+

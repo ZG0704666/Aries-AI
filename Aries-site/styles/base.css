@@ -1,0 +1,133 @@
+/**
+ * 基础样式和变量
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --transition-bounce: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: background-color 0.5s ease, color 0.5s ease;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+/* 文档中心页面特殊样式 - 固定高度，内部滚动 */
+body[data-page="docs"] html,
+body[data-page="docs"] {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 亮色模式基础文本颜色 */
+html.light body,
+html.light {
+  color: #0f172a !important;
+}
+
+html.light * {
+  color: inherit;
+}
+
+/* 滚动条样式 */
+.scrollbar-visible {
+  scrollbar-width: thin;
+}
+
+.scrollbar-visible::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.scrollbar-visible::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-visible::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.22);
+  border: 2px solid rgba(0, 0, 0, 0.15);
+}
+
+html.dark .scrollbar-visible::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html.dark .scrollbar-visible::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 9999px;
+}
+
+html.dark .scrollbar-visible::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border: 2px solid rgba(0, 0, 0, 0.26);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+html.dark .scrollbar-visible::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.20);
+}
+
+html.dark .scrollbar-visible {
+  scrollbar-color: rgba(255, 255, 255, 0.22) rgba(255, 255, 255, 0.06);
+  scrollbar-width: thin;
+}
+
+html.light .scrollbar-visible::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18);
+  border-color: rgba(255, 255, 255, 0.65);
+}
+
+.scrollbar-visible::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+html.light .scrollbar-visible::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.26);
+}
+
+/* 平滑滚动 */
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
+
+/* 滚动显示动画 */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.reveal-on-scroll.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 文本平衡 */
+.text-balance {
+  text-wrap: balance;
+}
+

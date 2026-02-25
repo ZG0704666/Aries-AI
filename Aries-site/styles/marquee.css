@@ -1,0 +1,103 @@
+/**
+ * 跑马灯样式
+ */
+
+.marquee-wrapper {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  padding: 10px 0;
+}
+
+.marquee-track {
+  display: flex;
+  width: fit-content;
+  gap: 24px;
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.marquee-track.marquee-left {
+  animation: marqueeLeft 18s linear infinite;
+}
+
+.marquee-track.marquee-right {
+  animation: marqueeRight 18s linear infinite;
+}
+
+@keyframes marqueeLeft {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marqueeRight {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.app-capsule {
+  padding: 0.95rem 1.9rem;
+  border-radius: 9999px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  transition: all 0.3s;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+html.dark .app-capsule {
+  background: rgba(255, 255, 255, 0.05);
+  color: #e2e8f0;
+}
+
+html.dark .app-capsule:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+html.light .app-capsule {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+  color: #0f172a;
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+html.light .app-capsule:hover {
+  background: linear-gradient(135deg, #ffffff, #f0f9ff);
+  transform: scale(1.05);
+  box-shadow: 0 8px 28px rgba(59, 130, 246, 0.25), 0 2px 8px rgba(0, 0, 0, 0.12);
+  border-color: rgba(59, 130, 246, 0.7);
+}
+
+/* 移动端优化 */
+@media (max-width: 640px) {
+  .marquee-wrapper {
+    padding: 5px 0;
+  }
+
+  .marquee-track {
+    gap: 12px;
+  }
+
+  .app-capsule {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+}
+

@@ -1,12 +1,19 @@
-﻿# Aries AI 🚀
+# Aries AI 🚀
 
 <div align="center">
+
+<img src="Aries-site/assets/favicon_rounded.png" width="120" height="120" alt="Aries AI Logo">
 
 **让大模型在 Android 上丝滑执行 UI 自动化任务的推理加速引擎**
 
 [![AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Platform-Android%2011%20--%2036-brightgreen.svg)]()
 [![Kotlin](https://img.shields.io/badge/Language-Kotlin-orange.svg)]()
+[![GitHub Stars](https://img.shields.io/github/stars/ZG0704666/Aries-AI?style=social)](https://github.com/ZG0704666/Aries-AI)
+
+[![QQ群](https://img.shields.io/badge/QQ群-746439473-12B7F5?logo=tencent-qq&logoColor=white)](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=&authKey=&noverify=0&group_code=746439473)
+[![Email](https://img.shields.io/badge/Email-zhangyongqi@njit.edu.cn-EA4335?logo=gmail&logoColor=white)](mailto:zhangyongqi@njit.edu.cn)
+[![Issues](https://img.shields.io/badge/Issues-欢迎反馈-green?logo=github)](https://github.com/ZG0704666/Aries-AI/issues)
 
 </div>
 
@@ -126,6 +133,23 @@
 2. 安装到 Android 设备
 3. 开启无障碍服务
 4. 配置 API Key 开始使用
+
+### 🎙️ 语音模型下载（针对二次开发者，普通用户无需下载）
+
+如需使用**离线语音识别**功能，请下载语音模型文件：
+
+> **📥 下载地址**: [Google Drive - 语音模型](https://drive.google.com/drive/folders/1LnebW8G1wmpMeGIEQunAYMnmT1BpXmCD?usp=sharing)
+
+**说明**：
+- 由于模型文件较大，GitHub 无法直接上传
+- 开发者需自行从 Google Drive 下载模型文件
+- 下载后将模型文件放置到应用指定目录：Aries-AI\app\src\main\assets\sherpa-models
+- 语音识别功能基于 Sherpa-ncnn 离线引擎，无需联网即可使用
+
+**模型文件说明**：
+- 包含中文语音识别模型
+- 支持离线实时语音转文字
+- 适用于语音输入任务指令
 
 ### 💻 二次开发（从源码构建）
 

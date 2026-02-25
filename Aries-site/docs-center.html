@@ -47,6 +47,16 @@
       overflow: hidden;
     }
 
+    /* 亮色模式基础文本颜色 */
+    html.light body,
+    html.light {
+      color: #0f172a !important;
+    }
+
+    html.light * {
+      color: inherit;
+    }
+
     .scrollbar-visible {
       scrollbar-width: thin;
     }
@@ -309,29 +319,104 @@
     /* Mobile Text & Readability Optimization */
     @media (max-width: 640px) {
 
-      /* Boost Contrast and Size */
       .doc-prose {
-        font-size: 1.05rem !important;
-        /* Larger base text */
-        line-height: 1.8 !important;
+        font-size: 0.875rem !important;
+        line-height: 1.7 !important;
       }
 
       .doc-prose p,
       .doc-prose li {
         color: rgba(255, 255, 255, 0.95) !important;
-        /* Whiter text in dark mode */
       }
 
       .doc-prose h1 {
-        font-size: 1.8rem !important;
-        margin-bottom: 1.5rem !important;
+        font-size: 1.25rem !important;
+        margin-bottom: 1rem !important;
       }
 
       .doc-prose h2 {
-        font-size: 1.45rem !important;
-        margin-top: 2.2rem !important;
+        font-size: 1rem !important;
+        margin-top: 1.5rem !important;
         color: #fff !important;
       }
+
+      .doc-prose h3 {
+        font-size: 0.9rem !important;
+      }
+
+      .glass {
+        padding: 1rem !important;
+      }
+
+      .glass.p-8,
+      .glass.p-10 {
+        padding: 1rem !important;
+      }
+
+      #doc-content {
+        padding-right: 0.5rem !important;
+      }
+
+      .md-content pre {
+        font-size: 0.8rem !important;
+        padding: 0.75rem !important;
+      }
+
+      .doc-card {
+        padding: 0.875rem !important;
+        min-height: 90px !important;
+      }
+
+      .doc-icon {
+        width: 36px !important;
+        height: 36px !important;
+      }
+    }
+
+    /* 亮色模式全面文本优化 */
+    html.light,
+    html.light body,
+    html.light .doc-prose,
+    html.light .doc-prose p,
+    html.light .doc-prose li,
+    html.light .doc-prose h1,
+    html.light .doc-prose h2,
+    html.light .doc-prose h3,
+    html.light .doc-prose h4,
+    html.light .doc-prose h5,
+    html.light .doc-prose h6,
+    html.light .md-content,
+    html.light .md-content p,
+    html.light .md-content li,
+    html.light .md-content h1,
+    html.light .md-content h2,
+    html.light .md-content h3,
+    html.light .md-content h4,
+    html.light .md-content h5,
+    html.light .md-content h6,
+    html.light .nav-item,
+    html.light #mobile-doc-nav a,
+    html.light #doc-nav a,
+    html.light .text-slate-900,
+    html.light .text-slate-800,
+    html.light .text-slate-700,
+    html.light .text-slate-600,
+    html.light .text-slate-500 {
+      color: #0f172a !important;
+    }
+
+    html.light .doc-prose code,
+    html.light .md-content code {
+      color: #0f172a !important;
+      background: rgba(15, 23, 42, 0.08) !important;
+      border-color: rgba(15, 23, 42, 0.12) !important;
+    }
+
+    html.light .doc-prose th,
+    html.light .doc-prose td,
+    html.light .md-content th,
+    html.light .md-content td {
+      color: #0f172a !important;
     }
 
     html.light .glass {
@@ -1007,8 +1092,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
-                  <svg class="w-3 h-3 hidden dark:block" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
+                  <svg class="w-3 h-3 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round"
                       d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                   </svg>
@@ -1049,12 +1133,12 @@
 
   <!-- Doc Mobile Sidebar -->
   <div id="mobile-sidebar-backdrop"
-    class="fixed inset-0 z-[99] bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 lg:hidden"
+    class="fixed inset-0 z-[99] bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 md:hidden"
     onclick="toggleDocSidebar()"></div>
   <div id="mobile-sidebar"
-    class="fixed top-0 left-0 w-[280px] h-full z-[100] bg-white dark:bg-[#0a0a12] border-r border-gray-200 dark:border-white/10 shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col lg:hidden">
-    <div class="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
-      <span class="font-bold text-lg dark:text-white text-slate-900">文档导航</span>
+    class="fixed top-0 right-0 w-[280px] h-full z-[100] bg-white dark:bg-[#0a0a12] border-l border-gray-200 dark:border-white/10 shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col md:hidden">
+    <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-white/5">
+      <span class="text-xl font-bold dark:text-white text-gray-900">Aries AI</span>
       <button onclick="toggleDocSidebar()"
         class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20 transition active:scale-95">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1062,13 +1146,25 @@
         </svg>
       </button>
     </div>
-    <nav id="mobile-doc-nav"
-      class="flex-1 overflow-y-auto p-4 space-y-4 text-sm scrollbar-visible text-slate-700 dark:text-slate-300"></nav>
-    <div class="p-4 border-t border-gray-200 dark:border-white/10 space-y-3">
-      <button onclick="toggleTheme()"
-        class="w-full py-2.5 px-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 font-semibold text-sm transition active:scale-95 text-slate-700 dark:text-slate-300">切换日/夜</button>
+    <nav id="mobile-doc-nav" class="flex-1 overflow-y-auto py-6 px-6 space-y-6 text-sm scrollbar-visible"></nav>
+    <div class="p-6 border-t border-gray-200 dark:border-white/5 space-y-4">
+      <div class="flex items-center justify-between">
+        <span class="text-sm font-medium text-gray-600 dark:text-gray-400">外观主题</span>
+        <div class="theme-toggle" onclick="toggleTheme()">
+          <div class="toggle-dot">
+            <svg class="w-3 h-3 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <svg class="w-3 h-3 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          </div>
+        </div>
+      </div>
       <a href="index.html"
-        class="block w-full text-center py-2.5 px-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 font-semibold text-sm transition active:scale-95 text-slate-700 dark:text-slate-300">返回主页</a>
+        class="block w-full text-center py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold shadow-lg shadow-blue-500/30">返回主页</a>
     </div>
   </div>
 
@@ -1080,12 +1176,12 @@
       const backdrop = document.getElementById('mobile-sidebar-backdrop');
       if (!sidebar) return;
 
-      if (sidebar.classList.contains('-translate-x-full')) {
-        sidebar.classList.remove('-translate-x-full');
+      if (sidebar.classList.contains('translate-x-full')) {
+        sidebar.classList.remove('translate-x-full');
         if (backdrop) backdrop.classList.remove('opacity-0', 'pointer-events-none');
         document.body.style.overflow = 'hidden';
       } else {
-        sidebar.classList.add('-translate-x-full');
+        sidebar.classList.add('translate-x-full');
         if (backdrop) backdrop.classList.add('opacity-0', 'pointer-events-none');
         document.body.style.overflow = '';
       }

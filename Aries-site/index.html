@@ -838,11 +838,22 @@
         /* --- 7. 移动端优化 --- */
         @media (max-width: 640px) {
 
+            /* 移动端性能优化：禁用或简化动画 */
+            .aurora-blob {
+                animation: none !important;
+                opacity: 0.25 !important;
+            }
+
+            .star {
+                animation: none !important;
+                opacity: 0.4 !important;
+            }
+
             button,
             a[role="button"] {
                 min-height: 44px;
                 min-width: 44px;
-                padding: 0.75rem 1rem;
+                padding: 0.6rem 0.9rem;
             }
 
             #download-modal {
@@ -855,31 +866,24 @@
             }
 
             #download-modal a {
-                padding: 1rem 1.25rem !important;
-                min-height: 56px;
-                font-size: 0.95rem;
+                padding: 0.875rem 1rem !important;
+                min-height: 52px;
+                font-size: 0.875rem;
             }
 
             nav .h-20 {
-                height: 4.5rem;
+                height: 4rem;
             }
 
             header {
-                padding-top: calc(5.25rem + var(--safe-top));
-            }
-
-            .hero-capsule {
-                max-width: 100%;
-                height: auto;
-                white-space: normal;
-                padding: 0.75rem 1.25rem;
-                align-items: center;
+                padding-top: calc(6rem + var(--safe-top)) !important;
+                padding-bottom: 5rem !important;
             }
 
             .hero-capsule {
                 border-radius: 9999px !important;
                 background: rgba(255, 255, 255, 0.15) !important;
-                padding: 6px 12px !important;
+                padding: 10px 16px !important;
                 display: inline-flex !important;
                 justify-content: center !important;
                 align-items: center !important;
@@ -887,7 +891,7 @@
                 height: auto !important;
                 width: auto !important;
                 max-width: 95% !important;
-                margin: 0 auto 1.25rem auto !important;
+                margin: 0 auto 2.5rem auto !important;
             }
 
             .hero-capsule>span.flex {
@@ -896,13 +900,13 @@
                 align-items: center !important;
                 justify-content: center !important;
                 flex-wrap: nowrap !important;
-                gap: 6px !important;
+                gap: 8px !important;
             }
 
             .hero-capsule>span.flex>span:first-child {
                 flex-shrink: 0;
                 display: inline-block;
-                font-size: 1rem !important;
+                font-size: 0.95rem !important;
                 margin-top: -1px;
             }
 
@@ -925,16 +929,16 @@
             }
 
             .marquee-wrapper {
-                padding: 6px 0;
+                padding: 5px 0;
             }
 
             .marquee-track {
-                gap: 16px;
+                gap: 12px;
             }
 
             .app-capsule {
-                padding: 0.65rem 1.25rem;
-                font-size: 0.9rem;
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
             }
 
             html.light .app-capsule {
@@ -956,42 +960,136 @@
             }
 
             section {
-                padding-left: 1rem;
-                padding-right: 1rem;
+                padding-left: 0.875rem;
+                padding-right: 0.875rem;
+                padding-top: 3rem;
+                padding-bottom: 3rem;
             }
 
             .glass-card {
-                border-radius: 0.875rem;
+                border-radius: 0.75rem;
+                padding: 1.25rem !important;
             }
 
             h1 {
-                font-size: 2.25rem !important;
-                line-height: 1.1 !important;
+                font-size: 2rem !important;
+                line-height: 1.15 !important;
             }
 
             h2 {
-                font-size: 1.5rem !important;
+                font-size: 1.35rem !important;
+            }
+
+            h3 {
+                font-size: 1.1rem !important;
+            }
+
+            h4 {
+                font-size: 0.95rem !important;
+            }
+
+            p {
+                font-size: 0.95rem !important;
+                line-height: 1.6 !important;
             }
 
             .tech-icon-box {
-                width: 52px;
-                height: 52px;
+                width: 44px;
+                height: 44px;
             }
 
             .icon-svg {
-                width: 26px;
-                height: 26px;
+                width: 22px;
+                height: 22px;
+            }
+
+            .model-badge {
+                font-size: 10px !important;
+                padding: 5px 12px !important;
+                margin-bottom: 1.5rem !important;
+            }
+
+            header .grid {
+                gap: 2rem !important;
+            }
+
+            header h1 {
+                margin-bottom: 1.5rem !important;
+            }
+
+            header p {
+                margin-top: 1.25rem !important;
+                margin-bottom: 2.5rem !important;
+            }
+
+            #btn-download-hero,
+            #btn-download-nav,
+            header button {
+                font-size: 0.9rem !important;
+                padding: 0.85rem 1.75rem !important;
+                min-height: 48px !important;
+            }
+
+            header .flex.flex-col {
+                gap: 1.25rem !important;
             }
         }
 
         @media (max-width: 480px) {
             #download-modal .modal-panel {
-                padding: 1.25rem !important;
+                padding: 1rem !important;
             }
 
             button[id*="download"] {
-                padding: 0.875rem 1rem !important;
-                font-size: 0.875rem;
+                padding: 0.85rem 1rem !important;
+                font-size: 0.85rem;
+            }
+
+            h1 {
+                font-size: 1.75rem !important;
+            }
+
+            h2 {
+                font-size: 1.2rem !important;
+            }
+
+            header {
+                padding-top: calc(5.5rem + var(--safe-top)) !important;
+                padding-bottom: 4rem !important;
+            }
+
+            .hero-capsule {
+                padding: 8px 12px !important;
+                margin: 0 auto 2rem auto !important;
+            }
+
+            .hero-capsule>span.flex>span:first-child {
+                font-size: 0.85rem !important;
+            }
+
+            .hero-capsule>span.flex>span:last-child {
+                font-size: 12px !important;
+            }
+
+            .model-badge {
+                margin-bottom: 1.25rem !important;
+            }
+
+            header h1 {
+                margin-bottom: 1.25rem !important;
+            }
+
+            header p {
+                margin-top: 1rem !important;
+                margin-bottom: 2rem !important;
+            }
+
+            header .flex.flex-col {
+                gap: 1rem !important;
+            }
+
+            p {
+                font-size: 0.9rem !important;
             }
         }
 
@@ -1129,16 +1227,16 @@
     <!-- Hero Section -->
     <header class="relative min-h-screen px-5 sm:px-8 pt-24 pb-14 overflow-hidden">
         <div class="max-w-7xl mx-auto relative z-10">
-            <div class="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
 
                 <!-- Left: Copy -->
                 <div class="text-center max-w-xl lg:max-w-[560px] lg:ml-auto lg:mr-4 mx-auto">
                     <div
                         class="hero-capsule relative inline-flex items-center justify-center text-center max-w-[92%] sm:max-w-[560px] glass-card rounded-full px-5 sm:px-10 py-3 sm:py-4 mb-7 cursor-pointer hover:scale-105 transition-transform duration-300 group shadow-[0_0_35px_rgba(59,130,246,0.3)] border border-blue-400/30">
                         <span
-                            class="relative z-10 font-bold text-sm sm:text-lg flex items-center gap-2 sm:gap-3 text-gradient-flow tracking-wide">
+                            class="relative z-10 font-bold text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 text-gradient-flow tracking-wide text-center">
                             <span class="animate-bounce-slight text-base sm:text-xl">✨</span>
-                            <span>想旅行？说走就走！Aries 支持一句话定高铁票/机票！</span>
+                            <span class="text-center">想旅行？说走就走！Aries 支持一句话定高铁票/机票！</span>
                         </span>
                     </div>
 
@@ -1148,7 +1246,7 @@
                     </span>
 
                     <h1
-                        class="text-4xl sm:text-6xl md:text-7xl font-extrabold dark:text-white text-gray-900 tracking-tight leading-[1.05]">
+                        class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold dark:text-white text-gray-900 tracking-tight leading-[1.05]">
                         开启手机智能
                         <span class="gradient-text-fix mt-2 pb-2 block">新交互时代</span>
                     </h1>
@@ -1172,10 +1270,20 @@
                             查看技术文档
                         </button>
                     </div>
+
+                    <!-- 手机端向下滚动提示 -->
+                    <div class="mt-16 flex justify-center lg:hidden">
+                        <div class="animate-bounce">
+                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                            </svg>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Right: Phone mockup (Android-style light frame) -->
-                <div class="relative flex justify-center lg:justify-end">
+                <!-- Right: Phone mockup (只在电脑端显示) -->
+                <div class="relative flex justify-center lg:justify-end hidden lg:flex">
                     <div class="relative w-[270px] sm:w-[320px] md:w-[360px] lg:w-[390px] max-w-full">
                         <div
                             class="pointer-events-none absolute -inset-10 rounded-[48px] bg-gradient-to-br from-blue-500/25 via-purple-500/18 to-pink-500/18 blur-[40px] dark:from-blue-500/20 dark:via-purple-500/16 dark:to-pink-500/14">
@@ -1210,6 +1318,47 @@
             </div>
         </div>
     </header>
+
+    <!-- 手机展示区域 (只在手机端显示，占据第二屏) -->
+    <section class="min-h-screen flex items-center justify-center relative z-10 lg:hidden">
+        <div class="max-w-7xl mx-auto px-5 sm:px-8">
+            <div class="flex justify-center items-center">
+                <div class="relative w-[280px] sm:w-[320px] max-w-full">
+                    <div
+                        class="pointer-events-none absolute -inset-10 rounded-[48px] bg-gradient-to-br from-blue-500/25 via-purple-500/18 to-pink-500/18 blur-[40px] dark:from-blue-500/20 dark:via-purple-500/16 dark:to-pink-500/14">
+                    </div>
+                    <div
+                        class="relative rounded-[44px] p-[10px] sm:p-[12px] bg-white/70 dark:bg-white/10 border border-black/10 dark:border-white/15 shadow-[0_35px_90px_rgba(0,0,0,0.20)] dark:shadow-[0_35px_90px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+                        <div class="absolute top-[10px] left-1/2 -translate-x-1/2 flex items-center gap-2 z-20">
+                            <div class="w-14 h-[6px] rounded-full bg-black/10 dark:bg-white/10"></div>
+                            <div class="w-2 h-2 rounded-full bg-black/20 dark:bg-white/15"></div>
+                        </div>
+                        <div
+                            class="relative rounded-[34px] overflow-hidden bg-white dark:bg-black border border-black/10 dark:border-white/10">
+                            <img src="APP界面.jpg" alt="Aries AI 手机界面" class="block w-full h-auto select-none" />
+                            <div
+                                class="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/45 via-white/0 to-white/0 dark:from-white/10">
+                            </div>
+                            <div
+                                class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent dark:from-black/35">
+                            </div>
+                        </div>
+                        <div
+                            class="pointer-events-none absolute inset-0 rounded-[44px] ring-1 ring-white/40 dark:ring-white/10">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-16 flex justify-center">
+                <div class="animate-bounce">
+                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <!-- 核心能力 -->
     <section id="features" class="py-16 md:py-24 relative z-10">
@@ -1626,7 +1775,7 @@
             const backdrop = document.getElementById('mobile-menu-backdrop');
             if (!menu) return;
 
-            // Toggle transform class
+            // Toggle transform class (从右边滑入)
             if (menu.classList.contains('translate-x-full')) {
                 menu.classList.remove('translate-x-full');
                 if (backdrop) {
@@ -1656,10 +1805,10 @@
         crossorigin="anonymous"></script>
     <!-- Mobile Menu -->
     <div id="mobile-menu-backdrop"
-        class="fixed inset-0 z-[99] bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300"
+        class="fixed inset-0 z-[99] bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 md:hidden"
         onclick="toggleMobileMenu()"></div>
     <div id="mobile-menu"
-        class="fixed top-0 right-0 w-[280px] h-full z-[100] bg-white/90 dark:bg-[#0a0a12]/95 backdrop-blur-xl border-l border-white/10 shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
+        class="fixed top-0 right-0 w-[280px] h-full z-[100] bg-white dark:bg-[#0a0a12] border-l border-gray-200 dark:border-white/10 shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col md:hidden">
         <div class="flex items-center justify-between p-6 border-b border-gray-200/10 dark:border-white/5">
             <span class="text-xl font-bold dark:text-white text-gray-900">Aries AI</span>
             <button
