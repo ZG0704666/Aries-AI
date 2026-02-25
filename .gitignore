@@ -88,3 +88,7 @@ docs/reference-architecture.md
 AGENTS.md
 analytics.settings
 key/key
+
+# Lighthouse reports (local performance profiling artifacts)
+Aries-site/lighthouse-*.report.html
+Aries-site/lighthouse-*.report.json
