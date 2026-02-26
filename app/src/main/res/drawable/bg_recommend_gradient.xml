@@ -5,6 +5,6 @@
         android:endColor="@color/m3t_recommend_grad_end"
         android:type="linear"
         android:angle="45" />
-    <corners android:radius="16dp" />
+    <corners android:radius="@dimen/m3t_radius_md" />
 </shape>
 

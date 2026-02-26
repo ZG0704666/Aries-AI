@@ -10,12 +10,12 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.ai.phoneagent.R
 import com.ai.phoneagent.BuildConfig
+import com.ai.phoneagent.R
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.switchmaterial.SwitchMaterial
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,7 +41,7 @@ class UpdateHistoryActivity : AppCompatActivity() {
 
     private enum class LoadMoreMode {
         LoadMore,
-        Retry
+        Retry,
     }
 
     private var loadMoreMode: LoadMoreMode = LoadMoreMode.LoadMore
@@ -109,7 +109,7 @@ class UpdateHistoryActivity : AppCompatActivity() {
         page = 1
         adapter.submitList(emptyList())
         loadMoreMode = LoadMoreMode.LoadMore
-        btnLoadMore.text = "加载更多"
+        btnLoadMore.text = getString(R.string.m3t_updates_load_more)
         btnLoadMore.isEnabled = true
         loadPage(resetError = true)
     }
@@ -149,7 +149,12 @@ class UpdateHistoryActivity : AppCompatActivity() {
 
                     loadMoreMode = LoadMoreMode.LoadMore
                     btnLoadMore.isEnabled = true
-                    btnLoadMore.text = if (filtered.isNotEmpty()) "加载更多" else "没有更多了"
+                    btnLoadMore.text =
+                        if (filtered.isNotEmpty()) {
+                            getString(R.string.m3t_updates_load_more)
+                        } else {
+                            getString(R.string.m3t_updates_no_more)
+                        }
                 }
                 .onFailure { e ->
                     tvError.visibility = View.VISIBLE
@@ -157,7 +162,7 @@ class UpdateHistoryActivity : AppCompatActivity() {
 
                     loadMoreMode = LoadMoreMode.Retry
                     btnLoadMore.isEnabled = true
-                    btnLoadMore.text = "重试"
+                    btnLoadMore.text = getString(R.string.m3t_updates_retry)
                 }
         }
     }
@@ -165,9 +170,11 @@ class UpdateHistoryActivity : AppCompatActivity() {
     private fun showDetails(entry: ReleaseEntry) {
         MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
             .setTitle(entry.versionTag)
-            .setMessage(entry.body.ifBlank { "（无更新说明）" })
-            .setPositiveButton("打开发布") { _, _ -> ReleaseUiUtil.openUrl(this, entry.releaseUrl) }
-            .setNegativeButton("关闭", null)
+            .setMessage(entry.body.ifBlank { getString(R.string.m3t_updates_no_changelog) })
+            .setPositiveButton(getString(R.string.m3t_updates_open_release)) { _, _ ->
+                ReleaseUiUtil.openUrl(this, entry.releaseUrl)
+            }
+            .setNegativeButton(getString(R.string.m3t_updates_close), null)
             .show()
     }
 
@@ -190,11 +197,11 @@ class UpdateHistoryActivity : AppCompatActivity() {
 
         val names = options.map { it.first }.toTypedArray()
         MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
-            .setTitle("选择下载源")
+            .setTitle(getString(R.string.m3t_updates_choose_source))
             .setItems(names) { _, which ->
                 ReleaseUiUtil.openUrl(this, options[which].second)
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.m3t_action_cancel), null)
             .show()
     }
 }

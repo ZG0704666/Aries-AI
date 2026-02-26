@@ -170,7 +170,7 @@ class AboutActivity : AppCompatActivity() {
         androidx.core.widget.ImageViewCompat.setImageTintList(
             binding.btnBack,
             android.content.res.ColorStateList.valueOf(
-                androidx.core.content.ContextCompat.getColor(this, R.color.m3t_primary)
+                androidx.core.content.ContextCompat.getColor(this, R.color.m3t_on_surface_variant)
             ),
         )
         binding.btnBack.setOnClickListener {
@@ -329,14 +329,13 @@ class AboutActivity : AppCompatActivity() {
             window.attributes = params
         }
 
-        tvTitle.text = getString(R.string.about_changelog)
+        tvTitle.text = getString(R.string.m3t_updates_title)
         tvSubtitle.text = "${UpdateConfig.REPO_OWNER}/${UpdateConfig.REPO_NAME}"
         tvBody.text = ""
         scrollBody.visibility = View.GONE
         rvLinks.visibility = View.GONE
 
-        containerView.findViewById<View>(R.id.btnOpenRelease).visibility = View.GONE
-        containerView.findViewById<View>(R.id.btnHistory).visibility = View.GONE
+        containerView.findViewById<View>(R.id.actionRow).visibility = View.GONE
 
         val historyView = LayoutInflater.from(this).inflate(R.layout.dialog_release_history, null, false)
         val parent = rvLinks.parent as? ViewGroup
@@ -346,9 +345,6 @@ class AboutActivity : AppCompatActivity() {
         val progress = historyView.findViewById<ProgressBar>(R.id.progress)
         val tvError = historyView.findViewById<TextView>(R.id.tvError)
         val recycler = historyView.findViewById<RecyclerView>(R.id.recyclerReleases)
-        val tvTips = historyView.findViewById<TextView>(R.id.tvTips)
-        tvTips.text = getString(R.string.about_history_tip)
-
         recycler.layoutManager = LinearLayoutManager(this)
 
         DialogSizingUtil.applyCompactSizing(
@@ -431,11 +427,11 @@ class AboutActivity : AppCompatActivity() {
     private fun showReleaseDetails(entry: ReleaseEntry) {
         MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
             .setTitle(entry.versionTag)
-            .setMessage(entry.body.ifBlank { getString(R.string.about_no_changelog) })
-            .setPositiveButton(R.string.about_open_release) { _, _ ->
+            .setMessage(entry.body.ifBlank { getString(R.string.m3t_updates_no_changelog) })
+            .setPositiveButton(R.string.m3t_updates_open_release) { _, _ ->
                 ReleaseUiUtil.openUrl(this, entry.releaseUrl)
             }
-            .setNegativeButton(R.string.action_close, null)
+            .setNegativeButton(R.string.m3t_updates_close, null)
             .show()
     }
 
@@ -455,7 +451,7 @@ class AboutActivity : AppCompatActivity() {
     private fun showUpdateLinksDialog(entry: ReleaseEntry) {
         val options = ReleaseUiUtil.mirroredDownloadOptions(entry.apkUrl)
         val links = if (options.isNotEmpty()) options else listOf(
-            getString(R.string.about_release_page) to entry.releaseUrl,
+            getString(R.string.m3t_updates_view_release) to entry.releaseUrl,
         )
 
         val dialog = Dialog(this)
@@ -483,14 +479,14 @@ class AboutActivity : AppCompatActivity() {
             window.attributes = params
         }
 
-        tvTitle.text = getString(R.string.about_update_found_format, entry.versionTag)
+        tvTitle.text = getString(R.string.m3t_updates_found) + " ${entry.versionTag}"
         tvSubtitle.text = getString(
-            R.string.about_update_repo_subtitle,
+            R.string.m3t_updates_repo_subtitle,
             UpdateConfig.REPO_OWNER,
             UpdateConfig.REPO_NAME,
             UpdateConfig.APK_ASSET_NAME,
         )
-        tvBody.text = entry.body.ifBlank { getString(R.string.about_no_changelog) }
+        tvBody.text = entry.body.ifBlank { getString(R.string.m3t_updates_no_changelog) }
 
         DialogSizingUtil.applyCompactSizing(
             context = this,
@@ -567,7 +563,7 @@ class AboutActivity : AppCompatActivity() {
 
         val names = options.map { it.first }.toTypedArray()
         MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
-            .setTitle(R.string.about_choose_download_source)
+            .setTitle(R.string.m3t_updates_choose_source)
             .setItems(names) { _, which ->
                 ReleaseUiUtil.openUrl(this, options[which].second)
             }
@@ -641,28 +637,71 @@ class AboutActivity : AppCompatActivity() {
             License("JetBrains Annotations", "Annotations for Kotlin", "Apache-2.0"),
         )
 
-        val view = layoutInflater.inflate(R.layout.dialog_licenses, null, false)
-        val container = view.findViewById<LinearLayout>(R.id.licenseContainer)
+        val containerView = layoutInflater.inflate(R.layout.dialog_licenses, null, false)
+        val container = containerView.findViewById<LinearLayout>(R.id.licenseContainer)
+        val cardView = containerView.findViewById<View>(R.id.cardLicenses)
+        val scrollView = containerView.findViewById<View>(R.id.scrollLicenses)
 
         licenses.forEach { license ->
             val row = layoutInflater.inflate(R.layout.item_license_row, container, false)
             row.findViewById<TextView>(R.id.tvLibName).text = license.name
             row.findViewById<TextView>(R.id.tvLibDesc).text = license.description
             row.findViewById<TextView>(R.id.tvLibLicense).text =
-                getString(R.string.about_license_format, license.license)
+                getString(R.string.m3t_license_format, license.license)
             container.addView(row)
         }
 
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        dialog.setContentView(view)
-        dialog.setCanceledOnTouchOutside(true)
+        dialog.setContentView(containerView)
         dialog.window?.let { window ->
             window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            val width = (resources.displayMetrics.widthPixels * 0.92f).toInt()
-            window.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT)
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
+            window.setDimAmount(0f)
+            window.setFlags(
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            )
+            val params = window.attributes
+            params.windowAnimations = 0
+            window.attributes = params
         }
+
+        DialogSizingUtil.applyCompactSizing(
+            context = this,
+            cardView = cardView,
+            scrollBody = scrollView,
+            listView = null,
+            hasList = false,
+        )
+
+        fun closeDialog() {
+            vibrateLight()
+            cardView.animate()
+                .translationY(cardView.height.toFloat() * 1.5f)
+                .alpha(0f)
+                .setDuration(420)
+                .setInterpolator(AccelerateInterpolator(1.2f))
+                .withEndAction { dialog.dismiss() }
+                .start()
+        }
+
+        containerView.findViewById<View>(R.id.btnCloseLicenses).setOnClickListener { closeDialog() }
+        containerView.findViewById<View>(R.id.dialogContainer).setOnClickListener { closeDialog() }
+        cardView.setOnClickListener { }
+
         dialog.show()
+
+        cardView.post {
+            cardView.translationY = -cardView.height.toFloat() * 1.5f
+            cardView.alpha = 0f
+            cardView.animate()
+                .translationY(0f)
+                .alpha(1f)
+                .setDuration(560)
+                .setInterpolator(OvershootInterpolator(1.1f))
+                .start()
+        }
     }
 
     private fun copyToClipboard(text: String) {

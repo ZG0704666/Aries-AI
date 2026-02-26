@@ -58,12 +58,12 @@ class ReleaseHistoryAdapter(
             btnDetails.setOnClickListener { onDetails(entry) }
             btnOpen.setOnClickListener { onOpenRelease(entry) }
 
-            if (entry.apkUrl.isNullOrBlank()) {
-                btnDownload.text = "打开"
-            } else {
-                btnDownload.text = "下载"
-            }
-
+            btnDownload.text =
+                if (entry.apkUrl.isNullOrBlank()) {
+                    itemView.context.getString(R.string.m3t_updates_view)
+                } else {
+                    itemView.context.getString(R.string.m3t_updates_download)
+                }
             btnDownload.setOnClickListener { onDownload(entry) }
         }
     }

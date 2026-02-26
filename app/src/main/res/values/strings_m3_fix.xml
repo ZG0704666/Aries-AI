@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="m3t_sidebar_subtitle">智能手机助手</string>
+    <string name="m3t_sidebar_api_config">API 配置</string>
+    <string name="m3t_sidebar_api_hint">输入 API Key</string>
+    <string name="m3t_sidebar_api_paste">粘贴</string>
+    <string name="m3t_sidebar_third_party_api">使用第三方 OpenAI 兼容 API</string>
+    <string name="m3t_sidebar_get_api_key">获取 API Key ></string>
+    <string name="m3t_sidebar_check_connection">验证连接</string>
+    <string name="m3t_sidebar_api_not_checked">未检测</string>
+
+    <string name="m3t_nav_automation">自动化</string>
+    <string name="m3t_nav_about">关于</string>
+
+    <string name="m3t_updates_title">更新日志</string>
+    <string name="m3t_updates_include_prerelease">包含预发布版本</string>
+    <string name="m3t_updates_load_more">加载更多</string>
+    <string name="m3t_updates_no_more">没有更多了</string>
+    <string name="m3t_updates_retry">重试</string>
+    <string name="m3t_updates_history_tip">下方可以选择历史版本</string>
+    <string name="m3t_updates_no_changelog">（无更新说明）</string>
+    <string name="m3t_updates_open_release">打开发布</string>
+    <string name="m3t_updates_close">关闭</string>
+    <string name="m3t_updates_choose_source">选择下载源</string>
+    <string name="m3t_updates_found">发现新版本</string>
+    <string name="m3t_updates_repo_subtitle">%1$s/%2$s · %3$s</string>
+    <string name="m3t_updates_view_release">查看发布</string>
+    <string name="m3t_updates_history">更新历史</string>
+    <string name="m3t_updates_details">详情</string>
+    <string name="m3t_updates_view">查看</string>
+    <string name="m3t_updates_download">下载</string>
+    <string name="m3t_updates_prerelease">预发布</string>
+
+    <string name="m3t_license_title">开源许可声明</string>
+    <string name="m3t_license_format">许可: %1$s</string>
+    <string name="m3t_action_cancel">取消</string>
+</resources>

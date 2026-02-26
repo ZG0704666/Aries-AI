@@ -3,8 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingTop="8dp"
-    android:paddingBottom="8dp">
+    android:paddingTop="@dimen/m3t_spacing_sm"
+    android:paddingBottom="@dimen/m3t_spacing_sm">
 
     <TextView
         android:id="@+id/tvLibName"
@@ -17,25 +17,16 @@
         android:id="@+id/tvLibDesc"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="@dimen/m3t_spacing_xxxs"
         android:text="Library description"
-        android:textAppearance="@style/TextAppearance.M3t.Body.Small"
-        android:textSize="13sp" />
+        android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
 
     <TextView
         android:id="@+id/tvLibLicense"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="@dimen/m3t_spacing_xxxs"
         android:text="许可: Apache-2.0"
-        android:textAppearance="@style/TextAppearance.M3t.Body.Small"
-        android:textSize="12sp" />
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="8dp"
-        android:background="@color/m3t_outline_variant" />
+        android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
 
 </LinearLayout>
-

@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">Aries AI</string>
     <string name="app_title">Aries AI</string>
     <string name="status_ready">语音模型已就绪</string>
@@ -16,7 +16,7 @@
     <string name="about_copyright">© 2025-2026 Aries AI. 保留所有权利。</string>
     <string name="about_back">返回</string>
     <string name="about_title">关于</string>
-    <string name="about_version_format">V%1$s</string>
+    <string name="about_version_format">v%1$s</string>
     <string name="about_check_updates">检查更新</string>
     <string name="about_changelog">更新日志</string>
     <string name="about_open_source_licenses">开源许可声明</string>

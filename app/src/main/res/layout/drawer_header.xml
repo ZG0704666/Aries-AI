@@ -7,7 +7,7 @@
     android:clipToPadding="false"
     android:orientation="vertical"
     android:paddingStart="@dimen/m3t_dialog_padding"
-    android:paddingTop="36dp"
+    android:paddingTop="@dimen/m3t_drawer_header_top_padding"
     android:paddingEnd="@dimen/m3t_dialog_padding"
     android:paddingBottom="@dimen/m3t_spacing_xxl">
 
@@ -19,18 +19,17 @@
         android:paddingBottom="@dimen/m3t_spacing_xxl">
 
         <ImageView
-            android:layout_width="44dp"
-            android:layout_height="44dp"
+            android:layout_width="@dimen/m3t_drawer_app_icon_size"
+            android:layout_height="@dimen/m3t_drawer_app_icon_size"
             android:background="@drawable/bg_circle_white_shadow"
-            android:contentDescription="App Icon"
-            android:elevation="0dp"
-            android:padding="2dp"
+            android:contentDescription="@string/app_name"
+            android:padding="@dimen/m3t_drawer_app_icon_padding"
             android:src="@mipmap/ic_launcher_round" />
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
+            android:layout_marginStart="@dimen/m3t_about_row_text_gap"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -38,25 +37,23 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:letterSpacing="0.02"
-                android:text="Aries AI"
+                android:text="@string/app_name"
                 android:textAppearance="@style/TextAppearance.M3t.Title.Large"
-                android:textSize="20sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="智能手机助手"
-                android:textAppearance="@style/TextAppearance.M3t.Body.Small"
-                android:textSize="12sp" />
+                android:text="@string/m3t_sidebar_subtitle"
+                android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
         </LinearLayout>
     </LinearLayout>
 
     <com.google.android.material.card.MaterialCardView
-        style="@style/Widget.M3t.Card"
+        style="@style/Widget.M3t.Card.Subtle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="20dp">
+        app:cardBackgroundColor="@color/m3t_drawer_section_bg">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -72,19 +69,19 @@
                 android:paddingBottom="@dimen/m3t_spacing_md">
 
                 <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
+                    android:layout_width="@dimen/m3t_about_row_icon_size"
+                    android:layout_height="@dimen/m3t_about_row_icon_size"
                     android:src="@drawable/ic_key_24"
                     app:tint="@color/m3t_primary" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:text="API 配置"
-                    android:textAppearance="@style/TextAppearance.M3t.Title.Medium"
-                    android:textSize="15sp" />
+                    android:layout_marginStart="@dimen/m3t_about_row_text_gap"
+                    android:text="@string/m3t_sidebar_api_config"
+                    android:textAppearance="@style/TextAppearance.M3t.Title.Medium" />
             </LinearLayout>
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -95,48 +92,49 @@
                 <EditText
                     android:id="@+id/apiInput"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="@dimen/m3t_drawer_input_min_height"
                     android:layout_weight="1"
-                    android:background="@drawable/bg_input_field_flat"
-                    android:hint="输入 API Key"
+                    android:background="@drawable/bg_input_field_drawer"
+                    android:gravity="center_vertical"
+                    android:hint="@string/m3t_sidebar_api_hint"
                     android:inputType="textNoSuggestions|textVisiblePassword"
-                    android:minHeight="@dimen/m3t_compact_button_height"
-                    android:paddingHorizontal="14dp"
-                    android:paddingVertical="12dp"
+                    android:minHeight="@dimen/m3t_drawer_input_min_height"
+                    android:paddingHorizontal="@dimen/m3t_about_row_text_gap"
                     android:textColor="@color/m3t_on_surface"
                     android:textColorHint="@color/m3t_on_surface_variant"
-                    android:textSize="14sp" />
+                    android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnPasteApiInput"
-                    style="@style/Widget.M3t.Button.Outlined.Compact"
+                    style="@style/Widget.M3t.Button.Tonal.Compact"
                     android:layout_width="wrap_content"
-                    android:layout_height="@dimen/m3t_compact_button_height"
+                    android:layout_height="@dimen/m3t_drawer_input_min_height"
                     android:layout_marginStart="@dimen/m3t_spacing_sm"
-                    android:text="粘贴" />
+                    android:minHeight="@dimen/m3t_drawer_input_min_height"
+                    android:text="@string/m3t_sidebar_api_paste"
+                    android:paddingVertical="0dp" />
             </LinearLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
+                android:layout_marginBottom="@dimen/m3t_history_icon_padding"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
                 <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
+                    android:layout_width="@dimen/m3t_about_row_icon_size"
+                    android:layout_height="@dimen/m3t_about_row_icon_size"
                     android:src="@drawable/ic_public_24"
                     app:tint="@color/m3t_on_surface" />
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
+                    android:layout_marginStart="@dimen/m3t_about_row_text_gap"
                     android:layout_weight="1"
-                    android:text="使用第三方 OpenAI 兼容 API"
-                    android:textAppearance="@style/TextAppearance.M3t.Title.Medium"
-                    android:textSize="15sp" />
+                    android:text="@string/m3t_sidebar_third_party_api"
+                    android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/swUseThirdPartyApi"
@@ -161,7 +159,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
+                        android:layout_marginStart="@dimen/m3t_drawer_label_start"
                         android:layout_marginBottom="@dimen/m3t_spacing_xs"
                         android:text="Base URL"
                         android:textAppearance="@style/TextAppearance.M3t.Body.Small"
@@ -170,17 +168,16 @@
                     <EditText
                         android:id="@+id/apiBaseUrlInput"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="10dp"
-                        android:background="@drawable/bg_input_field_flat"
+                        android:layout_height="@dimen/m3t_drawer_input_min_height"
+                        android:layout_marginBottom="@dimen/m3t_history_icon_padding"
+                        android:background="@drawable/bg_input_field_drawer"
+                        android:gravity="center_vertical"
                         android:hint="https://api.example.com/v1"
                         android:inputType="textUri"
-                        android:minHeight="42dp"
-                        android:paddingHorizontal="14dp"
-                        android:paddingVertical="10dp"
+                        android:paddingHorizontal="@dimen/m3t_about_row_text_gap"
                         android:textColor="@color/m3t_on_surface"
                         android:textColorHint="@color/m3t_on_surface_variant"
-                        android:textSize="14sp" />
+                        android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -191,7 +188,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
+                        android:layout_marginStart="@dimen/m3t_drawer_label_start"
                         android:layout_marginBottom="@dimen/m3t_spacing_xs"
                         android:text="Model"
                         android:textAppearance="@style/TextAppearance.M3t.Body.Small"
@@ -200,16 +197,15 @@
                     <EditText
                         android:id="@+id/apiModelInput"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/bg_input_field_flat"
+                        android:layout_height="@dimen/m3t_drawer_input_min_height"
+                        android:background="@drawable/bg_input_field_drawer"
+                        android:gravity="center_vertical"
                         android:hint="glm-4-flash"
                         android:inputType="textNoSuggestions"
-                        android:minHeight="42dp"
-                        android:paddingHorizontal="14dp"
-                        android:paddingVertical="10dp"
+                        android:paddingHorizontal="@dimen/m3t_about_row_text_gap"
                         android:textColor="@color/m3t_on_surface"
                         android:textColorHint="@color/m3t_on_surface_variant"
-                        android:textSize="14sp" />
+                        android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -222,36 +218,32 @@
                 android:background="?attr/selectableItemBackground"
                 android:paddingVertical="@dimen/m3t_spacing_xs"
                 android:paddingEnd="@dimen/m3t_spacing_xs"
-                android:text="获取 API Key >"
+                android:text="@string/m3t_sidebar_get_api_key"
+                android:textAppearance="@style/TextAppearance.M3t.Body.Small"
                 android:textColor="@color/m3t_primary"
-                android:textSize="13sp"
                 android:textStyle="bold" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnCheckApi"
                 style="@style/Widget.M3t.Button.Filled"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:text="验证连接"
-                android:textSize="15sp"
+                android:layout_height="@dimen/m3t_compact_button_height"
+                android:text="@string/m3t_sidebar_check_connection"
                 app:icon="@drawable/ic_check_circle_24"
                 app:iconGravity="textStart"
-                app:iconPadding="8dp" />
+                app:iconPadding="@dimen/m3t_spacing_sm" />
 
             <TextView
                 android:id="@+id/apiStatus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:paddingTop="10dp"
-                android:text="未检测"
+                android:paddingTop="@dimen/m3t_history_icon_padding"
+                android:text="@string/m3t_sidebar_api_not_checked"
                 android:textAppearance="@style/TextAppearance.M3t.Body.Small"
-                android:textColor="@color/m3t_on_surface_variant"
-                android:textSize="12sp" />
+                android:textColor="@color/m3t_on_surface_variant" />
 
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
 </LinearLayout>
-
-

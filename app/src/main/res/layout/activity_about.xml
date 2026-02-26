@@ -9,8 +9,7 @@
         android:id="@+id/appBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/m3t_surface"
-        app:elevation="0dp">
+        android:background="@android:color/transparent">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -36,7 +35,7 @@
                 android:gravity="center"
                 android:text="@string/about_title"
                 android:textAppearance="@style/TextAppearance.M3t.Title.Large"
-                android:textColor="@color/m3t_primary" />
+                android:textColor="@color/m3t_on_surface" />
 
             <Space
                 android:layout_width="@dimen/m3t_toolbar_nav_size"
@@ -81,7 +80,7 @@
                         app:cardCornerRadius="@dimen/m3t_radius_md"
                         app:cardElevation="0dp"
                         app:strokeColor="@color/m3t_outline_variant"
-                        app:strokeWidth="1dp">
+                        app:strokeWidth="@dimen/m3t_stroke_thin">
 
                         <ImageView
                             android:layout_width="match_parent"
@@ -170,7 +169,7 @@
 
                     <View
                         android:layout_width="match_parent"
-                        android:layout_height="1dp"
+                        android:layout_height="@dimen/m3t_stroke_thin"
                         android:layout_marginStart="@dimen/m3t_toolbar_nav_size"
                         android:background="@color/m3t_outline_variant" />
 
@@ -209,7 +208,7 @@
 
                     <View
                         android:layout_width="match_parent"
-                        android:layout_height="1dp"
+                        android:layout_height="@dimen/m3t_stroke_thin"
                         android:layout_marginStart="@dimen/m3t_toolbar_nav_size"
                         android:background="@color/m3t_outline_variant" />
 
@@ -248,7 +247,7 @@
 
                     <View
                         android:layout_width="match_parent"
-                        android:layout_height="1dp"
+                        android:layout_height="@dimen/m3t_stroke_thin"
                         android:layout_marginStart="@dimen/m3t_toolbar_nav_size"
                         android:background="@color/m3t_outline_variant" />
 

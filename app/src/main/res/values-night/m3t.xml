@@ -45,6 +45,8 @@
     <color name="m3t_message_action_stroke">#40FFFFFF</color>
 
     <color name="m3t_drawer_background">#152231</color>
+    <color name="m3t_drawer_section_bg">#1A2A3C</color>
+    <color name="m3t_drawer_input_bg">#213247</color>
     <color name="m3t_floating_header">#1F2C3B</color>
     <color name="m3t_floating_surface">#141D27</color>
     <color name="m3t_floating_text_secondary">#9FAEC4</color>

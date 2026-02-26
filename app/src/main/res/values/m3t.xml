@@ -45,6 +45,8 @@
     <color name="m3t_message_action_stroke">#2A000000</color>
 
     <color name="m3t_drawer_background">#ECF3FF</color>
+    <color name="m3t_drawer_section_bg">#F7FAFF</color>
+    <color name="m3t_drawer_input_bg">#E5EDF9</color>
     <color name="m3t_floating_header">#3D4D66</color>
     <color name="m3t_floating_surface">#F7FAFF</color>
     <color name="m3t_floating_text_secondary">#6D7A8B</color>
@@ -59,6 +61,7 @@
     <dimen name="m3t_spacing_lg">16dp</dimen>
     <dimen name="m3t_spacing_xl">20dp</dimen>
     <dimen name="m3t_spacing_xxl">24dp</dimen>
+    <dimen name="m3t_stroke_thin">1dp</dimen>
 
     <dimen name="m3t_radius_sm">12dp</dimen>
     <dimen name="m3t_radius_md">16dp</dimen>
@@ -83,6 +86,25 @@
     <dimen name="m3t_history_close_button_size">36dp</dimen>
     <dimen name="m3t_history_icon_size">42dp</dimen>
     <dimen name="m3t_history_icon_padding">10dp</dimen>
+    <dimen name="m3t_drawer_header_top_padding">36dp</dimen>
+    <dimen name="m3t_drawer_app_icon_size">44dp</dimen>
+    <dimen name="m3t_drawer_app_icon_padding">2dp</dimen>
+    <dimen name="m3t_drawer_input_min_height">42dp</dimen>
+    <dimen name="m3t_drawer_label_start">4dp</dimen>
+    <dimen name="m3t_update_history_list_height">320dp</dimen>
+    <dimen name="m3t_update_links_body_height">120dp</dimen>
+    <dimen name="m3t_update_links_list_height">300dp</dimen>
+    <dimen name="m3t_update_item_padding_v">10dp</dimen>
+    <dimen name="m3t_update_chip_padding_h">8dp</dimen>
+    <dimen name="m3t_update_chip_padding_v">2dp</dimen>
+    <dimen name="m3t_license_list_height">420dp</dimen>
+    <dimen name="m3t_automation_status_dot">12dp</dimen>
+    <dimen name="m3t_automation_log_dot">8dp</dimen>
+    <dimen name="m3t_automation_icon_button_size">40dp</dimen>
+    <dimen name="m3t_automation_voice_button_size">52dp</dimen>
+    <dimen name="m3t_automation_voice_icon_size">24dp</dimen>
+    <dimen name="m3t_automation_voice_button_radius">26dp</dimen>
+    <dimen name="m3t_automation_log_line_spacing">6dp</dimen>
 
     <!-- M3T Typography -->
     <style name="TextAppearance.M3t.ToolbarTitle" parent="TextAppearance.MaterialComponents.Headline6">
@@ -111,6 +133,16 @@
     <style name="TextAppearance.M3t.Body.Small" parent="TextAppearance.MaterialComponents.Body2">
         <item name="android:textSize">12sp</item>
         <item name="android:textColor">@color/m3t_on_surface_variant</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Label.Small" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/m3t_on_surface_variant</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Body.Mono" parent="TextAppearance.M3t.Body.Small">
+        <item name="android:fontFamily">monospace</item>
     </style>
 
     <style name="TextAppearance.M3t.Label" parent="TextAppearance.MaterialComponents.Button">
@@ -157,7 +189,7 @@
 
     <style name="Widget.M3t.Button.Filled" parent="Widget.MaterialComponents.Button">
         <item name="android:minHeight">@dimen/m3t_button_height</item>
-        <item name="cornerRadius">24dp</item>
+        <item name="cornerRadius">@dimen/m3t_radius_lg</item>
         <item name="backgroundTint">@color/m3t_primary</item>
         <item name="android:textColor">@color/m3t_on_primary</item>
         <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
@@ -166,7 +198,7 @@
 
     <style name="Widget.M3t.Button.Outlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
         <item name="android:minHeight">@dimen/m3t_button_height</item>
-        <item name="cornerRadius">24dp</item>
+        <item name="cornerRadius">@dimen/m3t_radius_lg</item>
         <item name="strokeWidth">1dp</item>
         <item name="strokeColor">@color/m3t_outline</item>
         <item name="android:textColor">@color/m3t_primary</item>
@@ -187,6 +219,39 @@
     <style name="Widget.M3t.Button.Text" parent="Widget.MaterialComponents.Button.TextButton">
         <item name="android:textColor">@color/m3t_primary</item>
         <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Tonal" parent="Widget.MaterialComponents.Button">
+        <item name="android:minHeight">@dimen/m3t_button_height</item>
+        <item name="cornerRadius">@dimen/m3t_radius_lg</item>
+        <item name="backgroundTint">@color/m3t_surface_container_high</item>
+        <item name="android:textColor">@color/m3t_primary</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
+        <item name="elevation">0dp</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Tonal.Compact" parent="Widget.MaterialComponents.Button">
+        <item name="android:minHeight">@dimen/m3t_compact_button_height</item>
+        <item name="android:minWidth">@dimen/m3t_compact_button_min_width</item>
+        <item name="cornerRadius">@dimen/m3t_radius_sm</item>
+        <item name="backgroundTint">@color/m3t_surface_container_high</item>
+        <item name="android:textColor">@color/m3t_primary</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Body.Small</item>
+        <item name="elevation">0dp</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+
+    <style name="Widget.M3t.Button.CloseAction" parent="Widget.MaterialComponents.Button">
+        <item name="android:minHeight">@dimen/m3t_button_height</item>
+        <item name="cornerRadius">@dimen/m3t_radius_lg</item>
+        <item name="backgroundTint">@color/m3t_primary_container</item>
+        <item name="android:textColor">@color/m3t_on_primary_container</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
+        <item name="android:elevation">0dp</item>
+        <item name="elevation">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="strokeWidth">0dp</item>
     </style>
 
     <style name="Widget.M3t.TextInput" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">

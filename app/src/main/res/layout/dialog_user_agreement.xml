@@ -3,8 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/dialogContainer"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@android:color/transparent">
+    android:layout_height="match_parent">
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cardAgreement"
@@ -12,84 +11,48 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:layout_marginHorizontal="24dp"
-        app:cardElevation="0dp">
+        android:layout_marginHorizontal="@dimen/m3t_dialog_card_margin_h"
+        app:cardBackgroundColor="@color/m3t_surface_container_high">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="24dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
-                android:gravity="center"
-                android:orientation="vertical">
-
-                <ImageView
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
-                    android:layout_marginBottom="12dp"
-                    android:scaleType="centerInside"
-                    android:src="@mipmap/ic_launcher_round" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:letterSpacing="0.03"
-                    android:text="欢迎使用 Aries AI"
-                    android:textAppearance="@style/TextAppearance.M3t.Title.Large"
-                    android:textColor="@color/m3t_primary" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="开启你的智能语音助手之旅"
-                    android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
-            </LinearLayout>
+            android:padding="@dimen/m3t_dialog_padding">
 
             <TextView
-                android:id="@+id/tv_agreement_title"
+                android:id="@+id/tvAgreementTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:gravity="start"
                 android:text="@string/user_agreement_title"
-                android:textAppearance="@style/TextAppearance.M3t.Title.Medium"
-                android:textSize="17sp" />
+                android:textAppearance="@style/TextAppearance.M3t.Title.Large" />
 
-            <androidx.core.widget.NestedScrollView
-                android:id="@+id/scroll_agreement"
+            <ScrollView
+                android:id="@+id/scrollAgreement"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:fadeScrollbars="false"
-                android:paddingEnd="4dp"
-                android:scrollbarThumbVertical="@color/m3t_outline_variant">
+                android:layout_height="@dimen/m3t_license_list_height"
+                android:layout_marginTop="@dimen/m3t_spacing_md"
+                android:fillViewport="true"
+                android:overScrollMode="ifContentScrolls">
 
                 <TextView
-                    android:id="@+id/tv_agreement_content"
+                    android:id="@+id/tvAgreementContent"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:lineSpacingExtra="5dp"
+                    android:lineSpacingExtra="@dimen/m3t_spacing_xs"
                     android:text="@string/user_agreement_content"
-                    android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
-                    android:textSize="14sp" />
-            </androidx.core.widget.NestedScrollView>
+                    android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
+            </ScrollView>
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_agreement_agree"
-                style="@style/Widget.M3t.Button.Filled"
+                android:id="@+id/btnAgreementAgree"
+                style="@style/Widget.M3t.Button.CloseAction"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:layout_marginTop="24dp"
-                android:text="@string/user_agreement_agree"
-                android:textSize="16sp" />
+                android:layout_height="@dimen/m3t_button_height"
+                android:layout_marginTop="@dimen/m3t_spacing_lg"
+                android:text="@string/action_close"
+                android:textAllCaps="false" />
 
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 </FrameLayout>
-
