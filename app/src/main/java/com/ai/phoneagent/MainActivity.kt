@@ -257,8 +257,6 @@ class MainActivity : AppCompatActivity() {
             startNewChat(clearUi = true)
         }
 
-        binding.topAppBar.post { attachAnimatedBorderRing(binding.topAppBar, 2f, 18f) }
-
         initSherpaModel()
 
         silentCheckUpdatesOnLaunch()
@@ -599,23 +597,42 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun offsetTopBarIcons() {
-        val upOffsetPx = -7f * resources.displayMetrics.density
-        val floatWinOffsetPx = -6f * resources.displayMetrics.density
         binding.topAppBar.post {
-            for (i in 0 until binding.topAppBar.childCount) {
-                val child = binding.topAppBar.getChildAt(i)
+            val toolbar = binding.topAppBar
+            val toolbarTitle = toolbar.title?.toString().orEmpty()
+
+            var titleView: TextView? = null
+            for (i in 0 until toolbar.childCount) {
+                val child = toolbar.getChildAt(i)
+                if (child is TextView && child.text?.toString() == toolbarTitle) {
+                    titleView = child
+                    break
+                }
+            }
+            if (titleView == null) {
+                for (i in 0 until toolbar.childCount) {
+                    val child = toolbar.getChildAt(i)
+                    if (child is TextView && child.text?.isNotBlank() == true) {
+                        titleView = child
+                        break
+                    }
+                }
+            }
+
+            val title = titleView ?: return@post
+            val titleCenterY = title.top + title.height / 2f
+
+            for (i in 0 until toolbar.childCount) {
+                val child = toolbar.getChildAt(i)
                 if (child is ActionMenuView) {
                     for (j in 0 until child.childCount) {
                         val menuChild = child.getChildAt(j)
-                        val tag = menuChild.contentDescription?.toString() ?: ""
-                        if (tag.contains("小窗") || tag.contains("floating", true)) {
-                            menuChild.translationY = floatWinOffsetPx
-                        } else {
-                            menuChild.translationY = upOffsetPx
-                        }
+                        val menuCenterY = menuChild.top + menuChild.height / 2f
+                        menuChild.translationY = titleCenterY - menuCenterY
                     }
                 } else if (child is ImageButton) {
-                    child.translationY = upOffsetPx
+                    val navCenterY = child.top + child.height / 2f
+                    child.translationY = titleCenterY - navCenterY
                 }
             }
         }
@@ -1609,13 +1626,16 @@ class MainActivity : AppCompatActivity() {
 
         val aiBar = binding.topAppBar
 
-        aiBar.elevation = 12f
-
-        aiBar.setBackgroundResource(R.drawable.rounded_top_bar_bg)
+        aiBar.elevation = 0f
+        aiBar.background = null
+        aiBar.setBackgroundColor(Color.TRANSPARENT)
+        aiBar.stateListAnimator = null
 
         val params = aiBar.layoutParams as LinearLayout.LayoutParams
 
-        params.topMargin = resources.getDimensionPixelSize(R.dimen.ai_bar_margin_top)
+        params.topMargin = 0
+        params.marginStart = 0
+        params.marginEnd = 0
 
         aiBar.layoutParams = params
     }

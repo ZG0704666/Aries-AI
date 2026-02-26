@@ -126,7 +126,9 @@
 
     <!-- M3T Widgets -->
     <style name="Widget.M3t.Toolbar" parent="Widget.MaterialComponents.Toolbar">
-        <item name="android:background">@drawable/glass_toolbar_bg</item>
+        <item name="android:background">@android:color/transparent</item>
+        <item name="android:elevation">0dp</item>
+        <item name="elevation">0dp</item>
         <item name="titleTextAppearance">@style/TextAppearance.M3t.ToolbarTitle</item>
         <item name="titleTextColor">@color/m3t_on_surface</item>
     </style>
@@ -176,8 +178,8 @@
         <item name="cardBackgroundColor">@color/m3t_surface</item>
         <item name="cardCornerRadius">@dimen/m3t_radius_xl</item>
         <item name="cardElevation">0dp</item>
-        <item name="strokeWidth">1dp</item>
-        <item name="strokeColor">@color/m3t_outline_variant</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="strokeColor">@android:color/transparent</item>
     </style>
 
     <!-- M3T Themes -->

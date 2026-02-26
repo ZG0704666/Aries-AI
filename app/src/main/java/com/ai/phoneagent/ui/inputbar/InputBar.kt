@@ -56,8 +56,8 @@ fun InputBar(
     val colorTextMain = colorScheme.onSurface
     val colorTextSecondary = colorScheme.onSurfaceVariant
     val colorHint = colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
-    val colorSurface = colorScheme.surface
-    val colorButtonDisabled = colorScheme.surfaceVariant
+    val colorInputField = colorScheme.surfaceVariant.copy(alpha = 0.9f)
+    val colorButtonDisabled = colorScheme.surfaceVariant.copy(alpha = 0.72f)
     val colorButtonEnabled = colorScheme.primary
     val colorButtonIcon = colorScheme.onPrimary
 
@@ -80,20 +80,17 @@ fun InputBar(
         }
 
         // 底部常驻栏
-        Surface(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 7.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = colorSurface,
-            shadowElevation = 4.dp
+                .padding(start = 12.dp, top = 0.dp, end = 12.dp, bottom = 2.dp)
         ) {
             val sideSlotWidth = 72.dp
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 7.dp),
+                    .padding(horizontal = 4.dp, vertical = 0.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // 左侧等宽槽位：模式切换按钮
@@ -120,7 +117,10 @@ fun InputBar(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .heightIn(min = 48.dp),
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(30.dp))
+                        .background(colorInputField)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     AnimatedContent(
@@ -135,17 +135,17 @@ fun InputBar(
                             // 语音模式：显示"按住说话"按钮，需要居中显示
                             Box(
                                 contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 32.dp)
                             ) {
-                                    Text(
-                                        text = "按住说话",
-                                        style = TextStyle(
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = colorTextMain
-                                        )
+                                Text(
+                                    text = "按住说话",
+                                    style = TextStyle(
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colorTextMain
                                     )
-                                
+                                )
+
                                 // 覆盖透明的触摸区域来处理长按逻辑
                                 VoiceRecordButtonHandler(
                                     onPressStart = onVoiceStart,
@@ -161,7 +161,7 @@ fun InputBar(
                             // 文本模式：显示输入框
                             Box(
                                 contentAlignment = Alignment.CenterStart, 
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 32.dp)
                             ) {
                                 if (text.isEmpty()) {
                                     Text(
