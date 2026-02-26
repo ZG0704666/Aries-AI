@@ -1990,7 +1990,7 @@ class MainActivity : AppCompatActivity() {
                 val answerContent = StreamRenderHelper.getAnswerText(vh)
                 
                 val persistContent = if (thinkingContent.isNotEmpty()) {
-                    "꽁${thinkingContent}꽁\n${answerContent}"
+                    "<think>${thinkingContent}</think>\n${answerContent}"
                 } else if (answerContent.isNotEmpty()) {
                     answerContent
                 } else {
@@ -2052,6 +2052,76 @@ class MainActivity : AppCompatActivity() {
         val retryIconView = button.findViewById<ImageView?>(R.id.iv_retry_icon)
         retryIconView?.alpha = if (isLoading) 0.6f else 1f
     }
+
+    /**
+     * 兼容解析历史 AI 消息的多种持久化格式，避免旧分隔符直接显示到界面。
+     * 支持：
+     * 1) <think>...</think>\nanswer
+     * 2) 꽁thinking꽁\nanswer（旧版本）
+     * 3) leshootthinkingleshootanswer（更旧版本）
+     * 4) 【思考开始】...【思考结束】【回答开始】...【回答结束】
+     */
+    private fun parseStoredAiContent(raw: String): Pair<String?, String> {
+        val source = raw.trim()
+        if (source.isBlank()) return null to ""
+
+        val thinkTagRegex = "<think>([\\s\\S]*?)</think>\\s*([\\s\\S]*)".toRegex()
+        thinkTagRegex.find(source)?.let { match ->
+            val thinking = match.groupValues.getOrNull(1)?.trim().orEmpty()
+            val answer = match.groupValues.getOrNull(2)?.trim().orEmpty()
+            return (thinking.ifBlank { null }) to answer
+        }
+
+        val markerStart = source.indexOf('꽁')
+        val markerEnd = if (markerStart >= 0) source.indexOf('꽁', markerStart + 1) else -1
+        if (markerStart >= 0 && markerEnd > markerStart) {
+            val thinking = source.substring(markerStart + 1, markerEnd).trim()
+            val answer = source.substring(markerEnd + 1).trimStart('\n', '\r', ' ').trim()
+            return (thinking.ifBlank { null }) to answer
+        }
+
+        val leshootRegex = "leshoot([\\s\\S]*?)leshoot([\\s\\S]*)".toRegex()
+        leshootRegex.find(source)?.let { match ->
+            val thinking = match.groupValues.getOrNull(1)?.trim().orEmpty()
+            val answer = match.groupValues.getOrNull(2)?.trim().orEmpty()
+            return (thinking.ifBlank { null }) to answer
+        }
+
+        val thinkStartTag = "【思考开始】"
+        val thinkEndTag = "【思考结束】"
+        val answerStartTag = "【回答开始】"
+        val answerEndTag = "【回答结束】"
+        val thinkStartIdx = source.indexOf(thinkStartTag)
+        val thinkEndIdx = source.indexOf(thinkEndTag)
+        if (thinkStartIdx >= 0 && thinkEndIdx > thinkStartIdx) {
+            val thinking =
+                source.substring(
+                    thinkStartIdx + thinkStartTag.length,
+                    thinkEndIdx
+                ).trim()
+            var answerPart = source.substring(thinkEndIdx + thinkEndTag.length)
+            val answerStartIdx = answerPart.indexOf(answerStartTag)
+            if (answerStartIdx >= 0) {
+                answerPart = answerPart.substring(answerStartIdx + answerStartTag.length)
+            }
+            val answerEndIdx = answerPart.indexOf(answerEndTag)
+            if (answerEndIdx >= 0) {
+                answerPart = answerPart.substring(0, answerEndIdx)
+            }
+            return (thinking.ifBlank { null }) to answerPart.trim()
+        }
+
+        if (source.contains(answerStartTag)) {
+            var answerPart = source.substring(source.indexOf(answerStartTag) + answerStartTag.length)
+            val answerEndIdx = answerPart.indexOf(answerEndTag)
+            if (answerEndIdx >= 0) {
+                answerPart = answerPart.substring(0, answerEndIdx)
+            }
+            return null to answerPart.trim()
+        }
+
+        return null to source.replace("꽁", "").trim()
+    }
     
     /**
      * 构建完整的对话历史，传递给AI模型
@@ -2100,10 +2170,13 @@ class MainActivity : AppCompatActivity() {
         val recentMessages = conversation.messages.takeLast(20) // 10轮对话 = 20条消息
         for (msg in recentMessages) {
             val content = if (!msg.isUser) {
-                // 历史记录传递给模型时，如果包含 leshoot，是否保留？
-                // 通常保留可以让模型知道之前的思考逻辑，但也可能浪费 token。
-                // 这里选择保留完整内容。
-                msg.content
+                // 历史记录传给模型前统一清洗旧分隔符，避免把乱码标记带入上下文。
+                val (thinking, answer) = parseStoredAiContent(msg.content)
+                if (!thinking.isNullOrBlank()) {
+                    "<think>$thinking</think>\n$answer"
+                } else {
+                    answer
+                }
             } else {
                 msg.content
             }
@@ -2139,12 +2212,10 @@ class MainActivity : AppCompatActivity() {
         val messageContent = view.findViewById<TextView>(R.id.message_content)
         val authorName = view.findViewById<TextView>(R.id.ai_author_name)
         
-        // 解析内容
-        val thinkRegex = "leshoot([\\s\\S]*?)leshoot([\\s\\S]*)".toRegex()
-        val match = thinkRegex.find(fullContent)
-        
-        val thinkContent = match?.groupValues?.get(1)?.trim()
-        val realContent = match?.groupValues?.get(2)?.trim() ?: fullContent
+        // 解析内容（兼容旧格式，避免展示旧分隔符）
+        val (storedThinking, storedAnswer) = parseStoredAiContent(fullContent)
+        val thinkContent = storedThinking?.trim()
+        val realContent = storedAnswer.trim()
         
         // 设置作者名
         authorName.text = if (author == "Aries") "Aries AI" else author
@@ -2906,7 +2977,8 @@ class MainActivity : AppCompatActivity() {
                     activeConversation = conv
                     renderConversation(conv)
                     persistConversations()
-                }
+                },
+                aiPreviewExtractor = { parseStoredAiContent(it).second },
             )
         rv.adapter = adapter
 
@@ -2978,6 +3050,7 @@ class MainActivity : AppCompatActivity() {
     private class ConversationAdapter(
             private val items: List<Conversation>,
             private val onClick: (Conversation) -> Unit,
+            private val aiPreviewExtractor: (String) -> String,
     ) : RecyclerView.Adapter<ConversationAdapter.VH>() {
 
         var onItemSelected: (() -> Unit)? = null
@@ -3002,7 +3075,14 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     c.title
                 }
-            val preview = c.messages.lastOrNull()?.content?.replace('\n', ' ')?.trim().orEmpty()
+            val lastMessage = c.messages.lastOrNull()
+            val previewRaw =
+                if (lastMessage?.isUser == false) {
+                    aiPreviewExtractor(lastMessage.content)
+                } else {
+                    lastMessage?.content.orEmpty()
+                }
+            val preview = previewRaw.replace('\n', ' ').trim()
             if (preview.isBlank()) {
                 holder.subtitle.visibility = View.GONE
             } else {
