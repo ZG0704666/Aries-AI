@@ -36,10 +36,10 @@
             android:id="@+id/statusText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingStart="20dp"
-            android:paddingTop="2dp"
+            android:paddingStart="@dimen/m3t_spacing_xl"
+            android:paddingTop="@dimen/m3t_spacing_xxxs"
             android:paddingEnd="@dimen/m3t_spacing_md"
-            android:paddingBottom="2dp"
+            android:paddingBottom="@dimen/m3t_spacing_xxxs"
             android:text="@string/status_ready"
             android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
             android:textColor="@color/m3t_on_surface" />
@@ -50,8 +50,8 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:paddingHorizontal="@dimen/m3t_spacing_md"
-            android:paddingTop="2dp"
-            android:paddingBottom="2dp">
+            android:paddingTop="@dimen/m3t_spacing_xxxs"
+            android:paddingBottom="@dimen/m3t_spacing_xxxs">
 
             <LinearLayout
                 android:id="@+id/messagesContainer"

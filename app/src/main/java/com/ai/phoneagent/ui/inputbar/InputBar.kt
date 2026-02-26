@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -60,6 +61,10 @@ fun InputBar(
     val colorButtonDisabled = colorScheme.surfaceVariant.copy(alpha = 0.72f)
     val colorButtonEnabled = colorScheme.primary
     val colorButtonIcon = colorScheme.onPrimary
+    val spacingXxxs = dimensionResource(R.dimen.m3t_spacing_xxxs)
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
 
     // 状态为 Recording (录音中), Recognizing (识别中) 时显示全屏悬浮层
     val showVoiceOverlay = state is InputState.VoiceRecording || state is InputState.VoiceRecognizing
@@ -83,14 +88,14 @@ fun InputBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 12.dp, top = 0.dp, end = 12.dp, bottom = 2.dp)
+                .padding(start = spacingMd, top = 0.dp, end = spacingMd, bottom = spacingXxxs)
         ) {
             val sideSlotWidth = 72.dp
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 0.dp),
+                    .padding(horizontal = spacingXs, vertical = 0.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // 左侧等宽槽位：模式切换按钮
@@ -111,7 +116,7 @@ fun InputBar(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(spacingSm))
 
                 // 中间区域：文本输入框 或 "按住说话"按钮
                 Box(
@@ -120,7 +125,7 @@ fun InputBar(
                         .heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(30.dp))
                         .background(colorInputField)
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                        .padding(horizontal = 14.dp, vertical = spacingSm),
                     contentAlignment = Alignment.Center
                 ) {
                     AnimatedContent(
@@ -182,7 +187,7 @@ fun InputBar(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(spacingSm))
 
                 // 右侧等宽槽位：附件 + 发送
                 Box(
@@ -191,7 +196,7 @@ fun InputBar(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(spacingXs)
                     ) {
                         IconButton(
                             onClick = onAttachmentClick,

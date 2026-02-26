@@ -52,6 +52,7 @@
     <color name="m3t_recommend_grad_end">#263B82F6</color>
 
     <!-- M3T Dimensions -->
+    <dimen name="m3t_spacing_xxxs">2dp</dimen>
     <dimen name="m3t_spacing_xs">4dp</dimen>
     <dimen name="m3t_spacing_sm">8dp</dimen>
     <dimen name="m3t_spacing_md">12dp</dimen>
