@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,7 +46,8 @@ fun InputBar(
     onVoiceEnd: () -> Unit,
     onVoiceCancel: () -> Unit,
     onAttachmentClick: () -> Unit,
-    onAgentClick: () -> Unit,
+    agentModeEnabled: Boolean,
+    onAgentToggle: (Boolean) -> Unit,
     onModelSelect: () -> Unit,
     onModeChange: (Boolean) -> Unit,
     voiceAmplitude: Float = 0f,
@@ -103,16 +105,38 @@ fun InputBar(
                     modifier = Modifier.width(sideSlotWidth),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    IconButton(
-                        onClick = { onModeChange(!isVoiceMode) },
-                        modifier = Modifier.size(32.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Icon(
-                            imageVector = if (isVoiceMode) Icons.Default.Keyboard else Icons.Default.Mic,
-                            contentDescription = if (isVoiceMode) "切换键盘" else "语音输入",
-                            tint = colorTextSecondary,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        IconButton(
+                            onClick = { onModeChange(!isVoiceMode) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isVoiceMode) Icons.Default.Keyboard else Icons.Default.Mic,
+                                contentDescription = if (isVoiceMode) "切换键盘" else "语音输入",
+                                tint = colorTextSecondary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { onAgentToggle(!agentModeEnabled) },
+                            modifier = Modifier.size(32.dp),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = if (agentModeEnabled) colorScheme.primary else Color.Transparent,
+                                contentColor = if (agentModeEnabled) colorScheme.onPrimary else colorTextSecondary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SmartToy,
+                                contentDescription = if (agentModeEnabled) "Agent 模式已激活" else "Agent 模式未激活",
+                                tint = if (agentModeEnabled) colorScheme.onPrimary else colorTextSecondary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
 

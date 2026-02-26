@@ -189,6 +189,7 @@ class MainActivity : AppCompatActivity() {
     private val inputTextState = mutableStateOf("")
     private val inputBarState = mutableStateOf<InputState>(InputState.Idle)
     private val voiceAmplitudeState = mutableStateOf(0f)
+    private val agentModeEnabledState = mutableStateOf(false)
 
     @Volatile private var suppressApiInputWatcher: Boolean = false
     @Volatile private var apiNeedsRecheckToastShown: Boolean = false
@@ -1535,6 +1536,7 @@ class MainActivity : AppCompatActivity() {
                     val text by remember { inputTextState }
                     val state by remember { inputBarState }
                     val amplitude by remember { voiceAmplitudeState }
+                    val agentModeEnabled by remember { agentModeEnabledState }
 
                     InputBar(
                         state = state,
@@ -1570,8 +1572,14 @@ class MainActivity : AppCompatActivity() {
                         onAttachmentClick = {
                             Toast.makeText(this@MainActivity, "附件功能开发中", Toast.LENGTH_SHORT).show()
                         },
-                        onAgentClick = {
-                            Toast.makeText(this@MainActivity, "Agent 功能开发中", Toast.LENGTH_SHORT).show()
+                        agentModeEnabled = agentModeEnabled,
+                        onAgentToggle = { enabled ->
+                            agentModeEnabledState.value = enabled
+                            Toast.makeText(
+                                this@MainActivity,
+                                if (enabled) "Agent 模式已激活" else "Agent 模式未激活",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         },
                         onModelSelect = {
                             Toast.makeText(this@MainActivity, "模型选择器已打开", Toast.LENGTH_SHORT).show()
