@@ -92,163 +92,174 @@ fun InputBar(
                 .fillMaxWidth()
                 .padding(start = spacingMd, top = 0.dp, end = spacingMd, bottom = spacingXxxs)
         ) {
-            val sideSlotWidth = 72.dp
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacingXs, vertical = 0.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 左侧等宽槽位：模式切换按钮
-                Box(
-                    modifier = Modifier.width(sideSlotWidth),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+            AnimatedContent(
+                targetState = isVoiceMode,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(150)) with
+                        fadeOut(animationSpec = tween(150))
+                },
+                label = "bottomBarMode"
+            ) { voiceMode ->
+                if (voiceMode) {
+                    // 语音模式：按住说话区域扩展到整个底栏，键盘图标融入按钮内部
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = spacingXs)
+                            .heightIn(min = 48.dp)
+                            .clip(RoundedCornerShape(30.dp))
+                            .background(colorInputField)
+                            .padding(horizontal = 14.dp, vertical = spacingSm),
+                        contentAlignment = Alignment.Center
                     ) {
+                        VoiceRecordButtonHandler(
+                            onPressStart = onVoiceStart,
+                            onPressEnd = onVoiceEnd,
+                            onCancel = onVoiceCancel,
+                            onOffsetChange = { offsetY, _ ->
+                                val isCancelling = offsetY < -150f
+                                onUpdateCancelState(isCancelling)
+                            }
+                        )
+
+                        Text(
+                            text = "按住说话",
+                            style = TextStyle(
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colorTextMain
+                            )
+                        )
+
                         IconButton(
-                            onClick = { onModeChange(!isVoiceMode) },
-                            modifier = Modifier.size(32.dp)
+                            onClick = { onModeChange(false) },
+                            modifier = Modifier.align(Alignment.CenterStart).size(32.dp)
                         ) {
                             Icon(
-                                imageVector = if (isVoiceMode) Icons.Default.Keyboard else Icons.Default.Mic,
-                                contentDescription = if (isVoiceMode) "切换键盘" else "语音输入",
+                                imageVector = Icons.Default.Keyboard,
+                                contentDescription = "切换键盘",
                                 tint = colorTextSecondary,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
-
-                        IconButton(
-                            onClick = { onAgentToggle(!agentModeEnabled) },
-                            modifier = Modifier.size(32.dp),
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = if (agentModeEnabled) colorScheme.primary else Color.Transparent,
-                                contentColor = if (agentModeEnabled) colorScheme.onPrimary else colorTextSecondary
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SmartToy,
-                                contentDescription = if (agentModeEnabled) "Agent 模式已激活" else "Agent 模式未激活",
-                                tint = if (agentModeEnabled) colorScheme.onPrimary else colorTextSecondary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
                     }
-                }
+                } else {
+                    val sideSlotWidth = 72.dp
 
-                Spacer(modifier = Modifier.width(spacingSm))
-
-                // 中间区域：文本输入框 或 "按住说话"按钮
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 48.dp)
-                        .clip(RoundedCornerShape(30.dp))
-                        .background(colorInputField)
-                        .padding(horizontal = 14.dp, vertical = spacingSm),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AnimatedContent(
-                        targetState = isVoiceMode,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(150)) with
-                            fadeOut(animationSpec = tween(150))
-                        },
-                        label = "inputModeTransition"
-                    ) { voiceMode ->
-                        if (voiceMode) {
-                            // 语音模式：显示"按住说话"按钮，需要居中显示
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 32.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = spacingXs, vertical = 0.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 左侧等宽槽位：语音切换 + Agent
+                        Box(
+                            modifier = Modifier.width(sideSlotWidth),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(
-                                    text = "按住说话",
-                                    style = TextStyle(
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colorTextMain
-                                    )
-                                )
-
-                                // 覆盖透明的触摸区域来处理长按逻辑
-                                VoiceRecordButtonHandler(
-                                    onPressStart = onVoiceStart,
-                                    onPressEnd = onVoiceEnd,
-                                    onCancel = onVoiceCancel,
-                                    onOffsetChange = { offsetY, _ -> 
-                                        val isCancelling = offsetY < -150f 
-                                        onUpdateCancelState(isCancelling)
-                                    }
-                                )
-                            }
-                        } else {
-                            // 文本模式：显示输入框
-                            Box(
-                                contentAlignment = Alignment.CenterStart, 
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 32.dp)
-                            ) {
-                                if (text.isEmpty()) {
-                                    Text(
-                                        text = "尽管问...",
-                                        color = colorHint,
-                                        fontSize = 15.sp
+                                IconButton(
+                                    onClick = { onModeChange(true) },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Mic,
+                                        contentDescription = "语音输入",
+                                        tint = colorTextSecondary,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
-                                BasicTextField(
-                                    value = text,
-                                    onValueChange = onTextChange,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textStyle = TextStyle(color = colorTextMain, fontSize = 15.sp),
-                                    cursorBrush = SolidColor(colorScheme.primary)
-                                )
+
+                                IconButton(
+                                    onClick = { onAgentToggle(!agentModeEnabled) },
+                                    modifier = Modifier.size(32.dp),
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = if (agentModeEnabled) colorScheme.primary else Color.Transparent,
+                                        contentColor = if (agentModeEnabled) colorScheme.onPrimary else colorTextSecondary
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.SmartToy,
+                                        contentDescription = if (agentModeEnabled) "Agent 模式已激活" else "Agent 模式未激活",
+                                        tint = if (agentModeEnabled) colorScheme.onPrimary else colorTextSecondary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
                         }
-                    }
-                }
 
-                Spacer(modifier = Modifier.width(spacingSm))
+                        Spacer(modifier = Modifier.width(spacingSm))
 
-                // 右侧等宽槽位：附件 + 发送
-                Box(
-                    modifier = Modifier.width(sideSlotWidth),
-                    contentAlignment = Alignment.CenterEnd
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(spacingXs)
-                    ) {
-                        IconButton(
-                            onClick = onAttachmentClick,
-                            modifier = Modifier.size(32.dp)
+                        // 文本模式：输入框
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 48.dp)
+                                .clip(RoundedCornerShape(30.dp))
+                                .background(colorInputField)
+                                .padding(horizontal = 14.dp, vertical = spacingSm),
+                            contentAlignment = Alignment.CenterStart
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "附件",
-                                tint = colorTextSecondary,
-                                modifier = Modifier.size(24.dp)
+                            if (text.isEmpty()) {
+                                Text(
+                                    text = "尽管问...",
+                                    color = colorHint,
+                                    fontSize = 15.sp
+                                )
+                            }
+                            BasicTextField(
+                                value = text,
+                                onValueChange = onTextChange,
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = TextStyle(color = colorTextMain, fontSize = 15.sp),
+                                cursorBrush = SolidColor(colorScheme.primary)
                             )
                         }
 
-                        // 发送按钮 (圆形背景，黑色)
+                        Spacer(modifier = Modifier.width(spacingSm))
+
+                        // 右侧等宽槽位：附件 + 发送
                         Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(if (text.isNotEmpty()) colorButtonEnabled else colorButtonDisabled)
-                                .clickable(enabled = text.isNotEmpty(), onClick = onSend),
-                            contentAlignment = Alignment.Center
+                            modifier = Modifier.width(sideSlotWidth),
+                            contentAlignment = Alignment.CenterEnd
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_send_24),
-                                contentDescription = "发送",
-                                tint = colorButtonIcon,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(spacingXs)
+                            ) {
+                                IconButton(
+                                    onClick = onAttachmentClick,
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "附件",
+                                        tint = colorTextSecondary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+
+                                // 发送按钮 (圆形背景)
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(if (text.isNotEmpty()) colorButtonEnabled else colorButtonDisabled)
+                                        .clickable(enabled = text.isNotEmpty(), onClick = onSend),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_send_24),
+                                        contentDescription = "发送",
+                                        tint = colorButtonIcon,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
