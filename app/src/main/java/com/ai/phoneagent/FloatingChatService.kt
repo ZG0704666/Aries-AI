@@ -1175,6 +1175,9 @@ class FloatingChatService : Service() {
                                                 onPhaseChange = { isAnswerPhase ->
                                                     if (isAnswerPhase) {
                                                         StreamRenderHelper.transitionToAnswer(vh)
+                                                        if (vh.thinkingText.visibility == View.VISIBLE || vh.thinkingContentArea.visibility == View.VISIBLE) {
+                                                            vh.thinkingHeader.performClick()
+                                                        }
                                                     }
                                                 }
                                         )
@@ -1189,6 +1192,9 @@ class FloatingChatService : Service() {
             withContext(Dispatchers.Main) {
                 if (vh != null) {
                     StreamRenderHelper.markCompleted(vh, 0)
+                    if (vh.thinkingText.visibility == View.VISIBLE || vh.thinkingContentArea.visibility == View.VISIBLE) {
+                        vh.thinkingHeader.performClick()
+                    }
                 }
 
                 if (!streamOk && contentSb.isEmpty()) {
@@ -1270,6 +1276,9 @@ class FloatingChatService : Service() {
                     onPhaseChange = { isAnswerPhase ->
                         if (isAnswerPhase) {
                             StreamRenderHelper.transitionToAnswer(vh)
+                            if (vh.thinkingText.visibility == View.VISIBLE || vh.thinkingContentArea.visibility == View.VISIBLE) {
+                                vh.thinkingHeader.performClick()
+                            }
                         }
                     }
             )
@@ -1285,6 +1294,9 @@ class FloatingChatService : Service() {
         val vh = currentStreamViewHolder ?: return
         Handler(Looper.getMainLooper()).post {
             StreamRenderHelper.markCompleted(vh, timeCost.toLong())
+            if (vh.thinkingText.visibility == View.VISIBLE || vh.thinkingContentArea.visibility == View.VISIBLE) {
+                vh.thinkingHeader.performClick()
+            }
 
             // 获取解析后的内容保存
             val thinkingContent = StreamRenderHelper.getThinkingText(vh)

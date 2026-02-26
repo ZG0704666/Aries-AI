@@ -9,12 +9,24 @@
     android:background="@drawable/bg_glass_pane"
     android:orientation="vertical">
 
+    <TextView
+        android:id="@+id/ai_author_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="6dp"
+        android:letterSpacing="0.03"
+        android:text="Aries AI"
+        android:textColor="@color/m3t_primary"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/thinking_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="@dimen/m3t_spacing_sm"
-        android:background="@color/m3t_thinking_bg"
+        android:background="@drawable/bg_thinking_panel"
         android:orientation="vertical"
         android:padding="@dimen/m3t_spacing_sm"
         android:visibility="gone">
@@ -58,7 +70,7 @@
                 android:layout_width="3dp"
                 android:layout_height="match_parent"
                 android:layout_marginEnd="@dimen/m3t_spacing_sm"
-                android:background="@color/m3t_thinking_stroke" />
+                android:background="@drawable/bg_thinking_rail" />
 
             <TextView
                 android:id="@+id/thinking_text"
@@ -72,18 +84,6 @@
                 android:textAppearance="@style/TextAppearance.M3t.Chat.Thinking" />
         </LinearLayout>
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/ai_author_name"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="6dp"
-        android:letterSpacing="0.03"
-        android:text="Aries AI"
-        android:textColor="@color/m3t_primary"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:visibility="gone" />
 
     <TextView
         android:id="@+id/message_content"
@@ -101,12 +101,6 @@
         android:layout_marginTop="@dimen/m3t_spacing_sm"
         android:orientation="vertical"
         android:visibility="gone">
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginBottom="@dimen/m3t_spacing_xs"
-            android:background="@color/m3t_outline_variant" />
 
         <LinearLayout
             android:layout_width="match_parent"

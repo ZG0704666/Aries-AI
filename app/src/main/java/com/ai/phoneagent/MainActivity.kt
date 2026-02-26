@@ -1937,6 +1937,9 @@ class MainActivity : AppCompatActivity() {
                                         onPhaseChange = { isAnswerPhase ->
                                             if (isAnswerPhase) {
                                                 StreamRenderHelper.transitionToAnswer(vh)
+                                                if (vh.thinkingText.visibility == View.VISIBLE || vh.thinkingContentArea.visibility == View.VISIBLE) {
+                                                    vh.thinkingHeader.performClick()
+                                                }
                                             }
                                         }
                                     )
@@ -1975,6 +1978,9 @@ class MainActivity : AppCompatActivity() {
                 // 显示完成状态
                 runOnUiThread {
                     StreamRenderHelper.markCompleted(vh, timeCost)
+                    if (vh.thinkingText.visibility == View.VISIBLE || vh.thinkingContentArea.visibility == View.VISIBLE) {
+                        vh.thinkingHeader.performClick()
+                    }
                     if (!streamOk) {
                          // 如果失败，直接显示错误信息
                          vh.messageContent.text = finalContent
@@ -2250,6 +2256,9 @@ class MainActivity : AppCompatActivity() {
         if (!animate) {
             if (!thinkContent.isNullOrBlank()) {
                 StreamRenderHelper.applyMarkdownToHistory(thinkingText, thinkContent)
+                if (thinkingText.visibility == View.VISIBLE) {
+                    thinkingHeader.performClick()
+                }
             }
             StreamRenderHelper.applyMarkdownToHistory(messageContent, realContent)
             view.findViewById<View>(R.id.action_area).visibility = View.VISIBLE
@@ -2297,6 +2306,9 @@ class MainActivity : AppCompatActivity() {
                 }
                 thinkingText.text = thinkContent // 确保完整
                 delay(200) // 思考完停顿一下
+                if (thinkingText.visibility == View.VISIBLE) {
+                    thinkingHeader.performClick()
+                }
             }
             
             // 2. 播放正文打字机
