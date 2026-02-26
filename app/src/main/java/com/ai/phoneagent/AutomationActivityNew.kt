@@ -51,6 +51,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.lifecycleScope
+import com.ai.phoneagent.core.automation.AutomationInstructionRequest
+import com.ai.phoneagent.core.automation.AutomationLogBridge
 import com.ai.phoneagent.core.config.AgentConfiguration
 import com.ai.phoneagent.core.tools.AIToolHandler
 import com.ai.phoneagent.core.tools.ToolRegistration
@@ -73,6 +75,10 @@ class AutomationActivityNew : AppCompatActivity() {
 
     companion object {
         const val EXTRA_FORCE_TOP_ON_ENTRY = "force_top_on_entry"
+        const val EXTRA_AUTOMATION_TASK = "automation_task"
+        const val EXTRA_AUTOMATION_SOURCE = "automation_source"
+        const val EXTRA_AUTOMATION_AUTO_START = "automation_auto_start"
+        const val EXTRA_KEEP_MAIN_ON_TOP = "keep_main_on_top"
         private const val SHIZUKU_PERMISSION_REQUEST_CODE = 2026
     }
 
@@ -121,6 +127,7 @@ class AutomationActivityNew : AppCompatActivity() {
     private var virtualDisplayStatusJob: Job? = null
 
     private var autoScrollLogToBottom: Boolean = true
+    private var mirrorLogsToMain: Boolean = false
 
     // 运行结果保存相关
     private val PREFS_NAME = "automation_results"
@@ -181,10 +188,18 @@ class AutomationActivityNew : AppCompatActivity() {
             }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val keepMainOnTop =
+                intent?.getBooleanExtra(EXTRA_KEEP_MAIN_ON_TOP, false) == true
+        if (keepMainOnTop) {
+            setTheme(R.style.Theme_M3t_TransparentLaunch)
+        }
         super.onCreate(savedInstanceState)
 
         binding = ActivityAutomationBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        if (keepMainOnTop) {
+            overridePendingTransition(0, 0)
+        }
 
         val forceTopOnEntry = intent?.getBooleanExtra(EXTRA_FORCE_TOP_ON_ENTRY, false) == true
         autoScrollLogToBottom = !forceTopOnEntry
@@ -384,6 +399,8 @@ class AutomationActivityNew : AppCompatActivity() {
         // 初始检查
         checkAccessibilityStatus()
 
+        consumeDispatchedInstruction(intent)
+
         // 监听虚拟屏预览窗关闭事件 - 添加异常处理
         try {
             val stopFilter = IntentFilter(VirtualScreenPreviewOverlay.ACTION_STOP_AUTOMATION)
@@ -402,6 +419,12 @@ class AutomationActivityNew : AppCompatActivity() {
         }
 
         initSherpaModel()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        consumeDispatchedInstruction(intent)
     }
 
     override fun onStop() {
@@ -462,6 +485,61 @@ class AutomationActivityNew : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e("AutomationActivityNew", "恢复运行结果失败: ${e.message}", e)
         }
+    }
+
+    private fun consumeDispatchedInstruction(dispatchIntent: Intent?) {
+        val safeIntent = dispatchIntent ?: return
+        val task = safeIntent.getStringExtra(EXTRA_AUTOMATION_TASK)?.trim().orEmpty()
+        if (task.isBlank()) return
+
+        val source = safeIntent.getStringExtra(EXTRA_AUTOMATION_SOURCE)?.trim().orEmpty()
+        val autoStart = safeIntent.getBooleanExtra(EXTRA_AUTOMATION_AUTO_START, false)
+        val keepMainOnTop = safeIntent.getBooleanExtra(EXTRA_KEEP_MAIN_ON_TOP, false)
+        safeIntent.removeExtra(EXTRA_AUTOMATION_TASK)
+        safeIntent.removeExtra(EXTRA_AUTOMATION_SOURCE)
+        safeIntent.removeExtra(EXTRA_AUTOMATION_AUTO_START)
+        safeIntent.removeExtra(EXTRA_KEEP_MAIN_ON_TOP)
+
+        mirrorLogsToMain =
+                source == AutomationInstructionRequest.Source.MANUAL_AGENT_MODE.wireValue ||
+                        source == AutomationInstructionRequest.Source.ADVANCED_AI.wireValue
+
+        etTask.setText(task)
+        etTask.setSelection(etTask.text?.length ?: 0)
+
+        if (source.isNotBlank()) {
+            appendLog("接收任务来源：$source")
+        }
+        appendLog("接收任务：$task")
+
+        if (!autoStart) return
+
+        if (agentJob != null) {
+            appendLog("当前自动化任务仍在执行，暂不自动启动新任务")
+            Toast.makeText(this, "当前有任务在执行，请先停止再重试", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (keepMainOnTop) {
+            bringMainActivityToFront()
+        }
+        binding.root.post {
+            if (agentJob == null) {
+                startAgent()
+            }
+        }
+    }
+
+    private fun bringMainActivityToFront() {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            addFlags(
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                            Intent.FLAG_ACTIVITY_NO_ANIMATION
+            )
+        }
+        startActivity(intent)
+        overridePendingTransition(0, 0)
     }
 
     /** 清除保存的运行结果 */
@@ -553,10 +631,6 @@ class AutomationActivityNew : AppCompatActivity() {
             val granted = grantAccessibilityViaShizuku()
             if (granted) {
                 Toast.makeText(this, "已通过 Shizuku 授权无障碍服务", Toast.LENGTH_SHORT).show()
-                val latestState = collectRuntimeConnectionState()
-                if (latestState.shizukuReady && !switchShizukuInteraction.isChecked) {
-                    switchShizukuInteraction.isChecked = true
-                }
                 checkAccessibilityStatus()
                 refreshStatusAfterOneTapAuthorize()
                 return
@@ -604,9 +678,6 @@ class AutomationActivityNew : AppCompatActivity() {
         lifecycleScope.launch {
             repeat(12) {
                 val state = collectRuntimeConnectionState()
-                if (state.shizukuReady && !switchShizukuInteraction.isChecked) {
-                    switchShizukuInteraction.isChecked = true
-                }
                 checkAccessibilityStatus()
                 val canStart =
                         resolveRuntimeInteractionPreference(
@@ -1206,6 +1277,9 @@ class AutomationActivityNew : AppCompatActivity() {
         runOnUiThread {
             tvLog.append("$message\n")
             AutomationOverlay.updateFromLogLine(message)
+            if (mirrorLogsToMain) {
+                AutomationLogBridge.publish(this@AutomationActivityNew, message)
+            }
 
             if (autoScrollLogToBottom) {
                 // 自动滚动到底部

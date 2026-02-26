@@ -19,8 +19,6 @@ package com.ai.phoneagent
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
@@ -32,7 +30,7 @@ import android.util.Base64
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import com.ai.phoneagent.ui.UIAutomationProgressOverlay
+import com.ai.phoneagent.core.cache.ScreenshotOverlayGuard
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
@@ -236,18 +234,8 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
     suspend fun tryCaptureScreenshotBase64(): ScreenshotData? {
         if (Build.VERSION.SDK_INT < 30) return null
 
-        val progressOverlay = UIAutomationProgressOverlay.getInstance(this)
-        val hideProgressOverlay = progressOverlay.isShowing()
-        if (hideProgressOverlay) progressOverlay.setOverlayVisible(false)
-
-        val hideAutomationOverlay = AutomationOverlay.isShowing()
-        if (hideAutomationOverlay) AutomationOverlay.setOverlayVisible(false)
-
-        try {
-            if (hideProgressOverlay || hideAutomationOverlay) {
-                delay(80)
-            }
-            return suspendCancellableCoroutine { cont ->
+        return ScreenshotOverlayGuard.withOverlaysHidden(hideDelayMs = 80L) {
+            suspendCancellableCoroutine { cont ->
                 val executor = Executors.newSingleThreadExecutor()
                 try {
                     takeScreenshot(
@@ -352,9 +340,6 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
                     cont.invokeOnCancellation { runCatching { executor.shutdownNow() } }
                 }
             }
-        } finally {
-            if (hideAutomationOverlay) AutomationOverlay.setOverlayVisible(true)
-            if (hideProgressOverlay) progressOverlay.setOverlayVisible(true)
         }
     }
 
@@ -670,59 +655,203 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
 
     fun setTextOnFocused(text: String): Boolean {
         val root = rootInActiveWindow ?: return false
+        val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+        if (focused != null &&
+                        isTextInputCapable(focused) &&
+                        belongsToRootPackage(focused, root)
+        ) {
+            if (trySetTextOnNode(focused, text)) {
+                return true
+            }
+        }
+
+        val candidates =
+                collectTextInputCandidates(root).sortedByDescending { node ->
+                    var score = 0
+                    if (node.isFocused) score += 8
+                    if (node.isFocusable) score += 4
+                    if (node.isEditable) score += 2
+                    if (node.className?.toString()?.contains("EditText", ignoreCase = true) == true) {
+                        score += 1
+                    }
+                    score
+                }
+        for (candidate in candidates) {
+            if (focused != null && candidate === focused) continue
+            if (trySetTextOnNode(candidate, text)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    fun getFocusedInputText(): String? {
+        val root = rootInActiveWindow ?: return null
         val focused =
                 root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-                        ?: findFirstEditableFocused(root) ?: return false
-
-        if (!focused.isFocused) {
-            focused.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
-        }
-        val args = Bundle()
-        args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
-        val ok = focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-        if (ok) return true
-        return pasteTextWithAccessibility(focused, text)
+                        ?: findFirstEditableFocused(root) ?: return null
+        return focused.text?.toString()
+                ?.takeIf { it.isNotBlank() }
+                ?: focused.contentDescription?.toString()?.takeIf { it.isNotBlank() }
     }
 
     private fun findFirstEditableFocused(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        var firstTextCapable: AccessibilityNodeInfo? = null
+        for (n in collectTextInputCandidates(root)) {
+            if (firstTextCapable == null) {
+                firstTextCapable = n
+            }
+            if (n.isFocused || n.isFocusable) {
+                return n
+            }
+        }
+        return firstTextCapable
+    }
+
+    private fun collectTextInputCandidates(root: AccessibilityNodeInfo): List<AccessibilityNodeInfo> {
         val q = ArrayDeque<AccessibilityNodeInfo>()
+        val out = ArrayList<AccessibilityNodeInfo>()
         q.add(root)
         var guard = 0
-        while (q.isNotEmpty() && guard < 600) {
+        while (q.isNotEmpty() && guard < 800) {
             guard++
             val n = q.removeFirst()
-            if (n.isEditable && (n.isFocused || n.isFocusable)) {
-                return n
+            if (isTextInputCapable(n) &&
+                            belongsToRootPackage(n, root) &&
+                            isNodeVisible(n)
+            ) {
+                out.add(n)
             }
             for (i in 0 until n.childCount) {
                 n.getChild(i)?.let { q.add(it) }
             }
         }
-        return null
+        return out
     }
 
-    private fun pasteTextWithAccessibility(target: AccessibilityNodeInfo, text: String): Boolean {
-        val clipboard = getSystemService(CLIPBOARD_SERVICE) as? ClipboardManager ?: return false
-        val clipSet =
-                runCatching {
-                    clipboard.setPrimaryClip(ClipData.newPlainText("AriesInput", text))
-                    true
-                }.getOrDefault(false)
-        if (!clipSet) return false
+    private fun belongsToRootPackage(node: AccessibilityNodeInfo, root: AccessibilityNodeInfo): Boolean {
+        val rootPkg = root.packageName?.toString().orEmpty()
+        if (rootPkg.isBlank()) return true
+        val nodePkg = node.packageName?.toString().orEmpty()
+        return nodePkg.isBlank() || nodePkg == rootPkg
+    }
 
+    private fun isNodeVisible(node: AccessibilityNodeInfo): Boolean {
+        val visible = runCatching { node.isVisibleToUser }.getOrDefault(true)
+        if (!visible) return false
+        val bounds = Rect()
+        node.getBoundsInScreen(bounds)
+        return bounds.width() > 0 && bounds.height() > 0
+    }
+
+    private fun isTextInputCapable(node: AccessibilityNodeInfo): Boolean {
+        val className = node.className?.toString().orEmpty()
+        return node.isEditable ||
+                className.contains("EditText", ignoreCase = true) ||
+                supportsTextInputActions(node)
+    }
+
+    private enum class TextApplyVerifyResult {
+        MATCHED,
+        MISMATCH,
+        UNREADABLE
+    }
+
+    private fun verifyTextApplied(
+            target: AccessibilityNodeInfo,
+            expectedText: String,
+            retries: Int = 4,
+            intervalMs: Long = 70L
+    ): TextApplyVerifyResult {
+        val normalizedExpected = normalizeText(expectedText)
+        if (normalizedExpected.isBlank()) return TextApplyVerifyResult.MATCHED
+
+        var hasReadableValue = false
+        repeat(retries.coerceAtLeast(1)) { attempt ->
+            val root = rootInActiveWindow
+            val focusedNode =
+                    root?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+                            ?.takeIf { focused ->
+                                isTextInputCapable(focused) &&
+                                        root?.let { belongsToRootPackage(focused, it) } == true
+                            }
+            val focusedText =
+                    focusedNode?.text?.toString()?.takeIf { it.isNotBlank() }
+                            ?: focusedNode?.contentDescription?.toString()?.takeIf { it.isNotBlank() }
+            if (!focusedText.isNullOrBlank()) {
+                hasReadableValue = true
+                val normalizedCandidate = normalizeText(focusedText)
+                val matched =
+                        normalizedCandidate == normalizedExpected ||
+                                normalizedCandidate.contains(normalizedExpected)
+                if (matched) {
+                    return TextApplyVerifyResult.MATCHED
+                }
+            }
+
+            if (attempt < retries - 1) {
+                runCatching { Thread.sleep(intervalMs.coerceAtLeast(0L)) }
+            }
+        }
+        return if (hasReadableValue) {
+            TextApplyVerifyResult.MISMATCH
+        } else {
+            TextApplyVerifyResult.UNREADABLE
+        }
+    }
+
+    private fun resolveTextToApplyForSetAction(
+            target: AccessibilityNodeInfo,
+            requestedText: String
+    ): String {
+        if (requestedText.length != 1) return requestedText
+        val existing =
+                target.text?.toString()?.takeIf { it.isNotBlank() }
+                        ?: rootInActiveWindow
+                                ?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+                                ?.text
+                                ?.toString()
+                                ?.takeIf { it.isNotBlank() }
+                        ?: return requestedText
+        if (existing.length >= 4096) return requestedText
+        return existing + requestedText
+    }
+
+    private fun trySetTextOnNode(target: AccessibilityNodeInfo, text: String): Boolean {
         if (!target.isFocused) {
             target.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
         }
-        if (target.performAction(AccessibilityNodeInfo.ACTION_PASTE)) {
-            return true
+        val firstAttemptText = resolveTextToApplyForSetAction(target, text)
+        val args = Bundle()
+        args.putCharSequence(
+                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                firstAttemptText
+        )
+        if (target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) {
+            if (verifyTextApplied(target, firstAttemptText) == TextApplyVerifyResult.MATCHED) {
+                return true
+            }
         }
 
-        val root = rootInActiveWindow ?: return false
-        val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) ?: return false
-        if (!focused.isFocused) {
-            focused.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+        runCatching { target.performAction(AccessibilityNodeInfo.ACTION_CLICK) }
+        runCatching { findClickableAncestor(target)?.performAction(AccessibilityNodeInfo.ACTION_CLICK) }
+        runCatching { Thread.sleep(80L) }
+        if (!target.isFocused) {
+            target.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
         }
-        return focused.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+        val secondAttemptText = resolveTextToApplyForSetAction(target, text)
+        val retryArgs = Bundle()
+        retryArgs.putCharSequence(
+                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                secondAttemptText
+        )
+        if (target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, retryArgs)) {
+            if (verifyTextApplied(target, secondAttemptText) == TextApplyVerifyResult.MATCHED) {
+                return true
+            }
+        }
+
+        return false
     }
 
     /** 查找并点击第一个可编辑的输入框元素 */
@@ -736,25 +865,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
     }
 
     private fun findFirstEditableElement(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        val q = ArrayDeque<AccessibilityNodeInfo>()
-        q.add(root)
-        var guard = 0
-        while (q.isNotEmpty() && guard < 600) {
-            guard++
-            val n = q.removeFirst()
-            if (n.isEditable) {
-                return n
-            }
-            // 也检查 EditText 类名
-            val className = n.className?.toString().orEmpty()
-            if (className.contains("EditText", ignoreCase = true)) {
-                return n
-            }
-            for (i in 0 until n.childCount) {
-                n.getChild(i)?.let { q.add(it) }
-            }
-        }
-        return null
+        return collectTextInputCandidates(root).firstOrNull()
     }
 
     fun runDemo() {
@@ -1249,30 +1360,27 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             index: Int = 0,
     ): Boolean {
         val root = rootInActiveWindow ?: return false
-        val target =
+        val rawTarget =
                 findNode(root, resourceId, elementText, contentDesc, className, index)
                         ?: return false
+        val target =
+                if (isTextInputCapable(rawTarget)) {
+                    rawTarget
+                } else {
+                    findFirstEditableFocused(root) ?: rawTarget
+                }
 
-        if (!target.isFocused) {
-            target.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+        if (trySetTextOnNode(target, text)) {
+            return true
         }
-        val args = Bundle()
-        args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
-        val ok = target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-        if (ok) return true
 
-        val r = Rect()
-        target.getBoundsInScreen(r)
-        if (!r.isEmpty) {
-            clickAwait(r.centerX().toFloat(), r.centerY().toFloat())
-            delay(120L)
+        for (candidate in collectTextInputCandidates(root)) {
+            if (candidate === target) continue
+            if (trySetTextOnNode(candidate, text)) {
+                return true
+            }
         }
-        if (!target.isFocused) {
-            target.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
-        }
-        val retryOk = target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-        if (retryOk) return true
-        return pasteTextWithAccessibility(target, text)
+        return false
     }
 
     private fun findClickableAncestor(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
@@ -1284,6 +1392,23 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             cur = cur.parent
         }
         return null
+    }
+
+    private fun supportsTextInputActions(node: AccessibilityNodeInfo): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            val actionList = runCatching { node.actionList }.getOrNull()
+            if (actionList != null &&
+                            actionList.any {
+                                it.id == AccessibilityNodeInfo.ACTION_SET_TEXT ||
+                                        it.id == AccessibilityNodeInfo.ACTION_PASTE
+                            }
+            ) {
+                return true
+            }
+        }
+        val legacy = node.actions
+        return (legacy and AccessibilityNodeInfo.ACTION_SET_TEXT) != 0 ||
+                (legacy and AccessibilityNodeInfo.ACTION_PASTE) != 0
     }
 
     private fun findNode(

@@ -19,6 +19,19 @@ package com.ai.phoneagent.core.templates
 
 object PromptTemplates {
 
+    private fun extractFailedTypeText(failedAction: String): String? {
+        val isTypeAction =
+                Regex("""action\s*=\s*["']?(type|input|text|type_name)["']?""", RegexOption.IGNORE_CASE)
+                        .containsMatchIn(failedAction)
+        if (!isTypeAction) return null
+        return Regex("""text\s*=\s*"([^"]*)"""")
+                .find(failedAction)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+    }
+
     @Suppress("UNUSED_PARAMETER")
     fun buildSystemPrompt(
             screenW: Int,
@@ -94,6 +107,34 @@ object PromptTemplates {
 
     fun buildActionRepairPrompt(failedAction: String, enforceDesc: Boolean = false): String {
         val descRuleText = buildRepairDescRule(enforceDesc)
+        val failedTypeText = extractFailedTypeText(failedAction).orEmpty()
+        val forceKeyboardTap = failedTypeText.any { it.code > 127 }
+        val targetKey = failedTypeText.firstOrNull()?.toString().orEmpty()
+
+        val inputRepairRule =
+                if (forceKeyboardTap) {
+                    """
+- 当前失败动作是中文 Type，禁止再次输出 Type
+- 必须改为 Tap 软键盘按键输入
+- 优先点击软键盘上的“$targetKey”键；若是多字文本，按顺序逐字 Tap
+                    """.trimIndent()
+                } else {
+                    "- 若为输入场景，先 Tap 再 Type，或使用可点击输入框后再 Type"
+                }
+
+        val repairExample =
+                if (forceKeyboardTap) {
+                    """do(action="Tap", element=[520,930], desc="点击软键盘上的“$targetKey”键")"""
+                } else {
+                    """do(action="Tap", element=[500,150], desc="点击顶部搜索框")"""
+                }
+
+        val optionalOutput =
+                if (forceKeyboardTap) {
+                    """do(action="Tap", element=[500,500], desc="点击目标输入框以保持键盘激活")"""
+                } else {
+                    """do(action="Type", text="需要输入的内容", desc="输入用户名")"""
+                }
 
         return """# 动作执行失败修复
 
@@ -101,18 +142,18 @@ object PromptTemplates {
 
 请给出可直接执行的新动作，要求如下：
 - 如果上一步失败，先补齐关键参数
-- 若为输入场景，先 Tap 再 Type，或使用可点击输入框后再 Type
+$inputRepairRule
 - 页面切换失败可尝试 Wait 或 Swipe 后重试
 - 可选输出 finish 提前结束
 - $descRuleText
 
 <answer>
-	do(action="Tap", element=[500,150], desc="点击顶部搜索框")
+	$repairExample
 </answer>
 
 可选输出：
 <answer>
-	do(action="Type", text="需要输入的内容", desc="输入用户名")
+	$optionalOutput
 </answer>
 """.trimIndent()
     }

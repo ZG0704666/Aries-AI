@@ -21,7 +21,9 @@ import android.Manifest
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
 import android.animation.ValueAnimator
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Canvas
@@ -65,6 +67,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.appcompat.widget.ActionMenuView
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -103,6 +106,8 @@ import android.text.Html
 import com.google.android.material.switchmaterial.SwitchMaterial
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import com.ai.phoneagent.core.automation.ActivityAutomationInstructionGateway
+import com.ai.phoneagent.core.automation.AutomationLogBridge
 import com.ai.phoneagent.ui.inputbar.InputState
 import com.ai.phoneagent.ui.inputbar.InputBar
 import androidx.compose.runtime.*
@@ -166,6 +171,16 @@ class MainActivity : AppCompatActivity() {
     private val OVERLAY_PERMISSION_REQUEST_CODE = 1234
     private val NOTIFICATION_PERMISSION_REQUEST_CODE = 1235
     private var pendingEnterMiniWindowAfterNotifPerm: Boolean = false
+    private var pendingAutomationLogUiRefresh: Boolean = false
+    private var automationLogReceiverRegistered: Boolean = false
+
+    private val automationLogReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    val line = AutomationLogBridge.extract(intent) ?: return
+                    appendAutomationLogAsAiMessage(line)
+                }
+            }
 
     private val conversationsKey = "conversations_json"
     private val activeConversationIdKey = "active_conversation_id"
@@ -247,6 +262,7 @@ class MainActivity : AppCompatActivity() {
         setupDrawer()
 
         setupInputBar()
+        registerAutomationLogReceiverIfNeeded()
 
         restoreApiKey()
 
@@ -650,6 +666,11 @@ class MainActivity : AppCompatActivity() {
         // 设置消息同步监听器
         setupMessageSyncListener()
 
+        if (pendingAutomationLogUiRefresh) {
+            activeConversation?.let { renderConversation(it) }
+            pendingAutomationLogUiRefresh = false
+        }
+
         // 防止返回应用后气泡底部的复制/重试按钮被隐藏
         revealActionAreasForMessages()
     }
@@ -803,6 +824,63 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             // ignore
         }
+    }
+
+    private fun registerAutomationLogReceiverIfNeeded() {
+        if (automationLogReceiverRegistered) return
+        val filter = IntentFilter(AutomationLogBridge.ACTION_AUTOMATION_LOG)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(automationLogReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(automationLogReceiver, filter)
+            }
+            automationLogReceiverRegistered = true
+        } catch (_: Exception) {
+            automationLogReceiverRegistered = false
+        }
+    }
+
+    private fun unregisterAutomationLogReceiverIfNeeded() {
+        if (!automationLogReceiverRegistered) return
+        try {
+            unregisterReceiver(automationLogReceiver)
+        } catch (_: Exception) {
+        } finally {
+            automationLogReceiverRegistered = false
+        }
+    }
+
+    private fun appendAutomationLogAsAiMessage(rawLogLine: String) {
+        val logLine = rawLogLine.trim()
+        if (logLine.isBlank()) return
+
+        val messageContent = "【自动化】$logLine"
+        val c = requireActiveConversation()
+        val last = c.messages.lastOrNull()
+        if (last != null && !last.isUser && last.content == messageContent) {
+            return
+        }
+
+        c.messages.add(
+                UiMessage(
+                        author = "Aries AI",
+                        content = messageContent,
+                        isUser = false,
+                )
+        )
+        c.updatedAt = System.currentTimeMillis()
+
+        val canRenderNow =
+                lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) &&
+                        activeConversation?.id == c.id
+        if (canRenderNow) {
+            appendComplexAiMessage("Aries AI", messageContent, animate = false, timeCostMs = 0)
+        } else {
+            pendingAutomationLogUiRefresh = true
+        }
+        persistConversations()
     }
     
     /**
@@ -984,6 +1062,7 @@ class MainActivity : AppCompatActivity() {
         apiModelInput.setText(prefs.getString(apiThirdPartyModelPref, AutoGlmClient.DEFAULT_MODEL))
 
         val btnCheck = header.findViewById<android.widget.Button>(R.id.btnCheckApi)
+        val btnPasteApiInput = header.findViewById<View>(R.id.btnPasteApiInput)
 
         val btnGetApiKey = header.findViewById<View>(R.id.btnGetApiKey)
         btnGetApiKey?.setOnClickListener {
@@ -994,6 +1073,27 @@ class MainActivity : AppCompatActivity() {
                 )
                 startActivity(intent)
             }
+        }
+        btnPasteApiInput?.setOnClickListener {
+            vibrateLight()
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+            val pasted =
+                    clipboard?.primaryClip
+                            ?.takeIf { it.itemCount > 0 }
+                            ?.getItemAt(0)
+                            ?.coerceToText(this)
+                            ?.toString()
+                            ?.trim()
+                            .orEmpty()
+            if (pasted.isBlank()) {
+                Toast.makeText(this, "剪贴板为空", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            apiInput.tag = ""
+            apiInput.requestFocus()
+            apiInput.setText(pasted)
+            apiInput.setSelection(apiInput.text?.length ?: 0)
+            Toast.makeText(this, "已粘贴 API Key", Toast.LENGTH_SHORT).show()
         }
 
         binding.drawerLayout.setScrimColor(Color.TRANSPARENT)
@@ -1547,7 +1647,29 @@ class MainActivity : AppCompatActivity() {
                             val t = inputTextState.value.trim()
                             if (t.isNotBlank()) {
                                 hideKeyboard()
-                                sendMessage(t)
+                                if (agentModeEnabled) {
+                                    val dispatchResult =
+                                        ActivityAutomationInstructionGateway.dispatchManual(
+                                            context = this@MainActivity,
+                                            instruction = t
+                                        )
+                                    if (dispatchResult.success) {
+                                        inputTextState.value = ""
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            "Agent 模式已激活，任务已转交自动化",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    } else {
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            dispatchResult.message,
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                } else {
+                                    sendMessage(t)
+                                }
                             } else {
                                 Toast.makeText(this@MainActivity, "请输入内容", Toast.LENGTH_SHORT).show()
                             }
@@ -2699,7 +2821,6 @@ class MainActivity : AppCompatActivity() {
             if (success) {
                 offlineModelReady = true
                 updateStatusText()
-                Toast.makeText(this@MainActivity, "本地语音模型已就绪 (Sherpa-ncnn)", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this@MainActivity, "语音模型初始化失败", Toast.LENGTH_LONG).show()
             }
@@ -3465,6 +3586,7 @@ class MainActivity : AppCompatActivity() {
         
         // 清除消息同步监听器，防止内存泄漏
         FloatingChatService.setMessageSyncListener(null)
+        unregisterAutomationLogReceiverIfNeeded()
 
         stopLocalVoiceInput()
 

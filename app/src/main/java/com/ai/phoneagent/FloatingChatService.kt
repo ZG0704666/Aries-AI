@@ -64,6 +64,7 @@ import androidx.core.graphics.ColorUtils
 import com.ai.phoneagent.helper.StreamRenderHelper
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.*
 
 /** 悬浮聊天窗口服务 提供小窗模式的聊天界面和虚拟屏工具箱模式 */
@@ -92,6 +93,14 @@ class FloatingChatService : Service() {
         fun getInstance(): FloatingChatService? = instance
 
         fun isRunning(): Boolean = instance != null
+
+        fun temporaryHideForScreenshot() {
+            instance?.temporaryHideForScreenshotInternal()
+        }
+
+        fun restoreVisibilityAfterScreenshot() {
+            instance?.restoreVisibilityAfterScreenshotInternal()
+        }
 
         /** 检查是否有悬浮窗权限 */
         fun hasOverlayPermission(context: Context): Boolean {
@@ -274,6 +283,9 @@ class FloatingChatService : Service() {
     private var overlayHiddenForReturn: Boolean = false
 
     private var overlayTouchBlockedForReturn: Boolean = false
+    private val screenshotHideCounter = AtomicInteger(0)
+    @Volatile private var wasFloatingVisibleBeforeScreenshot: Boolean = false
+    @Volatile private var wasToolboxVisibleBeforeScreenshot: Boolean = false
 
     private val returnAckReceiver: BroadcastReceiver =
             object : BroadcastReceiver() {
@@ -469,6 +481,49 @@ class FloatingChatService : Service() {
                 }
         if (isViewAdded && floatingView != null) {
             runCatching { windowManager.updateViewLayout(floatingView, lp) }
+        }
+    }
+
+    private fun temporaryHideForScreenshotInternal() {
+        val count = screenshotHideCounter.incrementAndGet()
+        if (count != 1) return
+        mainHandler.post {
+            val chatView = floatingView
+            val tbView = toolboxView
+            wasFloatingVisibleBeforeScreenshot = chatView?.visibility == View.VISIBLE
+            wasToolboxVisibleBeforeScreenshot = tbView?.visibility == View.VISIBLE
+            chatView?.visibility = View.GONE
+            tbView?.visibility = View.GONE
+        }
+    }
+
+    private fun restoreVisibilityAfterScreenshotInternal() {
+        val count = screenshotHideCounter.decrementAndGet()
+        if (count > 0) return
+        screenshotHideCounter.set(0)
+        mainHandler.post {
+            // If overlayHiddenForReturn is stale but we are no longer waiting ack, recover visibility.
+            if (overlayHiddenForReturn && !awaitingReturnAck) {
+                overlayHiddenForReturn = false
+                overlayTouchBlockedForReturn = false
+                setTouchable(true)
+            }
+            if (wasFloatingVisibleBeforeScreenshot && !overlayHiddenForReturn) {
+                floatingView?.let {
+                    it.visibility = View.VISIBLE
+                    it.alpha = 1f
+                    it.scaleX = 1f
+                    it.scaleY = 1f
+                }
+            }
+            if (wasToolboxVisibleBeforeScreenshot) {
+                toolboxView?.let {
+                    it.visibility = View.VISIBLE
+                    it.alpha = 1f
+                    it.scaleX = 1f
+                    it.scaleY = 1f
+                }
+            }
         }
     }
 

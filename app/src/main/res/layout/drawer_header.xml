@@ -85,21 +85,36 @@
                     android:textAppearance="@style/TextAppearance.M3t.Title.Medium"
                     android:textSize="15sp" />
             </LinearLayout>
-
-            <EditText
-                android:id="@+id/apiInput"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/m3t_spacing_md"
-                android:background="@drawable/bg_input_field_flat"
-                android:hint="输入 API Key"
-                android:inputType="textNoSuggestions|textVisiblePassword"
-                android:minHeight="48dp"
-                android:paddingHorizontal="14dp"
-                android:paddingVertical="12dp"
-                android:textColor="@color/m3t_on_surface"
-                android:textColorHint="@color/m3t_on_surface_variant"
-                android:textSize="14sp" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/apiInput"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_input_field_flat"
+                    android:hint="输入 API Key"
+                    android:inputType="textNoSuggestions|textVisiblePassword"
+                    android:minHeight="@dimen/m3t_compact_button_height"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="12dp"
+                    android:textColor="@color/m3t_on_surface"
+                    android:textColorHint="@color/m3t_on_surface_variant"
+                    android:textSize="14sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPasteApiInput"
+                    style="@style/Widget.M3t.Button.Outlined.Compact"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/m3t_compact_button_height"
+                    android:layout_marginStart="@dimen/m3t_spacing_sm"
+                    android:text="粘贴" />
+            </LinearLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -238,4 +253,5 @@
     </com.google.android.material.card.MaterialCardView>
 
 </LinearLayout>
+
 

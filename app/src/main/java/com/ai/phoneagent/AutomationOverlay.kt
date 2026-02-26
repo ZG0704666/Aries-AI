@@ -47,6 +47,7 @@ object AutomationOverlay {
     private var thinkingText: String = ""
     // 【修复】临时隐藏引用计数，防止并发调用导致竞态
     private val hideCounter = AtomicInteger(0)
+    @Volatile private var inputVerifyHighlightActive: Boolean = false
 
     private inline fun runOnMain(crossinline action: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -95,6 +96,7 @@ object AutomationOverlay {
         val view = OverlayContainer(appCtx)
         view.setTexts(title, subtitle)
         view.setProgress(0f)
+        view.setInputVerifyHighlight(inputVerifyHighlightActive)
         view.setOnClickListener {
             val i = Intent(appCtx, AutomationActivityNew::class.java)
             i.addFlags(
@@ -170,6 +172,13 @@ object AutomationOverlay {
         v.post {
             v.visibility = if (visible) View.VISIBLE else View.INVISIBLE
             v.alpha = if (visible) 1f else 0f
+        }
+    }
+
+    fun setInputVerifyHighlight(active: Boolean) {
+        inputVerifyHighlightActive = active
+        runOnMain {
+            container?.setInputVerifyHighlight(active)
         }
     }
     
@@ -404,6 +413,7 @@ object AutomationOverlay {
         val v = container
         container = null
         wm = null
+        inputVerifyHighlightActive = false
         if (w != null && v != null) {
             runOnMain {
                 runCatching { w.removeView(v) }
@@ -542,6 +552,10 @@ object AutomationOverlay {
             ring.setProgress(p)
         }
 
+        fun setInputVerifyHighlight(active: Boolean) {
+            ring.setInputVerifyHighlight(active)
+        }
+
         fun startSpinner() {
             ring.start()
         }
@@ -672,6 +686,7 @@ object AutomationOverlay {
         private var shader: Shader? = null
         private val shaderMatrix = Matrix()
         private var phase: Float = 0f
+        private var inputVerifyHighlight: Boolean = false
 
         private val spinner = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 1400L
@@ -687,6 +702,13 @@ object AutomationOverlay {
 
         fun setProgress(p: Float) {
             progress = p
+            invalidate()
+        }
+
+        fun setInputVerifyHighlight(active: Boolean) {
+            if (inputVerifyHighlight == active) return
+            inputVerifyHighlight = active
+            rebuildPath()
             invalidate()
         }
 
@@ -744,6 +766,22 @@ object AutomationOverlay {
             headGlowPaint.strokeWidth = stroke * 1.05f
             outerGlowPaint.strokeWidth = stroke * 1.55f
 
+            if (inputVerifyHighlight) {
+                trackPaint.color = Color.parseColor("#1F42C784")
+                progressPaint.color = Color.parseColor("#42C784")
+                headGlowPaint.color = Color.parseColor("#9AF0C1")
+                outerGlowPaint.color = Color.parseColor("#62D9A0")
+                sparkOuterPaint.color = Color.argb(120, 66, 199, 132)
+                sparkCorePaint.color = Color.argb(230, 235, 255, 244)
+            } else {
+                trackPaint.color = Color.parseColor("#1F6BA8FF")
+                progressPaint.color = Color.parseColor("#6BA8FF")
+                headGlowPaint.color = Color.parseColor("#6FF2FF")
+                outerGlowPaint.color = Color.parseColor("#4CC8FF")
+                sparkOuterPaint.color = Color.argb(120, 111, 242, 255)
+                sparkCorePaint.color = Color.argb(230, 255, 255, 255)
+            }
+
             trackPaint.alpha = 34
             progressPaint.alpha = 170
 
@@ -752,18 +790,29 @@ object AutomationOverlay {
             measure = PathMeasure(borderPath, true)
             length = measure?.length ?: 0f
 
+            val gradientColors =
+                    if (inputVerifyHighlight) {
+                        intArrayOf(
+                                Color.parseColor("#2DBE76"),
+                                Color.parseColor("#8CF0BA"),
+                                Color.parseColor("#E8FFF3"),
+                                Color.parseColor("#2DBE76")
+                        )
+                    } else {
+                        intArrayOf(
+                                Color.parseColor("#1B8CFF"),
+                                Color.parseColor("#6FF2FF"),
+                                Color.parseColor("#E8FBFF"),
+                                Color.parseColor("#1B8CFF")
+                        )
+                    }
             shader =
                     LinearGradient(
                             -w,
                             0f,
                             w * 2f,
                             h,
-                            intArrayOf(
-                                    Color.parseColor("#1B8CFF"),
-                                    Color.parseColor("#6FF2FF"),
-                                    Color.parseColor("#E8FBFF"),
-                                    Color.parseColor("#1B8CFF")
-                            ),
+                            gradientColors,
                             floatArrayOf(0f, 0.48f, 0.74f, 1f),
                             Shader.TileMode.CLAMP
                     )
