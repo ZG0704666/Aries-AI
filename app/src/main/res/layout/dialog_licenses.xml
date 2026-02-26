@@ -2,26 +2,25 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:background="@color/m3t_surface"
     android:orientation="vertical"
-    android:padding="20dp"
-    android:background="@android:color/white">
+    android:padding="@dimen/m3t_dialog_padding">
 
     <TextView
         android:id="@+id/tvLicensesTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="开源许可声明"
-        android:textColor="@color/blue_glass_text"
-        android:textSize="20sp"
-        android:textStyle="bold" />
+        android:textAppearance="@style/TextAppearance.M3t.Title.Large" />
 
     <LinearLayout
         android:id="@+id/licenseContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:layout_marginTop="12dp"
         android:divider="@null"
+        android:orientation="vertical"
         android:showDividers="none" />
 
 </LinearLayout>
+

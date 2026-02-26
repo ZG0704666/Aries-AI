@@ -107,6 +107,9 @@ import com.ai.phoneagent.ui.inputbar.InputState
 import com.ai.phoneagent.ui.inputbar.InputBar
 import androidx.compose.runtime.*
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.res.colorResource
 
 class MainActivity : AppCompatActivity() {
 
@@ -498,9 +501,10 @@ class MainActivity : AppCompatActivity() {
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
 
+        val useLightSystemBarIcons = resources.getBoolean(R.bool.m3t_light_system_bars)
         WindowCompat.getInsetsController(window, window.decorView)?.let {
-            it.isAppearanceLightStatusBars = true
-            it.isAppearanceLightNavigationBars = true
+            it.isAppearanceLightStatusBars = useLightSystemBarIcons
+            it.isAppearanceLightNavigationBars = useLightSystemBarIcons
         }
         binding.drawerLayout.fitsSystemWindows = false
         binding.navigationView.fitsSystemWindows = false
@@ -977,9 +981,11 @@ class MainActivity : AppCompatActivity() {
         binding.drawerLayout.setScrimColor(Color.TRANSPARENT)
         binding.drawerLayout.setStatusBarBackgroundColor(Color.TRANSPARENT)
         binding.drawerLayout.setStatusBarBackground(null)
-        binding.navigationView.setBackgroundColor(Color.parseColor("#F5F8FF"))
+        binding.navigationView.setBackgroundColor(
+            ContextCompat.getColor(this, R.color.m3t_drawer_background)
+        )
         binding.navigationView.itemTextColor =
-                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.blue_glass_text))
+                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.m3t_on_surface))
         
         binding.drawerLayout.addDrawerListener(
                 object : DrawerLayout.SimpleDrawerListener() {
@@ -1484,7 +1490,31 @@ class MainActivity : AppCompatActivity() {
         binding.inputBarCompose.apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                MaterialTheme {
+                val isDarkMode = !resources.getBoolean(R.bool.m3t_light_system_bars)
+                val inputColorScheme =
+                    if (isDarkMode) {
+                        darkColorScheme(
+                            primary = colorResource(R.color.m3t_primary),
+                            onPrimary = colorResource(R.color.m3t_on_primary),
+                            surface = colorResource(R.color.m3t_surface),
+                            surfaceVariant = colorResource(R.color.m3t_surface_container),
+                            onSurface = colorResource(R.color.m3t_on_surface),
+                            onSurfaceVariant = colorResource(R.color.m3t_on_surface_variant),
+                            error = colorResource(R.color.m3t_error),
+                        )
+                    } else {
+                        lightColorScheme(
+                            primary = colorResource(R.color.m3t_primary),
+                            onPrimary = colorResource(R.color.m3t_on_primary),
+                            surface = colorResource(R.color.m3t_surface),
+                            surfaceVariant = colorResource(R.color.m3t_surface_container),
+                            onSurface = colorResource(R.color.m3t_on_surface),
+                            onSurfaceVariant = colorResource(R.color.m3t_on_surface_variant),
+                            error = colorResource(R.color.m3t_error),
+                        )
+                    }
+
+                MaterialTheme(colorScheme = inputColorScheme) {
                     val text by remember { inputTextState }
                     val state by remember { inputBarState }
                     val amplitude by remember { voiceAmplitudeState }
@@ -2354,7 +2384,7 @@ class MainActivity : AppCompatActivity() {
                                     this@MainActivity,
                                     if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
                             )
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.blue_glass_text))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface))
                 }
 
         val lp =
@@ -2424,7 +2454,7 @@ class MainActivity : AppCompatActivity() {
                                     this@MainActivity,
                                     if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
                             )
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.blue_glass_text))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface))
                 }
         val lp =
                 LinearLayout.LayoutParams(
@@ -2463,7 +2493,7 @@ class MainActivity : AppCompatActivity() {
                                     if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
                             )
 
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.blue_glass_text))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface))
                 }
 
         val lp =
@@ -2521,7 +2551,7 @@ class MainActivity : AppCompatActivity() {
         actionArea.visibility = View.GONE
 
         messageContent.text = "正在思考"
-        messageContent.setTextColor(Color.parseColor("#80505050"))
+        messageContent.setTextColor(ContextCompat.getColor(this, R.color.m3t_thinking_text))
 
         binding.messagesContainer.addView(view)
         thinkingView = view
@@ -2948,9 +2978,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun attachAnimatedRing(target: View, strokeDp: Float) {
         val strokePx = strokeDp * target.resources.displayMetrics.density
-        val blue = Color.rgb(63, 169, 255)
-        val cyan = Color.rgb(160, 235, 255)
-        val pink = Color.rgb(255, 90, 210)
+        val blue = ContextCompat.getColor(this, R.color.m3t_primary)
+        val cyan = ContextCompat.getColor(this, R.color.m3t_primary_container)
+        val pink = ContextCompat.getColor(this, R.color.m3t_tertiary)
         val maxHalf = (maxOf(strokePx * 1.6f, strokePx)) / 2f
 
         val glowPaint =
@@ -3084,9 +3114,9 @@ class MainActivity : AppCompatActivity() {
         val cornerPx = cornerDp * density
         val overlayHostView = (target.parent as? View) ?: target
         val overlayHostGroup = target.parent as? ViewGroup
-        val blue = Color.rgb(63, 169, 255)
-        val cyan = Color.rgb(160, 235, 255)
-        val pink = Color.rgb(255, 90, 210)
+        val blue = ContextCompat.getColor(this, R.color.m3t_primary)
+        val cyan = ContextCompat.getColor(this, R.color.m3t_primary_container)
+        val pink = ContextCompat.getColor(this, R.color.m3t_tertiary)
         val maxHalf = (maxOf(strokePx * 1.6f, strokePx)) / 2f
 
         val glowPaint =

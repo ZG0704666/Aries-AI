@@ -3,13 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8FAFC">
+    android:background="@color/m3t_background">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/white"
+        android:background="@color/m3t_surface"
         app:elevation="0dp"
         app:layout_constraintTop_toTopOf="parent">
 
@@ -17,12 +17,12 @@
             android:id="@+id/topAppBar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@android:color/white"
+            android:background="@color/m3t_surface"
             app:navigationIcon="@drawable/ic_arrow_back_24"
-            app:navigationIconTint="@color/blue_glass_primary"
+            app:navigationIconTint="@color/m3t_primary"
             app:title="Aries AI自动化控制台"
             app:titleCentered="true"
-            app:titleTextColor="@color/blue_glass_primary" />
+            app:titleTextColor="@color/m3t_primary" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
@@ -46,11 +46,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/spacing_md"
-                app:cardBackgroundColor="@android:color/white"
+                app:cardBackgroundColor="@color/m3t_surface"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="0dp"
                 app:strokeWidth="1dp"
-                app:strokeColor="#E0F2FE">
+                app:strokeColor="@color/m3t_outline_variant">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -98,8 +98,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="去开启"
-                        android:textColor="@color/blue_glass_primary"
-                        app:rippleColor="#202563EB" />
+                        android:textColor="@color/m3t_primary"
+                        app:rippleColor="@color/m3t_primary_container" />
 
                     <ImageButton
                         android:id="@+id/btnRefreshAccessibility"
@@ -117,11 +117,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/spacing_md"
-                app:cardBackgroundColor="@android:color/white"
+                app:cardBackgroundColor="@color/m3t_surface"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="0dp"
                 app:strokeWidth="1dp"
-                app:strokeColor="#E0F2FE">
+                app:strokeColor="@color/m3t_outline_variant">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -134,7 +134,7 @@
                         android:layout_height="wrap_content"
                         android:text="执行模式"
                         android:textAllCaps="true"
-                        android:textColor="@color/blue_glass_primary"
+                        android:textColor="@color/m3t_primary"
                         android:textSize="11sp"
                         android:textStyle="bold"
                         android:letterSpacing="0.1" />
@@ -173,7 +173,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/spacing_xs"
                         android:text="在前台屏幕执行自动化任务，您可以看到操作过程"
-                        android:textColor="#94A3B8"
+                        android:textColor="@color/m3t_on_surface_variant"
                         android:textSize="12sp" />
 
                     <!-- 虚拟屏状态显示 -->
@@ -185,7 +185,7 @@
                         android:background="@drawable/bg_rounded_input_light"
                         android:padding="@dimen/spacing_sm"
                         android:text="虚拟屏状态: 未初始化"
-                        android:textColor="#64748B"
+                        android:textColor="@color/m3t_on_surface_variant"
                         android:textSize="12sp"
                         android:fontFamily="monospace" />
 
@@ -208,11 +208,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/spacing_md"
-                app:cardBackgroundColor="@android:color/white"
+                app:cardBackgroundColor="@color/m3t_surface"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="0dp"
                 app:strokeWidth="1dp"
-                app:strokeColor="#E0F2FE">
+                app:strokeColor="@color/m3t_outline_variant">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -225,7 +225,7 @@
                         android:layout_height="wrap_content"
                         android:text="任务指令确认"
                         android:textAllCaps="true"
-                        android:textColor="@color/blue_glass_primary"
+                        android:textColor="@color/m3t_primary"
                         android:textSize="11sp"
                         android:textStyle="bold"
                         android:letterSpacing="0.1" />
@@ -250,7 +250,7 @@
                             android:maxLines="6"
                             android:padding="12dp"
                             android:textColor="@color/blue_glass_text"
-                            android:textColorHint="#94A3B8"
+                            android:textColorHint="@color/m3t_on_surface_variant"
                             android:textSize="15sp" />
 
                         <com.google.android.material.card.MaterialCardView
@@ -292,7 +292,7 @@
                             android:gravity="center"
                             android:padding="@dimen/spacing_sm"
                             android:text="点击尝试：'查看当前电池状态'"
-                            android:textColor="@color/blue_glass_primary"
+                            android:textColor="@color/m3t_primary"
                             android:textSize="13sp"
                             android:fontStyle="italic" />
                     </LinearLayout>
@@ -315,16 +315,16 @@
                     android:layout_height="52dp"
                     android:layout_weight="1"
                     android:text="暂停"
-                    android:textColor="@color/blue_glass_primary"
+                    android:textColor="@color/m3t_primary"
                     android:textSize="14sp"
                     android:layout_marginEnd="@dimen/spacing_sm"
                     app:cornerRadius="24dp"
                     app:icon="@drawable/ic_pause_24"
                     app:iconGravity="textStart"
-                    app:iconTint="@color/blue_glass_primary"
-                    app:strokeColor="#BAE6FD"
+                    app:iconTint="@color/m3t_primary"
+                    app:strokeColor="@color/m3t_outline_variant"
                     app:strokeWidth="1.5dp"
-                    app:rippleColor="#102563EB" />
+                    app:rippleColor="@color/m3t_primary_container" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnStartAgent"
@@ -335,10 +335,10 @@
                     android:textColor="@android:color/white"
                     android:textSize="15sp"
                     android:textStyle="bold"
-                    app:backgroundTint="@color/blue_glass_primary"
+                    app:backgroundTint="@color/m3t_primary"
                     app:cornerRadius="24dp"
                     app:elevation="0dp"
-                    app:rippleColor="#20FFFFFF" />
+                    app:rippleColor="@color/m3t_primary_container" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnStopAgent"
@@ -347,16 +347,16 @@
                     android:layout_height="52dp"
                     android:layout_weight="1"
                     android:text="停止"
-                    android:textColor="#EF4444"
+                    android:textColor="@color/m3t_error"
                     android:textSize="14sp"
                     android:layout_marginStart="@dimen/spacing_sm"
                     app:cornerRadius="24dp"
                     app:icon="@drawable/ic_stop_24"
                     app:iconGravity="textStart"
-                    app:iconTint="#EF4444"
-                    app:strokeColor="#FEE2E2"
+                    app:iconTint="@color/m3t_error"
+                    app:strokeColor="@color/m3t_outline_variant"
                     app:strokeWidth="1.5dp"
-                    app:rippleColor="#10EF4444" />
+                    app:rippleColor="@color/m3t_error" />
             </LinearLayout>
 
             <!-- 日志终端 -->
@@ -365,11 +365,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/spacing_md"
-                app:cardBackgroundColor="#0F172A"
+                app:cardBackgroundColor="@color/m3t_surface_container"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="0dp"
                 app:strokeWidth="1.5dp"
-                app:strokeColor="#1E293B">
+                app:strokeColor="@color/m3t_outline_variant">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -395,7 +395,7 @@
                             android:layout_marginStart="10dp"
                             android:fontFamily="monospace"
                             android:text="运行日志系统"
-                            android:textColor="#38BDF8"
+                            android:textColor="@color/m3t_primary"
                             android:textSize="10sp"
                             android:textStyle="bold" />
 
@@ -404,7 +404,7 @@
                             android:layout_height="1dp"
                             android:layout_marginStart="12dp"
                             android:layout_weight="1"
-                            android:background="#2038BDF8" />
+                            android:background="@color/m3t_outline_variant" />
                     </LinearLayout>
 
                     <TextView
@@ -414,7 +414,7 @@
                         android:fontFamily="monospace"
                         android:lineSpacingExtra="6dp"
                         android:text="系统已就绪，等待指令输入..."
-                        android:textColor="#F1F5F9"
+                        android:textColor="@color/m3t_on_surface"
                         android:textSize="13sp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -423,4 +423,3 @@
     </androidx.core.widget.NestedScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-

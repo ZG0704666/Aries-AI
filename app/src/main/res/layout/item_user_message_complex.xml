@@ -2,30 +2,28 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:background="@drawable/bg_user_bubble_water"
     android:layout_marginTop="0dp"
-    android:layout_marginBottom="0dp">
+    android:layout_marginBottom="0dp"
+    android:background="@drawable/bg_user_bubble_water"
+    android:orientation="vertical">
 
-    <!-- 主头像和发送人 -->
     <TextView
         android:id="@+id/user_author_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="我"
+        android:textColor="@color/m3t_on_surface_variant"
         android:textSize="13sp"
         android:textStyle="bold"
-        android:textColor="#80505050"
-        android:visibility="gone"/>
+        android:visibility="gone" />
 
-    <!-- 正文内容 -->
     <TextView
         android:id="@+id/message_content"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="15sp"
-        android:textColor="#FF202020"
         android:lineSpacingExtra="4dp"
+        android:textAppearance="@style/TextAppearance.M3t.Chat.Message"
         android:textIsSelectable="true" />
-        
+
 </LinearLayout>
+

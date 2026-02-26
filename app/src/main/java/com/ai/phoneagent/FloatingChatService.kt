@@ -60,6 +60,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import com.ai.phoneagent.helper.StreamRenderHelper
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
@@ -235,6 +236,11 @@ class FloatingChatService : Service() {
     private var isListening: Boolean = false
 
     private fun getAppPrefs(): SharedPreferences = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+
+    private fun m3Color(colorRes: Int): Int = ContextCompat.getColor(this, colorRes)
+
+    private fun m3ColorWithAlpha(colorRes: Int, alpha: Int): Int =
+            ColorUtils.setAlphaComponent(m3Color(colorRes), alpha.coerceIn(0, 255))
 
     private fun resolveApiConfig(): Triple<String, String, String> {
             val appPrefs = getAppPrefs()
@@ -1187,7 +1193,7 @@ class FloatingChatService : Service() {
 
                 if (!streamOk && contentSb.isEmpty()) {
                     vh?.messageContent?.text = "连接超时或服务遇到问题，请点击重试。"
-                    vh?.messageContent?.setTextColor(android.graphics.Color.RED)
+                    vh?.messageContent?.setTextColor(m3Color(R.color.m3t_error))
                 }
 
                 // 获取解析后的内容
@@ -1368,7 +1374,7 @@ class FloatingChatService : Service() {
                         TextView(this).apply {
                             text = msg
                             textSize = 12f
-                            setTextColor(0xFF999999.toInt())
+                            setTextColor(m3Color(R.color.m3t_on_surface_variant))
                             setPadding(16, 6, 16, 6)
                             setTypeface(null, android.graphics.Typeface.ITALIC)
                         }
@@ -1383,7 +1389,7 @@ class FloatingChatService : Service() {
                         TextView(this).apply {
                             text = content
                             textSize = 13.5f
-                            setTextColor(0xFF333333.toInt())
+                            setTextColor(m3Color(R.color.m3t_on_surface))
                             setPadding(16, 6, 16, 6)
                         }
                 container.addView(textView)
@@ -1590,7 +1596,7 @@ class FloatingChatService : Service() {
                                     ViewGroup.LayoutParams.MATCH_PARENT,
                                     headerHeight
                             )
-                    setBackgroundColor(android.graphics.Color.argb(200, 40, 50, 70))
+                    setBackgroundColor(m3ColorWithAlpha(R.color.m3t_floating_header, 220))
                 }
 
         // 标题栏：拖动手柄
@@ -1598,7 +1604,7 @@ class FloatingChatService : Service() {
                 TextView(context).apply {
                     text = "▼"
                     textSize = 10f
-                    setTextColor(android.graphics.Color.argb(150, 255, 255, 255))
+                    setTextColor(m3ColorWithAlpha(R.color.m3t_on_surface, 180))
                     gravity = Gravity.CENTER
                     layoutParams =
                             FrameLayout.LayoutParams(
@@ -1616,7 +1622,7 @@ class FloatingChatService : Service() {
         val titleText =
                 TextView(context).apply {
                     text = "虚拟屏工具箱"
-                    setTextColor(android.graphics.Color.WHITE)
+                    setTextColor(m3Color(R.color.m3t_on_surface))
                     textSize = 12f
                     gravity = Gravity.CENTER_VERTICAL
                     layoutParams =
@@ -1636,7 +1642,7 @@ class FloatingChatService : Service() {
                 TextView(context).apply {
                     text = "✕"
                     textSize = 14f
-                    setTextColor(android.graphics.Color.argb(200, 255, 255, 255))
+                    setTextColor(m3ColorWithAlpha(R.color.m3t_on_surface, 220))
                     gravity = Gravity.CENTER
                     layoutParams =
                             FrameLayout.LayoutParams(
@@ -1656,11 +1662,11 @@ class FloatingChatService : Service() {
                 FrameLayout(context).apply {
                     layoutParams =
                             FrameLayout.LayoutParams(
-                                            ViewGroup.LayoutParams.MATCH_PARENT,
-                                            previewHeight
-                                    )
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    previewHeight
+                            )
                                     .apply { topMargin = headerHeight }
-                    setBackgroundColor(android.graphics.Color.argb(230, 20, 20, 25))
+                    setBackgroundColor(m3Color(R.color.m3t_floating_surface))
                 }
 
         // 添加虚拟屏 TextureView 占位（实际由 VirtualScreenPreviewOverlay 绑定）
@@ -1668,7 +1674,7 @@ class FloatingChatService : Service() {
                 TextView(context).apply {
                     text = "📱 虚拟屏预览"
                     textSize = 14f
-                    setTextColor(android.graphics.Color.argb(150, 200, 200, 200))
+                    setTextColor(m3ColorWithAlpha(R.color.m3t_floating_text_secondary, 190))
                     gravity = Gravity.CENTER
                     layoutParams =
                             FrameLayout.LayoutParams(
@@ -1692,9 +1698,9 @@ class FloatingChatService : Service() {
         val statusBar =
                 TextView(context).apply {
                     text = "📍 等待任务开始..."
-                    setTextColor(android.graphics.Color.argb(200, 180, 180, 180))
+                    setTextColor(m3ColorWithAlpha(R.color.m3t_floating_text_secondary, 220))
                     textSize = 11f
-                    setBackgroundColor(android.graphics.Color.argb(100, 0, 0, 0))
+                    setBackgroundColor(m3ColorWithAlpha(R.color.m3t_surface_container_high, 200))
                     setPadding(
                             (8 * density).toInt(),
                             (4 * density).toInt(),
@@ -1718,10 +1724,10 @@ class FloatingChatService : Service() {
                 LinearLayout(context).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
-                    setBackgroundColor(android.graphics.Color.argb(220, 35, 35, 45))
+                    setBackgroundColor(m3ColorWithAlpha(R.color.m3t_floating_header, 230))
                     layoutParams =
                             FrameLayout.LayoutParams(
-                                            ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
                                             controlBarHeight
                                     )
                                     .apply { gravity = Gravity.BOTTOM }
@@ -1732,7 +1738,7 @@ class FloatingChatService : Service() {
         fun makeCtrlBtn(label: String, flex: Float = 1f, onClick: () -> Unit): TextView {
             return TextView(context).apply {
                 text = label
-                setTextColor(android.graphics.Color.WHITE)
+                setTextColor(m3Color(R.color.m3t_on_surface))
                 textSize = 10f
                 gravity = Gravity.CENTER
                 layoutParams =

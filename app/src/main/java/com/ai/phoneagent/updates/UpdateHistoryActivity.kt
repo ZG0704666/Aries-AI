@@ -91,7 +91,12 @@ class UpdateHistoryActivity : AppCompatActivity() {
 
     private fun setupEdgeToEdge() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = getColor(R.color.blue_glass_primary)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        WindowCompat.getInsetsController(window, window.decorView)?.let { controller ->
+            val useLightSystemBarIcons = resources.getBoolean(R.bool.m3t_light_system_bars)
+            controller.isAppearanceLightStatusBars = useLightSystemBarIcons
+            controller.isAppearanceLightNavigationBars = useLightSystemBarIcons
+        }
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.appBar)) { v, insets ->
             val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())

@@ -33,17 +33,6 @@ import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.random.Random
 
-// 基础颜色定义
-private val ColorMainBlue = Color(0xFF007AFF)
-private val ColorDeepBlue = Color(0xFF0051D5)
-private val ColorTextMain = Color(0xFF1A1A1A)
-private val ColorTextSecondary = Color(0xFF666666)
-private val ColorHint = Color(0xFF999999)
-private val ColorBgGray = Color(0xFFF5F5F5)
-private val ColorRedCancel = Color(0xFFFF3B30)
-private val ColorWhite = Color.White
-private val ColorOverlayMask = Color(0x99FFFFFF) // 半透明白色遮罩，让背景模糊隐约可见
-
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun InputBar(
@@ -62,6 +51,16 @@ fun InputBar(
     modifier: Modifier = Modifier,
     onUpdateCancelState: (Boolean) -> Unit = {}
 ) {
+    // 基础颜色定义（统一从 MaterialTheme 动态获取）
+    val colorScheme = MaterialTheme.colorScheme
+    val colorTextMain = colorScheme.onSurface
+    val colorTextSecondary = colorScheme.onSurfaceVariant
+    val colorHint = colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
+    val colorSurface = colorScheme.surface
+    val colorButtonDisabled = colorScheme.surfaceVariant
+    val colorButtonEnabled = colorScheme.primary
+    val colorButtonIcon = colorScheme.onPrimary
+
     // 状态为 Recording (录音中), Recognizing (识别中) 时显示全屏悬浮层
     val showVoiceOverlay = state is InputState.VoiceRecording || state is InputState.VoiceRecognizing
     val isVoiceMode = state is InputState.VoiceIdle || showVoiceOverlay
@@ -86,7 +85,7 @@ fun InputBar(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 7.dp),
             shape = RoundedCornerShape(24.dp),
-            color = ColorWhite,
+            color = colorSurface,
             shadowElevation = 4.dp
         ) {
             val sideSlotWidth = 72.dp
@@ -109,7 +108,7 @@ fun InputBar(
                         Icon(
                             imageVector = if (isVoiceMode) Icons.Default.Keyboard else Icons.Default.Mic,
                             contentDescription = if (isVoiceMode) "切换键盘" else "语音输入",
-                            tint = ColorTextSecondary,
+                            tint = colorTextSecondary,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -138,14 +137,14 @@ fun InputBar(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                             ) {
-                                Text(
-                                    text = "按住说话",
-                                    style = TextStyle(
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ColorTextMain
+                                    Text(
+                                        text = "按住说话",
+                                        style = TextStyle(
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colorTextMain
+                                        )
                                     )
-                                )
                                 
                                 // 覆盖透明的触摸区域来处理长按逻辑
                                 VoiceRecordButtonHandler(
@@ -167,7 +166,7 @@ fun InputBar(
                                 if (text.isEmpty()) {
                                     Text(
                                         text = "尽管问...",
-                                        color = ColorHint,
+                                        color = colorHint,
                                         fontSize = 15.sp
                                     )
                                 }
@@ -175,8 +174,8 @@ fun InputBar(
                                     value = text,
                                     onValueChange = onTextChange,
                                     modifier = Modifier.fillMaxWidth(),
-                                    textStyle = TextStyle(color = ColorTextMain, fontSize = 15.sp),
-                                    cursorBrush = SolidColor(ColorMainBlue)
+                                    textStyle = TextStyle(color = colorTextMain, fontSize = 15.sp),
+                                    cursorBrush = SolidColor(colorScheme.primary)
                                 )
                             }
                         }
@@ -201,7 +200,7 @@ fun InputBar(
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = "附件",
-                                tint = ColorTextSecondary,
+                                tint = colorTextSecondary,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -211,14 +210,14 @@ fun InputBar(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(if (text.isNotEmpty()) Color.Black else Color.LightGray.copy(alpha = 0.4f))
+                                .background(if (text.isNotEmpty()) colorButtonEnabled else colorButtonDisabled)
                                 .clickable(enabled = text.isNotEmpty(), onClick = onSend),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_send_24),
                                 contentDescription = "发送",
-                                tint = Color.White,
+                                tint = colorButtonIcon,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -241,6 +240,7 @@ fun VoiceInputOverlayContent(
     amplitude: Float,
     inputState: InputState
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     val isRecording = inputState is InputState.VoiceRecording || inputState is InputState.VoiceRecognizing
     val isCancelled = (inputState as? InputState.VoiceRecording)?.isCancelling == true
     
@@ -253,7 +253,7 @@ fun VoiceInputOverlayContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         
-        val waveColor = if (isCancelled) ColorRedCancel else ColorMainBlue
+        val waveColor = if (isCancelled) colorScheme.error else colorScheme.primary
         
         // 模拟波形点
         VoiceWaveformDots(amplitude = if (isRecording) amplitude else 0f, color = waveColor)
@@ -264,10 +264,10 @@ fun VoiceInputOverlayContent(
         Text(
             text = if (isCancelled) "松开取消" else "松开输入，上滑取消",
             fontSize = 14.sp,
-            color = ColorTextSecondary,
+            color = colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium,
             modifier = Modifier
-                .background(ColorWhite.copy(alpha = 0.9f), RoundedCornerShape(12.dp))
+                .background(colorScheme.surface.copy(alpha = 0.92f), RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 6.dp)
         )
         
@@ -356,8 +356,9 @@ fun IconButtonWithRipple(
     painter: androidx.compose.ui.graphics.painter.Painter,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    tint: Color = ColorTextSecondary
+    tint: Color = Color.Unspecified
 ) {
+    val resolvedTint = if (tint == Color.Unspecified) MaterialTheme.colorScheme.onSurfaceVariant else tint
     Box(
         modifier = modifier
             .size(32.dp)
@@ -369,7 +370,7 @@ fun IconButtonWithRipple(
         Icon(
             painter = painter,
             contentDescription = contentDescription,
-            tint = tint,
+            tint = resolvedTint,
             modifier = Modifier.size(24.dp)
         )
     }

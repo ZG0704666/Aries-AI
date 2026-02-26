@@ -1,67 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/Widget.M3t.Card"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="12dp"
     android:layout_marginHorizontal="2dp"
+    android:layout_marginBottom="@dimen/m3t_spacing_md"
+    app:cardBackgroundColor="@color/m3t_surface_container"
     app:cardCornerRadius="18dp"
-    app:cardElevation="0dp"
-    app:strokeWidth="1dp"
-    app:strokeColor="#EEF2F6"
-    app:cardBackgroundColor="#F8FAFC">
+    app:strokeColor="@color/m3t_outline_variant"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="16dp"
-        android:gravity="center_vertical">
+        android:padding="@dimen/m3t_spacing_lg">
 
         <ImageView
             android:layout_width="44dp"
             android:layout_height="44dp"
-            android:src="@android:drawable/ic_menu_recent_history"
-            app:tint="#6366F1"
+            android:background="@drawable/bg_circle_light"
             android:padding="10dp"
-            android:background="@drawable/bg_circle_light" />
+            android:src="@android:drawable/ic_menu_recent_history"
+            app:tint="@color/m3t_primary" />
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/m3t_spacing_lg"
             android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_marginStart="16dp">
+            android:orientation="vertical">
 
             <TextView
                 android:id="@+id/tvTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#334155"
-                android:textSize="17sp"
-                android:textStyle="bold"
+                android:ellipsize="end"
                 android:maxLines="1"
-                android:ellipsize="end" />
+                android:textAppearance="@style/TextAppearance.M3t.Title.Medium"
+                android:textSize="17sp" />
 
             <TextView
                 android:id="@+id/tvSubtitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:textColor="#64748B"
-                android:textSize="14sp"
+                android:layout_marginTop="@dimen/m3t_spacing_xs"
+                android:ellipsize="end"
                 android:maxLines="1"
-                android:ellipsize="end" />
+                android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
 
         </LinearLayout>
 
         <ImageView
             android:layout_width="20dp"
             android:layout_height="20dp"
+            android:alpha="0.4"
             android:src="@android:drawable/ic_media_play"
-            android:alpha="0.3"
-            app:tint="#475569" />
+            app:tint="@color/m3t_on_surface_variant" />
 
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>
+

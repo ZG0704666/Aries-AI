@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- M3T Light Palette -->
+    <color name="m3t_primary">#2A60AB</color>
+    <color name="m3t_on_primary">#FFFFFF</color>
+    <color name="m3t_primary_container">#D7E3FF</color>
+    <color name="m3t_on_primary_container">#001B3F</color>
+
+    <color name="m3t_secondary">#4B5F7A</color>
+    <color name="m3t_on_secondary">#FFFFFF</color>
+    <color name="m3t_secondary_container">#D2E4FF</color>
+    <color name="m3t_on_secondary_container">#081D36</color>
+
+    <color name="m3t_tertiary">#65558F</color>
+    <color name="m3t_on_tertiary">#FFFFFF</color>
+
+    <color name="m3t_error">#BA1A1A</color>
+    <color name="m3t_on_error">#FFFFFF</color>
+
+    <color name="m3t_background">#F7F9FC</color>
+    <color name="m3t_on_background">#171C22</color>
+    <color name="m3t_surface">#FFFFFF</color>
+    <color name="m3t_on_surface">#171C22</color>
+    <color name="m3t_surface_container">#EDF2FA</color>
+    <color name="m3t_surface_container_high">#E6ECF6</color>
+    <color name="m3t_surface_variant">#E1E6EF</color>
+    <color name="m3t_on_surface_variant">#434A56</color>
+    <color name="m3t_outline">#727987</color>
+    <color name="m3t_outline_variant">#C1C7D3</color>
+
+    <color name="m3t_inverse_surface">#2C3138</color>
+    <color name="m3t_inverse_on_surface">#EFF1F7</color>
+
+    <color name="m3t_success">#2E7D32</color>
+    <color name="m3t_warning">#B56A00</color>
+
+    <color name="m3t_thinking_bg">#F1F4FA</color>
+    <color name="m3t_thinking_text">#5A6576</color>
+    <color name="m3t_thinking_stroke">#97A4B8</color>
+
+    <color name="m3t_message_ai_bg">#FDFEFF</color>
+    <color name="m3t_message_user_bg">#D8E7FF</color>
+    <color name="m3t_message_action">#5D687A</color>
+    <color name="m3t_message_action_stroke">#2A000000</color>
+
+    <color name="m3t_drawer_background">#ECF3FF</color>
+    <color name="m3t_floating_header">#3D4D66</color>
+    <color name="m3t_floating_surface">#F7FAFF</color>
+    <color name="m3t_floating_text_secondary">#6D7A8B</color>
+    <color name="m3t_recommend_grad_start">#262A60AB</color>
+    <color name="m3t_recommend_grad_end">#263B82F6</color>
+
+    <!-- M3T Dimensions -->
+    <dimen name="m3t_spacing_xs">4dp</dimen>
+    <dimen name="m3t_spacing_sm">8dp</dimen>
+    <dimen name="m3t_spacing_md">12dp</dimen>
+    <dimen name="m3t_spacing_lg">16dp</dimen>
+    <dimen name="m3t_spacing_xl">20dp</dimen>
+    <dimen name="m3t_spacing_xxl">24dp</dimen>
+
+    <dimen name="m3t_radius_sm">12dp</dimen>
+    <dimen name="m3t_radius_md">16dp</dimen>
+    <dimen name="m3t_radius_lg">24dp</dimen>
+    <dimen name="m3t_radius_xl">32dp</dimen>
+
+    <dimen name="m3t_button_height">52dp</dimen>
+    <dimen name="m3t_toolbar_height">56dp</dimen>
+    <dimen name="m3t_toolbar_nav_size">56dp</dimen>
+    <dimen name="m3t_dialog_card_margin_h">20dp</dimen>
+    <dimen name="m3t_dialog_padding">20dp</dimen>
+    <dimen name="m3t_drawer_width">296dp</dimen>
+    <dimen name="m3t_about_item_height">52dp</dimen>
+    <dimen name="m3t_about_icon_card_size">80dp</dimen>
+    <dimen name="m3t_about_row_icon_size">22dp</dimen>
+    <dimen name="m3t_about_chevron_size">20dp</dimen>
+    <dimen name="m3t_about_row_padding_h">18dp</dimen>
+    <dimen name="m3t_about_row_text_gap">14dp</dimen>
+    <dimen name="m3t_about_card_padding">20dp</dimen>
+
+    <!-- M3T Typography -->
+    <style name="TextAppearance.M3t.ToolbarTitle" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/m3t_on_surface</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Title.Large" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:textSize">22sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/m3t_on_surface</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Title.Medium" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/m3t_on_surface</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Body.Medium" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/m3t_on_surface</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Body.Small" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/m3t_on_surface_variant</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Label" parent="TextAppearance.MaterialComponents.Button">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Chat.Message" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/m3t_on_surface</item>
+        <item name="android:lineSpacingExtra">4dp</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Chat.Thinking" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/m3t_thinking_text</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+
+    <!-- M3T Widgets -->
+    <style name="Widget.M3t.Toolbar" parent="Widget.MaterialComponents.Toolbar">
+        <item name="android:background">@drawable/glass_toolbar_bg</item>
+        <item name="titleTextAppearance">@style/TextAppearance.M3t.ToolbarTitle</item>
+        <item name="titleTextColor">@color/m3t_on_surface</item>
+    </style>
+
+    <style name="Widget.M3t.Card" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/m3t_surface</item>
+        <item name="cardCornerRadius">@dimen/m3t_radius_lg</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@color/m3t_outline_variant</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Filled" parent="Widget.MaterialComponents.Button">
+        <item name="android:minHeight">@dimen/m3t_button_height</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="backgroundTint">@color/m3t_primary</item>
+        <item name="android:textColor">@color/m3t_on_primary</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Outlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:minHeight">@dimen/m3t_button_height</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@color/m3t_outline</item>
+        <item name="android:textColor">@color/m3t_primary</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Text" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:textColor">@color/m3t_primary</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
+    </style>
+
+    <style name="Widget.M3t.TextInput" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">@color/m3t_outline</item>
+        <item name="boxStrokeWidth">1dp</item>
+        <item name="boxCornerRadiusTopStart">@dimen/m3t_radius_sm</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/m3t_radius_sm</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/m3t_radius_sm</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/m3t_radius_sm</item>
+        <item name="hintTextColor">@color/m3t_on_surface_variant</item>
+    </style>
+
+    <style name="Widget.M3t.DialogCard" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/m3t_surface</item>
+        <item name="cardCornerRadius">@dimen/m3t_radius_xl</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@color/m3t_outline_variant</item>
+    </style>
+
+    <!-- M3T Themes -->
+    <style name="Theme.M3t" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/m3t_primary</item>
+        <item name="colorOnPrimary">@color/m3t_on_primary</item>
+        <item name="colorPrimaryContainer">@color/m3t_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/m3t_on_primary_container</item>
+
+        <item name="colorSecondary">@color/m3t_secondary</item>
+        <item name="colorOnSecondary">@color/m3t_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/m3t_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/m3t_on_secondary_container</item>
+
+        <item name="colorTertiary">@color/m3t_tertiary</item>
+        <item name="colorOnTertiary">@color/m3t_on_tertiary</item>
+
+        <item name="colorError">@color/m3t_error</item>
+        <item name="colorOnError">@color/m3t_on_error</item>
+
+        <item name="colorSurface">@color/m3t_surface</item>
+        <item name="colorOnSurface">@color/m3t_on_surface</item>
+        <item name="colorSurfaceVariant">@color/m3t_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/m3t_on_surface_variant</item>
+
+        <item name="android:colorBackground">@color/m3t_background</item>
+        <item name="colorOnBackground">@color/m3t_on_background</item>
+
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">@bool/m3t_light_system_bars</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">@bool/m3t_light_system_bars</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+
+        <item name="materialAlertDialogTheme">@style/Theme.M3t.Dialog</item>
+        <item name="bottomSheetDialogTheme">@style/Theme.M3t.BottomSheet</item>
+        <item name="materialCardViewStyle">@style/Widget.M3t.Card</item>
+        <item name="materialButtonStyle">@style/Widget.M3t.Button.Filled</item>
+        <item name="textInputStyle">@style/Widget.M3t.TextInput</item>
+        <item name="toolbarStyle">@style/Widget.M3t.Toolbar</item>
+    </style>
+
+    <style name="Theme.M3t.App" parent="Theme.M3t">
+        <item name="android:windowBackground">@color/m3t_background</item>
+    </style>
+
+    <style name="Theme.M3t.TransparentLaunch" parent="Theme.M3t">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+
+    <style name="Theme.M3t.Dialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="colorPrimary">@color/m3t_primary</item>
+        <item name="colorOnSurface">@color/m3t_on_surface</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/TextAppearance.M3t.Body.Medium</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/TextAppearance.M3t.Title.Medium</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.M3t.Button.Text</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.M3t.Button.Text</item>
+    </style>
+
+    <style name="Theme.M3t.BottomSheet" parent="ThemeOverlay.MaterialComponents.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Widget.M3t.BottomSheet</item>
+    </style>
+
+    <style name="Widget.M3t.BottomSheet" parent="Widget.MaterialComponents.BottomSheet.Modal">
+        <item name="backgroundTint">@color/m3t_surface</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.M3t.BottomSheet</item>
+    </style>
+
+    <style name="ShapeAppearance.M3t.BottomSheet" parent="ShapeAppearance.MaterialComponents.LargeComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">@dimen/m3t_radius_xl</item>
+        <item name="cornerSizeTopRight">@dimen/m3t_radius_xl</item>
+    </style>
+
+    <!-- Compatibility aliases -->
+    <style name="Widget.Aries.Toolbar" parent="Widget.M3t.Toolbar" />
+    <style name="Widget.Aries.Card" parent="Widget.M3t.Card" />
+    <style name="Widget.Aries.Button" parent="Widget.M3t.Button.Filled" />
+    <style name="Widget.Aries.Button.Primary" parent="Widget.M3t.Button.Filled" />
+    <style name="Widget.Aries.Button.Secondary" parent="Widget.M3t.Button.Outlined" />
+    <style name="Widget.Aries.Button.Text" parent="Widget.M3t.Button.Text" />
+    <style name="Widget.Aries.TextInput" parent="Widget.M3t.TextInput" />
+
+</resources>
+

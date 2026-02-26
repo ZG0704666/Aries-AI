@@ -10,30 +10,28 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <TextView
             android:id="@+id/tvVersion"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textColor="@color/blue_glass_text"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textAppearance="@style/TextAppearance.M3t.Title.Medium" />
 
         <TextView
             android:id="@+id/tvPrerelease"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:background="@drawable/bg_prerelease_chip"
             android:paddingLeft="8dp"
-            android:paddingRight="8dp"
             android:paddingTop="2dp"
+            android:paddingRight="8dp"
             android:paddingBottom="2dp"
             android:text="预发布"
-            android:textColor="@android:color/white"
+            android:textColor="@color/m3t_on_primary"
             android:textSize="12sp"
-            android:background="@drawable/bg_prerelease_chip"
             android:visibility="gone" />
 
     </LinearLayout>
@@ -43,7 +41,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:textColor="@color/blue_glass_icon"
+        android:textAppearance="@style/TextAppearance.M3t.Body.Small"
         android:textSize="13sp" />
 
     <TextView
@@ -51,7 +49,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
-        android:textColor="@color/blue_glass_icon"
+        android:textAppearance="@style/TextAppearance.M3t.Body.Small"
         android:textSize="12sp" />
 
     <LinearLayout
@@ -62,6 +60,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDetails"
+            style="@style/Widget.M3t.Button.Outlined"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -70,19 +69,21 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnOpen"
+            style="@style/Widget.M3t.Button.Outlined"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="8dp"
             android:layout_weight="1"
+            android:layout_marginLeft="8dp"
             android:text="查看"
             android:textAllCaps="false" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDownload"
+            style="@style/Widget.M3t.Button.Filled"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="8dp"
             android:layout_weight="1"
+            android:layout_marginLeft="8dp"
             android:text="下载"
             android:textAllCaps="false" />
 
@@ -92,6 +93,7 @@
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginTop="10dp"
-        android:background="@color/blue_glass_stroke" />
+        android:background="@color/m3t_outline_variant" />
 
 </LinearLayout>
+

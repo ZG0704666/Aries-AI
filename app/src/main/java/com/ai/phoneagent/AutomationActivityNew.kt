@@ -193,7 +193,7 @@ class AutomationActivityNew : AppCompatActivity() {
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             WindowCompat.getInsetsController(window, binding.root).isAppearanceLightStatusBars =
-                    true
+                    resources.getBoolean(R.bool.m3t_light_system_bars)
         }
 
         val initialTop = binding.root.paddingTop
