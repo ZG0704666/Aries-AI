@@ -2860,9 +2860,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showHistoryDialog() {
-        val displayed = conversations.filter { it.messages.isNotEmpty() }.toMutableList()
+        val displayed =
+            conversations
+                .filter { it.messages.isNotEmpty() }
+                .sortedByDescending { it.updatedAt }
+                .toMutableList()
         if (displayed.isEmpty()) {
-            Toast.makeText(this, "暂无历史对话", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.history_empty), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -2887,6 +2891,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         val rv = containerView.findViewById<RecyclerView>(R.id.rvHistory)
+        DialogSizingUtil.applyCompactSizing(
+            context = this,
+            cardView = cardView,
+            scrollBody = null,
+            listView = rv,
+            hasList = true,
+        )
         rv.layoutManager = LinearLayoutManager(this)
         val adapter =
             ConversationAdapter(
@@ -2985,8 +2996,19 @@ class MainActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val c = items[position]
-            holder.title.text = if (c.title.isBlank()) "新对话" else c.title
-            holder.subtitle.visibility = View.GONE
+            holder.title.text =
+                if (c.title.isBlank()) {
+                    holder.itemView.context.getString(R.string.history_new_chat)
+                } else {
+                    c.title
+                }
+            val preview = c.messages.lastOrNull()?.content?.replace('\n', ' ')?.trim().orEmpty()
+            if (preview.isBlank()) {
+                holder.subtitle.visibility = View.GONE
+            } else {
+                holder.subtitle.visibility = View.VISIBLE
+                holder.subtitle.text = preview
+            }
             holder.itemView.setOnClickListener {
                 onClick(c)
                 onItemSelected?.invoke()

@@ -1,15 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    style="@style/Widget.M3t.Card"
+    style="@style/Widget.M3t.History.Item"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="2dp"
-    android:layout_marginBottom="@dimen/m3t_spacing_md"
-    app:cardBackgroundColor="@color/m3t_surface_container"
-    app:cardCornerRadius="18dp"
-    app:strokeColor="@color/m3t_outline_variant"
-    app:strokeWidth="1dp">
+    android:layout_marginHorizontal="@dimen/m3t_spacing_xxxs"
+    android:layout_marginBottom="@dimen/m3t_spacing_sm">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,13 +13,7 @@
         android:orientation="horizontal"
         android:padding="@dimen/m3t_spacing_lg">
 
-        <ImageView
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="@drawable/bg_circle_light"
-            android:padding="10dp"
-            android:src="@android:drawable/ic_menu_recent_history"
-            app:tint="@color/m3t_primary" />
+        <ImageView style="@style/Widget.M3t.History.ItemIcon" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -39,8 +28,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textAppearance="@style/TextAppearance.M3t.Title.Medium"
-                android:textSize="17sp" />
+                android:textAppearance="@style/TextAppearance.M3t.Title.Medium" />
 
             <TextView
                 android:id="@+id/tvSubtitle"
@@ -49,18 +37,12 @@
                 android:layout_marginTop="@dimen/m3t_spacing_xs"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
+                android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
 
         </LinearLayout>
 
-        <ImageView
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:alpha="0.4"
-            android:src="@android:drawable/ic_media_play"
-            app:tint="@color/m3t_on_surface_variant" />
+        <ImageView style="@style/Widget.M3t.History.ItemChevron" />
 
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>
-

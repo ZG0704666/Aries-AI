@@ -78,6 +78,9 @@
     <dimen name="m3t_about_row_padding_h">18dp</dimen>
     <dimen name="m3t_about_row_text_gap">14dp</dimen>
     <dimen name="m3t_about_card_padding">20dp</dimen>
+    <dimen name="m3t_history_close_button_size">36dp</dimen>
+    <dimen name="m3t_history_icon_size">42dp</dimen>
+    <dimen name="m3t_history_icon_padding">10dp</dimen>
 
     <!-- M3T Typography -->
     <style name="TextAppearance.M3t.ToolbarTitle" parent="TextAppearance.MaterialComponents.Headline6">
@@ -142,6 +145,14 @@
         <item name="strokeColor">@color/m3t_outline_variant</item>
     </style>
 
+    <style name="Widget.M3t.Card.Subtle" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/m3t_surface_container</item>
+        <item name="cardCornerRadius">@dimen/m3t_radius_md</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="strokeColor">@android:color/transparent</item>
+    </style>
+
     <style name="Widget.M3t.Button.Filled" parent="Widget.MaterialComponents.Button">
         <item name="android:minHeight">@dimen/m3t_button_height</item>
         <item name="cornerRadius">24dp</item>
@@ -181,6 +192,38 @@
         <item name="cardElevation">0dp</item>
         <item name="strokeWidth">0dp</item>
         <item name="strokeColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Widget.M3t.History.CloseButton" parent="">
+        <item name="android:layout_width">@dimen/m3t_history_close_button_size</item>
+        <item name="android:layout_height">@dimen/m3t_history_close_button_size</item>
+        <item name="android:background">@drawable/bg_circle_light</item>
+        <item name="android:padding">@dimen/m3t_spacing_sm</item>
+        <item name="android:src">@drawable/ic_close_24</item>
+        <item name="android:tint">@color/m3t_on_surface_variant</item>
+    </style>
+
+    <style name="Widget.M3t.History.Item" parent="Widget.M3t.Card.Subtle">
+        <item name="cardBackgroundColor">@color/m3t_surface_container</item>
+        <item name="cardCornerRadius">@dimen/m3t_radius_md</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+
+    <style name="Widget.M3t.History.ItemIcon" parent="">
+        <item name="android:layout_width">@dimen/m3t_history_icon_size</item>
+        <item name="android:layout_height">@dimen/m3t_history_icon_size</item>
+        <item name="android:background">@drawable/bg_circle_light</item>
+        <item name="android:padding">@dimen/m3t_history_icon_padding</item>
+        <item name="android:src">@android:drawable/ic_menu_recent_history</item>
+        <item name="android:tint">@color/m3t_primary</item>
+    </style>
+
+    <style name="Widget.M3t.History.ItemChevron" parent="">
+        <item name="android:layout_width">@dimen/m3t_about_chevron_size</item>
+        <item name="android:layout_height">@dimen/m3t_about_chevron_size</item>
+        <item name="android:alpha">0.5</item>
+        <item name="android:src">@drawable/ic_arrow_right</item>
+        <item name="android:tint">@color/m3t_on_surface_variant</item>
     </style>
 
     <!-- M3T Themes -->
