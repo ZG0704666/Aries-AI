@@ -81,42 +81,42 @@ adb --version
 
 | 依赖库 | 版本 | 用途 | 是否已包含 |
 |---------|------|------|-----------|
-| AndroidX Core KTX | 1.17.0 | Android核心库 | |
-| AndroidX AppCompat | 1.7.1 | 向后兼容 | |
-| Material Design | 1.13.0 | UI组件 | |
-| ConstraintLayout | 2.1.4 | 布局管理 | |
-| Lifecycle Runtime KTX | 2.8.7 | 生命周期管理 | |
-| RecyclerView | 1.3.2 | 列表显示 | |
+| AndroidX Core KTX | 1.17.0 | Android核心库 | ✅ |
+| AndroidX AppCompat | 1.7.1 | 向后兼容 | ✅ |
+| Material Design | 1.13.0 | UI组件 | ✅ |
+| ConstraintLayout | 2.1.4 | 布局管理 | ✅ |
+| Lifecycle Runtime KTX | 2.8.7 | 生命周期管理 | ✅ |
+| RecyclerView | 1.3.2 | 列表显示 | ✅ |
 
 ### 2.2 Kotlin协程
 
 | 依赖库 | 版本 | 用途 | 是否已包含 |
 |---------|------|------|-----------|
-| Kotlin Coroutines Android | 1.8.1 | 异步编程 | |
+| Kotlin Coroutines Android | 1.8.1 | 异步编程 | ✅ |
 
 ### 2.3 网络与序列化
 
 | 依赖库 | 版本 | 用途 | 是否已包含 |
 |---------|------|------|-----------|
-| OkHttp | 4.12.0 | HTTP客户端 | |
-| OkHttp Logging Interceptor | 4.12.0 | 日志拦截 | |
-| Retrofit | 2.11.0 | REST API | |
-| Retrofit Gson Converter | 2.11.0 | JSON转换 | |
-| Gson | 2.10.1 | JSON序列化 | |
+| OkHttp | 4.12.0 | HTTP客户端 | ✅ |
+| OkHttp Logging Interceptor | 4.12.0 | 日志拦截 | ✅ |
+| Retrofit | 2.11.0 | REST API | ✅ |
+| Retrofit Gson Converter | 2.11.0 | JSON转换 | ✅ |
+| Gson | 2.10.1 | JSON序列化 | ✅ |
 
 ### 2.4 后台任务
 
 | 依赖库 | 版本 | 用途 | 是否已包含 |
 |---------|------|------|-----------|
-| Work Runtime KTX | 2.9.1 | 后台任务 | |
+| Work Runtime KTX | 2.9.1 | 后台任务 | ✅ |
 
 ### 2.5 测试依赖
 
 | 依赖库 | 版本 | 用途 | 是否已包含 |
 |---------|------|------|-----------|
-| JUnit | 4.13.2 | 单元测试 | |
-| AndroidX JUnit | 1.3.2 | Android测试 | |
-| Espresso Core | 3.7.0 | UI测试 | |
+| JUnit | 4.13.2 | 单元测试 | ✅ |
+| AndroidX JUnit | 1.3.2 | Android测试 | ✅ |
+| Espresso Core | 3.7.0 | UI测试 | ✅ |
 
 ### 2.6 自动安装说明
 

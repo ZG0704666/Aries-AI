@@ -846,6 +846,120 @@
         }
 
         /* --- 7. 移动端优化 --- */
+
+        /* 超小屏幕优化 (iPhone SE 等) */
+        @media (max-width: 375px) {
+            nav .h-20 {
+                height: 3.25rem;
+            }
+
+            nav img {
+                width: 32px !important;
+                height: 32px !important;
+            }
+
+            nav span.text-xl {
+                font-size: 1rem !important;
+            }
+
+            header {
+                padding-top: calc(4.5rem + var(--safe-top)) !important;
+                padding-bottom: 2rem !important;
+                min-height: 100vh !important;
+                min-height: 100dvh !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+            }
+
+            header>div {
+                width: 100% !important;
+            }
+
+            header .max-w-xl {
+                max-width: 100% !important;
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+
+            h1 {
+                font-size: 1.6rem !important;
+                line-height: 1.2 !important;
+                margin-bottom: 0.875rem !important;
+            }
+
+            .hero-capsule {
+                padding: 10px 18px !important;
+                margin: 0 auto 1.25rem auto !important;
+                max-width: 95% !important;
+                border-radius: 9999px !important;
+                min-width: auto !important;
+                width: auto !important;
+            }
+
+            .hero-capsule>span {
+                font-size: 12px !important;
+                gap: 6px !important;
+                white-space: normal !important;
+                line-height: 1.3 !important;
+            }
+
+            .hero-capsule>span>span:first-child {
+                font-size: 14px !important;
+                flex-shrink: 0 !important;
+            }
+
+            .hero-capsule>span>span:last-child {
+                font-size: 12px !important;
+                line-height: 1.3 !important;
+            }
+
+            .model-badge {
+                font-size: 9px !important;
+                padding: 5px 12px !important;
+                margin-bottom: 1rem !important;
+                letter-spacing: 0.15em !important;
+            }
+
+            header p {
+                font-size: 0.875rem !important;
+                margin-top: 0.625rem !important;
+                margin-bottom: 1.5rem !important;
+                line-height: 1.5 !important;
+            }
+
+            #btn-download-hero,
+            header button {
+                font-size: 0.875rem !important;
+                padding: 0.875rem 1.5rem !important;
+                min-height: 48px !important;
+            }
+
+            header .flex.flex-col {
+                gap: 0.875rem !important;
+            }
+
+            header .mt-8,
+            header .mt-10,
+            header .mt-16 {
+                margin-top: 1.5rem !important;
+            }
+
+            .theme-toggle {
+                width: 44px !important;
+                height: 24px !important;
+            }
+
+            .toggle-dot {
+                width: 18px !important;
+                height: 18px !important;
+            }
+
+            html.dark .toggle-dot {
+                transform: translateX(20px) !important;
+            }
+        }
+
         @media (max-width: 640px) {
 
             /* 移动端性能优化：禁用或简化动画 */
@@ -882,49 +996,77 @@
             }
 
             nav .h-20 {
-                height: 4rem;
+                height: 3.75rem;
             }
 
+            /* 导航栏 Logo 和按钮优化 */
+            nav img {
+                width: 36px;
+                height: 36px;
+            }
+
+            nav span.text-xl {
+                font-size: 1.125rem;
+            }
+
+            /* 手机端首屏优化 - 调整顶部间距 */
             header {
-                padding-top: calc(6rem + var(--safe-top)) !important;
-                padding-bottom: 5rem !important;
+                padding-top: calc(5.5rem + var(--safe-top)) !important;
+                padding-bottom: 3rem !important;
+                min-height: 100vh !important;
+                min-height: 100dvh !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
             }
 
+            header>div {
+                width: 100% !important;
+            }
+
+            header .max-w-xl {
+                max-width: 100% !important;
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            /* Hero胶囊优化 */
             .hero-capsule {
                 border-radius: 9999px !important;
                 background: rgba(255, 255, 255, 0.15) !important;
-                padding: 10px 16px !important;
+                padding: 14px 28px !important;
                 display: inline-flex !important;
                 justify-content: center !important;
                 align-items: center !important;
                 min-height: auto !important;
                 height: auto !important;
                 width: auto !important;
-                max-width: 95% !important;
-                margin: 0 auto 2.5rem auto !important;
+                max-width: 90% !important;
+                margin: 0 auto 1.5rem auto !important;
             }
 
-            .hero-capsule>span.flex {
+            .hero-capsule>span {
                 display: flex !important;
                 flex-direction: row !important;
                 align-items: center !important;
                 justify-content: center !important;
                 flex-wrap: nowrap !important;
-                gap: 8px !important;
+                gap: 10px !important;
+                font-size: 15px !important;
+                line-height: 1.4 !important;
             }
 
-            .hero-capsule>span.flex>span:first-child {
-                flex-shrink: 0;
+            .hero-capsule>span>span:first-child {
+                flex-shrink: 0 !important;
                 display: inline-block;
-                font-size: 0.95rem !important;
+                font-size: 18px !important;
                 margin-top: -1px;
             }
 
-            .hero-capsule>span.flex>span:last-child {
-                font-size: 13px !important;
-                line-height: 1.3 !important;
-                text-align: left;
-                white-space: normal !important;
+            .hero-capsule>span>span:last-child {
+                font-size: 15px !important;
+                line-height: 1.4 !important;
+                text-align: center;
             }
 
             .hero-capsule span {
@@ -936,6 +1078,14 @@
             .hero-capsule .flex {
                 flex-wrap: wrap;
                 justify-content: center;
+            }
+
+            /* Model Badge 优化 */
+            .model-badge {
+                font-size: 11px !important;
+                padding: 7px 16px !important;
+                margin-bottom: 1.125rem !important;
+                letter-spacing: 0.2em !important;
             }
 
             .marquee-wrapper {
@@ -970,8 +1120,8 @@
             }
 
             section {
-                padding-left: 0.875rem;
-                padding-right: 0.875rem;
+                padding-left: 1rem;
+                padding-right: 1rem;
                 padding-top: 3rem;
                 padding-bottom: 3rem;
             }
@@ -981,25 +1131,28 @@
                 padding: 1.25rem !important;
             }
 
+            /* 标题字体优化 */
             h1 {
-                font-size: 2rem !important;
-                line-height: 1.15 !important;
+                font-size: 2.25rem !important;
+                line-height: 1.2 !important;
+                margin-bottom: 1rem !important;
             }
 
             h2 {
-                font-size: 1.35rem !important;
+                font-size: 1.5rem !important;
             }
 
             h3 {
-                font-size: 1.1rem !important;
+                font-size: 1.2rem !important;
             }
 
             h4 {
-                font-size: 0.95rem !important;
+                font-size: 1rem !important;
             }
 
+            /* 段落优化 */
             p {
-                font-size: 0.95rem !important;
+                font-size: 1rem !important;
                 line-height: 1.6 !important;
             }
 
@@ -1013,35 +1166,134 @@
                 height: 22px;
             }
 
-            .model-badge {
-                font-size: 10px !important;
-                padding: 5px 12px !important;
-                margin-bottom: 1.5rem !important;
-            }
-
             header .grid {
                 gap: 2rem !important;
             }
 
-            header h1 {
+            header p {
+                margin-top: 0.75rem !important;
                 margin-bottom: 1.5rem !important;
             }
 
-            header p {
-                margin-top: 1.25rem !important;
-                margin-bottom: 2.5rem !important;
+            header .mt-8,
+            header .mt-10,
+            header .mt-16 {
+                margin-top: 2rem !important;
             }
 
+            /* 按钮优化 */
             #btn-download-hero,
             #btn-download-nav,
             header button {
-                font-size: 0.9rem !important;
-                padding: 0.85rem 1.75rem !important;
-                min-height: 48px !important;
+                font-size: 1rem !important;
+                padding: 1rem 2.25rem !important;
+                min-height: 54px !important;
             }
 
             header .flex.flex-col {
-                gap: 1.25rem !important;
+                gap: 1rem !important;
+            }
+
+            header .flex.flex-col.sm\:flex-row {
+                flex-direction: column !important;
+            }
+
+            /* 手机展示区域优化 */
+            section.min-h-screen.lg\:hidden {
+                padding-top: 3rem !important;
+                padding-bottom: 3rem !important;
+                min-height: auto !important;
+            }
+
+            /* 核心能力区域优化 */
+            #features .grid.lg\:grid-cols-2 {
+                gap: 1.5rem !important;
+            }
+
+            #features .glass-card {
+                padding: 1.5rem !important;
+            }
+
+            #features h2 {
+                font-size: 1.5rem !important;
+                margin-bottom: 1.5rem !important;
+            }
+
+            #features .space-y-6 {
+                gap: 1rem !important;
+            }
+
+            #features .flex.gap-5 {
+                gap: 0.875rem !important;
+            }
+
+            /* 架构图区域优化 */
+            #features .glass-card.rounded-\[1\.5rem\] {
+                padding: 1.25rem !important;
+            }
+
+            #features .glass-card.rounded-\[1\.5rem\] .space-y-6 {
+                gap: 0.875rem !important;
+            }
+
+            #features .glass-card.rounded-\[1\.5rem\] .glass-card {
+                padding: 0.875rem 1rem !important;
+            }
+
+            #features .glass-card.rounded-\[1\.5rem\] .tech-icon-box {
+                width: 40px;
+                height: 40px;
+                border-radius: 10px;
+            }
+
+            #features .glass-card.rounded-\[1\.5rem\] .icon-svg {
+                width: 20px;
+                height: 20px;
+            }
+
+            /* 成功案例区域优化 */
+            #cases .grid.md\:grid-cols-3 {
+                grid-template-columns: 1fr !important;
+                gap: 1rem !important;
+            }
+
+            #cases h2 {
+                margin-bottom: 2rem !important;
+            }
+
+            /* 路线图区域优化 */
+            #roadmap .grid.md\:grid-cols-2 {
+                grid-template-columns: 1fr !important;
+                gap: 1rem !important;
+            }
+
+            #roadmap .glass-card {
+                padding: 1.25rem !important;
+            }
+
+            /* Footer 优化 */
+            footer .flex.flex-wrap {
+                gap: 0.75rem !important;
+            }
+
+            footer .glass-card {
+                padding: 0.5rem 0.875rem !important;
+                font-size: 0.875rem !important;
+            }
+
+            /* 主题切换按钮优化 */
+            .theme-toggle {
+                width: 48px;
+                height: 26px;
+            }
+
+            .toggle-dot {
+                width: 20px;
+                height: 20px;
+            }
+
+            html.dark .toggle-dot {
+                transform: translateX(22px);
             }
         }
 
@@ -1056,50 +1308,167 @@
             }
 
             h1 {
-                font-size: 1.75rem !important;
+                font-size: 1.85rem !important;
+                margin-bottom: 1rem !important;
             }
 
             h2 {
-                font-size: 1.2rem !important;
+                font-size: 1.35rem !important;
             }
 
             header {
-                padding-top: calc(5.5rem + var(--safe-top)) !important;
-                padding-bottom: 4rem !important;
+                padding-top: calc(5rem + var(--safe-top)) !important;
+                padding-bottom: 2.5rem !important;
+                min-height: 100vh !important;
+                min-height: 100dvh !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+            }
+
+            header>div {
+                width: 100% !important;
+            }
+
+            header .max-w-xl {
+                max-width: 100% !important;
+                padding-left: 1rem;
+                padding-right: 1rem;
             }
 
             .hero-capsule {
-                padding: 8px 12px !important;
-                margin: 0 auto 2rem auto !important;
+                padding: 12px 22px !important;
+                margin: 0 auto 1.25rem auto !important;
+                max-width: 92% !important;
+                border-radius: 9999px !important;
+                min-width: auto !important;
+                width: auto !important;
             }
 
-            .hero-capsule>span.flex>span:first-child {
-                font-size: 0.85rem !important;
+            .hero-capsule>span {
+                font-size: 14px !important;
+                gap: 8px !important;
+                white-space: normal !important;
+                line-height: 1.4 !important;
             }
 
-            .hero-capsule>span.flex>span:last-child {
-                font-size: 12px !important;
+            .hero-capsule>span>span:first-child {
+                font-size: 16px !important;
+                flex-shrink: 0 !important;
+            }
+
+            .hero-capsule>span>span:last-child {
+                font-size: 14px !important;
+                line-height: 1.4 !important;
             }
 
             .model-badge {
-                margin-bottom: 1.25rem !important;
-            }
-
-            header h1 {
-                margin-bottom: 1.25rem !important;
+                margin-bottom: 1.125rem !important;
+                font-size: 10px !important;
+                padding: 6px 14px !important;
             }
 
             header p {
-                margin-top: 1rem !important;
-                margin-bottom: 2rem !important;
+                margin-top: 0.75rem !important;
+                margin-bottom: 1.75rem !important;
+                font-size: 0.95rem !important;
             }
 
             header .flex.flex-col {
                 gap: 1rem !important;
             }
 
+            header .mt-8,
+            header .mt-10,
+            header .mt-16 {
+                margin-top: 1.75rem !important;
+            }
+
             p {
                 font-size: 0.9rem !important;
+            }
+
+            #btn-download-hero,
+            header button {
+                font-size: 0.95rem !important;
+                padding: 1rem 2rem !important;
+                min-height: 52px !important;
+            }
+        }
+
+        /* 平板端优化 */
+        @media (min-width: 641px) and (max-width: 1024px) {
+            header {
+                padding-top: calc(5rem + var(--safe-top)) !important;
+                min-height: 100vh !important;
+                min-height: 100dvh !important;
+                padding-bottom: 3rem !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+            }
+
+            header>div {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            header .grid {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 100% !important;
+            }
+
+            header .grid>div {
+                width: 100% !important;
+                max-width: 600px !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+            }
+
+            header .max-w-xl {
+                max-width: 600px !important;
+                width: 100% !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+            }
+
+            h1 {
+                font-size: 2.75rem !important;
+            }
+
+            .hero-capsule {
+                max-width: 85% !important;
+                padding: 16px 32px !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+            }
+
+            .hero-capsule>span {
+                font-size: 16px !important;
+            }
+
+            .hero-capsule>span>span:first-child {
+                font-size: 20px !important;
+            }
+
+            .model-badge {
+                margin-left: auto !important;
+                margin-right: auto !important;
+            }
+
+            section {
+                padding-left: 1.5rem;
+                padding-right: 1.5rem;
+            }
+
+            #features .grid.lg\:grid-cols-2 {
+                grid-template-columns: 1fr !important;
             }
         }
 
@@ -1183,15 +1552,35 @@
                 </div>
 
 
-                <!-- Hamburger Mobile Menu Button -->
-                <button
-                    class="md:hidden w-10 h-10 flex items-center justify-center rounded-full glass-card border border-white/10 text-gray-600 dark:text-gray-300 active:scale-95 transition"
-                    onclick="toggleMobileMenu()">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
-                </button>
+                <!-- 移动端顶部控制区：左侧主题切换，右侧菜单按钮 -->
+                <div class="md:hidden flex items-center gap-3">
+                    <!-- Theme Toggle (左侧) -->
+                    <div class="relative flex flex-col items-center">
+                        <div class="theme-toggle" onclick="toggleTheme()">
+                            <div class="toggle-dot">
+                                <svg class="w-3 h-3 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <svg class="w-3 h-3 hidden dark:block" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hamburger Mobile Menu Button (右侧) -->
+                    <button
+                        class="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 border border-white/10 dark:bg-white/10 dark:border-white/10 text-gray-600 dark:text-gray-300 active:scale-95 transition"
+                        onclick="toggleMobileMenu()">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                </div>
 
                 <!-- Menu (Order Updated) -->
                 <div class="hidden md:flex items-center space-x-8 font-medium text-sm">
@@ -1235,18 +1624,20 @@
     </nav>
 
     <!-- Hero Section -->
-    <header class="relative min-h-screen px-5 sm:px-8 pt-24 pb-14 overflow-hidden">
-        <div class="max-w-7xl mx-auto relative z-10">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+    <header class="relative min-h-screen px-4 sm:px-6 lg:px-8 pt-24 pb-14 overflow-hidden">
+        <div class="max-w-7xl mx-auto relative z-10 w-full h-full">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center h-full">
 
                 <!-- Left: Copy -->
-                <div class="text-center max-w-xl lg:max-w-[560px] lg:ml-auto lg:mr-4 mx-auto">
+                <div
+                    class="text-center max-w-xl lg:max-w-[560px] mx-auto w-full flex flex-col items-center justify-center">
                     <div
-                        class="hero-capsule relative inline-flex items-center justify-center text-center max-w-[92%] sm:max-w-[560px] glass-card rounded-full px-5 sm:px-10 py-3 sm:py-4 mb-7 cursor-pointer hover:scale-105 transition-transform duration-300 group shadow-[0_0_35px_rgba(59,130,246,0.3)] border border-blue-400/30">
+                        class="hero-capsule relative inline-flex items-center justify-center text-center glass-card rounded-full pl-4 pr-5 sm:pl-6 sm:pr-8 py-3 sm:py-3.5 mb-6 sm:mb-7 cursor-pointer hover:scale-105 transition-transform duration-300 group shadow-[0_0_35px_rgba(59,130,246,0.3)] border border-blue-400/30">
                         <span
-                            class="relative z-10 font-bold text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 text-gradient-flow tracking-wide text-center">
-                            <span class="animate-bounce-slight text-base sm:text-xl">✨</span>
-                            <span class="text-center">想旅行？说走就走！Aries 支持一句话定高铁票/机票！</span>
+                            class="relative z-10 font-bold text-xs sm:text-sm md:text-base flex items-center justify-center gap-2 sm:gap-3 text-gradient-flow tracking-wide text-center"
+                            style="transform: translateX(-2px);">
+                            <span class="animate-bounce-slight text-sm sm:text-lg flex-shrink-0">✨</span>
+                            <span class="text-center">想旅行？Aries 一句话定高铁票/机票！</span>
                         </span>
                     </div>
 
@@ -1282,9 +1673,10 @@
                     </div>
 
                     <!-- 手机端向下滚动提示 -->
-                    <div class="mt-16 flex justify-center lg:hidden">
+                    <div class="mt-8 sm:mt-10 flex justify-center lg:hidden">
                         <div class="animate-bounce">
-                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
                             </svg>
@@ -1724,8 +2116,8 @@
         <div
             class="relative glass-card modal-panel w-full max-w-md sm:max-w-lg md:max-w-2xl p-5 sm:p-6 md:p-8 text-left rounded-2xl shadow-2xl dark:text-white text-gray-900 max-h-[90vh] overflow-y-auto">
             <button id="download-modal-close"
-                class="absolute top-4 right-4 sm:top-5 sm:right-5 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors"
-                type="button" aria-label="关闭">✕</button>
+                class="absolute top-4 right-4 sm:top-5 sm:right-5 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors z-50 cursor-pointer"
+                type="button" aria-label="关闭" onclick="closeDownloadModal()">✕</button>
 
             <div class="flex items-start gap-3 sm:gap-4 mb-6 pr-12">
                 <img src="./assets/favicon.png" alt="Aries AI 图标" loading="lazy" decoding="async"
@@ -1743,8 +2135,7 @@
                     target="_blank" rel="noopener noreferrer">
                     <div class="flex-1">
                         <div class="text-sm sm:text-base md:text-lg font-semibold">官方直连</div>
-                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">GitHub Releases V1.2.0
-                        </div>
+                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">GitHub Releases</div>
                     </div>
                     <span
                         class="text-xs sm:text-sm font-semibold text-blue-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">官方</span>
@@ -1801,8 +2192,20 @@
                 document.body.style.overflow = ''; // Restore scrolling
             }
         }
+
+        // 关闭下载弹窗
+        function closeDownloadModal() {
+            const modal = document.getElementById('download-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                modal.setAttribute('aria-hidden', 'true');
+            }
+        }
+
         // Expose to window immediately
         window.toggleMobileMenu = toggleMobileMenu;
+        window.closeDownloadModal = closeDownloadModal;
     </script>
     <script defer
         src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015"
@@ -1841,23 +2244,6 @@
             </div>
 
             <div class="pt-6 border-t border-gray-200/10 dark:border-white/5 space-y-4">
-                <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-600 dark:text-gray-400">外观主题</span>
-                    <div class="theme-toggle" onclick="toggleTheme()">
-                        <div class="toggle-dot">
-                            <svg class="w-3 h-3 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                            <svg class="w-3 h-3 hidden dark:block" fill="none" viewBox="0 0 24 24"
-                                stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-
                 <div
                     class="text-xs text-slate-500 dark:text-slate-400 pt-4 border-t border-gray-100 dark:border-white/5 space-y-2">
                     <p class="font-bold mb-1 text-slate-700 dark:text-slate-300">联系我们</p>
