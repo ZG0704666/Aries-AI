@@ -92,13 +92,13 @@
                 <EditText
                     android:id="@+id/apiInput"
                     android:layout_width="0dp"
-                    android:layout_height="@dimen/m3t_drawer_input_min_height"
+                    android:layout_height="@dimen/m3t_compact_button_height"
                     android:layout_weight="1"
                     android:background="@drawable/bg_input_field_drawer"
                     android:gravity="center_vertical"
                     android:hint="@string/m3t_sidebar_api_hint"
                     android:inputType="textNoSuggestions|textVisiblePassword"
-                    android:minHeight="@dimen/m3t_drawer_input_min_height"
+                    android:minHeight="@dimen/m3t_compact_button_height"
                     android:paddingHorizontal="@dimen/m3t_about_row_text_gap"
                     android:textColor="@color/m3t_on_surface"
                     android:textColorHint="@color/m3t_on_surface_variant"
@@ -108,11 +108,9 @@
                     android:id="@+id/btnPasteApiInput"
                     style="@style/Widget.M3t.Button.Tonal.Compact"
                     android:layout_width="wrap_content"
-                    android:layout_height="@dimen/m3t_drawer_input_min_height"
+                    android:layout_height="@dimen/m3t_compact_button_height"
                     android:layout_marginStart="@dimen/m3t_spacing_sm"
-                    android:minHeight="@dimen/m3t_drawer_input_min_height"
-                    android:text="@string/m3t_sidebar_api_paste"
-                    android:paddingVertical="0dp" />
+                    android:text="@string/m3t_sidebar_api_paste" />
             </LinearLayout>
 
             <LinearLayout

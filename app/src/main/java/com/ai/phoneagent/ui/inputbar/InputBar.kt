@@ -92,116 +92,84 @@ fun InputBar(
                 .fillMaxWidth()
                 .padding(start = spacingMd, top = 0.dp, end = spacingMd, bottom = spacingXxxs)
         ) {
-            AnimatedContent(
-                targetState = isVoiceMode,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(150)) with
-                        fadeOut(animationSpec = tween(150))
-                },
-                label = "bottomBarMode"
-            ) { voiceMode ->
-                if (voiceMode) {
+            val containerHeight by animateDpAsState(
+                targetValue = if (isVoiceMode) 48.dp else 52.dp,
+                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                label = "inputBarContainerHeight"
+            )
+            val containerHorizontalPadding by animateDpAsState(
+                targetValue = if (isVoiceMode) 14.dp else spacingXs,
+                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                label = "inputBarContainerPadding"
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacingXs)
+                    .height(containerHeight)
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(colorInputField)
+                    .animateContentSize(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
+                    .padding(horizontal = containerHorizontalPadding, vertical = spacingSm),
+                contentAlignment = if (isVoiceMode) Alignment.Center else Alignment.CenterStart
+            ) {
+                if (isVoiceMode) {
                     // 语音模式：按住说话区域扩展到整个底栏，键盘图标融入按钮内部
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = spacingXs)
-                            .heightIn(min = 48.dp)
-                            .clip(RoundedCornerShape(30.dp))
-                            .background(colorInputField)
-                            .padding(horizontal = 14.dp, vertical = spacingSm),
-                        contentAlignment = Alignment.Center
+                    VoiceRecordButtonHandler(
+                        onPressStart = onVoiceStart,
+                        onPressEnd = onVoiceEnd,
+                        onCancel = onVoiceCancel,
+                        onOffsetChange = { offsetY, _ ->
+                            val isCancelling = offsetY < -150f
+                            onUpdateCancelState(isCancelling)
+                        }
+                    )
+
+                    Text(
+                        text = "按住说话",
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorTextMain
+                        )
+                    )
+
+                    IconButton(
+                        onClick = { onModeChange(false) },
+                        modifier = Modifier.align(Alignment.CenterStart).size(32.dp)
                     ) {
-                        VoiceRecordButtonHandler(
-                            onPressStart = onVoiceStart,
-                            onPressEnd = onVoiceEnd,
-                            onCancel = onVoiceCancel,
-                            onOffsetChange = { offsetY, _ ->
-                                val isCancelling = offsetY < -150f
-                                onUpdateCancelState(isCancelling)
-                            }
+                        Icon(
+                            imageVector = Icons.Default.Keyboard,
+                            contentDescription = "切换键盘",
+                            tint = colorTextSecondary,
+                            modifier = Modifier.size(24.dp)
                         )
-
-                        Text(
-                            text = "按住说话",
-                            style = TextStyle(
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = colorTextMain
-                            )
-                        )
-
+                    }
+                } else {
+                    // 文本模式：输入框扩展为整条底栏，操作图标内嵌到输入框
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         IconButton(
-                            onClick = { onModeChange(false) },
-                            modifier = Modifier.align(Alignment.CenterStart).size(32.dp)
+                            onClick = { onModeChange(true) },
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Keyboard,
-                                contentDescription = "切换键盘",
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = "语音输入",
                                 tint = colorTextSecondary,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
-                    }
-                } else {
-                    val sideSlotWidth = 72.dp
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = spacingXs, vertical = 0.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // 左侧等宽槽位：语音切换 + Agent
-                        Box(
-                            modifier = Modifier.width(sideSlotWidth),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                IconButton(
-                                    onClick = { onModeChange(true) },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Mic,
-                                        contentDescription = "语音输入",
-                                        tint = colorTextSecondary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
+                        Spacer(modifier = Modifier.width(spacingXs))
 
-                                IconButton(
-                                    onClick = { onAgentToggle(!agentModeEnabled) },
-                                    modifier = Modifier.size(32.dp),
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = if (agentModeEnabled) colorScheme.primary else Color.Transparent,
-                                        contentColor = if (agentModeEnabled) colorScheme.onPrimary else colorTextSecondary
-                                    )
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.SmartToy,
-                                        contentDescription = if (agentModeEnabled) "Agent 模式已激活" else "Agent 模式未激活",
-                                        tint = if (agentModeEnabled) colorScheme.onPrimary else colorTextSecondary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(spacingSm))
-
-                        // 文本模式：输入框
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .heightIn(min = 48.dp)
-                                .clip(RoundedCornerShape(30.dp))
-                                .background(colorInputField)
-                                .padding(horizontal = 14.dp, vertical = spacingSm),
+                                .heightIn(min = 32.dp),
                             contentAlignment = Alignment.CenterStart
                         ) {
                             if (text.isEmpty()) {
@@ -220,46 +188,34 @@ fun InputBar(
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(spacingSm))
+                        Spacer(modifier = Modifier.width(spacingXs))
 
-                        // 右侧等宽槽位：附件 + 发送
-                        Box(
-                            modifier = Modifier.width(sideSlotWidth),
-                            contentAlignment = Alignment.CenterEnd
+                        IconButton(
+                            onClick = onAttachmentClick,
+                            modifier = Modifier.size(32.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(spacingXs)
-                            ) {
-                                IconButton(
-                                    onClick = onAttachmentClick,
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = "附件",
-                                        tint = colorTextSecondary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "附件",
+                                tint = colorTextSecondary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
 
-                                // 发送按钮 (圆形背景)
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(if (text.isNotEmpty()) colorButtonEnabled else colorButtonDisabled)
-                                        .clickable(enabled = text.isNotEmpty(), onClick = onSend),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_send_24),
-                                        contentDescription = "发送",
-                                        tint = colorButtonIcon,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(if (text.isNotEmpty()) colorButtonEnabled else colorButtonDisabled)
+                                .clickable(enabled = text.isNotEmpty(), onClick = onSend),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_send_24),
+                                contentDescription = "发送",
+                                tint = colorButtonIcon,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                 }

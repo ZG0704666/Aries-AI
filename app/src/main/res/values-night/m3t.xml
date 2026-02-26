@@ -35,14 +35,14 @@
     <color name="m3t_success">#86D990</color>
     <color name="m3t_warning">#FFB95E</color>
 
-    <color name="m3t_thinking_bg">#1A2430</color>
-    <color name="m3t_thinking_text">#B6C1D3</color>
-    <color name="m3t_thinking_stroke">#718097</color>
+    <color name="m3t_thinking_bg">#233448</color>
+    <color name="m3t_thinking_text">#E4EEFF</color>
+    <color name="m3t_thinking_stroke">#AFC2DF</color>
 
     <color name="m3t_message_ai_bg">#1A2430</color>
     <color name="m3t_message_user_bg">#234067</color>
-    <color name="m3t_message_action">#C5CFDF</color>
-    <color name="m3t_message_action_stroke">#40FFFFFF</color>
+    <color name="m3t_message_action">#F0F5FF</color>
+    <color name="m3t_message_action_stroke">#66FFFFFF</color>
 
     <color name="m3t_drawer_background">#152231</color>
     <color name="m3t_drawer_section_bg">#1A2A3C</color>
