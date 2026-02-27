@@ -138,11 +138,13 @@
                     android:text="@string/m3t_sidebar_third_party_api"
                     android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
 
-                <com.google.android.material.switchmaterial.SwitchMaterial
+                <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/swUseThirdPartyApi"
+                    style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:checked="false" />
+                    android:checked="false"
+                    app:useMaterialThemeColors="true" />
             </LinearLayout>
 
             <LinearLayout

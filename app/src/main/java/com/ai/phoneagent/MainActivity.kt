@@ -102,7 +102,7 @@ import android.view.WindowManager
 import android.graphics.drawable.ColorDrawable
 import android.view.ViewAnimationUtils
 import android.text.Html
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.materialswitch.MaterialSwitch
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import com.ai.phoneagent.core.automation.ActivityAutomationInstructionGateway
@@ -209,7 +209,7 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var apiNeedsRecheckToastShown: Boolean = false
     private lateinit var apiInput: EditText
     private lateinit var apiStatus: TextView
-    private lateinit var apiThirdPartySwitch: SwitchMaterial
+    private lateinit var apiThirdPartySwitch: MaterialSwitch
     private lateinit var apiThirdPartyContainer: View
     private lateinit var apiBaseUrlInput: EditText
     private lateinit var apiModelInput: EditText
@@ -1088,7 +1088,7 @@ class MainActivity : AppCompatActivity() {
 
         apiInput = header.findViewById<EditText>(R.id.apiInput)
         apiStatus = header.findViewById<TextView>(R.id.apiStatus)
-        apiThirdPartySwitch = header.findViewById<SwitchMaterial>(R.id.swUseThirdPartyApi)
+        apiThirdPartySwitch = header.findViewById<MaterialSwitch>(R.id.swUseThirdPartyApi)
         apiThirdPartyContainer = header.findViewById<View>(R.id.apiThirdPartyContainer)
         apiBaseUrlInput = header.findViewById<EditText>(R.id.apiBaseUrlInput)
         apiModelInput = header.findViewById<EditText>(R.id.apiModelInput)

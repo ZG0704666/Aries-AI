@@ -60,7 +60,7 @@ import com.ai.phoneagent.databinding.ActivityAutomationBinding
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.speech.SherpaSpeechRecognizer
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.materialswitch.MaterialSwitch
 import rikka.shizuku.Shizuku
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
@@ -108,7 +108,7 @@ class AutomationActivityNew : AppCompatActivity() {
     private lateinit var btnPauseAgent: MaterialButton
     private lateinit var btnStopAgent: MaterialButton
 
-    private lateinit var switchShizukuInteraction: SwitchMaterial
+    private lateinit var switchShizukuInteraction: MaterialSwitch
 
     // 执行模式相关
     private lateinit var rgExecutionMode: RadioGroup
