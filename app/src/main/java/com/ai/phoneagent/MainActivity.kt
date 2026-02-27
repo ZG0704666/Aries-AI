@@ -985,22 +985,33 @@ class MainActivity : AppCompatActivity() {
         val targetX = (if (savedX != Int.MIN_VALUE) savedX else fallbackX).toFloat()
         val targetY = (if (savedY != Int.MIN_VALUE) savedY else fallbackY).toFloat()
         
-        // 收集当前聊天消息传递给小窗
+        // 仅保留近期消息，避免历史过大导致小窗启动异常
         val messagesList = ArrayList<String>()
-        activeConversation?.messages?.forEach { msg ->
+        activeConversation?.messages?.takeLast(120)?.forEach { msg ->
             messagesList.add("${if (msg.isUser) "我" else "Aries"}: ${msg.content}")
         }
 
-        // 启动悬浮窗服务，传递消息和位置
-        FloatingChatService.start(
-            this@MainActivity,
-            messages = messagesList,
-            fromX = targetX,
-            fromY = targetY,
-            fromWidth = miniWindowWidth,
-            fromHeight = miniWindowHeight,
-            showDelayMs = 120L,
-        )
+        val startOk = runCatching {
+            FloatingChatService.cacheMessagesForNextStart(this@MainActivity, messagesList)
+            // 消息从本地缓存恢复，避免通过 Intent 传长列表触发崩溃
+            FloatingChatService.start(
+                this@MainActivity,
+                messages = null,
+                fromX = targetX,
+                fromY = targetY,
+                fromWidth = miniWindowWidth,
+                fromHeight = miniWindowHeight,
+                showDelayMs = 120L,
+            )
+            true
+        }.getOrElse {
+            Toast.makeText(this, "小窗启动失败，请重试", Toast.LENGTH_SHORT).show()
+            false
+        }
+        if (!startOk) {
+            isAnimatingToMiniWindow = false
+            return
+        }
 
         isAnimatingToMiniWindow = false
 

@@ -76,6 +76,9 @@ class FloatingChatService : Service() {
         private const val CHANNEL_ID = "floating_chat_channel"
         private const val OPEN_APP_PI_REQUEST_CODE = 1002
         private const val LAUNCH_PROXY_EXTRA_TARGET_INTENT = "target_intent"
+        private const val PREFS_NAME = "floating_chat_prefs"
+        private const val PREF_KEY_FLOATING_MESSAGES = "floating_messages"
+        private const val PREF_KEY_FLOATING_MESSAGES_UPDATED_AT = "floating_messages_updated_at"
 
         const val ACTION_FLOATING_RETURNED = "com.ai.phoneagent.action.FLOATING_RETURNED"
 
@@ -107,6 +110,17 @@ class FloatingChatService : Service() {
             return Settings.canDrawOverlays(context)
         }
 
+        fun cacheMessagesForNextStart(context: Context, messages: List<String>) {
+            runCatching {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val json = com.google.gson.Gson().toJson(messages)
+                prefs.edit()
+                        .putString(PREF_KEY_FLOATING_MESSAGES, json)
+                        .putLong(PREF_KEY_FLOATING_MESSAGES_UPDATED_AT, System.currentTimeMillis())
+                        .apply()
+            }
+        }
+
         /** 启动悬浮窗服务 */
         fun start(
                 context: Context,
@@ -118,9 +132,12 @@ class FloatingChatService : Service() {
                 showDelayMs: Long = 80L,
         ) {
             if (!hasOverlayPermission(context)) return
+            if (!messages.isNullOrEmpty()) {
+                cacheMessagesForNextStart(context, messages)
+            }
             val intent =
                     Intent(context, FloatingChatService::class.java).apply {
-                        messages?.let { putStringArrayListExtra("messages", it) }
+                        // restore from prefs in onStartCommand to avoid large binder payload
                         putExtra("from_x", fromX)
                         putExtra("from_y", fromY)
                         putExtra("from_width", fromWidth)
@@ -395,7 +412,7 @@ class FloatingChatService : Service() {
                         restoreOverlayAfterFailedReturn()
                     }
                 },
-                6000L
+                3500L
         )
     }
 
@@ -785,7 +802,8 @@ class FloatingChatService : Service() {
 
     // 显示聊天窗口（原有逻辑）
     private fun showChatWindow() {
-        val inflater = LayoutInflater.from(this)
+        val themedContext = ContextThemeWrapper(this, R.style.Theme_PhoneAgent)
+        val inflater = LayoutInflater.from(themedContext)
         floatingView = inflater.inflate(R.layout.floating_chat_window, null)
         setupFloatingView()
         windowManager.addView(floatingView, layoutParams)
@@ -1024,19 +1042,22 @@ class FloatingChatService : Service() {
             return
         }
 
-        // 【优化】立即隐藏视图，完全避免闪烁
+        // 放大恢复时保持悬浮窗可见，避免“消失无响应”的感知。
         if (openApp) {
-            // 立即将视图设为不可见和不可触摸
             view.animate().cancel()
-            view.visibility = View.INVISIBLE
-            setTouchable(false)
-            overlayHiddenForReturn = true
+            view.visibility = View.VISIBLE
+            view.alpha = 0.78f
+            view.scaleX = 0.98f
+            view.scaleY = 0.98f
+            overlayHiddenForReturn = false
+            overlayTouchBlockedForReturn = false
+            prepareOverlayForReturn()
 
             awaitingReturnAck = true
             scheduleRetryOpenAppWhileWaitingAck()
             scheduleStopAfterReturnTimeout()
 
-            // 直接拉起主界面，不再做淡出动画（因为已经 INVISIBLE 了）
+            // 仅在主界面确认回执后才 stopSelf；失败则超时自动恢复可操作状态。
             mainHandler.post { requestOpenApp(allowProxy = false) }
             return
         }
