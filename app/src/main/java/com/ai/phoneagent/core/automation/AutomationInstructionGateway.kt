@@ -75,6 +75,7 @@ object ActivityAutomationInstructionGateway : AutomationInstructionGateway {
                 instruction = instruction,
                 source = AutomationInstructionRequest.Source.ADVANCED_AI,
                 autoStart = true,
+                keepMainOnTop = true,
             )
         )
     }

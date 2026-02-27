@@ -324,15 +324,29 @@ class AutomationActivityNew : AppCompatActivity() {
                 VirtualDisplayConfig.getUseShizukuInteraction(this@AutomationActivityNew)
         switchShizukuInteraction.setOnCheckedChangeListener { _, checked ->
             VirtualDisplayConfig.setUseShizukuInteraction(this@AutomationActivityNew, checked)
-            if (checked && !ensureShizukuPermissionGranted()) {
+            if (checked) {
                 val state = collectRuntimeConnectionState()
-                val msg =
-                        if (!state.shizukuBinderConnected) {
-                            "未检测到 Shizuku 服务连接，请先启动 Shizuku"
-                        } else {
-                            "未检测到 Shizuku 授权，已发起授权请求，请先在弹窗中授予"
-                        }
-                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+                if (!state.shizukuBinderConnected) {
+                    Toast.makeText(this, "未检测到 Shizuku 服务连接，请先启动 Shizuku", Toast.LENGTH_SHORT).show()
+                    checkAccessibilityStatus()
+                    return@setOnCheckedChangeListener
+                }
+                if (!state.shizukuPermissionGranted && !ensureShizukuPermissionGranted()) {
+                    Toast.makeText(this, "未检测到 Shizuku 授权，已发起授权请求，请先在弹窗中授予", Toast.LENGTH_SHORT).show()
+                    checkAccessibilityStatus()
+                    return@setOnCheckedChangeListener
+                }
+
+                val latestState = collectRuntimeConnectionState()
+                if (!latestState.accessibilityEnabled && latestState.shizukuReady) {
+                    val granted = grantAccessibilityViaShizuku()
+                    if (granted) {
+                        Toast.makeText(this, "已通过 Shizuku 自动开启无障碍", Toast.LENGTH_SHORT).show()
+                        refreshStatusAfterOneTapAuthorize()
+                    } else {
+                        Toast.makeText(this, "Shizuku 自动开启无障碍失败，请手动开启", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
             checkAccessibilityStatus()
         }

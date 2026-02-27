@@ -57,7 +57,6 @@ import android.widget.TextView
 import android.widget.EditText
 import com.ai.phoneagent.helper.StreamRenderHelper
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -853,7 +852,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun appendAutomationLogAsAiMessage(rawLogLine: String) {
-        val logLine = rawLogLine.trim()
+        val logLine = filterAutomationLogForHome(rawLogLine) ?: return
         if (logLine.isBlank()) return
 
         val messageContent = "【自动化】$logLine"
@@ -881,6 +880,47 @@ class MainActivity : AppCompatActivity() {
             pendingAutomationLogUiRefresh = true
         }
         persistConversations()
+    }
+
+    private fun filterAutomationLogForHome(rawLogLine: String): String? {
+        val line = rawLogLine.trim()
+        if (line.isBlank()) return null
+        val isStepLine = line.startsWith("[Step ")
+        if (!isStepLine) return null
+
+        val keep =
+                line.contains("思考：") ||
+                        line.contains("修复思考：") ||
+                        line.contains("输出：") ||
+                        line.contains("修复输出：") ||
+                        line.contains("当前动作：")
+        return if (keep) line else null
+    }
+
+    private data class AutomationReadyState(
+            val ready: Boolean,
+            val reason: String,
+    )
+
+    private fun resolveAutomationReadyState(): AutomationReadyState {
+        val accessibilityReady = PhoneAgentAccessibilityService.instance != null
+        if (accessibilityReady) {
+            return AutomationReadyState(true, "")
+        }
+
+        val shizukuConnected = ShizukuBridge.pingBinder()
+        val shizukuGranted = if (shizukuConnected) ShizukuBridge.hasPermission() else false
+        if (shizukuConnected && shizukuGranted) {
+            return AutomationReadyState(true, "")
+        }
+
+        val reason =
+                when {
+                    !shizukuConnected -> "系统未就绪：无障碍未连接，且 Shizuku 未连接。"
+                    !shizukuGranted -> "系统未就绪：无障碍未连接，且 Shizuku 未授权。"
+                    else -> "系统未就绪：自动化通道不可用。"
+                }
+        return AutomationReadyState(false, reason)
     }
     
     /**
@@ -1910,6 +1950,35 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun extractAutomationInstruction(rawAnswer: String): Pair<String, String?> {
+        val markerRegex =
+                Regex(
+                        """\[\[AUTO_EXECUTE:(.*?)]]""",
+                        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+                )
+        val match = markerRegex.find(rawAnswer)
+        val instruction = match?.groupValues?.getOrNull(1)?.trim().orEmpty()
+        val cleaned = markerRegex.replace(rawAnswer, "").trim()
+        return cleaned to instruction.ifBlank { null }
+    }
+
+    private fun extractAutomationConfirmInstruction(rawMessage: String): Pair<String, String?> {
+        val markerRegex =
+                Regex(
+                        """\[\[AUTO_CONFIRM:(.*?)]]""",
+                        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+                )
+        val match = markerRegex.find(rawMessage)
+        val instruction = match?.groupValues?.getOrNull(1)?.trim().orEmpty()
+        val cleaned = markerRegex.replace(rawMessage, "").trim()
+        return cleaned to instruction.ifBlank { null }
+    }
+
+    private fun stripAutomationMarker(rawText: String): String {
+        val withoutExecute = extractAutomationInstruction(rawText).first
+        return extractAutomationConfirmInstruction(withoutExecute).first
+    }
+
     private fun sendMessage(text: String, resendUser: Boolean = true, retryMode: Boolean = false) {
 
         if (isRequestInFlight) {
@@ -1957,49 +2026,53 @@ class MainActivity : AppCompatActivity() {
             inputTextState.value = ""
         }
 
-        // 移除旧的思考中提示
-        // showThinking() 
-        
-        val startTime = System.currentTimeMillis()
-
-        // 使用 StreamRenderHelper 绑定视图
-        val aiView = layoutInflater.inflate(R.layout.item_ai_message_complex, binding.messagesContainer, false)
-        binding.messagesContainer.addView(aiView)
-        val vh = StreamRenderHelper.bindViews(aiView)
-        StreamRenderHelper.initThinkingState(vh)
-
-        // 按钮事件绑定
-        val retryPrompt = text
-        vh.retryButton?.setOnClickListener {
-            setRetryButtonLoadingState(vh.retryButton, isLoading = true)
-            val started = retryMessage(retryPrompt)
-            if (!started) {
-                setRetryButtonLoadingState(vh.retryButton, isLoading = false)
-            }
-        }
-        
-        vh.copyButton?.setOnClickListener {
-             val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            val clip = android.content.ClipData.newPlainText("AI Reply", vh.messageContent.text)
-            cm.setPrimaryClip(clip)
-            Toast.makeText(this@MainActivity, "已复制内容", Toast.LENGTH_SHORT).show()
-        }
-
-        smoothScrollToBottom()
-
-        // 临时变量用于构建完整内容以方便保存
-        val reasoningSb = StringBuilder()
-        val contentSb = StringBuilder()
-        var floatingStreamStarted = false
-
-        if (FloatingChatService.isRunning()) {
-            FloatingChatService.getInstance()?.beginExternalStreamAiReply()
-            floatingStreamStarted = true
-        }
-
         isRequestInFlight = true
         lifecycleScope.launch {
             try {
+                val startTime = System.currentTimeMillis()
+
+                // 使用 StreamRenderHelper 绑定视图
+                val aiView =
+                        layoutInflater.inflate(
+                                R.layout.item_ai_message_complex,
+                                binding.messagesContainer,
+                                false,
+                        )
+                binding.messagesContainer.addView(aiView)
+                val vh = StreamRenderHelper.bindViews(aiView)
+                StreamRenderHelper.initThinkingState(vh)
+
+                // 按钮事件绑定
+                val retryPrompt = text
+                vh.retryButton?.setOnClickListener {
+                    setRetryButtonLoadingState(vh.retryButton, isLoading = true)
+                    val started = retryMessage(retryPrompt)
+                    if (!started) {
+                        setRetryButtonLoadingState(vh.retryButton, isLoading = false)
+                    }
+                }
+
+                vh.copyButton?.setOnClickListener {
+                    val cm =
+                            getSystemService(android.content.Context.CLIPBOARD_SERVICE) as
+                                    android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("AI Reply", vh.messageContent.text)
+                    cm.setPrimaryClip(clip)
+                    Toast.makeText(this@MainActivity, "已复制内容", Toast.LENGTH_SHORT).show()
+                }
+
+                smoothScrollToBottom()
+
+                // 临时变量用于构建完整内容以方便保存
+                val reasoningSb = StringBuilder()
+                val contentSb = StringBuilder()
+                var floatingStreamStarted = false
+
+                if (FloatingChatService.isRunning()) {
+                    FloatingChatService.getInstance()?.beginExternalStreamAiReply()
+                    floatingStreamStarted = true
+                }
+
                 // 构建对话历史
                 val chatHistory = buildChatHistory(c, retryMode).toMutableList()
                 if (!resendUser) {
@@ -2015,77 +2088,83 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 }
-                
+
                 var streamOk = false
                 var lastError: Throwable? = null
                 val maxAttempts = 2
 
                 for (attempt in 1..maxAttempts) {
                     if (attempt > 1) {
-                         // 重试前清理界面
+                        // 重试前清理界面
                         reasoningSb.clear()
                         contentSb.clear()
-                        runOnUiThread {
-                             StreamRenderHelper.initThinkingState(vh)
-                        }
+                        runOnUiThread { StreamRenderHelper.initThinkingState(vh) }
                         if (FloatingChatService.isRunning()) {
-                             FloatingChatService.getInstance()?.resetExternalStreamAiReply()
+                            FloatingChatService.getInstance()?.resetExternalStreamAiReply()
                         }
                     }
 
-                    val result = AutoGlmClient.sendChatStreamResult(
-                        apiKey = apiKey,
-                        baseUrl = resolvedBaseUrl,
-                        model = resolvedModel,
-                        messages = chatHistory,
-                        temperature = if (retryMode) 0.7f else null,
-                        onReasoningDelta = { delta ->
-                            if (delta.isNotBlank()) {
-                                reasoningSb.append(delta)
-                                runOnUiThread {
-                                    // 使用新的处理方法
-                                    StreamRenderHelper.processReasoningDelta(vh, delta, lifecycleScope) {
-                                        smoothScrollToBottom()
-                                    }
-                                }
-                                // 同步到悬浮窗
-                                if (FloatingChatService.isRunning()) {
-                                    FloatingChatService.getInstance()?.appendExternalReasoningDelta(delta)
-                                }
-                            }
-                        },
-                        onContentDelta = { delta ->
-                            if (delta.isNotEmpty()) {
-                                runOnUiThread {
-                                    // 使用新的智能解析处理方法
-                                    StreamRenderHelper.processContentDelta(
-                                        vh, 
-                                        delta, 
-                                        lifecycleScope,
-                                        this@MainActivity,
-                                        onScroll = { smoothScrollToBottom() },
-                                        onPhaseChange = { isAnswerPhase ->
-                                            if (isAnswerPhase) {
-                                                StreamRenderHelper.transitionToAnswer(vh)
-                                                if (vh.thinkingText.visibility == View.VISIBLE || vh.thinkingContentArea.visibility == View.VISIBLE) {
-                                                    vh.thinkingHeader.performClick()
-                                                }
+                    val result =
+                            AutoGlmClient.sendChatStreamResult(
+                                    apiKey = apiKey,
+                                    baseUrl = resolvedBaseUrl,
+                                    model = resolvedModel,
+                                    messages = chatHistory,
+                                    temperature = if (retryMode) 0.7f else null,
+                                    onReasoningDelta = { delta ->
+                                        if (delta.isNotBlank()) {
+                                            reasoningSb.append(delta)
+                                            runOnUiThread {
+                                                StreamRenderHelper.processReasoningDelta(
+                                                        vh,
+                                                        delta,
+                                                        lifecycleScope,
+                                                ) { smoothScrollToBottom() }
+                                            }
+                                            if (FloatingChatService.isRunning()) {
+                                                FloatingChatService.getInstance()
+                                                        ?.appendExternalReasoningDelta(delta)
                                             }
                                         }
-                                    )
-                                }
-                                
-                                // 更新 contentSb（用于保存）
-                                // 注意：这里我们保存原始内容，解析器会处理显示
-                                contentSb.append(delta)
-                                
-                                // 同步到悬浮窗
-                                if (FloatingChatService.isRunning()) {
-                                    FloatingChatService.getInstance()?.appendExternalContentDelta(delta)
-                                }
-                            }
-                        }
-                    )
+                                    },
+                                    onContentDelta = { delta ->
+                                        if (delta.isNotEmpty()) {
+                                            runOnUiThread {
+                                                StreamRenderHelper.processContentDelta(
+                                                        vh,
+                                                        delta,
+                                                        lifecycleScope,
+                                                        this@MainActivity,
+                                                        onScroll = { smoothScrollToBottom() },
+                                                        onPhaseChange = { isAnswerPhase ->
+                                                            if (isAnswerPhase) {
+                                                                StreamRenderHelper.transitionToAnswer(vh)
+                                                                if (
+                                                                        vh.thinkingText.visibility ==
+                                                                                View.VISIBLE ||
+                                                                                vh.thinkingContentArea
+                                                                                        .visibility ==
+                                                                                        View.VISIBLE
+                                                                ) {
+                                                                    vh.thinkingHeader.performClick()
+                                                                }
+                                                            }
+                                                        },
+                                                )
+                                            }
+
+                                            // 更新 contentSb（用于保存）
+                                            // 注意：这里我们保存原始内容，解析器会处理显示
+                                            contentSb.append(delta)
+
+                                            // 同步到悬浮窗
+                                            if (FloatingChatService.isRunning()) {
+                                                FloatingChatService.getInstance()
+                                                        ?.appendExternalContentDelta(delta)
+                                            }
+                                        }
+                                    },
+                            )
 
                     if (result.isSuccess) {
                         streamOk = true
@@ -2097,47 +2176,91 @@ class MainActivity : AppCompatActivity() {
 
                 // 处理结果
                 val timeCost = (System.currentTimeMillis() - startTime) / 1000
-                
-                val finalContent = if (streamOk) {
-                    contentSb.toString()
-                } else {
-                    val err = lastError?.message ?: "Unknown error"
-                    "请求失败: $err"
-                }
+
+                val finalContent =
+                        if (streamOk) {
+                            contentSb.toString()
+                        } else {
+                            val err = lastError?.message ?: "Unknown error"
+                            "请求失败: $err"
+                        }
 
                 // 显示完成状态
                 runOnUiThread {
                     StreamRenderHelper.markCompleted(vh, timeCost)
-                    if (vh.thinkingText.visibility == View.VISIBLE || vh.thinkingContentArea.visibility == View.VISIBLE) {
+                    if (
+                            vh.thinkingText.visibility == View.VISIBLE ||
+                                    vh.thinkingContentArea.visibility == View.VISIBLE
+                    ) {
                         vh.thinkingHeader.performClick()
                     }
                     if (!streamOk) {
-                         // 如果失败，直接显示错误信息
-                         vh.messageContent.text = finalContent
+                        // 如果失败，直接显示错误信息
+                        vh.messageContent.text = finalContent
                     }
                 }
-                
-                if (FloatingChatService.isRunning()) {
-                     FloatingChatService.getInstance()?.finishExternalStreamAiReply(timeCost.toInt(), finalContent)
+
+                if (floatingStreamStarted && FloatingChatService.isRunning()) {
+                    FloatingChatService.getInstance()
+                            ?.finishExternalStreamAiReply(timeCost.toInt(), finalContent)
                 }
 
                 // 保存到历史 - 使用解析后的内容
                 val thinkingContent = StreamRenderHelper.getThinkingText(vh)
-                val answerContent = StreamRenderHelper.getAnswerText(vh)
-                
-                val persistContent = if (thinkingContent.isNotEmpty()) {
-                    "<think>${thinkingContent}</think>\n${answerContent}"
-                } else if (answerContent.isNotEmpty()) {
-                    answerContent
-                } else {
-                    finalContent
+                val answerContentRaw = StreamRenderHelper.getAnswerText(vh)
+                val (answerContent, markerInAnswer) =
+                        extractAutomationInstruction(answerContentRaw)
+                val automationInstruction =
+                        markerInAnswer ?: extractAutomationInstruction(finalContent).second
+
+                if (answerContent != answerContentRaw) {
+                    runOnUiThread {
+                        StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, answerContent)
+                    }
                 }
+
+                val persistContent =
+                        if (thinkingContent.isNotEmpty()) {
+                            "<think>${thinkingContent}</think>\n${answerContent}"
+                        } else if (answerContent.isNotEmpty()) {
+                            answerContent
+                        } else {
+                            finalContent
+                        }
 
                 val cc = requireActiveConversation()
                 cc.messages.add(UiMessage(author = "Aries AI", content = persistContent, isUser = false))
                 cc.updatedAt = System.currentTimeMillis()
                 persistConversations()
 
+                if (!automationInstruction.isNullOrBlank() && resendUser && !retryMode) {
+                    val readyState = resolveAutomationReadyState()
+                    val commandMessage =
+                        if (readyState.ready) {
+                            "待转交自动化命令：\n$automationInstruction\n[[AUTO_CONFIRM:$automationInstruction]]"
+                        } else {
+                            "待转交自动化命令：\n$automationInstruction\n\n${readyState.reason}"
+                        }
+                    cc.messages.add(
+                        UiMessage(
+                            author = "Aries AI",
+                            content = commandMessage,
+                            isUser = false
+                        )
+                    )
+                    cc.updatedAt = System.currentTimeMillis()
+                    persistConversations()
+
+                    runOnUiThread {
+                        appendComplexAiMessage(
+                            "Aries AI",
+                            commandMessage,
+                            animate = true,
+                            timeCostMs = 0,
+                            automationInstructionForConfirm = if (readyState.ready) automationInstruction else null
+                        )
+                    }
+                }
             } finally {
                 isRequestInFlight = false
             }
@@ -2189,6 +2312,54 @@ class MainActivity : AppCompatActivity() {
         retryIconView?.alpha = if (isLoading) 0.6f else 1f
     }
 
+    private fun bindAutomationConfirmButton(
+        button: View?,
+        textView: TextView?,
+        instruction: String?
+    ) {
+        val task = instruction?.trim().orEmpty()
+        if (task.isBlank()) {
+            button?.visibility = View.GONE
+            button?.isEnabled = false
+            textView?.text = getString(R.string.automation_confirm)
+            return
+        }
+
+        button?.visibility = View.VISIBLE
+        button?.isEnabled = true
+        button?.alpha = 1f
+        textView?.text = getString(R.string.automation_confirm)
+        button?.setOnClickListener {
+            if (button.isEnabled.not()) return@setOnClickListener
+            button.isEnabled = false
+            button.alpha = 0.7f
+            textView?.text = getString(R.string.automation_confirming)
+
+            val readyState = resolveAutomationReadyState()
+            if (!readyState.ready) {
+                button.isEnabled = true
+                button.alpha = 1f
+                textView?.text = getString(R.string.automation_not_ready_short)
+                return@setOnClickListener
+            }
+
+            val dispatchResult =
+                ActivityAutomationInstructionGateway.dispatchFromAdvancedAi(
+                    context = this@MainActivity,
+                    instruction = task
+                )
+
+            if (dispatchResult.success) {
+                textView?.text = getString(R.string.automation_confirmed)
+                button.alpha = 0.7f
+            } else {
+                button.isEnabled = true
+                button.alpha = 1f
+                textView?.text = getString(R.string.automation_confirm)
+            }
+        }
+    }
+
     /**
      * 兼容解析历史 AI 消息的多种持久化格式，避免旧分隔符直接显示到界面。
      * 支持：
@@ -2205,7 +2376,7 @@ class MainActivity : AppCompatActivity() {
         thinkTagRegex.find(source)?.let { match ->
             val thinking = match.groupValues.getOrNull(1)?.trim().orEmpty()
             val answer = match.groupValues.getOrNull(2)?.trim().orEmpty()
-            return (thinking.ifBlank { null }) to answer
+            return (thinking.ifBlank { null }) to stripAutomationMarker(answer)
         }
 
         val markerStart = source.indexOf('꽁')
@@ -2213,14 +2384,14 @@ class MainActivity : AppCompatActivity() {
         if (markerStart >= 0 && markerEnd > markerStart) {
             val thinking = source.substring(markerStart + 1, markerEnd).trim()
             val answer = source.substring(markerEnd + 1).trimStart('\n', '\r', ' ').trim()
-            return (thinking.ifBlank { null }) to answer
+            return (thinking.ifBlank { null }) to stripAutomationMarker(answer)
         }
 
         val leshootRegex = "leshoot([\\s\\S]*?)leshoot([\\s\\S]*)".toRegex()
         leshootRegex.find(source)?.let { match ->
             val thinking = match.groupValues.getOrNull(1)?.trim().orEmpty()
             val answer = match.groupValues.getOrNull(2)?.trim().orEmpty()
-            return (thinking.ifBlank { null }) to answer
+            return (thinking.ifBlank { null }) to stripAutomationMarker(answer)
         }
 
         val thinkStartTag = "【思考开始】"
@@ -2244,7 +2415,7 @@ class MainActivity : AppCompatActivity() {
             if (answerEndIdx >= 0) {
                 answerPart = answerPart.substring(0, answerEndIdx)
             }
-            return (thinking.ifBlank { null }) to answerPart.trim()
+            return (thinking.ifBlank { null }) to stripAutomationMarker(answerPart.trim())
         }
 
         if (source.contains(answerStartTag)) {
@@ -2253,10 +2424,10 @@ class MainActivity : AppCompatActivity() {
             if (answerEndIdx >= 0) {
                 answerPart = answerPart.substring(0, answerEndIdx)
             }
-            return null to answerPart.trim()
+            return null to stripAutomationMarker(answerPart.trim())
         }
 
-        return null to source.replace("꽁", "").trim()
+        return null to stripAutomationMarker(source.replace("꽁", "").trim())
     }
     
     /**
@@ -2271,6 +2442,8 @@ class MainActivity : AppCompatActivity() {
             role = "system",
             content = """
                 你是 Aries AI。
+                你具备手机自动化相关能力：当任务适合自动化时，你需要给出“可转交执行”的自动化指令；
+                真正执行由系统在用户确认后完成，而不是由你直接执行。
                 
                 你必须严格按以下结构输出（否则我的 Android 应用无法正确渲染）：
                 
@@ -2286,6 +2459,16 @@ class MainActivity : AppCompatActivity() {
                 1) 以上四个标记必须原样输出，且不要输出其它同名/相似标记。
                 2) 思考内容写在“思考开始/结束”之间；正式回答写在“回答开始/结束”之间。
                 3) 代码块使用三反引号 ``` 并尽量保持语法完整。
+                4) 如果你判断该请求适合转交手机自动化执行，请在“回答区域内”追加且仅追加一行：
+                   [[AUTO_EXECUTE:这里填写可直接执行的中文自动化指令]]
+                5) 自动化指令必须是自然语言任务描述（如“打开手机浏览器并访问 https://www.jd.com”），
+                   严禁输出 Selenium / JavaScript / Python / Node.js 代码。
+                6) 如果不需要自动化，不要输出 AUTO_EXECUTE 标记。
+                7) 自动化场景回答示例：
+                   【回答开始】
+                   我可以帮你执行这个手机操作。
+                   [[AUTO_EXECUTE:打开手机浏览器并访问 https://www.jd.com]]
+                   【回答结束】
             """.trimIndent()
         ))
 
@@ -2335,7 +2518,8 @@ class MainActivity : AppCompatActivity() {
         fullContent: String,
         animate: Boolean,
         timeCostMs: Long,
-        retryUserText: String? = null
+        retryUserText: String? = null,
+        automationInstructionForConfirm: String? = null
     ) {
         // 1. Inflate 复杂布局
         val view = layoutInflater.inflate(R.layout.item_ai_message_complex, binding.messagesContainer, false)
@@ -2347,9 +2531,14 @@ class MainActivity : AppCompatActivity() {
         val thinkingIndicator = view.findViewById<TextView>(R.id.thinking_indicator_text)
         val messageContent = view.findViewById<TextView>(R.id.message_content)
         val authorName = view.findViewById<TextView>(R.id.ai_author_name)
+        val btnConfirm = view.findViewById<View?>(R.id.btn_confirm)
+        val tvConfirmText = view.findViewById<TextView?>(R.id.tv_confirm_text)
         
         // 解析内容（兼容旧格式，避免展示旧分隔符）
-        val (storedThinking, storedAnswer) = parseStoredAiContent(fullContent)
+        val (contentWithoutConfirmMarker, confirmInstructionFromMessage) =
+            extractAutomationConfirmInstruction(fullContent)
+        val confirmInstruction = automationInstructionForConfirm ?: confirmInstructionFromMessage
+        val (storedThinking, storedAnswer) = parseStoredAiContent(contentWithoutConfirmMarker)
         val thinkContent = storedThinking?.trim()
         val realContent = storedAnswer.trim()
         
@@ -2415,6 +2604,7 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
                 }
             }
+            bindAutomationConfirmButton(btnConfirm, tvConfirmText, confirmInstruction)
             return
         }
         
@@ -2495,6 +2685,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
             }
         }
+        bindAutomationConfirmButton(btnConfirm, tvConfirmText, confirmInstruction)
         
         if (!animate) {
             // 如果非动画模式（如历史记录），直接显示操作栏

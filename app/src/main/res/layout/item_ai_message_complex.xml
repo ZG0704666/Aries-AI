@@ -164,6 +164,36 @@
                     android:textSize="12sp" />
             </LinearLayout>
 
+            <LinearLayout
+                android:id="@+id/btn_confirm"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginStart="@dimen/m3t_spacing_sm"
+                android:background="@drawable/bg_action_button_oval"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/m3t_spacing_md"
+                android:paddingEnd="@dimen/m3t_spacing_md"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_check_circle_24"
+                    app:tint="@color/m3t_message_action" />
+
+                <TextView
+                    android:id="@+id/tv_confirm_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/m3t_spacing_xs"
+                    android:text="@string/automation_confirm"
+                    android:textColor="@color/m3t_message_action"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
         </LinearLayout>
     </LinearLayout>
 
