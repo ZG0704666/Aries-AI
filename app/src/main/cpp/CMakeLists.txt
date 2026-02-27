@@ -11,11 +11,19 @@ function(force_release_flags_for_debug target_name)
 endfunction()
 
 if(ANDROID)
+    set(SHERPA_NCNN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/sherpa-ncnn")
+    set(SHERPA_NCNN_CMAKELISTS "${SHERPA_NCNN_SOURCE_DIR}/CMakeLists.txt")
+    if(NOT EXISTS "${SHERPA_NCNN_CMAKELISTS}")
+        message(FATAL_ERROR
+                "Missing sherpa-ncnn submodule contents: ${SHERPA_NCNN_CMAKELISTS}\n"
+                "Run: git submodule update --init --recursive -- thirdparty/sherpa-ncnn")
+    endif()
+
     # Build sherpa-ncnn as part of Android Studio externalNativeBuild.
     # Use local submodules to avoid downloading a different ncnn build.
     list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/sherpa-ncnn/cmake")
-    include_directories("${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/sherpa-ncnn")
+    list(APPEND CMAKE_MODULE_PATH "${SHERPA_NCNN_SOURCE_DIR}/cmake")
+    include_directories("${SHERPA_NCNN_SOURCE_DIR}")
 
     set(FETCHCONTENT_SOURCE_DIR_NCNN "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ncnn" CACHE PATH "" FORCE)
 
@@ -33,7 +41,7 @@ if(ANDROID)
     set(NCNN_OPENMP OFF CACHE BOOL "" FORCE)
 
     add_subdirectory(
-            "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/sherpa-ncnn"
+            "${SHERPA_NCNN_SOURCE_DIR}"
             "${CMAKE_BINARY_DIR}/sherpa_ncnn_build"
     )
 
