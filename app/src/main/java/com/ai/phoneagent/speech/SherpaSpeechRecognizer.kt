@@ -106,6 +106,14 @@ class SherpaSpeechRecognizer(private val context: Context) {
         Log.d(TAG, "Initializing sherpa-ncnn...")
         return try {
             withContext(Dispatchers.IO) {
+                if (!SherpaNcnn.isNativeLibraryReady()) {
+                    Log.e(
+                            TAG,
+                            "Sherpa native library is unavailable: ${SherpaNcnn.nativeLibraryErrorMessage()}"
+                    )
+                    return@withContext false
+                }
+
                 val created = createRecognizer()
                 if (!created || recognizer == null) {
                     Log.e(TAG, "Failed to create sherpa-ncnn recognizer")
@@ -129,30 +137,48 @@ class SherpaSpeechRecognizer(private val context: Context) {
     fun isListening(): Boolean = isListening
 
     @Throws(IOException::class)
-    private fun copyAssetDirToCache(assetDir: String, cacheDir: File): File {
-        val targetDir = File(cacheDir, assetDir.substringAfterLast('/'))
-        if (targetDir.exists() && targetDir.list()?.isNotEmpty() == true) {
+    private fun copyAssetDirRecursive(
+            assetDir: String,
+            targetDir: File,
+            overwrite: Boolean = false,
+    ): File {
+        if (overwrite && targetDir.exists()) {
+            runCatching { targetDir.deleteRecursively() }
+        } else if (!overwrite && targetDir.exists() && targetDir.list()?.isNotEmpty() == true) {
             Log.d(TAG, "Model files already exist in cache: ${targetDir.absolutePath}")
             return targetDir
         }
-        Log.d(TAG, "Copying model files from assets '$assetDir' to ${targetDir.absolutePath}")
-        targetDir.mkdirs()
+
+        if (!targetDir.exists() && !targetDir.mkdirs()) {
+            throw IOException("Failed to create target directory: ${targetDir.absolutePath}")
+        }
 
         val assetManager = context.assets
-        val fileList = assetManager.list(assetDir)
-        if (fileList.isNullOrEmpty()) {
+        val entries = assetManager.list(assetDir)
+        if (entries.isNullOrEmpty()) {
             throw IOException("Asset directory '$assetDir' is empty or does not exist.")
         }
 
-        fileList.forEach { fileName ->
-            val assetPath = "$assetDir/$fileName"
-            val targetFile = File(targetDir, fileName)
-            assetManager.open(assetPath).use { inputStream ->
-                FileOutputStream(targetFile).use { outputStream ->
-                    inputStream.copyTo(outputStream)
+        entries.forEach { entry ->
+            val assetPath = "$assetDir/$entry"
+            val outputFile = File(targetDir, entry)
+            val children = assetManager.list(assetPath)
+            if (!children.isNullOrEmpty()) {
+                copyAssetDirRecursive(assetPath, outputFile, overwrite = true)
+            } else {
+                outputFile.parentFile?.let { parent ->
+                    if (!parent.exists()) {
+                        parent.mkdirs()
+                    }
+                }
+                assetManager.open(assetPath).use { inputStream ->
+                    FileOutputStream(outputFile).use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
                 }
             }
         }
+
         return targetDir
     }
 
@@ -206,7 +232,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
                         joinerBin =
                                 File(localModelDir, "joiner_jit_trace-pnnx.ncnn.bin").absolutePath,
                         tokens = File(localModelDir, "tokens.txt").absolutePath,
-                        numThreads = 2,
+                        numThreads = 4,
                         useGPU = false
                 )
 
@@ -267,7 +293,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
                 runCatching { targetDir.deleteRecursively() }
             }
             return try {
-                copyAssetDirToCache(assetDir, targetRootDir)
+                copyAssetDirRecursive(assetDir, targetDir, overwrite = true)
             } catch (e: IOException) {
                 Log.e(TAG, "Failed to copy model assets.", e)
                 null

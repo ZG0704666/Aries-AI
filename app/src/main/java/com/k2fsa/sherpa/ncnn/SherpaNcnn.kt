@@ -1,6 +1,7 @@
 package com.k2fsa.sherpa.ncnn
 
 import android.content.res.AssetManager
+import android.util.Log
 
 data class FeatureExtractorConfig(
     var sampleRate: Float,
@@ -87,8 +88,38 @@ class SherpaNcnn(
     private external fun getText(ptr: Long): String
 
     companion object {
+        private const val TAG = "SherpaNcnn"
+        @Volatile private var nativeLoaded = false
+        @Volatile private var nativeLoadError: Throwable? = null
+
         init {
-            System.loadLibrary("sherpa-ncnn-jni")
+            ensureNativeLoaded()
+        }
+
+        @JvmStatic
+        fun isNativeLibraryReady(): Boolean = ensureNativeLoaded()
+
+        @JvmStatic
+        fun nativeLibraryErrorMessage(): String? = nativeLoadError?.message
+
+        @Synchronized
+        private fun ensureNativeLoaded(): Boolean {
+            if (nativeLoaded) return true
+            if (nativeLoadError != null) return false
+
+            return try {
+                // Some devices are sensitive to load order. Try dependencies first.
+                runCatching { System.loadLibrary("ncnn") }
+                runCatching { System.loadLibrary("sherpa-ncnn-core") }
+                runCatching { System.loadLibrary("kaldi-native-fbank-core") }
+                System.loadLibrary("sherpa-ncnn-jni")
+                nativeLoaded = true
+                true
+            } catch (t: Throwable) {
+                nativeLoadError = t
+                Log.e(TAG, "Failed to load sherpa native libs", t)
+                false
+            }
         }
     }
 }
