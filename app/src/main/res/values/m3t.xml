@@ -17,6 +17,8 @@
 
     <color name="m3t_error">#BA1A1A</color>
     <color name="m3t_on_error">#FFFFFF</color>
+    <color name="m3t_error_container">#FFDAD6</color>
+    <color name="m3t_on_error_container">#410002</color>
 
     <color name="m3t_background">#F5FAFF</color>
     <color name="m3t_on_background">#171C22</color>

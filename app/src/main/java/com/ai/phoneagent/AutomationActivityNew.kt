@@ -20,6 +20,7 @@ package com.ai.phoneagent
 import android.Manifest
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
+import android.content.res.ColorStateList
 import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -128,6 +129,8 @@ class AutomationActivityNew : AppCompatActivity() {
 
     private var autoScrollLogToBottom: Boolean = true
     private var mirrorLogsToMain: Boolean = false
+    private var overlayClickReturnToMain: Boolean = false
+    private var lastDispatchedTask: String? = null
 
     // 运行结果保存相关
     private val PREFS_NAME = "automation_results"
@@ -394,7 +397,11 @@ class AutomationActivityNew : AppCompatActivity() {
 
         btnStartAgent.setOnClickListener {
             vibrateLight()
-            startAgent()
+            if (agentJob != null) {
+                stopAgent()
+            } else {
+                startAgent()
+            }
         }
 
         btnPauseAgent.setOnClickListener {
@@ -412,6 +419,8 @@ class AutomationActivityNew : AppCompatActivity() {
 
         btnPauseAgent.isEnabled = false
         btnStopAgent.isEnabled = false
+        btnStopAgent.visibility = View.GONE
+        syncStartButtonState(canStart = false)
 
         // 初始检查
         checkAccessibilityStatus()
@@ -520,6 +529,8 @@ class AutomationActivityNew : AppCompatActivity() {
         mirrorLogsToMain =
                 source == AutomationInstructionRequest.Source.MANUAL_AGENT_MODE.wireValue ||
                         source == AutomationInstructionRequest.Source.ADVANCED_AI.wireValue
+        overlayClickReturnToMain = mirrorLogsToMain
+        lastDispatchedTask = task
 
         etTask.setText(task)
         etTask.setSelection(etTask.text?.length ?: 0)
@@ -581,6 +592,28 @@ class AutomationActivityNew : AppCompatActivity() {
         }
     }
 
+    private fun syncStartButtonState(canStart: Boolean) {
+        if (!::btnStartAgent.isInitialized) return
+        val running = agentJob != null
+        if (running) {
+            btnStartAgent.isEnabled = true
+            btnStartAgent.text = getString(R.string.automation_terminate)
+            btnStartAgent.icon = ContextCompat.getDrawable(this, R.drawable.ic_stop_24)
+            btnStartAgent.iconTint =
+                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.m3t_on_error))
+            btnStartAgent.backgroundTintList =
+                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.m3t_error))
+            btnStartAgent.setTextColor(ContextCompat.getColor(this, R.color.m3t_on_error))
+        } else {
+            btnStartAgent.isEnabled = canStart
+            btnStartAgent.text = getString(R.string.automation_start_now)
+            btnStartAgent.icon = null
+            btnStartAgent.backgroundTintList =
+                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.m3t_primary))
+            btnStartAgent.setTextColor(ContextCompat.getColor(this, R.color.m3t_on_primary))
+        }
+    }
+
     /** 检查无障碍服务状态 */
     private fun checkAccessibilityStatus() {
         try {
@@ -636,7 +669,7 @@ class AutomationActivityNew : AppCompatActivity() {
                     !state.accessibilityEnabled || (!useShizukuInteraction && !state.accessibilityConnected)
             btnOpenAccessibility.visibility = if (shouldShowAccessibilityAction) View.VISIBLE else View.GONE
             btnOpenAccessibility.text = if (canOneTapGrantAccessibility) "一键授权" else "去开启"
-            btnStartAgent?.isEnabled = canStart && agentJob == null
+            syncStartButtonState(canStart)
         } catch (e: Exception) {
             Log.e("AutomationActivityNew", "检查无障碍服务状态失败: ${e.message}", e)
         }
@@ -767,6 +800,7 @@ class AutomationActivityNew : AppCompatActivity() {
             Toast.makeText(this, "请输入任务", Toast.LENGTH_SHORT).show()
             return
         }
+        val fromHomeDispatch = overlayClickReturnToMain && lastDispatchedTask == task
 
         val apiKey = getApiKey()
         if (apiKey.isBlank()) {
@@ -836,6 +870,7 @@ class AutomationActivityNew : AppCompatActivity() {
                             subtitle = task.take(20),
                             maxSteps = 100,
                             activity = this,
+                            navigateMainOnClick = fromHomeDispatch,
                     )
             if (ok) {
                 // 保持前台，避免在不同模式下出现“闪回桌面/主界面”的体感问题
@@ -846,11 +881,12 @@ class AutomationActivityNew : AppCompatActivity() {
             Toast.makeText(this, "如需显示进度悬浮窗，请授予悬浮窗权限", Toast.LENGTH_SHORT).show()
         }
 
-        btnStartAgent.isEnabled = false
+        syncStartButtonState(canStart = true)
+        lastDispatchedTask = null
         btnPauseAgent.isEnabled = true
         paused = false
         btnPauseAgent.text = "暂停"
-        btnStopAgent.isEnabled = true
+        btnStopAgent.isEnabled = false
 
         agentJob =
                 lifecycleScope.launch(Dispatchers.Default) {

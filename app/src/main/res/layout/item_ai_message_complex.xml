@@ -233,6 +233,7 @@
                 android:visibility="gone">
 
                 <ImageView
+                    android:id="@+id/iv_confirm_icon"
                     android:layout_width="16dp"
                     android:layout_height="16dp"
                     android:src="@drawable/ic_check_circle_24"

@@ -118,6 +118,11 @@ import androidx.compose.ui.res.colorResource
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        const val EXTRA_SCROLL_TO_BOTTOM = "extra_scroll_to_bottom"
+        const val EXTRA_SHOW_AUTOMATION_STOP = "extra_show_automation_stop"
+    }
+
     private data class UiMessage(
             val author: String,
             val content: String,
@@ -129,6 +134,11 @@ class MainActivity : AppCompatActivity() {
             var title: String,
             val messages: MutableList<UiMessage>,
             var updatedAt: Long,
+    )
+
+    private data class AutomationMessageRef(
+            val conversationId: Long,
+            val messageIndex: Int,
     )
 
     private lateinit var binding: ActivityMainBinding
@@ -663,6 +673,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
 
         handleReturnFromFloatingWindow()
+        handleAutomationOverlayReturnIntent()
 
         restoreApiKey()
         maybeShowPermissionBottomSheet()
@@ -685,6 +696,7 @@ class MainActivity : AppCompatActivity() {
             setIntent(intent)
         }
         handleReturnFromFloatingWindow()
+        handleAutomationOverlayReturnIntent()
     }
 
     override fun onPause() {
@@ -768,6 +780,21 @@ class MainActivity : AppCompatActivity() {
 
         // 同步悬浮窗中的消息到主界面
         syncMessagesFromFloatingWindow()
+    }
+
+    private fun handleAutomationOverlayReturnIntent() {
+        val currentIntent = intent ?: return
+        val shouldScroll = currentIntent.getBooleanExtra(EXTRA_SCROLL_TO_BOTTOM, false)
+        val shouldShowStop = currentIntent.getBooleanExtra(EXTRA_SHOW_AUTOMATION_STOP, false)
+        if (!shouldScroll && !shouldShowStop) return
+
+        currentIntent.removeExtra(EXTRA_SCROLL_TO_BOTTOM)
+        currentIntent.removeExtra(EXTRA_SHOW_AUTOMATION_STOP)
+
+        binding.messagesContainer.post {
+            revealActionAreasForMessages()
+            smoothScrollToBottom()
+        }
     }
     
     /**
@@ -900,8 +927,9 @@ class MainActivity : AppCompatActivity() {
         return conversation.messages.indexOfLast { msg ->
             if (msg.isUser) return@indexOfLast false
             val hasConfirmMarker = extractAutomationConfirmInstruction(msg.content).second != null
+            val hasConfirmedMarker = extractAutomationConfirmedMarker(msg.content).second
             val hasCommandPrefix = stripAutomationMarker(msg.content).contains("待转交自动化命令：")
-            hasConfirmMarker || hasCommandPrefix
+            hasConfirmMarker || hasConfirmedMarker || hasCommandPrefix
         }
     }
 
@@ -949,6 +977,7 @@ class MainActivity : AppCompatActivity() {
             appendAutomationTimelineEntry(timeline, normalized)
             renderAutomationTimelineRows(logContainer, timeline)
         }
+        activeAutomationPanelStatusView?.text = getString(R.string.automation_scene_running)
     }
 
     private fun appendAutomationLogAsAiMessage(rawLogLine: String) {
@@ -2098,10 +2127,22 @@ class MainActivity : AppCompatActivity() {
         return cleaned to instruction.ifBlank { null }
     }
 
+    private fun extractAutomationConfirmedMarker(rawMessage: String): Pair<String, Boolean> {
+        val markerRegex =
+                Regex(
+                        """\[\[AUTO_CONFIRMED]]""",
+                        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+                )
+        val hasMarker = markerRegex.containsMatchIn(rawMessage)
+        val cleaned = markerRegex.replace(rawMessage, "").trim()
+        return cleaned to hasMarker
+    }
+
     private fun stripAutomationMarker(rawText: String): String {
         val withoutExecute = extractAutomationInstruction(rawText).first
         val withoutConfirm = extractAutomationConfirmInstruction(withoutExecute).first
-        return extractAutomationLogMarkers(withoutConfirm).first
+        val withoutConfirmed = extractAutomationConfirmedMarker(withoutConfirm).first
+        return extractAutomationLogMarkers(withoutConfirmed).first
     }
 
     private fun sendMessage(text: String, resendUser: Boolean = true, retryMode: Boolean = false) {
@@ -2441,10 +2482,19 @@ class MainActivity : AppCompatActivity() {
     private fun bindAutomationConfirmButton(
         button: View?,
         textView: TextView?,
-        instruction: String?
+        instruction: String?,
+        messageRef: AutomationMessageRef?,
+        isConfirmed: Boolean
     ) {
         val statusView = findAutomationPanelStatusView(button)
         val task = instruction?.trim().orEmpty()
+        val iconView = button?.findViewById<ImageView?>(R.id.iv_confirm_icon)
+
+        if (isConfirmed) {
+            configureAutomationTerminateButton(button, textView, iconView, statusView)
+            return
+        }
+
         if (task.isBlank()) {
             button?.visibility = View.GONE
             button?.isEnabled = false
@@ -2479,9 +2529,8 @@ class MainActivity : AppCompatActivity() {
                 )
 
             if (dispatchResult.success) {
-                textView?.text = getString(R.string.automation_confirmed)
-                button.alpha = 0.7f
-                statusView?.text = getString(R.string.automation_scene_confirmed)
+                markAutomationCommandConfirmed(task, messageRef)
+                configureAutomationTerminateButton(button, textView, iconView, statusView)
             } else {
                 button.isEnabled = true
                 button.alpha = 1f
@@ -2489,6 +2538,72 @@ class MainActivity : AppCompatActivity() {
                 statusView?.text = getString(R.string.automation_scene_need_confirm)
             }
         }
+    }
+
+    private fun configureAutomationTerminateButton(
+        button: View?,
+        textView: TextView?,
+        iconView: ImageView?,
+        statusView: TextView?
+    ) {
+        button?.visibility = View.VISIBLE
+        button?.isEnabled = true
+        button?.alpha = 1f
+        button?.background = ContextCompat.getDrawable(this, R.drawable.bg_action_button_oval_danger)
+        textView?.text = getString(R.string.automation_terminate)
+        textView?.setTextColor(ContextCompat.getColor(this, R.color.m3t_on_error_container))
+        iconView?.setImageResource(R.drawable.ic_stop_24)
+        iconView?.setColorFilter(ContextCompat.getColor(this, R.color.m3t_on_error_container))
+        statusView?.text = getString(R.string.automation_scene_confirmed)
+        button?.setOnClickListener {
+            requestAutomationStopFromHome()
+            textView?.text = getString(R.string.automation_terminating)
+            button.isEnabled = false
+            button.alpha = 0.75f
+        }
+    }
+
+    private fun requestAutomationStopFromHome() {
+        runCatching {
+            sendBroadcast(
+                Intent(VirtualScreenPreviewOverlay.ACTION_STOP_AUTOMATION).apply {
+                    setPackage(packageName)
+                }
+            )
+        }
+        Toast.makeText(this, getString(R.string.automation_terminate_requested), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun markAutomationCommandConfirmed(instruction: String, messageRef: AutomationMessageRef?) {
+        val targetConversation =
+            when {
+                messageRef != null -> conversations.firstOrNull { it.id == messageRef.conversationId }
+                else -> activeConversation
+            } ?: return
+
+        val targetIndex =
+            when {
+                messageRef != null &&
+                    messageRef.messageIndex in targetConversation.messages.indices -> messageRef.messageIndex
+                else -> findLatestAutomationPanelMessageIndex(targetConversation)
+            }
+        if (targetIndex !in targetConversation.messages.indices) return
+
+        val origin = targetConversation.messages[targetIndex]
+        val existingInstruction = extractAutomationConfirmInstruction(origin.content).second
+        if (!existingInstruction.isNullOrBlank() && existingInstruction != instruction) return
+
+        val withoutConfirm = extractAutomationConfirmInstruction(origin.content).first
+        val withoutConfirmed = extractAutomationConfirmedMarker(withoutConfirm).first
+        val updated =
+            (withoutConfirmed.trimEnd() + "\n[[AUTO_CONFIRMED]]")
+                .trim()
+
+        if (updated == origin.content) return
+
+        targetConversation.messages[targetIndex] = origin.copy(content = updated)
+        targetConversation.updatedAt = System.currentTimeMillis()
+        persistConversations()
     }
 
     private fun findAutomationPanelStatusView(anchor: View?): TextView? {
@@ -2554,6 +2669,13 @@ class MainActivity : AppCompatActivity() {
             val lastWithoutAction = timeline.lastOrNull { it.action.isNullOrBlank() }
             if (lastWithoutAction != null) {
                 lastWithoutAction.action = actionLabel
+            } else {
+                timeline.add(
+                    AutomationTimelineEntry(
+                        displayText = "执行动作",
+                        action = actionLabel
+                    )
+                )
             }
         }
     }
@@ -2783,6 +2905,7 @@ class MainActivity : AppCompatActivity() {
         command: String,
         logs: List<String>,
         hasConfirm: Boolean,
+        hasConfirmed: Boolean,
         statusView: TextView,
         commandView: TextView,
         logContainer: LinearLayout
@@ -2792,6 +2915,7 @@ class MainActivity : AppCompatActivity() {
             when {
                 hasConfirm -> getString(R.string.automation_scene_need_confirm)
                 logs.isNotEmpty() -> getString(R.string.automation_scene_running)
+                hasConfirmed -> getString(R.string.automation_scene_confirmed)
                 else -> getString(R.string.automation_scene_not_ready)
             }
 
@@ -2983,13 +3107,30 @@ class MainActivity : AppCompatActivity() {
 
         // 解析内容（兼容旧格式，避免展示旧分隔符）
         val (contentWithoutLogMarkers, embeddedAutomationLogs) = extractAutomationLogMarkers(fullContent)
+        val (contentWithoutConfirmedMarker, hasConfirmedMarker) =
+            extractAutomationConfirmedMarker(contentWithoutLogMarkers)
         val (contentWithoutConfirmMarker, confirmInstructionFromMessage) =
-            extractAutomationConfirmInstruction(contentWithoutLogMarkers)
-        val confirmInstruction = automationInstructionForConfirm ?: confirmInstructionFromMessage
+            extractAutomationConfirmInstruction(contentWithoutConfirmedMarker)
+        val confirmInstruction =
+            if (hasConfirmedMarker) null else (automationInstructionForConfirm ?: confirmInstructionFromMessage)
         val (storedThinking, storedAnswer) = parseStoredAiContent(contentWithoutConfirmMarker)
         val thinkContent = storedThinking?.trim()
         val realContent = storedAnswer.trim()
         val automationCommandText = extractAutomationCommand(realContent) ?: confirmInstruction
+        val messageRef =
+            if (messageIndexInConversation != null && messageIndexInConversation >= 0) {
+                val cid = activeConversation?.id ?: -1L
+                if (cid > 0L) {
+                    AutomationMessageRef(
+                        conversationId = cid,
+                        messageIndex = messageIndexInConversation
+                    )
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
         val initialAutomationLogs =
             buildList {
                 addAll(embeddedAutomationLogs)
@@ -3033,6 +3174,7 @@ class MainActivity : AppCompatActivity() {
                 command = automationCommandText,
                 logs = initialAutomationLogs,
                 hasConfirm = !confirmInstruction.isNullOrBlank(),
+                hasConfirmed = hasConfirmedMarker,
                 statusView = automationStatus,
                 commandView = automationCommand,
                 logContainer = automationLogContainer
@@ -3085,7 +3227,13 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
                 }
             }
-            bindAutomationConfirmButton(btnConfirm, tvConfirmText, confirmInstruction)
+            bindAutomationConfirmButton(
+                button = btnConfirm,
+                textView = tvConfirmText,
+                instruction = confirmInstruction,
+                messageRef = messageRef,
+                isConfirmed = hasConfirmedMarker
+            )
             return
         }
         
@@ -3166,7 +3314,13 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
             }
         }
-        bindAutomationConfirmButton(btnConfirm, tvConfirmText, confirmInstruction)
+        bindAutomationConfirmButton(
+            button = btnConfirm,
+            textView = tvConfirmText,
+            instruction = confirmInstruction,
+            messageRef = messageRef,
+            isConfirmed = hasConfirmedMarker
+        )
         
         if (!animate) {
             // 如果非动画模式（如历史记录），直接显示操作栏
