@@ -13,11 +13,11 @@
     // Google Gemini - 使用 Gemini 专用 Logo
     Gemini: 'https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg',
     // Meta Llama - 使用 DuckDuckGo favicon 服务
-    Llama: 'https://icons.duckduckgo.com/ip3/meta.com.ico',
+    Llama: 'https://www.google.com/s2/favicons?domain=meta.com&sz=64',
     // 小米 MIMO - 使用高清 Logo
     MIMO: 'https://s02.mifile.cn/assets/static/image/logo-mi2.png',
     // OpenAI - 使用 DuckDuckGo favicon 服务
-    OpenAI: 'https://icons.duckduckgo.com/ip3/openai.com.ico',
+    OpenAI: 'https://www.google.com/s2/favicons?domain=openai.com&sz=64',
   };
 
   // 模型提供商数据
@@ -37,9 +37,9 @@
     // 国际厂商 - 使用官方图标
     { name: 'OpenAI', icon: OFFICIAL_ICONS.OpenAI, type: 'official' },
     { name: 'Gemini', icon: OFFICIAL_ICONS.Gemini, type: 'official' },
-    { name: 'Claude', icon: 'https://icons.duckduckgo.com/ip3/anthropic.com.ico', type: 'external' },
+    { name: 'Claude', icon: 'https://www.google.com/s2/favicons?domain=anthropic.com&sz=64', type: 'external' },
     { name: 'Llama', icon: OFFICIAL_ICONS.Llama, type: 'official' },
-    { name: 'Mistral', icon: 'https://icons.duckduckgo.com/ip3/mistral.ai.ico', type: 'external' },
+    { name: 'Mistral', icon: 'https://www.google.com/s2/favicons?domain=mistral.ai&sz=64', type: 'external' },
     { name: 'MIMO', icon: OFFICIAL_ICONS.MIMO, type: 'official' },
   ];
 

@@ -574,12 +574,37 @@
     const appsRow1 = ARIES_DATA.apps.filter((_, i) => i % 2 === 0);
     const appsRow2 = ARIES_DATA.apps.filter((_, i) => i % 2 === 1);
 
+    // 简单应用域名映射用于获取 Favicon
+    const appDomains = {
+      '淘宝': 'taobao.com', '支付宝': 'alipay.com', '美团': 'meituan.com', '高德地图': 'amap.com',
+      '微信': 'weixin.qq.com', 'QQ': 'im.qq.com', '京东': 'jd.com', '知乎': 'zhihu.com',
+      'B站': 'bilibili.com', '抖音': 'douyin.com', '小红书': 'xiaohongshu.com', '携程': 'ctrip.com',
+      '12306': '12306.cn', '饿了么': 'ele.me', '拼多多': 'pinduoduo.com', '闲鱼': '2.taobao.com',
+      '快手': 'kuaishou.com', '网易云音乐': 'music.163.com', '微博': 'weibo.com', 'Keep': 'keep.com',
+      'WPS': 'wps.cn', '大众点评': 'dianping.com', '滴滴出行': 'didiglobal.com', '百度地图': 'map.baidu.com',
+      'QQ音乐': 'y.qq.com', '腾讯视频': 'v.qq.com', '爱奇艺': 'iqiyi.com', '优酷': 'youku.com',
+      '得物': 'dewu.com', '苏宁易购': 'suning.com', '唯品会': 'vip.com', '豆瓣': 'douban.com',
+      '百度网盘': 'pan.baidu.com', '夸克': 'quark.cn', '百度': 'baidu.com', '今日头条': 'toutiao.com',
+      '腾讯新闻': 'news.qq.com', '网易新闻': 'news.163.com', '微信读书': 'weread.qq.com', '飞书': 'feishu.cn',
+      '钉钉': 'dingtalk.com', '企业微信': 'work.weixin.qq.com'
+    };
+
     function buildBase(trackEl, items) {
       trackEl.innerHTML = '';
       for (const name of items) {
         const el = document.createElement('div');
         el.className = 'app-capsule';
-        el.textContent = name;
+
+        // 尝试获取域名获取图标，如果没有默认使用 apple.com 作为兜底占位
+        const domain = appDomains[name] || 'apple.com';
+        const iconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+
+        el.innerHTML = `
+          <div class="app-icon-wrapper w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm overflow-hidden flex-shrink-0">
+            <img src="${iconUrl}" alt="${name}" class="w-4 h-4 sm:w-5 sm:h-5 object-contain" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\'><path fill=\\'%2394a3b8\\' d=\\'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z\\'/></svg>'">
+          </div>
+          <span class="font-medium">${name}</span>
+        `;
         trackEl.appendChild(el);
       }
     }
@@ -636,8 +661,8 @@
         });
       },
       {
-        threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px',
+        threshold: 0,
+        rootMargin: '0px 0px -10% 0px',
       }
     );
 
