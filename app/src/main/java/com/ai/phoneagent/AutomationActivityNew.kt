@@ -419,7 +419,7 @@ class AutomationActivityNew : AppCompatActivity() {
 
         btnPauseAgent.isEnabled = false
         btnStopAgent.isEnabled = false
-        btnStopAgent.visibility = View.GONE
+        btnStopAgent.visibility = View.VISIBLE
         syncStartButtonState(canStart = false)
 
         // 初始检查
@@ -595,6 +595,10 @@ class AutomationActivityNew : AppCompatActivity() {
     private fun syncStartButtonState(canStart: Boolean) {
         if (!::btnStartAgent.isInitialized) return
         val running = agentJob != null
+        if (::btnStopAgent.isInitialized) {
+            btnStopAgent.visibility = View.VISIBLE
+            btnStopAgent.isEnabled = running
+        }
         if (running) {
             btnStartAgent.isEnabled = true
             btnStartAgent.text = getString(R.string.automation_terminate)
@@ -886,7 +890,7 @@ class AutomationActivityNew : AppCompatActivity() {
         btnPauseAgent.isEnabled = true
         paused = false
         btnPauseAgent.text = "暂停"
-        btnStopAgent.isEnabled = false
+        btnStopAgent.isEnabled = true
 
         agentJob =
                 lifecycleScope.launch(Dispatchers.Default) {

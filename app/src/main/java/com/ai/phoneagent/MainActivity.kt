@@ -187,6 +187,8 @@ class MainActivity : AppCompatActivity() {
     private var activeAutomationPanelMessageIndex: Int = -1
     private var activeAutomationPanelLogContainer: LinearLayout? = null
     private var activeAutomationPanelStatusView: TextView? = null
+    private var activeAutomationPanelConfirmButton: View? = null
+    private var activeAutomationPanelConfirmTextView: TextView? = null
 
     private val automationLogReceiver =
             object : BroadcastReceiver() {
@@ -719,10 +721,12 @@ class MainActivity : AppCompatActivity() {
                             .removePrefix("我: ")
                             .removePrefix("AI: ")
                             .removePrefix("Aries: ")
+                            .let { if (isUser) it else stripAutomationMarker(it) }
+                            .trim()
                     val author = if (isUser) "我" else "Aries AI"
                     
                     // 检查是否已存在该消息（避免重复）
-                    val exists = c.messages.any { it.content == content && it.isUser == isUser }
+                    val exists = hasEquivalentConversationMessage(c, content, isUser)
                     if (!exists) {
                         c.messages.add(UiMessage(author = author, content = content, isUser = isUser))
                         c.updatedAt = System.currentTimeMillis()
@@ -836,13 +840,14 @@ class MainActivity : AppCompatActivity() {
                     .removePrefix("Aries:")
                     .removePrefix("AI: ")
                     .removePrefix("AI:")
+                    .let { if (isUser) it else stripAutomationMarker(it) }
                     .trim()
 
             // 跳过空消息和"思考中"消息
             if (content.isBlank() || content == "思考中...") continue
 
             // 检查是否已存在该消息
-            val exists = c.messages.any { it.content == content && it.isUser == isUser }
+            val exists = hasEquivalentConversationMessage(c, content, isUser)
             if (!exists) {
                 val author = if (isUser) "我" else "Aries AI"
                 c.messages.add(UiMessage(author = author, content = content, isUser = isUser))
@@ -895,6 +900,33 @@ class MainActivity : AppCompatActivity() {
         activeAutomationPanelMessageIndex = -1
         activeAutomationPanelLogContainer = null
         activeAutomationPanelStatusView = null
+        activeAutomationPanelConfirmButton = null
+        activeAutomationPanelConfirmTextView = null
+    }
+
+    private fun hasEquivalentConversationMessage(
+        conversation: Conversation,
+        content: String,
+        isUser: Boolean
+    ): Boolean {
+        val incomingRaw = content.trim()
+        if (incomingRaw.isBlank()) return true
+        if (isUser) {
+            return conversation.messages.any { it.isUser && it.content.trim() == incomingRaw }
+        }
+
+        val incomingStripped = stripAutomationMarker(incomingRaw).trim()
+        val incomingAnswer = parseStoredAiContent(incomingStripped).second.trim()
+        return conversation.messages.any { msg ->
+            if (msg.isUser) return@any false
+            val existingStripped = stripAutomationMarker(msg.content).trim()
+            if (existingStripped == incomingStripped) return@any true
+
+            val existingAnswer = parseStoredAiContent(existingStripped).second.trim()
+            incomingAnswer.isNotBlank() &&
+                existingAnswer.isNotBlank() &&
+                existingAnswer == incomingAnswer
+        }
     }
 
     private fun encodeAutomationLogMarker(logLine: String): String {
@@ -977,7 +1009,24 @@ class MainActivity : AppCompatActivity() {
             appendAutomationTimelineEntry(timeline, normalized)
             renderAutomationTimelineRows(logContainer, timeline)
         }
-        activeAutomationPanelStatusView?.text = getString(R.string.automation_scene_running)
+        if (isAutomationTerminalLog(normalized)) {
+            val statusView = activeAutomationPanelStatusView
+            val button = activeAutomationPanelConfirmButton
+            val textView = activeAutomationPanelConfirmTextView
+            val iconView = button?.findViewById<ImageView?>(R.id.iv_confirm_icon)
+            configureAutomationFinishedButton(
+                button = button,
+                textView = textView,
+                iconView = iconView,
+                statusView = statusView
+            )
+        } else {
+            val statusView = activeAutomationPanelStatusView
+            val finishedText = getString(R.string.automation_scene_finished)
+            if (statusView?.text?.toString() != finishedText) {
+                statusView?.text = getString(R.string.automation_scene_running)
+            }
+        }
     }
 
     private fun appendAutomationLogAsAiMessage(rawLogLine: String) {
@@ -1024,6 +1073,8 @@ class MainActivity : AppCompatActivity() {
     private fun filterAutomationLogForHome(rawLogLine: String): String? {
         val line = rawLogLine.trim()
         if (line.isBlank()) return null
+        if (isAutomationTerminalLog(line)) return line
+
         val isStepLine = line.startsWith("[Step ")
         if (!isStepLine) return null
 
@@ -1034,6 +1085,14 @@ class MainActivity : AppCompatActivity() {
                         line.contains("修复输出：") ||
                         line.contains("当前动作：")
         return if (keep) line else null
+    }
+
+    private fun isAutomationTerminalLog(rawLogLine: String): Boolean {
+        val normalized = normalizeAutomationLogLine(rawLogLine)
+        if (normalized.isBlank()) return false
+        return normalized.startsWith("结束：") ||
+            normalized == "已停止" ||
+            normalized.startsWith("异常：")
     }
 
     private data class AutomationReadyState(
@@ -1127,7 +1186,15 @@ class MainActivity : AppCompatActivity() {
         // 仅保留近期消息，避免历史过大导致小窗启动异常
         val messagesList = ArrayList<String>()
         activeConversation?.messages?.takeLast(120)?.forEach { msg ->
-            messagesList.add("${if (msg.isUser) "我" else "Aries"}: ${msg.content}")
+            val sanitizedContent =
+                if (msg.isUser) {
+                    msg.content.trim()
+                } else {
+                    stripAutomationMarker(msg.content).trim()
+                }
+            if (sanitizedContent.isNotBlank()) {
+                messagesList.add("${if (msg.isUser) "我" else "Aries"}: $sanitizedContent")
+            }
         }
 
         val startOk = runCatching {
@@ -2399,7 +2466,7 @@ class MainActivity : AppCompatActivity() {
                 cc.updatedAt = System.currentTimeMillis()
                 persistConversations()
 
-                if (!automationInstruction.isNullOrBlank() && resendUser && !retryMode) {
+                if (!automationInstruction.isNullOrBlank()) {
                     val readyState = resolveAutomationReadyState()
                     val commandMessage =
                         if (readyState.ready) {
@@ -2484,14 +2551,24 @@ class MainActivity : AppCompatActivity() {
         textView: TextView?,
         instruction: String?,
         messageRef: AutomationMessageRef?,
-        isConfirmed: Boolean
+        isConfirmed: Boolean,
+        isFinished: Boolean
     ) {
         val statusView = findAutomationPanelStatusView(button)
         val task = instruction?.trim().orEmpty()
         val iconView = button?.findViewById<ImageView?>(R.id.iv_confirm_icon)
 
         if (isConfirmed) {
-            configureAutomationTerminateButton(button, textView, iconView, statusView)
+            if (isFinished) {
+                configureAutomationFinishedButton(
+                    button = button,
+                    textView = textView,
+                    iconView = iconView,
+                    statusView = statusView
+                )
+            } else {
+                configureAutomationTerminateButton(button, textView, iconView, statusView)
+            }
             return
         }
 
@@ -2561,6 +2638,24 @@ class MainActivity : AppCompatActivity() {
             button.isEnabled = false
             button.alpha = 0.75f
         }
+    }
+
+    private fun configureAutomationFinishedButton(
+        button: View?,
+        textView: TextView?,
+        iconView: ImageView?,
+        statusView: TextView?
+    ) {
+        button?.visibility = View.VISIBLE
+        button?.isEnabled = false
+        button?.alpha = 1f
+        button?.background = ContextCompat.getDrawable(this, R.drawable.bg_action_button_oval)
+        textView?.setTextColor(ContextCompat.getColor(this, R.color.m3t_message_action))
+        iconView?.setColorFilter(ContextCompat.getColor(this, R.color.m3t_message_action))
+        statusView?.text = getString(R.string.automation_scene_finished)
+        textView?.text = getString(R.string.automation_confirmed)
+        iconView?.setImageResource(R.drawable.ic_check_circle_24)
+        button?.setOnClickListener(null)
     }
 
     private fun requestAutomationStopFromHome() {
@@ -2911,9 +3006,11 @@ class MainActivity : AppCompatActivity() {
         logContainer: LinearLayout
     ) {
         commandView.text = command
+        val hasTerminalLog = logs.any { isAutomationTerminalLog(it) }
         statusView.text =
             when {
                 hasConfirm -> getString(R.string.automation_scene_need_confirm)
+                hasTerminalLog -> getString(R.string.automation_scene_finished)
                 logs.isNotEmpty() -> getString(R.string.automation_scene_running)
                 hasConfirmed -> getString(R.string.automation_scene_confirmed)
                 else -> getString(R.string.automation_scene_not_ready)
@@ -3138,6 +3235,7 @@ class MainActivity : AppCompatActivity() {
                     realContent.lines().map { it.trim() }.firstOrNull { it.startsWith("系统未就绪：") }
                 if (!notReadyReason.isNullOrBlank()) add(notReadyReason)
             }
+        val isAutomationFinished = initialAutomationLogs.any { isAutomationTerminalLog(it) }
         
         // 设置作者名
         authorName.text = if (author == "Aries") "Aries AI" else author
@@ -3185,6 +3283,8 @@ class MainActivity : AppCompatActivity() {
                 activeAutomationPanelMessageIndex = messageIndexInConversation
                 activeAutomationPanelLogContainer = automationLogContainer
                 activeAutomationPanelStatusView = automationStatus
+                activeAutomationPanelConfirmButton = btnConfirm
+                activeAutomationPanelConfirmTextView = tvConfirmText
             }
         } else {
             messageContent.visibility = View.VISIBLE
@@ -3232,7 +3332,8 @@ class MainActivity : AppCompatActivity() {
                 textView = tvConfirmText,
                 instruction = confirmInstruction,
                 messageRef = messageRef,
-                isConfirmed = hasConfirmedMarker
+                isConfirmed = hasConfirmedMarker,
+                isFinished = isAutomationFinished
             )
             return
         }
@@ -3319,7 +3420,8 @@ class MainActivity : AppCompatActivity() {
             textView = tvConfirmText,
             instruction = confirmInstruction,
             messageRef = messageRef,
-            isConfirmed = hasConfirmedMarker
+            isConfirmed = hasConfirmedMarker,
+            isFinished = isAutomationFinished
         )
         
         if (!animate) {

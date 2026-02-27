@@ -25,6 +25,7 @@
     <string name="automation_scene_confirmed">需求已确认</string>
     <string name="automation_scene_not_ready">系统未就绪</string>
     <string name="automation_scene_running">执行中</string>
+    <string name="automation_scene_finished">已结束</string>
     <string name="automation_scene_waiting">等待执行日志...</string>
 
     <string name="accessibility_service_label">Aries AI 自动化</string>
@@ -41,7 +42,8 @@
     <string name="about_website_domain">aries-agent.com</string>
     <string name="about_website_url">https://aries-agent.com/</string>
     <string name="about_developer_info">开发者信息</string>
-    <string name="about_developer_name">开发者：ZG0704666</string>
+    <string name="about_developer_name">ZG0704666</string>
+    <string name="about_developer_alias">xuanYu.xyla</string>
     <string name="about_contact">联系我们：zhangyongqi@njit.edu.cn</string>
     <string name="about_contact_copied">邮箱已复制到剪贴板</string>
     <string name="about_thanks">感谢使用 Aries AI</string>

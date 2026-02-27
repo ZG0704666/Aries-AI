@@ -1513,10 +1513,10 @@ class FloatingChatService : Service() {
                 val headerTitle = vh.thinkingHeader.getChildAt(0) as? TextView
                 headerTitle?.text = "已思考"
 
-                var expanded = true
-                vh.thinkingText.visibility = View.VISIBLE
-                vh.thinkingContentArea.visibility = View.VISIBLE
-                vh.thinkingIndicator.text = " ⌄"
+                var expanded = false
+                vh.thinkingText.visibility = View.GONE
+                vh.thinkingContentArea.visibility = View.GONE
+                vh.thinkingIndicator.text = " ›"
 
                 vh.thinkingHeader.setOnClickListener {
                     expanded = !expanded
