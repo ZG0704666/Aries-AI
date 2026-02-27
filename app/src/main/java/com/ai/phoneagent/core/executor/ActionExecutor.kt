@@ -419,7 +419,15 @@ class ActionExecutor(
                                     ?.getOrNull(1)
                                     ?.toLongOrNull()
                                     ?.times(1000)
-                    else -> raw.toLongOrNull()
+                    else -> {
+                        val plain = raw.toLongOrNull()
+                        when {
+                            plain == null -> null
+                            // 默认模型常输出 duration="3" 表示 3 秒；这里做秒级兜底。
+                            plain in 1L..60L -> plain * 1000L
+                            else -> plain
+                        }
+                    }
                 }
                         ?: 600L
 
@@ -472,12 +480,6 @@ class ActionExecutor(
                         x.toInt(),
                         y.toInt()
                 )
-            } else if (shouldUseShizukuInteraction()) {
-                val clicked = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
-                if (!clicked) {
-                    onLog("Shizuku 点击失败")
-                    return false
-                }
             } else if (service != null) {
                 val clicked = service.clickAwait(x, y)
                 if (!clicked) {
@@ -485,6 +487,12 @@ class ActionExecutor(
                     return false
                 } else {
                     delay(300)
+                }
+            } else if (shouldUseShizukuInteraction()) {
+                val clicked = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+                if (!clicked) {
+                    onLog("Shizuku 点击失败")
+                    return false
                 }
             } else {
                 onLog("输入前点击失败：无可用执行通道")
@@ -498,7 +506,42 @@ class ActionExecutor(
         if (isVirtualDisplayMode()) {
             ensureVdFocus()
             val displayId = getVirtualDisplayId()
-            val ok = injectTextOnVirtualDisplay(displayId, inputText, onLog)
+            var ok = injectTextOnVirtualDisplay(displayId, inputText, onLog)
+            if (!ok) {
+                onLog("虚拟屏输入首轮失败，重试一次注入")
+                delay(180)
+                ok = injectTextOnVirtualDisplay(displayId, inputText, onLog)
+            }
+            if (!ok && service != null) {
+                onLog("虚拟屏输入失败，尝试无障碍输入兜底")
+                ok =
+                        if (resourceId != null || contentDesc != null || className != null || elementText != null) {
+                            service.setTextOnElement(
+                                    text = inputText,
+                                    resourceId = resourceId,
+                                    elementText = elementText,
+                                    contentDesc = contentDesc,
+                                    className = className,
+                                    index = index
+                            )
+                        } else {
+                            service.setTextOnFocused(inputText)
+                        }
+                if (!ok) {
+                    val inputClicked = service.clickFirstEditableElement()
+                    if (inputClicked) {
+                        delay(260)
+                        ok = service.setTextOnFocused(inputText)
+                    }
+                }
+                service.awaitWindowEvent(
+                        service.lastWindowEventTime(),
+                        timeoutMs = config.typeAwaitWindowTimeoutMs
+                )
+            }
+            if (!ok && !isAsciiInput) {
+                onLog("虚拟屏中文输入失败：下一步不要再输出Type，请改为Tap键盘逐字输入")
+            }
             if (!ok) {
                 onLog("虚拟屏输入失败")
             }
@@ -506,8 +549,12 @@ class ActionExecutor(
             return ok
         }
 
-        if (service != null && !shouldUseShizukuInteraction()) {
-            onLog("无障碍模式：仅使用无障碍服务直输")
+        if (service != null) {
+            if (shouldUseShizukuInteraction()) {
+                onLog("Shizuku 模式：输入动作改走无障碍服务直输")
+            } else {
+                onLog("无障碍模式：仅使用无障碍服务直输")
+            }
             var ok =
                     if (resourceId != null || contentDesc != null || className != null || elementText != null) {
                         service.setTextOnElement(

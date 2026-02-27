@@ -95,6 +95,60 @@
         android:textIsSelectable="true" />
 
     <LinearLayout
+        android:id="@+id/automation_panel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/m3t_spacing_sm"
+        android:background="@drawable/bg_rounded_input_light"
+        android:orientation="vertical"
+        android:padding="@dimen/m3t_spacing_md"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/automation_panel_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/automation_scene_title"
+                android:textAppearance="@style/TextAppearance.M3t.Title.Medium" />
+
+            <TextView
+                android:id="@+id/automation_panel_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_action_button_oval"
+                android:paddingStart="@dimen/m3t_spacing_sm"
+                android:paddingTop="@dimen/m3t_spacing_xxxs"
+                android:paddingEnd="@dimen/m3t_spacing_sm"
+                android:paddingBottom="@dimen/m3t_spacing_xxxs"
+                android:text="@string/automation_scene_need_confirm"
+                android:textAppearance="@style/TextAppearance.M3t.Body.Small"
+                android:textColor="@color/m3t_message_action" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/automation_panel_command"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/m3t_spacing_sm"
+            android:textAppearance="@style/TextAppearance.M3t.Chat.Message"
+            android:textColor="@color/m3t_on_surface" />
+
+        <LinearLayout
+            android:id="@+id/automation_log_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/m3t_spacing_sm"
+            android:orientation="vertical" />
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/action_area"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

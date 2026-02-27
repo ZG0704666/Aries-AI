@@ -16,6 +16,12 @@
     <string name="automation_confirm_hint">检测到自动化任务，请点击确认按钮执行</string>
     <string name="automation_dispatched">已转交自动化执行</string>
     <string name="automation_dispatch_failed">自动化启动失败：%1$s</string>
+    <string name="automation_scene_title">自动化</string>
+    <string name="automation_scene_need_confirm">需求待确认</string>
+    <string name="automation_scene_confirmed">需求已确认</string>
+    <string name="automation_scene_not_ready">系统未就绪</string>
+    <string name="automation_scene_running">执行中</string>
+    <string name="automation_scene_waiting">等待执行日志...</string>
 
     <string name="accessibility_service_label">Aries AI 自动化</string>
     <string name="accessibility_service_desc">用于执行点击/滑动/返回等自动化动作（需要在系统无障碍中手动开启）</string>

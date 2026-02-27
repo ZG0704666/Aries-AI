@@ -57,6 +57,7 @@ object PromptTemplates {
                 } else "1:1"
 
         val descRuleText = buildSystemDescRule(enforceDesc)
+        val intentTextRuleText = buildSystemIntentTextRule(enforceDesc)
 
         return """# 移动 UI 自动化核心提示词
 
@@ -88,8 +89,10 @@ object PromptTemplates {
 2. 执行点击/输入/滑动等
 3. 每个动作先做截图再决策
 4. $descRuleText
+4.1 $intentTextRuleText
 5. 若输入失败，优先“先 Tap 输入框再 Type”，避免直接 Type 失败
 6. 如果页面停滞，先做一次 Scroll 或等待再重试
+7. 避免连续无效 Tap；若连续两次 Tap 后界面无变化，必须改用 Swipe/Back/Wait/Launch 等其他动作
 
 正常示例：
 <answer>
@@ -107,6 +110,7 @@ object PromptTemplates {
 
     fun buildActionRepairPrompt(failedAction: String, enforceDesc: Boolean = false): String {
         val descRuleText = buildRepairDescRule(enforceDesc)
+        val intentTextRuleText = buildRepairIntentTextRule(enforceDesc)
         val failedTypeText = extractFailedTypeText(failedAction).orEmpty()
         val forceKeyboardTap = failedTypeText.any { it.code > 127 }
         val targetKey = failedTypeText.firstOrNull()?.toString().orEmpty()
@@ -114,9 +118,10 @@ object PromptTemplates {
         val inputRepairRule =
                 if (forceKeyboardTap) {
                     """
-- 当前失败动作是中文 Type，禁止再次输出 Type
-- 必须改为 Tap 软键盘按键输入
-- 优先点击软键盘上的“$targetKey”键；若是多字文本，按顺序逐字 Tap
+- 当前失败动作是中文 Type，本次先执行“Tap 输入框重新聚焦”
+- 下一步优先尝试 Type（不要长期只输出 Tap）
+- 仅当 Type 再次失败时，才改为 Tap 软键盘按键输入
+- 若改为键盘 Tap，优先点击“$targetKey”键；多字文本按顺序逐字 Tap
                     """.trimIndent()
                 } else {
                     "- 若为输入场景，先 Tap 再 Type，或使用可点击输入框后再 Type"
@@ -124,14 +129,14 @@ object PromptTemplates {
 
         val repairExample =
                 if (forceKeyboardTap) {
-                    """do(action="Tap", element=[520,930], desc="点击软键盘上的“$targetKey”键")"""
+                    """do(action="Tap", element=[500,500], desc="点击目标输入框重新聚焦")"""
                 } else {
                     """do(action="Tap", element=[500,150], desc="点击顶部搜索框")"""
                 }
 
         val optionalOutput =
                 if (forceKeyboardTap) {
-                    """do(action="Tap", element=[500,500], desc="点击目标输入框以保持键盘激活")"""
+                    """do(action="Type", text="$failedTypeText", desc="重新尝试输入文本")"""
                 } else {
                     """do(action="Type", text="需要输入的内容", desc="输入用户名")"""
                 }
@@ -146,6 +151,7 @@ $inputRepairRule
 - 页面切换失败可尝试 Wait 或 Swipe 后重试
 - 可选输出 finish 提前结束
 - $descRuleText
+- $intentTextRuleText
 
 <answer>
 	$repairExample
@@ -188,11 +194,27 @@ $inputRepairRule
         }
     }
 
+    private fun buildSystemIntentTextRule(enforceDesc: Boolean): String {
+        return if (enforceDesc) {
+            "第三方模型可选 text 字段；若提供，应简洁描述动作意图"
+        } else {
+            "默认模型请尽量在 do(...) 中额外携带 text=\"本次动作意图\"；Type 动作的 text 保留为实际输入内容"
+        }
+    }
+
     private fun buildRepairDescRule(enforceDesc: Boolean): String {
         return if (enforceDesc) {
             "do() 与 finish() 应包含 desc 字段，帮助模型保持稳定输出"
         } else {
             "do() 与 finish() 的 desc 字段建议包含（可选），不包含时仍应给出可执行动作"
+        }
+    }
+
+    private fun buildRepairIntentTextRule(enforceDesc: Boolean): String {
+        return if (enforceDesc) {
+            "修复时 text 字段可选；若输出请简洁说明动作意图"
+        } else {
+            "修复时优先补充 text=\"动作意图\"（Type 动作除外），便于日志展示与排错"
         }
     }
 }

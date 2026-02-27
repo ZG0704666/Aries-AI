@@ -346,6 +346,9 @@ class AutomationActivityNew : AppCompatActivity() {
                     } else {
                         Toast.makeText(this, "Shizuku 自动开启无障碍失败，请手动开启", Toast.LENGTH_SHORT).show()
                     }
+                } else if (latestState.accessibilityEnabled && !latestState.accessibilityConnected) {
+                    Toast.makeText(this, "无障碍已开启，正在等待服务连接…", Toast.LENGTH_SHORT).show()
+                    refreshStatusAfterOneTapAuthorize()
                 }
             }
             checkAccessibilityStatus()
@@ -601,7 +604,12 @@ class AutomationActivityNew : AppCompatActivity() {
                         canStart -> "已就绪：可开始执行"
                         useShizukuInteraction && !state.shizukuBinderConnected ->
                                 "未就绪：Shizuku 未连接"
-                        useShizukuInteraction -> "未就绪：Shizuku 未授权"
+                        useShizukuInteraction && !state.shizukuPermissionGranted ->
+                                "未就绪：Shizuku 未授权"
+                        useShizukuInteraction && !state.accessibilityEnabled ->
+                                "未就绪：无障碍未开启"
+                        useShizukuInteraction && !state.accessibilityConnected ->
+                                "未就绪：无障碍连接中"
                         state.shizukuReady -> "未就绪：仅检测到 Shizuku，请开启 Shizuku 模式"
                         else -> "未就绪：无障碍未连接"
                     }
@@ -713,8 +721,7 @@ class AutomationActivityNew : AppCompatActivity() {
             state: RuntimeConnectionState
     ): Boolean? {
         return when {
-            preferShizuku && state.shizukuReady -> true
-            preferShizuku && state.accessibilityConnected -> false
+            preferShizuku && state.shizukuReady && state.accessibilityConnected -> true
             !preferShizuku && state.accessibilityConnected -> false
             else -> null
         }
@@ -772,6 +779,22 @@ class AutomationActivityNew : AppCompatActivity() {
         val useThirdPartyApi =
                 getSharedPreferences("app_prefs", MODE_PRIVATE).getBoolean(apiUseThirdPartyPref, false)
         val useShizukuInteraction = switchShizukuInteraction.isChecked
+        if (useShizukuInteraction) {
+            val beforeState = collectRuntimeConnectionState()
+            if (beforeState.shizukuBinderConnected &&
+                    beforeState.shizukuPermissionGranted &&
+                    !beforeState.accessibilityEnabled) {
+                val granted = grantAccessibilityViaShizuku()
+                if (granted) {
+                    appendLog("Shizuku 模式：已自动开启无障碍，等待服务连接…")
+                    refreshStatusAfterOneTapAuthorize()
+                } else {
+                    Toast.makeText(this, "Shizuku 模式下自动开启无障碍失败，请手动开启", Toast.LENGTH_SHORT).show()
+                    checkAccessibilityStatus()
+                    return
+                }
+            }
+        }
         val state = collectRuntimeConnectionState()
         val effectiveUseShizuku = resolveRuntimeInteractionPreference(useShizukuInteraction, state)
 
@@ -784,6 +807,8 @@ class AutomationActivityNew : AppCompatActivity() {
                     } else if (useShizukuInteraction && state.shizukuBinderConnected && !state.shizukuPermissionGranted) {
                         ensureShizukuPermissionGranted()
                         "Shizuku 未授权，已发起授权请求，请授权后重试"
+                    } else if (useShizukuInteraction && state.shizukuReady && state.accessibilityEnabled) {
+                        "Shizuku 模式正在等待无障碍服务连接，请稍候重试"
                     } else if (state.accessibilityEnabled) {
                         "无障碍服务正在连接，请稍候后重试"
                     } else {
@@ -832,7 +857,7 @@ class AutomationActivityNew : AppCompatActivity() {
                     try {
                         val svc =
                                 if (effectiveUseShizuku) {
-                                    PhoneAgentAccessibilityService.instance
+                                    waitForAccessibilityServiceConnection(timeoutMs = 4500L)
                                 } else {
                                     waitForAccessibilityServiceConnection()
                                 }
@@ -842,7 +867,9 @@ class AutomationActivityNew : AppCompatActivity() {
                             return@launch
                         }
                         if (effectiveUseShizuku && svc == null) {
-                            appendLog("Shizuku 模式：未检测到无障碍连接，将以 Shizuku-only 路径执行")
+                            appendLog("Shizuku 模式：无障碍服务未连接，已停止执行")
+                            AutomationOverlay.complete("Shizuku 模式需无障碍连接")
+                            return@launch
                         }
 
                         val config =
