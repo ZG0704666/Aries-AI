@@ -55,6 +55,10 @@
     <color name="m3t_dialog_surface">#1A2D45</color>
     <color name="m3t_dialog_surface_alt">#1D3A2E</color>
     <color name="m3t_button_white">#2B3F56</color>
+    <color name="m3t_about_page_bg">#101A26</color>
+    <color name="m3t_automation_page_bg">#111C28</color>
+    <color name="m3t_about_card_bg">#223243</color>
+    <color name="m3t_automation_card_bg">#1E2C3B</color>
 
 </resources>
 

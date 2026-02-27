@@ -55,6 +55,10 @@
     <color name="m3t_dialog_surface">#E4F2FF</color>
     <color name="m3t_dialog_surface_alt">#E2F4E6</color>
     <color name="m3t_button_white">#FFFFFF</color>
+    <color name="m3t_about_page_bg">#F2F8FF</color>
+    <color name="m3t_automation_page_bg">#F6FAFF</color>
+    <color name="m3t_about_card_bg">#E6F0FF</color>
+    <color name="m3t_automation_card_bg">#DCEBFF</color>
 
     <!-- M3T Dimensions -->
     <dimen name="m3t_spacing_xxxs">2dp</dimen>
@@ -94,6 +98,7 @@
     <dimen name="m3t_drawer_app_icon_size">44dp</dimen>
     <dimen name="m3t_drawer_app_icon_padding">2dp</dimen>
     <dimen name="m3t_drawer_input_min_height">42dp</dimen>
+    <dimen name="m3t_drawer_api_field_height">48dp</dimen>
     <dimen name="m3t_drawer_label_start">4dp</dimen>
     <dimen name="m3t_update_history_list_height">320dp</dimen>
     <dimen name="m3t_update_links_body_height">120dp</dimen>
@@ -192,7 +197,12 @@
     </style>
 
     <style name="Widget.M3t.Card.About" parent="Widget.M3t.Card.Subtle">
-        <item name="cardBackgroundColor">@color/m3t_surface_container_high</item>
+        <item name="cardBackgroundColor">@color/m3t_about_card_bg</item>
+        <item name="cardCornerRadius">@dimen/m3t_radius_lg</item>
+    </style>
+
+    <style name="Widget.M3t.Card.Automation" parent="Widget.M3t.Card.Subtle">
+        <item name="cardBackgroundColor">@color/m3t_automation_card_bg</item>
         <item name="cardCornerRadius">@dimen/m3t_radius_lg</item>
     </style>
 

@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/m3t_background">
+    android:background="@color/m3t_automation_page_bg">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBar"
@@ -41,7 +41,7 @@
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardStatus"
-                style="@style/Widget.M3t.Card"
+                style="@style/Widget.M3t.Card.Automation"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/m3t_spacing_lg">
@@ -102,7 +102,7 @@
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardExecutionMode"
-                style="@style/Widget.M3t.Card"
+                style="@style/Widget.M3t.Card.Automation"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/m3t_spacing_lg">
@@ -183,7 +183,7 @@
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardTask"
-                style="@style/Widget.M3t.Card"
+                style="@style/Widget.M3t.Card.Automation"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/m3t_spacing_lg">
@@ -316,12 +316,12 @@
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardLog"
-                style="@style/Widget.M3t.Card"
+                style="@style/Widget.M3t.Card.Automation"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/m3t_spacing_lg"
-                app:cardBackgroundColor="@color/m3t_surface_container"
-                app:strokeWidth="@dimen/m3t_stroke_thin">
+                app:cardBackgroundColor="@color/m3t_automation_card_bg"
+                app:strokeWidth="0dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
