@@ -35,11 +35,11 @@
     <color name="m3t_success">#86D990</color>
     <color name="m3t_warning">#FFB95E</color>
 
-    <color name="m3t_thinking_bg">#233448</color>
-    <color name="m3t_thinking_text">#E4EEFF</color>
-    <color name="m3t_thinking_stroke">#AFC2DF</color>
+    <color name="m3t_thinking_bg">#2A3E57</color>
+    <color name="m3t_thinking_text">#F1F6FF</color>
+    <color name="m3t_thinking_stroke">#8FB3E4</color>
 
-    <color name="m3t_message_ai_bg">#1A2430</color>
+    <color name="m3t_message_ai_bg">#223247</color>
     <color name="m3t_message_user_bg">#234067</color>
     <color name="m3t_message_action">#F0F5FF</color>
     <color name="m3t_message_action_stroke">#66FFFFFF</color>
@@ -52,6 +52,9 @@
     <color name="m3t_floating_text_secondary">#9FAEC4</color>
     <color name="m3t_recommend_grad_start">#264A6CA0</color>
     <color name="m3t_recommend_grad_end">#26487FAF</color>
+    <color name="m3t_dialog_surface">#1A2D45</color>
+    <color name="m3t_dialog_surface_alt">#1D3A2E</color>
+    <color name="m3t_button_white">#2B3F56</color>
 
 </resources>
 

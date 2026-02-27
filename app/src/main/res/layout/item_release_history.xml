@@ -55,7 +55,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDetails"
-            style="@style/Widget.M3t.Button.Tonal.Compact"
+            style="@style/Widget.M3t.Button.Tonal.Dialog.Compact"
             android:layout_width="0dp"
             android:layout_height="@dimen/m3t_compact_button_height"
             android:layout_weight="1"
@@ -64,7 +64,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnOpen"
-            style="@style/Widget.M3t.Button.Tonal.Compact"
+            style="@style/Widget.M3t.Button.Tonal.Dialog.Compact"
             android:layout_width="0dp"
             android:layout_height="@dimen/m3t_compact_button_height"
             android:layout_marginStart="@dimen/m3t_spacing_sm"

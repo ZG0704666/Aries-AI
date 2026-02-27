@@ -2,14 +2,14 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- M3T Light Palette -->
-    <color name="m3t_primary">#2A60AB</color>
+    <color name="m3t_primary">#005AC1</color>
     <color name="m3t_on_primary">#FFFFFF</color>
-    <color name="m3t_primary_container">#D7E3FF</color>
+    <color name="m3t_primary_container">#D7E5FF</color>
     <color name="m3t_on_primary_container">#001B3F</color>
 
-    <color name="m3t_secondary">#4B5F7A</color>
+    <color name="m3t_secondary">#3A5F85</color>
     <color name="m3t_on_secondary">#FFFFFF</color>
-    <color name="m3t_secondary_container">#D2E4FF</color>
+    <color name="m3t_secondary_container">#D9E8FF</color>
     <color name="m3t_on_secondary_container">#081D36</color>
 
     <color name="m3t_tertiary">#65558F</color>
@@ -18,16 +18,16 @@
     <color name="m3t_error">#BA1A1A</color>
     <color name="m3t_on_error">#FFFFFF</color>
 
-    <color name="m3t_background">#F7F9FC</color>
+    <color name="m3t_background">#F5FAFF</color>
     <color name="m3t_on_background">#171C22</color>
     <color name="m3t_surface">#FFFFFF</color>
     <color name="m3t_on_surface">#171C22</color>
-    <color name="m3t_surface_container">#EDF2FA</color>
-    <color name="m3t_surface_container_high">#E6ECF6</color>
-    <color name="m3t_surface_variant">#E1E6EF</color>
-    <color name="m3t_on_surface_variant">#434A56</color>
-    <color name="m3t_outline">#727987</color>
-    <color name="m3t_outline_variant">#C1C7D3</color>
+    <color name="m3t_surface_container">#E8F1FF</color>
+    <color name="m3t_surface_container_high">#E2EEFF</color>
+    <color name="m3t_surface_variant">#DCE7F5</color>
+    <color name="m3t_on_surface_variant">#2E3D51</color>
+    <color name="m3t_outline">#5E7188</color>
+    <color name="m3t_outline_variant">#A9BBCF</color>
 
     <color name="m3t_inverse_surface">#2C3138</color>
     <color name="m3t_inverse_on_surface">#EFF1F7</color>
@@ -35,23 +35,26 @@
     <color name="m3t_success">#2E7D32</color>
     <color name="m3t_warning">#B56A00</color>
 
-    <color name="m3t_thinking_bg">#F1F4FA</color>
-    <color name="m3t_thinking_text">#5A6576</color>
-    <color name="m3t_thinking_stroke">#97A4B8</color>
+    <color name="m3t_thinking_bg">#DBE8FF</color>
+    <color name="m3t_thinking_text">#1E3551</color>
+    <color name="m3t_thinking_stroke">#6E89AE</color>
 
-    <color name="m3t_message_ai_bg">#FDFEFF</color>
+    <color name="m3t_message_ai_bg">#E5EFFF</color>
     <color name="m3t_message_user_bg">#D8E7FF</color>
-    <color name="m3t_message_action">#5D687A</color>
+    <color name="m3t_message_action">#203D5E</color>
     <color name="m3t_message_action_stroke">#2A000000</color>
 
-    <color name="m3t_drawer_background">#ECF3FF</color>
-    <color name="m3t_drawer_section_bg">#F7FAFF</color>
-    <color name="m3t_drawer_input_bg">#E5EDF9</color>
+    <color name="m3t_drawer_background">#EAF3FF</color>
+    <color name="m3t_drawer_section_bg">#F1F7FF</color>
+    <color name="m3t_drawer_input_bg">#DFEAF8</color>
     <color name="m3t_floating_header">#3D4D66</color>
-    <color name="m3t_floating_surface">#F7FAFF</color>
-    <color name="m3t_floating_text_secondary">#6D7A8B</color>
+    <color name="m3t_floating_surface">#F1F7FF</color>
+    <color name="m3t_floating_text_secondary">#5D7088</color>
     <color name="m3t_recommend_grad_start">#262A60AB</color>
     <color name="m3t_recommend_grad_end">#263B82F6</color>
+    <color name="m3t_dialog_surface">#E4F2FF</color>
+    <color name="m3t_dialog_surface_alt">#E2F4E6</color>
+    <color name="m3t_button_white">#FFFFFF</color>
 
     <!-- M3T Dimensions -->
     <dimen name="m3t_spacing_xxxs">2dp</dimen>
@@ -248,6 +251,15 @@
         <item name="strokeWidth">0dp</item>
     </style>
 
+    <style name="Widget.M3t.Button.Tonal.Dialog" parent="Widget.M3t.Button.Tonal">
+        <item name="backgroundTint">@color/m3t_dialog_surface_alt</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Tonal.Dialog.Compact" parent="Widget.M3t.Button.Tonal.Compact">
+        <item name="backgroundTint">@color/m3t_button_white</item>
+        <item name="cornerRadius">@dimen/m3t_radius_lg</item>
+    </style>
+
     <style name="Widget.M3t.Button.CloseAction" parent="Widget.MaterialComponents.Button">
         <item name="android:minHeight">@dimen/m3t_button_height</item>
         <item name="cornerRadius">@dimen/m3t_radius_lg</item>
@@ -271,7 +283,7 @@
     </style>
 
     <style name="Widget.M3t.DialogCard" parent="Widget.MaterialComponents.CardView">
-        <item name="cardBackgroundColor">@color/m3t_surface</item>
+        <item name="cardBackgroundColor">@color/m3t_dialog_surface</item>
         <item name="cardCornerRadius">@dimen/m3t_radius_xl</item>
         <item name="cardElevation">0dp</item>
         <item name="strokeWidth">0dp</item>

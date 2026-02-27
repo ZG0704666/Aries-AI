@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="@dimen/m3t_history_icon_padding"
-    app:cardBackgroundColor="@color/m3t_surface">
+    app:cardBackgroundColor="@color/m3t_dialog_surface">
 
     <LinearLayout
         android:layout_width="match_parent"

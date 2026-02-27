@@ -11,7 +11,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_marginHorizontal="@dimen/m3t_dialog_card_margin_h"
-        app:cardBackgroundColor="@color/m3t_surface_container_high">
+        app:cardBackgroundColor="@color/m3t_dialog_surface">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -88,7 +88,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnHistory"
-                    style="@style/Widget.M3t.Button.Tonal"
+                    style="@style/Widget.M3t.Button.Tonal.Dialog"
                     android:layout_width="0dp"
                     android:layout_height="@dimen/m3t_button_height"
                     android:layout_marginStart="@dimen/m3t_spacing_sm"
