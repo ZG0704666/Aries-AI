@@ -3,24 +3,24 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/blue_glass_light">
+    android:background="@color/m3t_background">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/blue_glass_primary"
-        android:paddingBottom="18dp">
+        android:background="@android:color/transparent"
+        android:paddingBottom="@dimen/m3t_spacing_lg">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/topAppBar"
+            style="@style/Widget.M3t.Toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@android:color/transparent"
             app:navigationIcon="@drawable/ic_arrow_back_24"
-            app:navigationIconTint="@android:color/white"
-            app:title="更新历史"
-            app:titleTextColor="@android:color/white" />
+            app:navigationIconTint="@color/m3t_on_surface_variant"
+            app:title="@string/m3t_updates_title"
+            app:titleTextColor="@color/m3t_on_surface" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -28,46 +28,48 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="16dp"
+        android:padding="@dimen/m3t_spacing_lg"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/switchPrerelease"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="包含预发布版本"
-            android:textColor="@color/blue_glass_text" />
+            android:text="@string/m3t_updates_include_prerelease"
+            android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
+            android:textColor="@color/m3t_on_surface" />
 
         <ProgressBar
             android:id="@+id/progress"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="@dimen/m3t_spacing_md"
             android:visibility="gone" />
 
         <TextView
             android:id="@+id/tvError"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textColor="#C62828"
-            android:textSize="12sp"
+            android:layout_marginTop="@dimen/m3t_spacing_sm"
+            android:textAppearance="@style/TextAppearance.M3t.Body.Small"
+            android:textColor="@color/m3t_error"
             android:visibility="gone" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerReleases"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="@dimen/m3t_spacing_md"
             android:layout_weight="1" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnLoadMore"
+            style="@style/Widget.M3t.Button.Tonal"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="加载更多"
+            android:layout_height="@dimen/m3t_button_height"
+            android:layout_marginTop="@dimen/m3t_spacing_md"
+            android:text="@string/m3t_updates_load_more"
             android:textAllCaps="false" />
 
     </LinearLayout>

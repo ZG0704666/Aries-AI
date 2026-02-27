@@ -3,87 +3,81 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    app:cardBackgroundColor="@color/m3t_surface"
     app:cardCornerRadius="22dp"
-    app:cardElevation="10dp"
-    app:cardBackgroundColor="@android:color/white">
+    app:cardElevation="0dp"
+    app:strokeColor="@color/m3t_outline_variant"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- 标题栏：更窄的设计，提高空间利用率 -->
         <LinearLayout
             android:id="@+id/floatingTitleBar"
             android:layout_width="match_parent"
             android:layout_height="38dp"
-            android:orientation="horizontal"
+            android:background="@drawable/floating_title_bg"
             android:gravity="center_vertical"
-            android:paddingHorizontal="6dp"
-            android:background="@drawable/floating_title_bg">
+            android:orientation="horizontal"
+            android:paddingHorizontal="6dp">
 
-            <!-- 左侧：全屏/展开按钮 -->
             <ImageButton
                 android:id="@+id/btnFullscreen"
                 android:layout_width="28dp"
                 android:layout_height="28dp"
                 android:background="@drawable/ripple_circle"
-                android:src="@drawable/ic_fullscreen_24"
-                android:scaleType="centerInside"
                 android:contentDescription="展开全屏"
-                android:padding="5dp" />
+                android:padding="5dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_fullscreen_24" />
 
-            <!-- 收起按钮（更紧凑） -->
             <ImageButton
                 android:id="@+id/btnMinimize"
                 android:layout_width="28dp"
                 android:layout_height="28dp"
                 android:layout_marginStart="2dp"
                 android:background="@drawable/ripple_circle"
-                android:src="@drawable/ic_minimize_24"
-                android:scaleType="centerInside"
                 android:contentDescription="收起"
                 android:padding="5dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_minimize_24"
                 android:visibility="gone" />
 
-            <!-- 中间留白，可拖动 -->
             <View
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1" />
 
-            <!-- 右侧：主页按钮 -->
             <ImageButton
                 android:id="@+id/btnHome"
                 android:layout_width="28dp"
                 android:layout_height="28dp"
                 android:background="@drawable/ripple_circle"
-                android:src="@drawable/ic_home_24"
-                android:scaleType="centerInside"
                 android:contentDescription="返回主页"
-                android:padding="5dp" />
+                android:padding="5dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_home_24" />
 
-            <!-- 关闭按钮 -->
             <ImageButton
                 android:id="@+id/btnClose"
                 android:layout_width="28dp"
                 android:layout_height="28dp"
                 android:layout_marginStart="2dp"
                 android:background="@drawable/ripple_circle"
-                android:src="@drawable/ic_close_24"
-                android:scaleType="centerInside"
                 android:contentDescription="关闭"
-                android:padding="5dp" />
+                android:padding="5dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_close_24" />
 
         </LinearLayout>
 
-        <!-- 分隔线：改为更浅的颜色 -->
         <View
             android:layout_width="match_parent"
-            android:layout_height="0.5dp"
-            android:background="#F0F0F0" />
+            android:layout_height="1dp"
+            android:background="@color/m3t_outline_variant" />
 
-        <!-- 消息内容区域 -->
         <ScrollView
             android:id="@+id/scrollArea"
             android:layout_width="match_parent"
@@ -96,37 +90,36 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="12dp" />
+                android:padding="@dimen/m3t_spacing_md" />
 
         </ScrollView>
 
-        <!-- 底部输入区域：更窄、更清爽 -->
         <LinearLayout
             android:id="@+id/inputBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:background="@color/m3t_surface"
             android:gravity="center_vertical"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="6dp"
-            android:background="@android:color/white">
+            android:orientation="horizontal"
+            android:paddingHorizontal="@dimen/m3t_spacing_md"
+            android:paddingVertical="6dp">
 
             <EditText
                 android:id="@+id/inputMessage"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:minHeight="34dp"
-                android:maxHeight="80dp"
                 android:background="@drawable/floating_input_bg"
                 android:hint="输入消息..."
-                android:textSize="13sp"
-                android:textColor="@android:color/black"
-                android:textColorHint="#AAAAAA"
+                android:inputType="textMultiLine"
+                android:maxHeight="80dp"
+                android:maxLines="3"
+                android:minHeight="34dp"
                 android:paddingHorizontal="12dp"
                 android:paddingVertical="6dp"
-                android:inputType="textMultiLine"
-                android:maxLines="3" />
+                android:textColor="@color/m3t_on_surface"
+                android:textColorHint="@color/m3t_on_surface_variant"
+                android:textSize="13sp" />
 
             <ImageButton
                 android:id="@+id/btnAdd"
@@ -134,11 +127,11 @@
                 android:layout_height="32dp"
                 android:layout_marginStart="6dp"
                 android:background="@drawable/ripple_circle"
-                android:src="@drawable/ic_add_24"
-                android:scaleType="centerInside"
                 android:contentDescription="添加"
-                android:visibility="gone"
-                android:padding="6dp" />
+                android:padding="6dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_add_24"
+                android:visibility="gone" />
 
             <ImageButton
                 android:id="@+id/btnSend"
@@ -146,13 +139,14 @@
                 android:layout_height="32dp"
                 android:layout_marginStart="6dp"
                 android:background="@drawable/ripple_circle"
-                android:src="@drawable/ic_send_24"
-                android:scaleType="centerInside"
                 android:contentDescription="发送"
-                android:padding="6dp" />
+                android:padding="6dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_send_24" />
 
         </LinearLayout>
 
     </LinearLayout>
 
 </androidx.cardview.widget.CardView>
+

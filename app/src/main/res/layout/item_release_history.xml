@@ -1,39 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingTop="10dp"
-    android:paddingBottom="10dp">
+    android:paddingTop="@dimen/m3t_update_item_padding_v"
+    android:paddingBottom="@dimen/m3t_update_item_padding_v">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <TextView
             android:id="@+id/tvVersion"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textColor="@color/blue_glass_text"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textAppearance="@style/TextAppearance.M3t.Title.Medium" />
 
         <TextView
             android:id="@+id/tvPrerelease"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingLeft="8dp"
-            android:paddingRight="8dp"
-            android:paddingTop="2dp"
-            android:paddingBottom="2dp"
-            android:text="预发布"
-            android:textColor="@android:color/white"
-            android:textSize="12sp"
             android:background="@drawable/bg_prerelease_chip"
+            android:paddingHorizontal="@dimen/m3t_update_chip_padding_h"
+            android:paddingVertical="@dimen/m3t_update_chip_padding_v"
+            android:text="@string/m3t_updates_prerelease"
+            android:textAppearance="@style/TextAppearance.M3t.Body.Small"
+            android:textColor="@color/m3t_on_primary"
             android:visibility="gone" />
 
     </LinearLayout>
@@ -42,56 +37,51 @@
         android:id="@+id/tvTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:textColor="@color/blue_glass_icon"
-        android:textSize="13sp" />
+        android:layout_marginTop="@dimen/m3t_spacing_xs"
+        android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
 
     <TextView
         android:id="@+id/tvDate"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:textColor="@color/blue_glass_icon"
-        android:textSize="12sp" />
+        android:layout_marginTop="@dimen/m3t_spacing_xxxs"
+        android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="@dimen/m3t_spacing_sm"
         android:orientation="horizontal">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDetails"
+            style="@style/Widget.M3t.Button.Tonal.Dialog.Compact"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="@dimen/m3t_compact_button_height"
             android:layout_weight="1"
-            android:text="详情"
+            android:text="@string/m3t_updates_details"
             android:textAllCaps="false" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnOpen"
+            style="@style/Widget.M3t.Button.Tonal.Dialog.Compact"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="8dp"
+            android:layout_height="@dimen/m3t_compact_button_height"
+            android:layout_marginStart="@dimen/m3t_spacing_sm"
             android:layout_weight="1"
-            android:text="查看"
+            android:text="@string/m3t_updates_view"
             android:textAllCaps="false" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDownload"
+            style="@style/Widget.M3t.Button.Filled"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="8dp"
+            android:layout_height="@dimen/m3t_compact_button_height"
+            android:layout_marginStart="@dimen/m3t_spacing_sm"
             android:layout_weight="1"
-            android:text="下载"
+            android:text="@string/m3t_updates_download"
             android:textAllCaps="false" />
 
     </LinearLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="10dp"
-        android:background="@color/blue_glass_stroke" />
 
 </LinearLayout>

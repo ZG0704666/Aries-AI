@@ -1,78 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@android:color/white"
+    android:background="@color/m3t_dialog_surface"
     android:orientation="vertical"
-    android:padding="20dp">
-
-    <TextView
-        android:id="@+id/tvTitle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="更新日志"
-        android:textColor="@color/blue_glass_text"
-        android:textSize="20sp"
-        android:textStyle="bold" />
-
-
-    <TextView
-        android:id="@+id/tvTips"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:textColor="@color/blue_glass_icon"
-        android:textSize="12sp"
-        android:text="下方可以选择历史版本" />
+    android:padding="@dimen/m3t_dialog_padding">
 
     <com.google.android.material.switchmaterial.SwitchMaterial
         android:id="@+id/switchPrerelease"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="包含预发布版本"
-        android:textColor="@color/blue_glass_text" />
+        android:text="@string/m3t_updates_include_prerelease"
+        android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
+        android:textColor="@color/m3t_on_surface" />
 
     <ProgressBar
         android:id="@+id/progress"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="@dimen/m3t_spacing_md"
         android:visibility="gone" />
 
     <TextView
         android:id="@+id/tvError"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:textColor="#C62828"
-        android:textSize="12sp"
+        android:layout_marginTop="@dimen/m3t_spacing_sm"
+        android:textAppearance="@style/TextAppearance.M3t.Body.Small"
+        android:textColor="@color/m3t_error"
         android:visibility="gone" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerReleases"
         android:layout_width="match_parent"
-        android:layout_height="320dp"
-        android:layout_marginTop="12dp" />
-
-
-    <!-- 推荐语句滚动区域 -->
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:layout_marginTop="16dp">
-        <TextView
-            android:id="@+id/tvRecommend"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:text=""
-            android:textColor="@color/blue_glass_text"
-            android:textSize="15sp"
-            android:gravity="center"
-            android:alpha="0.6"
-            android:background="@android:color/transparent" />
-    </FrameLayout>
+        android:layout_height="@dimen/m3t_update_history_list_height"
+        android:layout_marginTop="@dimen/m3t_spacing_md" />
 
 </LinearLayout>

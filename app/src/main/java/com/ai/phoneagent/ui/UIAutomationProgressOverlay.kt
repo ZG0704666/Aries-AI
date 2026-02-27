@@ -17,6 +17,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import com.ai.phoneagent.AutomationActivityNew
 import com.ai.phoneagent.R
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * UI自动化进度显示Overlay
@@ -54,6 +55,7 @@ class UIAutomationProgressOverlay private constructor(private val context: Conte
     private var cancelCallback: (() -> Unit)? = null
     private var pauseToggleCallback: ((Boolean) -> Unit)? = null
     private var isPaused = false
+    private val screenshotHideCounter = AtomicInteger(0)
 
     // 进度信息
     private var currentStep = 0
@@ -213,6 +215,19 @@ class UIAutomationProgressOverlay private constructor(private val context: Conte
                 v.alpha = if (visible) 1f else 0f
             }
         }
+    }
+
+    fun temporaryHideForScreenshot() {
+        val count = screenshotHideCounter.incrementAndGet()
+        if (count != 1) return
+        setOverlayVisible(false)
+    }
+
+    fun restoreVisibilityAfterScreenshot() {
+        val count = screenshotHideCounter.decrementAndGet()
+        if (count > 0) return
+        screenshotHideCounter.set(0)
+        setOverlayVisible(true)
     }
 
     /**

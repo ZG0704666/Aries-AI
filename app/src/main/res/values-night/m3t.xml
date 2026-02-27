@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- M3T Dark Palette -->
+    <color name="m3t_primary">#A9C7FF</color>
+    <color name="m3t_on_primary">#003061</color>
+    <color name="m3t_primary_container">#134782</color>
+    <color name="m3t_on_primary_container">#D7E3FF</color>
+
+    <color name="m3t_secondary">#B2C8E8</color>
+    <color name="m3t_on_secondary">#1D314A</color>
+    <color name="m3t_secondary_container">#334863</color>
+    <color name="m3t_on_secondary_container">#D2E4FF</color>
+
+    <color name="m3t_tertiary">#CFC0F9</color>
+    <color name="m3t_on_tertiary">#35275B</color>
+
+    <color name="m3t_error">#FFB4AB</color>
+    <color name="m3t_on_error">#690005</color>
+    <color name="m3t_error_container">#93000A</color>
+    <color name="m3t_on_error_container">#FFDAD6</color>
+
+    <color name="m3t_background">#0F141B</color>
+    <color name="m3t_on_background">#E1E7F1</color>
+    <color name="m3t_surface">#121A24</color>
+    <color name="m3t_on_surface">#E1E7F1</color>
+    <color name="m3t_surface_container">#18222E</color>
+    <color name="m3t_surface_container_high">#1F2A37</color>
+    <color name="m3t_surface_variant">#414754</color>
+    <color name="m3t_on_surface_variant">#C1C7D3</color>
+    <color name="m3t_outline">#8B92A0</color>
+    <color name="m3t_outline_variant">#434A56</color>
+
+    <color name="m3t_inverse_surface">#E1E7F1</color>
+    <color name="m3t_inverse_on_surface">#2A3139</color>
+
+    <color name="m3t_success">#86D990</color>
+    <color name="m3t_warning">#FFB95E</color>
+
+    <color name="m3t_thinking_bg">#2A3E57</color>
+    <color name="m3t_thinking_text">#F1F6FF</color>
+    <color name="m3t_thinking_stroke">#8FB3E4</color>
+
+    <color name="m3t_message_ai_bg">#223247</color>
+    <color name="m3t_message_user_bg">#234067</color>
+    <color name="m3t_message_action">#F0F5FF</color>
+    <color name="m3t_message_action_stroke">#66FFFFFF</color>
+
+    <color name="m3t_drawer_background">#152231</color>
+    <color name="m3t_drawer_section_bg">#1A2A3C</color>
+    <color name="m3t_drawer_input_bg">#213247</color>
+    <color name="m3t_floating_header">#1F2C3B</color>
+    <color name="m3t_floating_surface">#141D27</color>
+    <color name="m3t_floating_text_secondary">#9FAEC4</color>
+    <color name="m3t_recommend_grad_start">#264A6CA0</color>
+    <color name="m3t_recommend_grad_end">#26487FAF</color>
+    <color name="m3t_dialog_surface">#1A2D45</color>
+    <color name="m3t_dialog_surface_alt">#1D3A2E</color>
+    <color name="m3t_button_white">#2B3F56</color>
+    <color name="m3t_about_page_bg">#101A26</color>
+    <color name="m3t_automation_page_bg">#111C28</color>
+    <color name="m3t_about_card_bg">#223243</color>
+    <color name="m3t_automation_card_bg">#1E2C3B</color>
+
+</resources>
+

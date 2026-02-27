@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -18,8 +18,6 @@
 package com.ai.phoneagent.core.executor
 
 import android.accessibilityservice.AccessibilityService
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import com.ai.phoneagent.AutomationOverlay
@@ -29,15 +27,15 @@ import com.ai.phoneagent.ShizukuBridge
 import com.ai.phoneagent.VirtualDisplayController
 import com.ai.phoneagent.core.agent.ParsedAgentAction
 import com.ai.phoneagent.core.config.AgentConfiguration
+import com.ai.phoneagent.core.input.AppClipboardTransaction
 import com.ai.phoneagent.core.tools.AppPackageManager
 import com.ai.phoneagent.core.utils.ActionUtils
 import kotlinx.coroutines.delay
 
 /**
- * 动作执行器 - 单一职责
+ * 闂傚倷绀侢�幉锟犲蓟閿濆绀夐悗锝庡墰缁€濠囨煛閸愩劎澧曠紒鐘劤閹叉悂骞嬮敂琛″亾娓氣偓楠炲鏁冮埢�顒勬�?- 闂傚倷绀侢�幉锟犮€冮崱妞曟椽骞嬮悩闈涘触闂佸湱铏庨崰妤呭吹閸屾壕鍋撻崗澶婁壕闂佸憡鍔︽禍鐐哄储?
  *
- * 负责执行所有类型的Agent动作 原逻辑来自 UiAutomationAgent.kt 的 execute 方法
- */
+ * 闂備浇宕垫慨鐢�6�0礉濡ゅ懎绐楅柡鍥ュ灪閸庢淇婇妶鍛櫣缂佺姰鍎抽幉鎼佸箣閿旇〢�鍋撴笟鈧獮瀣晝閳ь剛绮婚妷鈺傜厓鐟滄粓宕滈悢濂夊殨闁割煈鍋勭欢鐐碘偓鍏夊亾闁告劗鍋撻拺澶愭⒒娴ｈ鍋犻柛鏂跨焸椤㈡牠宕惰閺嬫棃鏌熼崡鐐┾偓妾坣t闂傚倷绀侢�幉锟犲蓟閿濆绀夐悗锝庡墰缁�?闂傚倷绀侢�幉锟犫€﹂崶顒€绐楅柡宥庡幖閻掑灚銇勯幒宥囧妽妞ゎ偅顨堢槐鎺擄紣濠靛棔鍠婇悗娈垮枛閻栧吋淇婇悜钘壩╅柕澶涘瘜�?UiAutomationAgent.kt �?execute 闂傚倷绀侢�幖顐﹢�磹娴犲缍栧璺烘湰�? */
 class ActionExecutor(
         private val context: Context,
         private val config: AgentConfiguration = AgentConfiguration.DEFAULT,
@@ -56,16 +54,16 @@ class ActionExecutor(
     private val classAttrRegex = Regex("""\bclass="([^"]+)"""")
     private val editableAttrRegex = Regex("""\beditable="true"""")
 
-    // ─── 虚拟屏模式辅助方法 ───
+    // 闂傚倷绀侢�崯鍧楢�储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺?闂傚倷鐒﹂崕宕囨崲閹寸姴鏋堢€广儱娲犻崑鎾愁潩椤撶姵鍣繛���6�0缁犳帞绮诲☉銏犳闁割偅绮庨ˇ锔姐亜閺囶亞绉紒鐘崇☉椤繃娼忛埡濞惧亾閳ь剟姊绘担鍛婂暈闁哄矉绻濆鎻掝煥閸繆鎽曢梺缁樻煥閻ㄦ繈寮?闂傚倷绀侢�崯鍧楢�储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺?
 
-    /** 判断当前是否应使用虚拟屏执行路径 */
+    /** 闂傚倷绀侢�幉锛勬暜閸ヮ剙纾归柡宥庡幖閽冪喖鏌涢妷顔荤暗濞存粌缍婇弻鐔煎箚瑜嶉弳杈ㄣ亜閵堝懏鍤囬柡宀嬬節瀹曠喖妫冨☉姘摋闂備浇顕栭崹顖炴��閿曞��绠氶柡鍐ㄧ墕濡﹢鏌熼鍡忓亾闁哄绻樺鍝劽虹紒妯衡枏闂佸憡鏌ㄧ换鎰板煝瀹ュ绀嬫い鏍ㄦ皑椤斿棝姊虹紒妯活棃妞ゃ儲鎸搁��鍥х暆閸曨剛鍘电紓浣诡殕缁嬫垵螞椤撱垹缁╁ù鐘差儐閸嬶絽銆掑鐓庣仩闁诲繒濮风�?*/
     private fun isVirtualDisplayMode(): Boolean {
         return config.useBackgroundVirtualDisplay &&
                 VirtualDisplayController.shouldUseVirtualDisplay &&
                 VirtualDisplayController.isVirtualDisplayStarted()
     }
 
-    /** 获取虚拟屏 displayId，不可用时返回 -1 */
+    /** 闂傚倷绀侢�崥��磿閹惰棄搴婇柤鑹扮堪娴滃綊鏌涢妷顔煎闁诡垳鍋為幈銊ヮ潨閸℃绠归梺缁樼箥閸ㄥ爼�?displayId闂傚倷鐒︾€笛呯矙閹寸偟闄勯柡鍐ㄥ€荤粻鏂款熆閼搁潧濮囬柣顓燁殕閵囧嫰寮介妸褏鐓侢�梺鍝勬缁绘﹢寮婚敓鐘茬闁宠桨绢�佹慨鍝ョ磽娴ｈ櫣甯涢柛銊ョ仢�?-1 */
     private fun getVirtualDisplayId(): Int {
         return VirtualDisplayController.getDisplayId() ?: -1
     }
@@ -73,6 +71,8 @@ class ActionExecutor(
     private fun shouldUseShizukuInteraction(): Boolean {
         return config.useShizukuInteraction && !isVirtualDisplayMode()
     }
+
+    private fun isAsciiOnlyText(text: String): Boolean = text.all { it.code in 0..127 }
 
     private fun runShizukuTapCommand(
             x: Int,
@@ -85,7 +85,7 @@ class ActionExecutor(
         val fallback = ShizukuBridge.execResult("input swipe $x $y $x $y 1")
         if (fallback.exitCode == 0) return true
 
-        onLog("Shizuku tap 失败: exitCode=${direct.exitCode}/${fallback.exitCode}")
+        onLog("Shizuku 点击失败: exitCode=${direct.exitCode}/${fallback.exitCode}")
         return false
     }
 
@@ -113,7 +113,7 @@ class ActionExecutor(
         val r = ShizukuBridge.execResult("input swipe $sx $sy $ex $ey ${durationMs.coerceAtLeast(1L)}")
         if (r.exitCode == 0) return true
 
-        onLog("Shizuku swipe failed: exitCode=${r.exitCode}")
+        onLog("Shizuku 滑动失败: exitCode=${r.exitCode}")
         return false
     }
 
@@ -124,18 +124,17 @@ class ActionExecutor(
         val r = ShizukuBridge.execResult("input keyevent $key")
         if (r.exitCode == 0) return true
 
-        onLog("Shizuku keyevent($key) failed: exitCode=${r.exitCode}")
+        onLog("Shizuku 按键事件($key)失败: exitCode=${r.exitCode}")
         return false
     }
 
-    /** 键盘焦点保持不切换：虚拟显示注入通过 displayId 指定 */
+    /** 闂傚倸鍊烽悞锕傤敄濞嗘挸绐楁慨姗嗗劒妤﹁法鐤€婵炴垶鐟ラ埢�顒€娼￠弻銊╁籍閳ь剟宕曢搹顐ゎ浄妞ゆ牗顕ф惔銊ョ��闁靛ě鍛毇闂佽楠搁悘姘潖閸︻厾鐭欏璺侯煬閸氬鏌涘☉鍗炲箻闁逞屽墮閵堟悂寮婚悢鐑樺珰闁斥晛鍟扮粣娆戠磽娴ｇ缍侀柛妤佸▕楠炴牠鎮烽柇锔藉兊濡炪��鎸鹃崑鐔汇亹閺屻儲鈷戦柛婵嗗椤忊晛顭胯缁瑦淇婇棃娑辨僵妞ゆ垼濮ら悘鍐⒑闂堟侗鐒鹃柛搴��船椤曪綁骞庨懞銉㈡嫼濡炪��鍔х徊鍏肩閵忋垻纾?displayId 闂傚倷绀佸﹢閬嶁€﹂崼婢濇椽濡舵径���?*/
     private fun ensureVdFocus() {
         // NO-OP
     }
 
     /**
-     * 临时隐藏自动化悬浮窗并保证在任意返回路径恢复，避免 Shizuku 路径中途异常导致悬浮窗消失。
-     */
+     * 婵犵數鍋為崹鍫曞箰閹间焦鍋ら柕濞垮労濞撳鏌涘畝鈧崑鐐哄煕閺囥垺鐓欓梺顓ㄧ畱閻忊剝銇勯妷锕€鐏撮柡灞诲€栫缓鑺ュ緞婢跺瞼娉垮┑鐘愁問閸犳帡寮查悩鑼殾闁绘顕ч崘鈧梺闈涱焾閸庣増绔熼弴鐐╂斀闁绘劕鐡ㄩ崕妤呮煕閻樺啿鍝洪柟顔诲嵆婵＄兘鍩￠崘銊с偊闂備礁鎼悧蹇涘极閸濄儳涓嶅ù鐘差儐閸嬶綁鏌涢妷顖氼洭妞わ讣闄勭换婵嬪焵椤掑嫷鏁傞柛娑卞灱濞村嫮绱撻崒娆戝妽闁挎艾顭块悷鎵ⅵ鐎殿喖鐖奸崺锟犲磼濞戞艾寮虫繝鐢靛仜瀵爼鎮у鍫濈闁告洦鍨奸弫宥嗘叏濡じ鍚柣娑卞櫍濮婅櫣鎷犻垾鍐茬闂佹悶鍔岀紞濠呮闂佸搫琚崕鏌ュ疾椤掑��鍋撻崗澶婁壕闂佸憡娲︽禍鐐垫濮�6�0埖鈷?Shizuku 闂備浇宕垫慨宕囨媰閿曞��鍨傞柟娈垮枟椤愪粙鏌ｉ幇顒夊殶闁崇粯姊归妵鍕箻椤栨稑娅氶梺绋款儐閹瑰洤顕ｉ鍌涘磯闁靛ě宥囬棷闂備焦鐪归崺鍕垂閹惰В鈧箓宕奸妷顔芥櫔闂備緡鍓欑粔鐢�6�0吹婵犲洦鍊垫繛鎴烆仾椤忓懐顩查柣鎰靛墰缁犻箖鏌熺喊鍗炲箹闁哄鍊濋弻锝呪槈閺嵮冨闂佸疇妫勯ˇ闈涚暦閻撳簶鏢�介柛鏇ㄤ簼濠⑩偓�?     */
     private suspend inline fun <T> withAutomationOverlayHidden(
             crossinline block: suspend () -> T
     ): T {
@@ -162,7 +161,7 @@ class ActionExecutor(
         shizukuAutoFocusConsumed = false
     }
 
-    /** 执行动作 */
+    /** 闂傚倷绀佸﹢閬嶆偡閹惰棄骞㈤柍鍝勫€归弶鎼佹⒒娴ｅ憡鍟為柡宀嬬秮瀹曟繄鈧綆鍓涚�?*/
     suspend fun execute(
             action: ParsedAgentAction,
             service: PhoneAgentAccessibilityService?,
@@ -289,9 +288,9 @@ class ActionExecutor(
             }
         }
 
-        onLog("执行：Launch($pkgName)")
+        onLog("执行操作: launch($pkgName)")
         if (intent == null) {
-            onLog("Launch 失败：未找到可启动入口：$pkgName（candidates=${candidates.joinToString()}）")
+            onLog("启动失败: 未找到可启动入口 $pkgName (候选: ${candidates.joinToString()})")
             return false
         }
 
@@ -304,7 +303,7 @@ class ActionExecutor(
         return try {
             if (isVirtualDisplayMode()) {
                 val displayId = getVirtualDisplayId()
-                onLog("Launch → 虚拟屏 displayId=$displayId")
+                onLog("在虚拟屏启动: displayId=$displayId")
                 LaunchProxyActivity.launchOnDisplay(context, intent, displayId)
                 if (displayId > 0) {
                     delay(config.launchActionDelayMs)
@@ -322,7 +321,7 @@ class ActionExecutor(
             }
             true
         } catch (e: Exception) {
-            onLog("Launch 失败：${e.message.orEmpty()}")
+            onLog("启动异常: ${e.message.orEmpty()}")
             false
         }
     }
@@ -345,7 +344,7 @@ class ActionExecutor(
             service: PhoneAgentAccessibilityService?,
             onLog: (String) -> Unit
     ): Boolean {
-        onLog("执行 back")
+        onLog("执行操作: 返回")
         if (isVirtualDisplayMode()) {
             ensureVdFocus()
             VirtualDisplayController.injectBackBestEffort(getVirtualDisplayId())
@@ -366,7 +365,7 @@ class ActionExecutor(
             return true
         }
 
-        onLog("无法执行 back：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+        onLog("无法执行返回：无可用执行通道")
         return false
     }
 
@@ -374,7 +373,7 @@ class ActionExecutor(
             service: PhoneAgentAccessibilityService?,
             onLog: (String) -> Unit
     ): Boolean {
-        onLog("执行 home")
+        onLog("执行操作: 回到主页")
         if (isVirtualDisplayMode()) {
             ensureVdFocus()
             VirtualDisplayController.injectHomeBestEffort(getVirtualDisplayId())
@@ -395,14 +394,14 @@ class ActionExecutor(
             return true
         }
 
-        onLog("无法执行 home：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+        onLog("无法执行回到主页：无可用执行通道")
         return false
     }
 
-    /** 执行 Take_over - 需要用户接管，不执行动作，仅返回失败，由上层处理 */
+    /** 闂傚倷绀佸﹢閬嶆偡閹惰棄骞㈤柍鍝勫€归弶?Take_over - 闂傚倸鍊搁崐绋棵洪悩璇茬；闁瑰墽绮崑锟犳煛閸ャ劋浜㈤柛蹇撶焸閺屸剝鎷呴棃娑掑亾濠靛宓侢�悗锝庡枟閻撱儵鎮楅敐搴濈盎妞わ箒灏欑槐鎾存媴閸濆嫅娑欎繆閹绘帒顏俊鍙夊姇閳规垿宕堕埞鐐亙闁诲骸绠嶉崕鍗炍涘Δ鍛厱闁哄啫鐗婇崑鐘崇箾閹寸儐鐒鹃悗姘緲閳规垿顢欑憴鍕彆闂佺懓鍢查幊搴ㄢ€﹂妸鈺佺疢�妞ゆ梻铏庡Σ宄扳攽閻愬樊鍤熷┑顔芥尦楠炲﹪骞橀懜闈涘簥闂佺鎻粻鎴︽倷婵犲洦鐓熼柟閭﹢�墰濠€鏉懨瑰鍐﹢�仮闁诡喖缍婇獮鍥�煛娴ｇ啸缂傚��娴囨ご鍝ユ崲閸儱绠栧ù鐘差儏閻淇婇婵嗕汗闁瑰樊浜弻锝堢疢�閺囩偘绮堕梺绋匡攻閹��妫熼梺鍐叉惈閹冲繘�?*/
     private fun executeTakeOver(action: ParsedAgentAction, onLog: (String) -> Unit): Boolean {
-        val message = action.fields["message"].orEmpty().ifBlank { "需要用户协助处理" }
-        onLog("Take_over: $message")
+        val message = action.fields["message"].orEmpty().ifBlank { "User assistance required" }
+        onLog("需要接管: $message")
         return false
     }
 
@@ -420,11 +419,19 @@ class ActionExecutor(
                                     ?.getOrNull(1)
                                     ?.toLongOrNull()
                                     ?.times(1000)
-                    else -> raw.toLongOrNull()
+                    else -> {
+                        val plain = raw.toLongOrNull()
+                        when {
+                            plain == null -> null
+                            // 默认模型常输出 duration="3" 表示 3 秒；这里做秒级兜底。
+                            plain in 1L..60L -> plain * 1000L
+                            else -> plain
+                        }
+                    }
                 }
                         ?: 600L
 
-        onLog("执行：Wait(${d}ms)")
+        onLog("执行操作: wait(${d}ms)")
         delay(d.coerceAtLeast(0L))
         return true
     }
@@ -438,11 +445,12 @@ class ActionExecutor(
             onLog: (String) -> Unit
     ): Boolean {
         if (ActionUtils.looksSensitive(uiDump, config.sensitiveKeywords)) {
-            onLog("检测到敏感内容，拒绝执行输入操作")
+            onLog("检测到敏感内容，已跳过输入操作")
             return false
         }
 
         val inputText = readField(action.fields, "text").orEmpty()
+        val isAsciiInput = isAsciiOnlyText(inputText)
         val resourceId = readField(action.fields, "resourceId", "resource_id", "resourceid")
         val contentDesc = readField(action.fields, "contentDesc", "content_desc", "contentdesc")
         val className = readField(action.fields, "className", "class_name", "classname")
@@ -464,7 +472,7 @@ class ActionExecutor(
         val hasExplicitTapTarget = element != null
         if (element != null) {
             val (x, y) = ActionUtils.parsePointToScreen(element, screenW, screenH)
-            onLog("执行输入前先点击(${element.first},${element.second})")
+            onLog("输入前点击坐标: (${element.first},${element.second})")
             if (isVirtualDisplayMode()) {
                 ensureVdFocus()
                 VirtualDisplayController.injectTapBestEffort(
@@ -472,43 +480,81 @@ class ActionExecutor(
                         x.toInt(),
                         y.toInt()
                 )
-            } else if (shouldUseShizukuInteraction()) {
-                val clicked = withAutomationOverlayHidden {
-                    runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
-                }
-                if (!clicked) {
-                    onLog("Shizuku 点击失败")
-                    return false
-                }
             } else if (service != null) {
                 val clicked = service.clickAwait(x, y)
                 if (!clicked) {
-                    onLog("Accessibility 点击失败")
+                    onLog("无障碍点击失败")
                     return false
                 } else {
                     delay(300)
                 }
+            } else if (shouldUseShizukuInteraction()) {
+                val clicked = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
+                if (!clicked) {
+                    onLog("Shizuku 点击失败")
+                    return false
+                }
             } else {
-                onLog("输入前点击失败：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+                onLog("输入前点击失败：无可用执行通道")
                 return false
             }
             delay(300)
         }
 
-        onLog("执行 type(${inputText.take(config.logInputTextTruncateLength)})")
+        onLog("执行操作: 输入(${inputText.take(config.logInputTextTruncateLength)})")
 
         if (isVirtualDisplayMode()) {
             ensureVdFocus()
             val displayId = getVirtualDisplayId()
-            val ok = injectTextOnVirtualDisplay(displayId, inputText, onLog)
+            var ok = injectTextOnVirtualDisplay(displayId, inputText, onLog)
             if (!ok) {
-                onLog("虚拟显示器文本输入失败")
+                onLog("虚拟屏输入首轮失败，重试一次注入")
+                delay(180)
+                ok = injectTextOnVirtualDisplay(displayId, inputText, onLog)
+            }
+            if (!ok && service != null) {
+                onLog("虚拟屏输入失败，尝试无障碍输入兜底")
+                ok =
+                        if (resourceId != null || contentDesc != null || className != null || elementText != null) {
+                            service.setTextOnElement(
+                                    text = inputText,
+                                    resourceId = resourceId,
+                                    elementText = elementText,
+                                    contentDesc = contentDesc,
+                                    className = className,
+                                    index = index
+                            )
+                        } else {
+                            service.setTextOnFocused(inputText)
+                        }
+                if (!ok) {
+                    val inputClicked = service.clickFirstEditableElement()
+                    if (inputClicked) {
+                        delay(260)
+                        ok = service.setTextOnFocused(inputText)
+                    }
+                }
+                service.awaitWindowEvent(
+                        service.lastWindowEventTime(),
+                        timeoutMs = config.typeAwaitWindowTimeoutMs
+                )
+            }
+            if (!ok && !isAsciiInput) {
+                onLog("虚拟屏中文输入失败：下一步不要再输出Type，请改为Tap键盘逐字输入")
+            }
+            if (!ok) {
+                onLog("虚拟屏输入失败")
             }
             delay(config.typeAwaitWindowTimeoutMs)
             return ok
         }
 
-        if (service != null && !shouldUseShizukuInteraction()) {
+        if (service != null) {
+            if (shouldUseShizukuInteraction()) {
+                onLog("Shizuku 模式：输入动作改走无障碍服务直输")
+            } else {
+                onLog("无障碍模式：仅使用无障碍服务直输")
+            }
             var ok =
                     if (resourceId != null || contentDesc != null || className != null || elementText != null) {
                         service.setTextOnElement(
@@ -524,7 +570,8 @@ class ActionExecutor(
                     }
 
             if (!ok) {
-                onLog("文本输入失败，尝试点击输入框后重试")
+                onLog("无障碍直输校验失败，尝试重新聚焦输入框")
+                onLog("输入失败，尝试聚焦输入框后重试")
                 val inputClicked = service.clickFirstEditableElement()
                 if (inputClicked) {
                     delay(300)
@@ -536,13 +583,18 @@ class ActionExecutor(
                     service.lastWindowEventTime(),
                     timeoutMs = config.typeAwaitWindowTimeoutMs
             )
+            if (!ok && !isAsciiInput) {
+                onLog("Type中文失败：下一步不要再输出Type，请直接Tap软键盘上的目标字键")
+            }
             return ok
         }
 
         if (!shouldUseShizukuInteraction() && service == null) {
-            onLog("无法执行 type：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+            onLog("无法执行输入：无可用执行通道")
             return false
         }
+
+        val shizukuOnly = shouldUseShizukuInteraction() && service == null
 
         if (shouldUseShizukuInteraction() && !isVirtualDisplayMode() && !hasExplicitTapTarget) {
             prepareShizukuInputFocusIfNeeded(uiDump, onLog)
@@ -552,6 +604,26 @@ class ActionExecutor(
         if (!ok) {
             onLog("Shizuku 输入失败")
             return false
+        }
+        if (!verifyShizukuTypeResult(service, inputText, onLog)) {
+            val fixedByClipboard =
+                    setClipboardAndPaste(-1, inputText, onLog) &&
+                            verifyShizukuTypeResult(service, inputText, onLog)
+            if (!fixedByClipboard) {
+                if (!isAsciiInput && shizukuOnly) {
+                    onLog("Shizuku-only 中文输入失败：请让模型改为 Tap 软键盘逐字输入")
+                    return false
+                }
+                val retried = runDirectInputText(-1, inputText)
+                if (!retried) {
+                    onLog("Shizuku 直输兜底失败（校验不一致）")
+                    return false
+                }
+                if (!verifyShizukuTypeResult(service, inputText, onLog)) {
+                    onLog("Shizuku 输入重试后校验失败")
+                    return false
+                }
+            }
         }
         delay(config.typeAwaitWindowTimeoutMs)
         return true
@@ -566,7 +638,7 @@ class ActionExecutor(
             onLog: (String) -> Unit
     ): Boolean {
         if (ActionUtils.looksSensitive(uiDump, config.sensitiveKeywords)) {
-            onLog("检测到敏感内容，停止执行点击")
+            onLog("检测到敏感内容，已跳过点击操作")
             return false
         }
 
@@ -592,7 +664,7 @@ class ActionExecutor(
                                         className != null ||
                                         elementText != null)
                 ) {
-                    onLog("执行 tap(selector)")
+                    onLog("执行操作: 点击(selector)")
                     withAutomationOverlayHidden {
                         service.clickElement(
                                 resourceId = resourceId,
@@ -624,7 +696,7 @@ class ActionExecutor(
         val yRel = ActionUtils.parseCoordinate(action.fields["y"]) ?: element?.second ?: return false
 
         val (x, y) = ActionUtils.parsePointToScreen(xRel to yRel, screenW, screenH)
-        onLog("执行 tap($xRel,$yRel)")
+        onLog("执行操作: 点击($xRel,$yRel)")
 
         if (isVirtualDisplayMode()) {
             ensureVdFocus()
@@ -657,7 +729,7 @@ class ActionExecutor(
                 return@withAutomationOverlayHidden true
             }
 
-            onLog("无法执行 tap：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+            onLog("无法执行点击：无可用执行通道")
             false
         }
     }
@@ -672,7 +744,7 @@ class ActionExecutor(
         val element = ActionUtils.parsePoint(action.fields["element"]) ?: return false
         val (x, y) = ActionUtils.parsePointToScreen(element, screenW, screenH)
 
-        onLog("执行 long press(${element.first},${element.second})")
+        onLog("执行操作: 长按(${element.first},${element.second})")
 
         if (isVirtualDisplayMode()) {
             ensureVdFocus()
@@ -698,7 +770,7 @@ class ActionExecutor(
                 return@withAutomationOverlayHidden true
             }
 
-            onLog("无法执行 long press：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+            onLog("无法执行长按：无可用执行通道")
             false
         }
         if (ok && !useShizuku && service != null) {
@@ -720,7 +792,7 @@ class ActionExecutor(
         val element = ActionUtils.parsePoint(action.fields["element"]) ?: return false
         val (x, y) = ActionUtils.parsePointToScreen(element, screenW, screenH)
 
-        onLog("执行 double tap(${element.first},${element.second})")
+        onLog("执行操作: 双击(${element.first},${element.second})")
 
         if (isVirtualDisplayMode()) {
             ensureVdFocus()
@@ -740,13 +812,13 @@ class ActionExecutor(
                     delay(config.doubleTapIntervalMs)
                     ok1 = runShizukuTapCommand(x.toInt(), y.toInt(), onLog)
                 } else {
-                    onLog("Shizuku 双击第一次点击失败")
+                    onLog("Shizuku 双击首击失败")
                 }
                 return@withAutomationOverlayHidden ok1
             }
 
             if (service == null) {
-                onLog("无法执行 double tap：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+                onLog("无法执行双击：无可用执行通道")
                 return@withAutomationOverlayHidden false
             }
 
@@ -793,7 +865,7 @@ class ActionExecutor(
         val (sx, sy) = ActionUtils.parsePointToScreen(sxRel to syRel, screenW, screenH)
         val (ex, ey) = ActionUtils.parsePointToScreen(exRel to eyRel, screenW, screenH)
 
-        onLog("执行：Swipe($sxRel,$syRel -> $exRel,$eyRel, ${dur}ms)")
+        onLog("执行操作: 滑动($sxRel,$syRel -> $exRel,$eyRel, ${dur}ms)")
 
         if (isVirtualDisplayMode()) {
             ensureVdFocus()
@@ -833,7 +905,7 @@ class ActionExecutor(
                 return@withAutomationOverlayHidden true
             }
 
-            onLog("无法执行 swipe：Shizuku 模式已开启但不可用，且未允许 Accessibility 回退")
+            onLog("无法执行滑动：无可用执行通道")
             false
         }
         if (ok && !useShizuku && service != null) {
@@ -847,16 +919,12 @@ class ActionExecutor(
         return ok
     }
 
-    // ─── 虚拟屏文本输入 ───
+    // 闂傚倷绀侢�崯鍧楢�储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺?闂傚倷鐒﹂崕宕囨崲閹寸姴鏋堢€广儱娲犻崑鎾愁潩椤撶姵鍣繛���6�0缁犳帞绮诲☉銏犵睄闁��屽墴閹顢氶埢�顒勫蓟閿熺姴閱囨い鎰╁灩閳峰绱撴笟鈧·鍌炲矗閸愩劎�?闂傚倷绀侢�崯鍧楢�储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺?
 
     /**
-     * 在虚拟屏上输入文本（支持中文等非 ASCII 字符）
-     *
-     * 策略：
-     * 1. 纯 ASCII 文本 → 直接使用 `input -d <displayId> text`
-     * 2. 含非 ASCII 字符 → 先写入剪贴板，再注入 Ctrl+V 粘贴到虚拟屏
-     * 3. 剪贴板方式失败 → 回退到逐字 `input text` 尝试
-     */
+     * 闂傚倷绶氬鑽ゆ嫻閻旂厧绢�夐煫鍥ㄦ尨閺嬪秹鏌涢弴銊ョ仩缂佺媭鍨堕弻锝夊籍閸偅顥栧┑鐐靛帶閼活垶鍩ユ径鎰缂佹稑缍婄欢��哥磽娓氣偓椤ゅ倿宕ｉ崘銊ф殾婵°��鎳庡敮闂佹寧姊婚弲顐﹀焵椤掑娅嶉柡宀嬬節瀹曞ジ顢曢姀鐘寗缂傚��娴囨ご鎼佹偡閳轰緡鍤曢柕濞炬櫓閺佸秵绻涢幋鐑嗙劷婵℃煡鏢�辩换娑㈠箣閻愬瓨鍎庨梺鍛娒肩划娆忣嚕閹间礁绀冩い蹇撴閳瑰繑绻濋姢�锝呯厫闁告梹鐗楅�?ASCII 闂備浇顕х€涒晝绮欓幒妞尖偓鍐醇閵夘喗鏅炴繛鎾村焹閸嬫捇�?     *
+     * 缂傚倸鍊烽悞锔剧矙閹烘鍋嬫繝濠傜墕濮规煡鏌熼幍顔碱暭闁?     * 1. �?ASCII 闂傚倷绀侢�幖顐﹢�磹缁嬫５娲晝閳ь剟鏁?�?闂傚倷鑳堕崕鐢�6�0疾濞戙垺鍋ら柕濞у嫭娈伴柣搴㈢⊕钃卞┑顖涙尦閹綊骞侀幒鎴濐��闂?`input -d <displayId> text`
+     * 2. 闂傚倷绀侢�幉锟犲礄瑜版帒纾诲┑鐘插亞閻?ASCII 闂備浇顕х€涒晝绮欓幒妞尖偓鍐醇閵夘喗鏅?�?闂傚倷鑳堕��鍫㈡崲閹扮増鍋嬮柛鈩冪☉閻ゎ噣鏌熼幑鎰靛殭缂佲偓閸岢�偞鐓忓璺虹墕閸既�碍銇勯妷銉﹀殗闁诡喖缍婇獮鍥敆閸屾稒鍠栨繝鐢靛О閸ㄦ椽鏁冮姀銈呮瀬鐎广儱娲ｅ▽顏堟煢濡警妲规繛鍛暙閳规垿鎮欏顔叫ら梺鍛婃煥閻倸鐣?Ctrl+V 缂傚倸鍊风欢锟犲窗濡ゅ應鈧箓宕奸妷銉ь槴濠电偞鍨崹鍦矆閸℃稒鐓欑€瑰嫮澧楢�﹢浼存煟濠靛洦宕岄柡客�€鍠愰ˇ鐗堟償閳╁啰鈧�姊?     * 3. 闂傚倷绀侢�幉锟犲箹閳哄倻顩查柨婵嗩槸缁€鍡樼箾閹存瑥鐏╃紒鐙欏洦鐓欑紒瀣仢椤掋垽鏌ｉ幘��告噮闁逞屽墯椤既�牠宕伴弽顐ｅ床闁圭増婢樻闂佺懓顕慨鐢碘偓?�?闂傚倷鐒﹂幃鍫曞磿閹惰棄纾婚柕鍫濐槸閻掑灚銇勯幋锝嗩棄濞存粓绠栧娲川婵犲倻鐟愰梺鍛�6�6殕婵炲﹪宕洪埢�顒併亜閹哄秶顦﹀┑顔兼喘�?`input text` 闂備浇顕х换鎰崲閹寸姵宕查柛鈩冪⊕閸?     */
     internal fun injectTextOnVirtualDisplay(
             displayId: Int,
             text: String,
@@ -881,13 +949,12 @@ class ActionExecutor(
             return true
         }
 
-        // 对 displayId 定向失败时，尝试前台 direct input 兜底（仍不走粘贴）
+        // Fallback to foreground direct input when display-targeted input fails.
         if (hasDisplayId && runDirectInputText(-1, text)) {
             val via = if (isAsciiOnly) "direct_input_fallback" else "direct_input_foreground_fallback"
             logShizukuTypeStage(onLog, "final", "ok", "via=$via")
             return true
         }
-
         logShizukuTypeStage(onLog, "final", "fail", if (isAsciiOnly) "ascii_all_failed" else "non_ascii_all_failed")
         return false
     }
@@ -907,57 +974,164 @@ class ActionExecutor(
         return ShizukuBridge.execResultArgs(args).exitCode == 0
     }
 
-    /** 通过剪贴板 + Ctrl+V 粘贴方式输入文本 */
+    /** 闂傚倸鍊风欢锟犲磻閸涱喚鈹嶉柧蹇氼潐瀹曟煡鏌涢幇闈涙灈缂佲偓閸喆浜滈煫鍥ㄦ尰閹兼劙鏌涢妸鈺€鎲鹃柡?+ Ctrl+V 缂傚倸鍊风欢锟犲窗濡ゅ應鈧箓宕奸妷銉ь槴濠电偞鍨崹鐟拔涘鈧弻锝夋偄缁嬫妫嗙紒缁㈠幐閸嬫捇姊洪崫鍕垫Ц闁绘锕獮鎰板箹娴ｅ摜鐓戦梺绯曞墲缁嬫垵螞濮椻偓閺屾盯濡烽敐鍛瀴闂?*/
     private fun setClipboardAndPaste(
             displayId: Int,
             text: String,
             onLog: (String) -> Unit
     ): Boolean {
-        if (!setClipboardText(text)) {
-            logShizukuTypeStage(onLog, "clipboard_set", "fail")
+        val tx = AppClipboardTransaction(context)
+        val result =
+                tx.run(temporaryText = text) { verifyState ->
+                    logShizukuTypeStage(onLog, "clipboard_tx", "start", "module=AppClipboardTransaction")
+
+                    // Strict gate: clipboard must be verifiably matched before paste.
+                    if (verifyState != AppClipboardTransaction.VerifyState.MATCHED) {
+                        logShizukuTypeStage(
+                                onLog,
+                                "clipboard_set",
+                                "fail",
+                                "verify=${verifyState.name.lowercase()} strict=required"
+                        )
+                        return@run false
+                    }
+
+                    // Wait clipboard propagation before paste key event.
+                    try {
+                        Thread.sleep(100)
+                    } catch (_: InterruptedException) {}
+
+                    if (!triggerPaste(displayId)) {
+                        logShizukuTypeStage(onLog, "paste", "fail")
+                        return@run false
+                    }
+                    logShizukuTypeStage(onLog, "paste", "ok")
+
+                    // Wait paste commit before restoring user clipboard snapshot.
+                    try {
+                        Thread.sleep(200)
+                    } catch (_: InterruptedException) {}
+                    true
+                }
+
+        val shouldFallbackToShizuku =
+                !result.staged ||
+                        result.verifyState != AppClipboardTransaction.VerifyState.MATCHED ||
+                        !result.actionSucceeded
+        if (shouldFallbackToShizuku) {
+            logShizukuTypeStage(
+                    onLog,
+                    "clipboard_set",
+                    "fail",
+                    "verify=${result.verifyState.name.lowercase()}"
+            )
+            if (!result.restored) {
+                logShizukuTypeStage(onLog, "clipboard_restore", "fail")
+            }
+
+            logShizukuTypeStage(
+                    onLog,
+                    "clipboard_tx",
+                    "fallback",
+                    "via=shizuku reason=${result.verifyState.name.lowercase()}"
+            )
+            if (setClipboardAndPasteViaShizuku(displayId, text, onLog)) {
+                return true
+            }
             return false
         }
-        logShizukuTypeStage(onLog, "clipboard_set", "ok")
 
-        // 等待剪贴板同步
-        try {
-            Thread.sleep(100)
-        } catch (_: InterruptedException) {}
-
-        if (!triggerPaste(displayId)) {
-            logShizukuTypeStage(onLog, "paste", "fail")
-            return false
+        logShizukuTypeStage(
+                onLog,
+                "clipboard_set",
+                "ok",
+                "verify=${result.verifyState.name.lowercase()}"
+        )
+        if (!result.restored) {
+            logShizukuTypeStage(onLog, "clipboard_restore", "fail")
+        } else {
+            logShizukuTypeStage(onLog, "clipboard_restore", "ok")
         }
-        logShizukuTypeStage(onLog, "paste", "ok")
-
-        // 等待粘贴完成
-        try {
-            Thread.sleep(200)
-        } catch (_: InterruptedException) {}
-
-        return true
+        return result.actionSucceeded
     }
 
-    private fun setClipboardText(text: String): Boolean {
-        // App clipboard write + readback verification.
-        val appClipboardOk =
-                runCatching {
-                    val cm =
-                            context.getSystemService(Context.CLIPBOARD_SERVICE)
-                                    as? ClipboardManager ?: return@runCatching false
-                    cm.setPrimaryClip(ClipData.newPlainText("Aries", text))
-                    val readBack =
-                            cm.primaryClip
-                                    ?.takeIf { it.itemCount > 0 }
-                                    ?.getItemAt(0)
-                                    ?.coerceToText(context)
-                                    ?.toString()
-                    readBack == text
-                }
-                        .getOrDefault(false)
+    private fun setClipboardAndPasteViaShizuku(
+            displayId: Int,
+            text: String,
+            onLog: (String) -> Unit
+    ): Boolean {
+        val snapshot = readClipboardTextViaShizuku()
+        if (snapshot == null) {
+            logShizukuTypeStage(onLog, "clipboard_snapshot", "fail", "via=shizuku unreadable")
+            return false
+        }
+        logShizukuTypeStage(onLog, "clipboard_snapshot", "ok", "via=shizuku")
 
-        // Shell clipboard fallback for ROM compatibility.
-        val clipCmds =
+        var shouldRestoreVerifyHighlight = false
+        try {
+            if (!forceSyncClipboardViaShizuku(text)) {
+                logShizukuTypeStage(onLog, "clipboard_set", "fail", "via=shizuku write_failed")
+                return false
+            }
+
+            when (val readBack = readClipboardTextViaShizuku()) {
+                text -> {
+                    logShizukuTypeStage(onLog, "clipboard_set", "ok", "via=shizuku verify=matched")
+                    AutomationOverlay.setInputVerifyHighlight(true)
+                    shouldRestoreVerifyHighlight = true
+                }
+                null -> {
+                    logShizukuTypeStage(
+                            onLog,
+                            "clipboard_set",
+                            "fail",
+                            "via=shizuku verify=unreadable"
+                    )
+                    return false
+                }
+                else -> {
+                    logShizukuTypeStage(
+                            onLog,
+                            "clipboard_set",
+                            "fail",
+                            "via=shizuku verify=mismatch"
+                    )
+                    return false
+                }
+            }
+
+            // Wait clipboard propagation before paste key event.
+            try {
+                Thread.sleep(100)
+            } catch (_: InterruptedException) {}
+
+            if (!triggerPaste(displayId)) {
+                logShizukuTypeStage(onLog, "paste", "fail", "via=shizuku")
+                return false
+            }
+            logShizukuTypeStage(onLog, "paste", "ok", "via=shizuku")
+
+            // Wait paste commit before restoring user clipboard snapshot.
+            try {
+                Thread.sleep(200)
+            } catch (_: InterruptedException) {}
+            return true
+        } finally {
+            val restored = forceSyncClipboardViaShizuku(snapshot)
+            logShizukuTypeStage(
+                    onLog,
+                    "clipboard_restore",
+                    if (restored) "ok" else "fail",
+                    "via=shizuku"
+            )
+            if (shouldRestoreVerifyHighlight) {
+                AutomationOverlay.setInputVerifyHighlight(false)
+            }
+        }
+    }
+
+    private fun forceSyncClipboardViaShizuku(text: String): Boolean {
+        val candidates =
                 listOf(
                         listOf("cmd", "clipboard", "set", "text", text),
                         listOf("cmd", "clipboard", "set-text", text),
@@ -980,12 +1154,36 @@ class ActionExecutor(
                                 "0",
                         ),
                 )
-
-        for (cmd in clipCmds) {
-            val r = ShizukuBridge.execResultArgs(cmd)
-            if (r.exitCode == 0) return true
+        for (args in candidates) {
+            val r = ShizukuBridge.execResultArgs(args)
+            if (r.exitCode == 0 && !containsClipboardCommandFailure(r)) return true
         }
-        return appClipboardOk
+        return false
+    }
+
+    private fun readClipboardTextViaShizuku(): String? {
+        val candidates =
+                listOf(
+                        listOf("cmd", "clipboard", "get", "text"),
+                        listOf("cmd", "clipboard", "get-text")
+                )
+        for (args in candidates) {
+            val r = ShizukuBridge.execResultArgs(args)
+            if (r.exitCode != 0) continue
+            if (containsClipboardCommandFailure(r)) continue
+            val raw = r.stdoutText().replace("\u0000", "")
+            return raw.trimEnd('\r', '\n')
+        }
+        return null
+    }
+
+    private fun containsClipboardCommandFailure(result: ShizukuBridge.ExecResult): Boolean {
+        val merged = (result.stdoutText() + "\n" + result.stderrText()).lowercase()
+        return merged.contains("no shell command implementation") ||
+                merged.contains("unknown command") ||
+                merged.contains("securityexception") ||
+                merged.contains("permission denial") ||
+                merged.contains("not found")
     }
 
     private fun triggerPaste(displayId: Int): Boolean {
@@ -1026,7 +1224,7 @@ class ActionExecutor(
         }
 
         val (x, y) = center
-        val tapped = withAutomationOverlayHidden { runShizukuTapCommand(x, y, onLog) }
+        val tapped = runShizukuTapCommand(x, y, onLog)
         if (tapped) {
             logShizukuTypeStage(onLog, "focus_prep", "hit", "tap=[$x,$y]")
             delay(220)
@@ -1071,6 +1269,73 @@ class ActionExecutor(
         return ((l + r) / 2) to ((t + b) / 2)
     }
 
+    private suspend fun verifyShizukuTypeResult(
+            service: PhoneAgentAccessibilityService?,
+            expected: String,
+            onLog: (String) -> Unit,
+            retries: Int = 6,
+            intervalMs: Long = 90L
+    ): Boolean {
+        if (expected.isBlank()) return true
+        val verifyResult = verifyFocusedInputText(service, expected, retries, intervalMs)
+        return when (verifyResult) {
+            true -> {
+                logShizukuTypeStage(onLog, "verify", "ok")
+                true
+            }
+            false -> {
+                logShizukuTypeStage(onLog, "verify", "fail", "focused_text_mismatch")
+                false
+            }
+            null -> {
+                if (service == null) {
+                    logShizukuTypeStage(onLog, "verify", "skip", "no_accessibility_service")
+                    true
+                } else {
+                    // Service exists but focused text is unreadable; treat as failure to trigger fallback path.
+                    logShizukuTypeStage(onLog, "verify", "fail", "focused_text_unreadable")
+                    false
+                }
+            }
+        }
+    }
+
+    private suspend fun verifyFocusedInputText(
+            service: PhoneAgentAccessibilityService?,
+            expected: String,
+            retries: Int,
+            intervalMs: Long
+    ): Boolean? {
+        val svc = service ?: return null
+        val expectedNorm = normalizeTypeVerifyText(expected)
+        if (expectedNorm.isEmpty()) return true
+
+        var sawReadable = false
+        repeat(retries) {
+            val actual = svc.getFocusedInputText()
+            if (actual != null) {
+                sawReadable = true
+                if (isTypeVerifyMatched(actual, expectedNorm)) return true
+            }
+            delay(intervalMs)
+        }
+        return if (sawReadable) false else null
+    }
+
+    private fun isTypeVerifyMatched(actualRaw: String, expectedNorm: String): Boolean {
+        val actualNorm = normalizeTypeVerifyText(actualRaw)
+        if (actualNorm == expectedNorm) return true
+        if (actualNorm.contains(expectedNorm)) return true
+
+        val actualNoWs = actualNorm.replace(Regex("""\s+"""), "")
+        val expectedNoWs = expectedNorm.replace(Regex("""\s+"""), "")
+        return expectedNoWs.isNotEmpty() && actualNoWs.contains(expectedNoWs)
+    }
+
+    private fun normalizeTypeVerifyText(value: String): String {
+        return value.replace("\r\n", "\n").trim()
+    }
+
     private fun logShizukuTypeStage(
             onLog: (String) -> Unit,
             stage: String,
@@ -1081,3 +1346,6 @@ class ActionExecutor(
         onLog("[Type][Shizuku] $stage=$status$suffix")
     }
 }
+
+
+

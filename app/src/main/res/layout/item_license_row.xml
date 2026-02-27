@@ -3,40 +3,30 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingTop="8dp"
-    android:paddingBottom="8dp">
+    android:paddingTop="@dimen/m3t_spacing_sm"
+    android:paddingBottom="@dimen/m3t_spacing_sm">
 
     <TextView
         android:id="@+id/tvLibName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Library Name"
-        android:textColor="@color/blue_glass_text"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        android:textAppearance="@style/TextAppearance.M3t.Title.Medium" />
 
     <TextView
         android:id="@+id/tvLibDesc"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/m3t_spacing_xxxs"
         android:text="Library description"
-        android:textColor="@color/blue_glass_icon"
-        android:textSize="13sp"
-        android:layout_marginTop="2dp" />
+        android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
 
     <TextView
         android:id="@+id/tvLibLicense"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/m3t_spacing_xxxs"
         android:text="许可: Apache-2.0"
-        android:textColor="@color/blue_glass_icon"
-        android:textSize="12sp"
-        android:layout_marginTop="2dp" />
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="8dp"
-        android:background="@color/blue_glass_stroke" />
+        android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
 
 </LinearLayout>

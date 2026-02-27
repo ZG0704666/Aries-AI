@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <gradient
-        android:startColor="#202563EB"
-        android:endColor="#203B82F6"
+        android:startColor="@color/m3t_recommend_grad_start"
+        android:endColor="@color/m3t_recommend_grad_end"
         android:type="linear"
         android:angle="45" />
-    <corners android:radius="16dp" />
+    <corners android:radius="@dimen/m3t_radius_md" />
 </shape>
+

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -32,17 +34,6 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.random.Random
-
-// 基础颜色定义
-private val ColorMainBlue = Color(0xFF007AFF)
-private val ColorDeepBlue = Color(0xFF0051D5)
-private val ColorTextMain = Color(0xFF1A1A1A)
-private val ColorTextSecondary = Color(0xFF666666)
-private val ColorHint = Color(0xFF999999)
-private val ColorBgGray = Color(0xFFF5F5F5)
-private val ColorRedCancel = Color(0xFFFF3B30)
-private val ColorWhite = Color.White
-private val ColorOverlayMask = Color(0x99FFFFFF) // 半透明白色遮罩，让背景模糊隐约可见
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -55,13 +46,28 @@ fun InputBar(
     onVoiceEnd: () -> Unit,
     onVoiceCancel: () -> Unit,
     onAttachmentClick: () -> Unit,
-    onAgentClick: () -> Unit,
+    agentModeEnabled: Boolean,
+    onAgentToggle: (Boolean) -> Unit,
     onModelSelect: () -> Unit,
     onModeChange: (Boolean) -> Unit,
     voiceAmplitude: Float = 0f,
     modifier: Modifier = Modifier,
     onUpdateCancelState: (Boolean) -> Unit = {}
 ) {
+    // 基础颜色定义（统一从 MaterialTheme 动态获取）
+    val colorScheme = MaterialTheme.colorScheme
+    val colorTextMain = colorScheme.onSurface
+    val colorTextSecondary = colorScheme.onSurfaceVariant
+    val colorHint = colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
+    val colorInputField = colorScheme.surfaceVariant.copy(alpha = 0.9f)
+    val colorButtonDisabled = colorScheme.surfaceVariant.copy(alpha = 0.72f)
+    val colorButtonEnabled = colorScheme.primary
+    val colorButtonIcon = colorScheme.onPrimary
+    val spacingXxxs = dimensionResource(R.dimen.m3t_spacing_xxxs)
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+
     // 状态为 Recording (录音中), Recognizing (识别中) 时显示全屏悬浮层
     val showVoiceOverlay = state is InputState.VoiceRecording || state is InputState.VoiceRecognizing
     val isVoiceMode = state is InputState.VoiceIdle || showVoiceOverlay
@@ -81,119 +87,109 @@ fun InputBar(
         }
 
         // 底部常驻栏
-        Surface(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 7.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = ColorWhite,
-            shadowElevation = 4.dp
+                .padding(start = spacingMd, top = 0.dp, end = spacingMd, bottom = spacingXxxs)
         ) {
-            val sideSlotWidth = 72.dp
+            val containerHeight by animateDpAsState(
+                targetValue = if (isVoiceMode) 48.dp else 52.dp,
+                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                label = "inputBarContainerHeight"
+            )
+            val containerHorizontalPadding by animateDpAsState(
+                targetValue = if (isVoiceMode) 14.dp else spacingXs,
+                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                label = "inputBarContainerPadding"
+            )
 
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = spacingXs)
+                    .height(containerHeight)
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(colorInputField)
+                    .animateContentSize(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
+                    .padding(horizontal = containerHorizontalPadding, vertical = spacingSm),
+                contentAlignment = if (isVoiceMode) Alignment.Center else Alignment.CenterStart
             ) {
-                // 左侧等宽槽位：模式切换按钮
-                Box(
-                    modifier = Modifier.width(sideSlotWidth),
-                    contentAlignment = Alignment.CenterStart
-                ) {
+                if (isVoiceMode) {
+                    // 语音模式：按住说话区域扩展到整个底栏，键盘图标融入按钮内部
+                    VoiceRecordButtonHandler(
+                        onPressStart = onVoiceStart,
+                        onPressEnd = onVoiceEnd,
+                        onCancel = onVoiceCancel,
+                        onOffsetChange = { offsetY, _ ->
+                            val isCancelling = offsetY < -150f
+                            onUpdateCancelState(isCancelling)
+                        }
+                    )
+
+                    Text(
+                        text = "按住说话",
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorTextMain
+                        )
+                    )
+
                     IconButton(
-                        onClick = { onModeChange(!isVoiceMode) },
-                        modifier = Modifier.size(32.dp)
+                        onClick = { onModeChange(false) },
+                        modifier = Modifier.align(Alignment.CenterStart).size(32.dp)
                     ) {
                         Icon(
-                            imageVector = if (isVoiceMode) Icons.Default.Keyboard else Icons.Default.Mic,
-                            contentDescription = if (isVoiceMode) "切换键盘" else "语音输入",
-                            tint = ColorTextSecondary,
+                            imageVector = Icons.Default.Keyboard,
+                            contentDescription = "切换键盘",
+                            tint = colorTextSecondary,
                             modifier = Modifier.size(24.dp)
                         )
                     }
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // 中间区域：文本输入框 或 "按住说话"按钮
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 48.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AnimatedContent(
-                        targetState = isVoiceMode,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(150)) with
-                            fadeOut(animationSpec = tween(150))
-                        },
-                        label = "inputModeTransition"
-                    ) { voiceMode ->
-                        if (voiceMode) {
-                            // 语音模式：显示"按住说话"按钮，需要居中显示
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            ) {
-                                Text(
-                                    text = "按住说话",
-                                    style = TextStyle(
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ColorTextMain
-                                    )
-                                )
-                                
-                                // 覆盖透明的触摸区域来处理长按逻辑
-                                VoiceRecordButtonHandler(
-                                    onPressStart = onVoiceStart,
-                                    onPressEnd = onVoiceEnd,
-                                    onCancel = onVoiceCancel,
-                                    onOffsetChange = { offsetY, _ -> 
-                                        val isCancelling = offsetY < -150f 
-                                        onUpdateCancelState(isCancelling)
-                                    }
-                                )
-                            }
-                        } else {
-                            // 文本模式：显示输入框
-                            Box(
-                                contentAlignment = Alignment.CenterStart, 
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            ) {
-                                if (text.isEmpty()) {
-                                    Text(
-                                        text = "尽管问...",
-                                        color = ColorHint,
-                                        fontSize = 15.sp
-                                    )
-                                }
-                                BasicTextField(
-                                    value = text,
-                                    onValueChange = onTextChange,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textStyle = TextStyle(color = ColorTextMain, fontSize = 15.sp),
-                                    cursorBrush = SolidColor(ColorMainBlue)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // 右侧等宽槽位：附件 + 发送
-                Box(
-                    modifier = Modifier.width(sideSlotWidth),
-                    contentAlignment = Alignment.CenterEnd
-                ) {
+                } else {
+                    // 文本模式：输入框扩展为整条底栏，操作图标内嵌到输入框
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        IconButton(
+                            onClick = { onModeChange(true) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = "语音输入",
+                                tint = colorTextSecondary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(spacingXs))
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 32.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (text.isEmpty()) {
+                                Text(
+                                    text = "尽管问...",
+                                    color = colorHint,
+                                    fontSize = 15.sp
+                                )
+                            }
+                            BasicTextField(
+                                value = text,
+                                onValueChange = onTextChange,
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = TextStyle(color = colorTextMain, fontSize = 15.sp),
+                                cursorBrush = SolidColor(colorScheme.primary)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(spacingXs))
+
                         IconButton(
                             onClick = onAttachmentClick,
                             modifier = Modifier.size(32.dp)
@@ -201,24 +197,23 @@ fun InputBar(
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = "附件",
-                                tint = ColorTextSecondary,
+                                tint = colorTextSecondary,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
 
-                        // 发送按钮 (圆形背景，黑色)
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(if (text.isNotEmpty()) Color.Black else Color.LightGray.copy(alpha = 0.4f))
+                                .background(if (text.isNotEmpty()) colorButtonEnabled else colorButtonDisabled)
                                 .clickable(enabled = text.isNotEmpty(), onClick = onSend),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_send_24),
                                 contentDescription = "发送",
-                                tint = Color.White,
+                                tint = colorButtonIcon,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -241,6 +236,7 @@ fun VoiceInputOverlayContent(
     amplitude: Float,
     inputState: InputState
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     val isRecording = inputState is InputState.VoiceRecording || inputState is InputState.VoiceRecognizing
     val isCancelled = (inputState as? InputState.VoiceRecording)?.isCancelling == true
     
@@ -253,7 +249,7 @@ fun VoiceInputOverlayContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         
-        val waveColor = if (isCancelled) ColorRedCancel else ColorMainBlue
+        val waveColor = if (isCancelled) colorScheme.error else colorScheme.primary
         
         // 模拟波形点
         VoiceWaveformDots(amplitude = if (isRecording) amplitude else 0f, color = waveColor)
@@ -264,10 +260,10 @@ fun VoiceInputOverlayContent(
         Text(
             text = if (isCancelled) "松开取消" else "松开输入，上滑取消",
             fontSize = 14.sp,
-            color = ColorTextSecondary,
+            color = colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium,
             modifier = Modifier
-                .background(ColorWhite.copy(alpha = 0.9f), RoundedCornerShape(12.dp))
+                .background(colorScheme.surface.copy(alpha = 0.92f), RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 6.dp)
         )
         
@@ -356,8 +352,9 @@ fun IconButtonWithRipple(
     painter: androidx.compose.ui.graphics.painter.Painter,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    tint: Color = ColorTextSecondary
+    tint: Color = Color.Unspecified
 ) {
+    val resolvedTint = if (tint == Color.Unspecified) MaterialTheme.colorScheme.onSurfaceVariant else tint
     Box(
         modifier = modifier
             .size(32.dp)
@@ -369,7 +366,7 @@ fun IconButtonWithRipple(
         Icon(
             painter = painter,
             contentDescription = contentDescription,
-            tint = tint,
+            tint = resolvedTint,
             modifier = Modifier.size(24.dp)
         )
     }

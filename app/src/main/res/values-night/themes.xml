@@ -1,14 +1,10 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Theme.PhoneAgent" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/blue_glass_primary</item>
-        <item name="colorPrimaryVariant">@color/blue_glass_primary_variant</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <item name="colorSecondary">@color/blue_glass_primary</item>
-        <item name="colorOnSecondary">@color/white</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
-    </style>
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Aries" parent="Theme.M3t" />
+    <style name="Theme.Aries.App" parent="Theme.M3t.App" />
+    <style name="Theme.Aries.TransparentLaunch" parent="Theme.M3t.TransparentLaunch" />
+
+    <style name="Theme.PhoneAgent" parent="Theme.M3t.App" />
+    <style name="Theme.TransparentLaunch" parent="Theme.M3t.TransparentLaunch" />
 </resources>
+

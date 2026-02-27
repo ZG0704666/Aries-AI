@@ -5,7 +5,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PathMeasure
@@ -28,6 +27,8 @@ import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
 import android.widget.Toast
 import android.widget.TextView
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import com.ai.phoneagent.core.utils.DisplayUtils
 
 object AutomationOverlay {
@@ -37,6 +38,7 @@ object AutomationOverlay {
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private var maxSteps: Int = 1
+    private var launchMainOnClick: Boolean = false
     
     // 【优化】预估的总步骤数（从模型思考中解析）
     private var estimatedTotalSteps: Int = 0
@@ -47,6 +49,7 @@ object AutomationOverlay {
     private var thinkingText: String = ""
     // 【修复】临时隐藏引用计数，防止并发调用导致竞态
     private val hideCounter = AtomicInteger(0)
+    @Volatile private var inputVerifyHighlightActive: Boolean = false
 
     private inline fun runOnMain(crossinline action: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -78,10 +81,12 @@ object AutomationOverlay {
             subtitle: String,
             maxSteps: Int,
             activity: Activity? = null,
+            navigateMainOnClick: Boolean = false,
         ): Boolean {
         hide()
 
         this.maxSteps = maxSteps.coerceAtLeast(1)
+        this.launchMainOnClick = navigateMainOnClick
         // 【优化】重置预估步骤数
         this.estimatedTotalSteps = 0
         this.hasEstimatedSteps = false
@@ -95,13 +100,28 @@ object AutomationOverlay {
         val view = OverlayContainer(appCtx)
         view.setTexts(title, subtitle)
         view.setProgress(0f)
+        view.setInputVerifyHighlight(inputVerifyHighlightActive)
         view.setOnClickListener {
-            val i = Intent(appCtx, AutomationActivityNew::class.java)
-            i.addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-            )
+            val i =
+                if (launchMainOnClick) {
+                    Intent(appCtx, MainActivity::class.java).apply {
+                        addFlags(
+                            Intent.FLAG_ACTIVITY_NEW_TASK or
+                                Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                        )
+                        putExtra(MainActivity.EXTRA_SCROLL_TO_BOTTOM, true)
+                        putExtra(MainActivity.EXTRA_SHOW_AUTOMATION_STOP, true)
+                    }
+                } else {
+                    Intent(appCtx, AutomationActivityNew::class.java).apply {
+                        addFlags(
+                            Intent.FLAG_ACTIVITY_NEW_TASK or
+                                Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                        )
+                    }
+                }
             appCtx.startActivity(i)
         }
 
@@ -170,6 +190,13 @@ object AutomationOverlay {
         v.post {
             v.visibility = if (visible) View.VISIBLE else View.INVISIBLE
             v.alpha = if (visible) 1f else 0f
+        }
+    }
+
+    fun setInputVerifyHighlight(active: Boolean) {
+        inputVerifyHighlightActive = active
+        runOnMain {
+            container?.setInputVerifyHighlight(active)
         }
     }
     
@@ -404,6 +431,8 @@ object AutomationOverlay {
         val v = container
         container = null
         wm = null
+        launchMainOnClick = false
+        inputVerifyHighlightActive = false
         if (w != null && v != null) {
             runOnMain {
                 runCatching { w.removeView(v) }
@@ -443,6 +472,11 @@ object AutomationOverlay {
         private val title = TextView(context)
         private val subtitle = TextView(context)
         private val detail = TextView(context)
+        private val surfaceColor = ContextCompat.getColor(context, R.color.m3t_floating_surface)
+        private val outlineColor = ContextCompat.getColor(context, R.color.m3t_outline_variant)
+        private val titleColor = ContextCompat.getColor(context, R.color.m3t_on_surface)
+        private val subtitleColor = ContextCompat.getColor(context, R.color.m3t_primary)
+        private val detailColor = ContextCompat.getColor(context, R.color.m3t_on_surface_variant)
 
         private var lp: WindowManager.LayoutParams? = null
         private var wm: WindowManager? = null
@@ -459,7 +493,8 @@ object AutomationOverlay {
                     GradientDrawable().apply {
                         shape = GradientDrawable.RECTANGLE
                         cornerRadius = dp(14).toFloat()
-                        setColor(Color.parseColor("#FFFFFFFF"))
+                        setColor(surfaceColor)
+                        setStroke(dp(1), ColorUtils.setAlphaComponent(outlineColor, 96))
                     }
             elevation = dp(8).toFloat()
             clipToPadding = false
@@ -476,20 +511,20 @@ object AutomationOverlay {
                     LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
             )
 
-            title.setTextColor(Color.parseColor("#1B2B3D"))
+            title.setTextColor(titleColor)
             title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             title.typeface = android.graphics.Typeface.DEFAULT_BOLD
             title.gravity = Gravity.CENTER_HORIZONTAL
             title.maxLines = 2
             title.ellipsize = android.text.TextUtils.TruncateAt.END
 
-            subtitle.setTextColor(Color.parseColor("#4A6FAE"))
+            subtitle.setTextColor(subtitleColor)
             subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
             subtitle.gravity = Gravity.CENTER_HORIZONTAL
             subtitle.maxLines = 2
             subtitle.ellipsize = android.text.TextUtils.TruncateAt.END
 
-            detail.setTextColor(Color.parseColor("#A1AEC2"))
+            detail.setTextColor(detailColor)
             detail.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
             detail.gravity = Gravity.CENTER_HORIZONTAL
             detail.maxLines = 2
@@ -540,6 +575,10 @@ object AutomationOverlay {
 
         fun setProgress(p: Float) {
             ring.setProgress(p)
+        }
+
+        fun setInputVerifyHighlight(active: Boolean) {
+            ring.setInputVerifyHighlight(active)
         }
 
         fun startSpinner() {
@@ -617,12 +656,20 @@ object AutomationOverlay {
 
     private class EdgeFlowView(context: Context) : View(context) {
 
+        private val colorPrimary = ContextCompat.getColor(context, R.color.m3t_primary)
+        private val colorPrimaryContainer = ContextCompat.getColor(context, R.color.m3t_primary_container)
+        private val colorSecondaryContainer = ContextCompat.getColor(context, R.color.m3t_secondary_container)
+        private val colorSuccess = ContextCompat.getColor(context, R.color.m3t_success)
+        private val colorSuccessContainer = ContextCompat.getColor(context, R.color.m3t_dialog_surface_alt)
+        private val colorSurface = ContextCompat.getColor(context, R.color.m3t_surface)
+        private val colorOnSurface = ContextCompat.getColor(context, R.color.m3t_on_surface)
+
         private val trackPaint =
                 Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     style = Paint.Style.STROKE
                     strokeCap = Paint.Cap.ROUND
                     strokeJoin = Paint.Join.ROUND
-                    color = Color.parseColor("#1F6BA8FF")
+                    color = colorPrimary
                 }
 
         private val progressPaint =
@@ -630,7 +677,7 @@ object AutomationOverlay {
                     style = Paint.Style.STROKE
                     strokeCap = Paint.Cap.ROUND
                     strokeJoin = Paint.Join.ROUND
-                    color = Color.parseColor("#6BA8FF")
+                    color = colorPrimary
                 }
 
         private val headGlowPaint =
@@ -638,7 +685,7 @@ object AutomationOverlay {
                     style = Paint.Style.STROKE
                     strokeCap = Paint.Cap.ROUND
                     strokeJoin = Paint.Join.ROUND
-                    color = Color.parseColor("#6FF2FF")
+                    color = colorPrimaryContainer
                 }
 
         private val outerGlowPaint =
@@ -646,19 +693,19 @@ object AutomationOverlay {
                     style = Paint.Style.STROKE
                     strokeCap = Paint.Cap.ROUND
                     strokeJoin = Paint.Join.ROUND
-                    color = Color.parseColor("#4CC8FF")
+                    color = colorSecondaryContainer
                 }
 
         private val sparkOuterPaint =
                 Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     style = Paint.Style.FILL
-                    color = Color.argb(120, 111, 242, 255)
+                    color = ColorUtils.setAlphaComponent(colorPrimary, 120)
                 }
 
         private val sparkCorePaint =
                 Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     style = Paint.Style.FILL
-                    color = Color.argb(230, 255, 255, 255)
+                    color = ColorUtils.setAlphaComponent(colorOnSurface, 230)
                 }
 
         private var progress: Float = 0f
@@ -672,6 +719,7 @@ object AutomationOverlay {
         private var shader: Shader? = null
         private val shaderMatrix = Matrix()
         private var phase: Float = 0f
+        private var inputVerifyHighlight: Boolean = false
 
         private val spinner = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 1400L
@@ -687,6 +735,13 @@ object AutomationOverlay {
 
         fun setProgress(p: Float) {
             progress = p
+            invalidate()
+        }
+
+        fun setInputVerifyHighlight(active: Boolean) {
+            if (inputVerifyHighlight == active) return
+            inputVerifyHighlight = active
+            rebuildPath()
             invalidate()
         }
 
@@ -744,6 +799,22 @@ object AutomationOverlay {
             headGlowPaint.strokeWidth = stroke * 1.05f
             outerGlowPaint.strokeWidth = stroke * 1.55f
 
+            if (inputVerifyHighlight) {
+                trackPaint.color = colorSuccess
+                progressPaint.color = colorSuccess
+                headGlowPaint.color = ColorUtils.blendARGB(colorSuccess, colorOnSurface, 0.20f)
+                outerGlowPaint.color = ColorUtils.blendARGB(colorSuccess, colorSuccessContainer, 0.35f)
+                sparkOuterPaint.color = ColorUtils.setAlphaComponent(colorSuccess, 120)
+                sparkCorePaint.color = ColorUtils.setAlphaComponent(colorOnSurface, 230)
+            } else {
+                trackPaint.color = colorPrimary
+                progressPaint.color = colorPrimary
+                headGlowPaint.color = ColorUtils.blendARGB(colorPrimary, colorPrimaryContainer, 0.50f)
+                outerGlowPaint.color = colorSecondaryContainer
+                sparkOuterPaint.color = ColorUtils.setAlphaComponent(colorPrimary, 120)
+                sparkCorePaint.color = ColorUtils.setAlphaComponent(colorOnSurface, 230)
+            }
+
             trackPaint.alpha = 34
             progressPaint.alpha = 170
 
@@ -752,18 +823,29 @@ object AutomationOverlay {
             measure = PathMeasure(borderPath, true)
             length = measure?.length ?: 0f
 
+            val gradientColors =
+                    if (inputVerifyHighlight) {
+                        intArrayOf(
+                                colorSuccess,
+                                ColorUtils.blendARGB(colorSuccess, colorOnSurface, 0.35f),
+                                ColorUtils.blendARGB(colorSuccessContainer, colorSurface, 0.35f),
+                                colorSuccess
+                        )
+                    } else {
+                        intArrayOf(
+                                colorPrimary,
+                                ColorUtils.blendARGB(colorPrimary, colorSecondaryContainer, 0.35f),
+                                ColorUtils.blendARGB(colorPrimaryContainer, colorSurface, 0.40f),
+                                colorPrimary
+                        )
+                    }
             shader =
                     LinearGradient(
                             -w,
                             0f,
                             w * 2f,
                             h,
-                            intArrayOf(
-                                    Color.parseColor("#1B8CFF"),
-                                    Color.parseColor("#6FF2FF"),
-                                    Color.parseColor("#E8FBFF"),
-                                    Color.parseColor("#1B8CFF")
-                            ),
+                            gradientColors,
                             floatArrayOf(0f, 0.48f, 0.74f, 1f),
                             Shader.TileMode.CLAMP
                     )

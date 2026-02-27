@@ -991,7 +991,17 @@ class UiAutomationAgent(
             VirtualDisplayController.injectTapBestEffort(displayId, x.toInt(), y.toInt())
             delay(config.tapTypeCombineKeyboardWaitMs)
 
-            val result = actionExecutor.injectTextOnVirtualDisplay(displayId, inputText, onLog)
+            var result = actionExecutor.injectTextOnVirtualDisplay(displayId, inputText, onLog)
+            if (!result) {
+                onLog("[合并执行] 虚拟屏输入失败，补一次点击后重试")
+                VirtualDisplayController.injectTapBestEffort(displayId, x.toInt(), y.toInt())
+                delay(config.tapTypeCombineSecondSetTextWaitMs)
+                result = actionExecutor.injectTextOnVirtualDisplay(displayId, inputText, onLog)
+            }
+            if (!result && service != null) {
+                onLog("[合并执行] 虚拟屏输入仍失败，回退到无障碍输入兜底")
+                return actionExecutor.execute(typeAction, service, uiDump, screenW, screenH, onLog)
+            }
             return result
         }
 

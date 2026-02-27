@@ -3,9 +3,9 @@
     <group android:checkableBehavior="none">
         <item
             android:id="@+id/nav_automation"
-            android:title="自动化" />
+            android:title="@string/m3t_nav_automation" />
         <item
             android:id="@+id/nav_about"
-            android:title="关于" />
+            android:title="@string/m3t_nav_about" />
     </group>
 </menu>

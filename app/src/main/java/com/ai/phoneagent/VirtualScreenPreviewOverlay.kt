@@ -30,6 +30,7 @@ import android.widget.TextView
 import com.ai.phoneagent.core.utils.DisplayUtils
 import com.ai.phoneagent.input.InputHelper
 import com.ai.phoneagent.vdiso.ShizukuVirtualDisplayEngine
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * 虚拟屏预览悬浮窗 — 让用户实时观看虚拟屏执行过程
@@ -66,6 +67,10 @@ object VirtualScreenPreviewOverlay {
     @Volatile private var isBound: Boolean = false
     @Volatile private var isPaused: Boolean = false
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
+    private val screenshotHideCounter = AtomicInteger(0)
+    @Volatile private var wasContainerVisibleBeforeScreenshot: Boolean = false
+    @Volatile private var wasMiniVisibleBeforeScreenshot: Boolean = false
+    @Volatile private var wasBgVisibleBeforeScreenshot: Boolean = false
 
     // ════════════════════════════════════════════
     //  公开 API
@@ -162,6 +167,55 @@ object VirtualScreenPreviewOverlay {
     }
 
     fun isShowing(): Boolean = (containerView != null || miniView != null) && wm != null
+
+    fun temporaryHideForScreenshot() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { temporaryHideForScreenshot() }
+            return
+        }
+        val count = screenshotHideCounter.incrementAndGet()
+        if (count != 1) return
+
+        val container = containerView
+        val mini = miniView
+        val bg = bgProgressView
+        wasContainerVisibleBeforeScreenshot = container?.visibility == View.VISIBLE
+        wasMiniVisibleBeforeScreenshot = mini?.visibility == View.VISIBLE
+        wasBgVisibleBeforeScreenshot = bg?.visibility == View.VISIBLE
+
+        container?.visibility = View.GONE
+        mini?.visibility = View.GONE
+        bg?.visibility = View.GONE
+    }
+
+    fun restoreVisibilityAfterScreenshot() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { restoreVisibilityAfterScreenshot() }
+            return
+        }
+        val count = screenshotHideCounter.decrementAndGet()
+        if (count > 0) return
+        screenshotHideCounter.set(0)
+
+        if (wasContainerVisibleBeforeScreenshot) {
+            containerView?.let {
+                it.visibility = View.VISIBLE
+                it.alpha = 1f
+            }
+        }
+        if (wasMiniVisibleBeforeScreenshot) {
+            miniView?.let {
+                it.visibility = View.VISIBLE
+                it.alpha = 1f
+            }
+        }
+        if (wasBgVisibleBeforeScreenshot) {
+            bgProgressView?.let {
+                it.visibility = View.VISIBLE
+                it.alpha = 1f
+            }
+        }
+    }
 
     /** 更新状态文字 */
     fun updateStatus(text: String) {

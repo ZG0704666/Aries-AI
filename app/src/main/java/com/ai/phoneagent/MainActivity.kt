@@ -21,7 +21,9 @@ import android.Manifest
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
 import android.animation.ValueAnimator
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Canvas
@@ -35,6 +37,7 @@ import android.graphics.RectF
 import android.graphics.SweepGradient
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.util.Base64
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
@@ -55,7 +58,6 @@ import android.widget.TextView
 import android.widget.EditText
 import com.ai.phoneagent.helper.StreamRenderHelper
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -65,6 +67,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.appcompat.widget.ActionMenuView
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -100,15 +103,25 @@ import android.view.WindowManager
 import android.graphics.drawable.ColorDrawable
 import android.view.ViewAnimationUtils
 import android.text.Html
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.materialswitch.MaterialSwitch
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import com.ai.phoneagent.core.automation.ActivityAutomationInstructionGateway
+import com.ai.phoneagent.core.automation.AutomationLogBridge
 import com.ai.phoneagent.ui.inputbar.InputState
 import com.ai.phoneagent.ui.inputbar.InputBar
 import androidx.compose.runtime.*
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.res.colorResource
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        const val EXTRA_SCROLL_TO_BOTTOM = "extra_scroll_to_bottom"
+        const val EXTRA_SHOW_AUTOMATION_STOP = "extra_show_automation_stop"
+    }
 
     private data class UiMessage(
             val author: String,
@@ -121,6 +134,11 @@ class MainActivity : AppCompatActivity() {
             var title: String,
             val messages: MutableList<UiMessage>,
             var updatedAt: Long,
+    )
+
+    private data class AutomationMessageRef(
+            val conversationId: Long,
+            val messageIndex: Int,
     )
 
     private lateinit var binding: ActivityMainBinding
@@ -163,6 +181,22 @@ class MainActivity : AppCompatActivity() {
     private val OVERLAY_PERMISSION_REQUEST_CODE = 1234
     private val NOTIFICATION_PERMISSION_REQUEST_CODE = 1235
     private var pendingEnterMiniWindowAfterNotifPerm: Boolean = false
+    private var pendingAutomationLogUiRefresh: Boolean = false
+    private var automationLogReceiverRegistered: Boolean = false
+    private var activeAutomationPanelConversationId: Long = -1L
+    private var activeAutomationPanelMessageIndex: Int = -1
+    private var activeAutomationPanelLogContainer: LinearLayout? = null
+    private var activeAutomationPanelStatusView: TextView? = null
+    private var activeAutomationPanelConfirmButton: View? = null
+    private var activeAutomationPanelConfirmTextView: TextView? = null
+
+    private val automationLogReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    val line = AutomationLogBridge.extract(intent) ?: return
+                    appendAutomationLogAsAiMessage(line)
+                }
+            }
 
     private val conversationsKey = "conversations_json"
     private val activeConversationIdKey = "active_conversation_id"
@@ -186,12 +220,13 @@ class MainActivity : AppCompatActivity() {
     private val inputTextState = mutableStateOf("")
     private val inputBarState = mutableStateOf<InputState>(InputState.Idle)
     private val voiceAmplitudeState = mutableStateOf(0f)
+    private val agentModeEnabledState = mutableStateOf(false)
 
     @Volatile private var suppressApiInputWatcher: Boolean = false
     @Volatile private var apiNeedsRecheckToastShown: Boolean = false
     private lateinit var apiInput: EditText
     private lateinit var apiStatus: TextView
-    private lateinit var apiThirdPartySwitch: SwitchMaterial
+    private lateinit var apiThirdPartySwitch: MaterialSwitch
     private lateinit var apiThirdPartyContainer: View
     private lateinit var apiBaseUrlInput: EditText
     private lateinit var apiModelInput: EditText
@@ -243,6 +278,7 @@ class MainActivity : AppCompatActivity() {
         setupDrawer()
 
         setupInputBar()
+        registerAutomationLogReceiverIfNeeded()
 
         restoreApiKey()
 
@@ -253,8 +289,6 @@ class MainActivity : AppCompatActivity() {
         if (!tryRestoreConversations()) {
             startNewChat(clearUi = true)
         }
-
-        binding.topAppBar.post { attachAnimatedBorderRing(binding.topAppBar, 2f, 18f) }
 
         initSherpaModel()
 
@@ -498,9 +532,10 @@ class MainActivity : AppCompatActivity() {
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
 
+        val useLightSystemBarIcons = resources.getBoolean(R.bool.m3t_light_system_bars)
         WindowCompat.getInsetsController(window, window.decorView)?.let {
-            it.isAppearanceLightStatusBars = true
-            it.isAppearanceLightNavigationBars = true
+            it.isAppearanceLightStatusBars = useLightSystemBarIcons
+            it.isAppearanceLightNavigationBars = useLightSystemBarIcons
         }
         binding.drawerLayout.fitsSystemWindows = false
         binding.navigationView.fitsSystemWindows = false
@@ -595,23 +630,42 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun offsetTopBarIcons() {
-        val upOffsetPx = -7f * resources.displayMetrics.density
-        val floatWinOffsetPx = -6f * resources.displayMetrics.density
         binding.topAppBar.post {
-            for (i in 0 until binding.topAppBar.childCount) {
-                val child = binding.topAppBar.getChildAt(i)
+            val toolbar = binding.topAppBar
+            val toolbarTitle = toolbar.title?.toString().orEmpty()
+
+            var titleView: TextView? = null
+            for (i in 0 until toolbar.childCount) {
+                val child = toolbar.getChildAt(i)
+                if (child is TextView && child.text?.toString() == toolbarTitle) {
+                    titleView = child
+                    break
+                }
+            }
+            if (titleView == null) {
+                for (i in 0 until toolbar.childCount) {
+                    val child = toolbar.getChildAt(i)
+                    if (child is TextView && child.text?.isNotBlank() == true) {
+                        titleView = child
+                        break
+                    }
+                }
+            }
+
+            val title = titleView ?: return@post
+            val titleCenterY = title.top + title.height / 2f
+
+            for (i in 0 until toolbar.childCount) {
+                val child = toolbar.getChildAt(i)
                 if (child is ActionMenuView) {
                     for (j in 0 until child.childCount) {
                         val menuChild = child.getChildAt(j)
-                        val tag = menuChild.contentDescription?.toString() ?: ""
-                        if (tag.contains("小窗") || tag.contains("floating", true)) {
-                            menuChild.translationY = floatWinOffsetPx
-                        } else {
-                            menuChild.translationY = upOffsetPx
-                        }
+                        val menuCenterY = menuChild.top + menuChild.height / 2f
+                        menuChild.translationY = titleCenterY - menuCenterY
                     }
                 } else if (child is ImageButton) {
-                    child.translationY = upOffsetPx
+                    val navCenterY = child.top + child.height / 2f
+                    child.translationY = titleCenterY - navCenterY
                 }
             }
         }
@@ -621,12 +675,18 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
 
         handleReturnFromFloatingWindow()
+        handleAutomationOverlayReturnIntent()
 
         restoreApiKey()
         maybeShowPermissionBottomSheet()
 
         // 设置消息同步监听器
         setupMessageSyncListener()
+
+        if (pendingAutomationLogUiRefresh) {
+            activeConversation?.let { renderConversation(it) }
+            pendingAutomationLogUiRefresh = false
+        }
 
         // 防止返回应用后气泡底部的复制/重试按钮被隐藏
         revealActionAreasForMessages()
@@ -638,6 +698,7 @@ class MainActivity : AppCompatActivity() {
             setIntent(intent)
         }
         handleReturnFromFloatingWindow()
+        handleAutomationOverlayReturnIntent()
     }
 
     override fun onPause() {
@@ -660,17 +721,25 @@ class MainActivity : AppCompatActivity() {
                             .removePrefix("我: ")
                             .removePrefix("AI: ")
                             .removePrefix("Aries: ")
+                            .let { if (isUser) it else stripAutomationMarker(it) }
+                            .trim()
                     val author = if (isUser) "我" else "Aries AI"
                     
                     // 检查是否已存在该消息（避免重复）
-                    val exists = c.messages.any { it.content == content && it.isUser == isUser }
+                    val exists = hasEquivalentConversationMessage(c, content, isUser)
                     if (!exists) {
                         c.messages.add(UiMessage(author = author, content = content, isUser = isUser))
                         c.updatedAt = System.currentTimeMillis()
                         if (isUser) {
                             appendComplexUserMessage(author, content, animate = false)
                         } else {
-                            appendComplexAiMessage(author, content, animate = false, timeCostMs = 0)
+                            appendComplexAiMessage(
+                                author,
+                                content,
+                                animate = false,
+                                timeCostMs = 0,
+                                messageIndexInConversation = c.messages.lastIndex
+                            )
                         }
                         persistConversations()
                     }
@@ -680,6 +749,7 @@ class MainActivity : AppCompatActivity() {
             override fun onMessagesCleared() {
                 runOnUiThread {
                     binding.messagesContainer.removeAllViews()
+                    clearAutomationPanelRuntimeRefs()
                 }
             }
         })
@@ -714,6 +784,21 @@ class MainActivity : AppCompatActivity() {
 
         // 同步悬浮窗中的消息到主界面
         syncMessagesFromFloatingWindow()
+    }
+
+    private fun handleAutomationOverlayReturnIntent() {
+        val currentIntent = intent ?: return
+        val shouldScroll = currentIntent.getBooleanExtra(EXTRA_SCROLL_TO_BOTTOM, false)
+        val shouldShowStop = currentIntent.getBooleanExtra(EXTRA_SHOW_AUTOMATION_STOP, false)
+        if (!shouldScroll && !shouldShowStop) return
+
+        currentIntent.removeExtra(EXTRA_SCROLL_TO_BOTTOM)
+        currentIntent.removeExtra(EXTRA_SHOW_AUTOMATION_STOP)
+
+        binding.messagesContainer.post {
+            revealActionAreasForMessages()
+            smoothScrollToBottom()
+        }
     }
     
     /**
@@ -755,13 +840,14 @@ class MainActivity : AppCompatActivity() {
                     .removePrefix("Aries:")
                     .removePrefix("AI: ")
                     .removePrefix("AI:")
+                    .let { if (isUser) it else stripAutomationMarker(it) }
                     .trim()
 
             // 跳过空消息和"思考中"消息
             if (content.isBlank() || content == "思考中...") continue
 
             // 检查是否已存在该消息
-            val exists = c.messages.any { it.content == content && it.isUser == isUser }
+            val exists = hasEquivalentConversationMessage(c, content, isUser)
             if (!exists) {
                 val author = if (isUser) "我" else "Aries AI"
                 c.messages.add(UiMessage(author = author, content = content, isUser = isUser))
@@ -781,6 +867,258 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             // ignore
         }
+    }
+
+    private fun registerAutomationLogReceiverIfNeeded() {
+        if (automationLogReceiverRegistered) return
+        val filter = IntentFilter(AutomationLogBridge.ACTION_AUTOMATION_LOG)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(automationLogReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(automationLogReceiver, filter)
+            }
+            automationLogReceiverRegistered = true
+        } catch (_: Exception) {
+            automationLogReceiverRegistered = false
+        }
+    }
+
+    private fun unregisterAutomationLogReceiverIfNeeded() {
+        if (!automationLogReceiverRegistered) return
+        try {
+            unregisterReceiver(automationLogReceiver)
+        } catch (_: Exception) {
+        } finally {
+            automationLogReceiverRegistered = false
+        }
+    }
+
+    private fun clearAutomationPanelRuntimeRefs() {
+        activeAutomationPanelConversationId = -1L
+        activeAutomationPanelMessageIndex = -1
+        activeAutomationPanelLogContainer = null
+        activeAutomationPanelStatusView = null
+        activeAutomationPanelConfirmButton = null
+        activeAutomationPanelConfirmTextView = null
+    }
+
+    private fun hasEquivalentConversationMessage(
+        conversation: Conversation,
+        content: String,
+        isUser: Boolean
+    ): Boolean {
+        val incomingRaw = content.trim()
+        if (incomingRaw.isBlank()) return true
+        if (isUser) {
+            return conversation.messages.any { it.isUser && it.content.trim() == incomingRaw }
+        }
+
+        val incomingStripped = stripAutomationMarker(incomingRaw).trim()
+        val incomingAnswer = parseStoredAiContent(incomingStripped).second.trim()
+        return conversation.messages.any { msg ->
+            if (msg.isUser) return@any false
+            val existingStripped = stripAutomationMarker(msg.content).trim()
+            if (existingStripped == incomingStripped) return@any true
+
+            val existingAnswer = parseStoredAiContent(existingStripped).second.trim()
+            incomingAnswer.isNotBlank() &&
+                existingAnswer.isNotBlank() &&
+                existingAnswer == incomingAnswer
+        }
+    }
+
+    private fun encodeAutomationLogMarker(logLine: String): String {
+        val encoded = Base64.encodeToString(logLine.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+        return "[[AUTO_LOG_B64:$encoded]]"
+    }
+
+    private fun decodeAutomationLogMarker(markerPayload: String): String? {
+        return runCatching {
+            val bytes = Base64.decode(markerPayload, Base64.DEFAULT)
+            String(bytes, Charsets.UTF_8).trim()
+        }.getOrNull()?.takeIf { it.isNotBlank() }
+    }
+
+    private fun extractAutomationLogMarkers(rawMessage: String): Pair<String, List<String>> {
+        val markerRegex =
+            Regex(
+                """\[\[AUTO_LOG_B64:(.*?)]]""",
+                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+            )
+        val logs =
+            markerRegex.findAll(rawMessage).mapNotNull { match ->
+                decodeAutomationLogMarker(match.groupValues.getOrNull(1)?.trim().orEmpty())
+            }.toList()
+        val cleaned = markerRegex.replace(rawMessage, "").trim()
+        return cleaned to logs
+    }
+
+    private fun findLatestAutomationPanelMessageIndex(conversation: Conversation): Int {
+        return conversation.messages.indexOfLast { msg ->
+            if (msg.isUser) return@indexOfLast false
+            val hasConfirmMarker = extractAutomationConfirmInstruction(msg.content).second != null
+            val hasConfirmedMarker = extractAutomationConfirmedMarker(msg.content).second
+            val hasCommandPrefix = stripAutomationMarker(msg.content).contains("待转交自动化命令：")
+            hasConfirmMarker || hasConfirmedMarker || hasCommandPrefix
+        }
+    }
+
+    private fun appendAutomationLogToExistingPanel(logLine: String): Boolean {
+        val conversation = activeConversation ?: return false
+        val targetIndex = findLatestAutomationPanelMessageIndex(conversation)
+        if (targetIndex < 0) return false
+
+        val msg = conversation.messages[targetIndex]
+        val marker = encodeAutomationLogMarker(logLine)
+        if (msg.content.contains(marker)) {
+            return true
+        }
+
+        conversation.messages[targetIndex] =
+            msg.copy(content = msg.content.trimEnd() + "\n" + marker)
+        conversation.updatedAt = System.currentTimeMillis()
+
+        val canRenderNow =
+            lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) &&
+                activeConversation?.id == conversation.id
+
+        if (canRenderNow &&
+            activeAutomationPanelConversationId == conversation.id &&
+            activeAutomationPanelMessageIndex == targetIndex
+        ) {
+            appendAutomationLogToPanelUi(logLine)
+        } else if (canRenderNow) {
+            renderConversation(conversation)
+        } else {
+            pendingAutomationLogUiRefresh = true
+        }
+        persistConversations()
+        return true
+    }
+
+    private fun appendAutomationLogToPanelUi(logLine: String) {
+        val normalized = normalizeAutomationLogLine(logLine)
+        val logContainer = activeAutomationPanelLogContainer
+        if (logContainer != null) {
+            @Suppress("UNCHECKED_CAST")
+            val timeline =
+                (logContainer.tag as? MutableList<AutomationTimelineEntry>)
+                    ?: mutableListOf<AutomationTimelineEntry>().also { logContainer.tag = it }
+            appendAutomationTimelineEntry(timeline, normalized)
+            renderAutomationTimelineRows(logContainer, timeline)
+        }
+        if (isAutomationTerminalLog(normalized)) {
+            val statusView = activeAutomationPanelStatusView
+            val button = activeAutomationPanelConfirmButton
+            val textView = activeAutomationPanelConfirmTextView
+            val iconView = button?.findViewById<ImageView?>(R.id.iv_confirm_icon)
+            configureAutomationFinishedButton(
+                button = button,
+                textView = textView,
+                iconView = iconView,
+                statusView = statusView
+            )
+        } else {
+            val statusView = activeAutomationPanelStatusView
+            val finishedText = getString(R.string.automation_scene_finished)
+            if (statusView?.text?.toString() != finishedText) {
+                statusView?.text = getString(R.string.automation_scene_running)
+            }
+        }
+    }
+
+    private fun appendAutomationLogAsAiMessage(rawLogLine: String) {
+        val logLine = filterAutomationLogForHome(rawLogLine) ?: return
+        if (logLine.isBlank()) return
+
+        if (appendAutomationLogToExistingPanel(logLine)) {
+            return
+        }
+
+        val messageContent = "【自动化】$logLine"
+        val c = requireActiveConversation()
+        val last = c.messages.lastOrNull()
+        if (last != null && !last.isUser && last.content == messageContent) {
+            return
+        }
+
+        c.messages.add(
+                UiMessage(
+                        author = "Aries AI",
+                        content = messageContent,
+                        isUser = false,
+                )
+        )
+        c.updatedAt = System.currentTimeMillis()
+
+        val canRenderNow =
+                lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) &&
+                        activeConversation?.id == c.id
+        if (canRenderNow) {
+            appendComplexAiMessage(
+                "Aries AI",
+                messageContent,
+                animate = false,
+                timeCostMs = 0,
+                messageIndexInConversation = c.messages.lastIndex
+            )
+        } else {
+            pendingAutomationLogUiRefresh = true
+        }
+        persistConversations()
+    }
+
+    private fun filterAutomationLogForHome(rawLogLine: String): String? {
+        val line = rawLogLine.trim()
+        if (line.isBlank()) return null
+        if (isAutomationTerminalLog(line)) return line
+
+        val isStepLine = line.startsWith("[Step ")
+        if (!isStepLine) return null
+
+        val keep =
+                line.contains("思考：") ||
+                        line.contains("修复思考：") ||
+                        line.contains("输出：") ||
+                        line.contains("修复输出：") ||
+                        line.contains("当前动作：")
+        return if (keep) line else null
+    }
+
+    private fun isAutomationTerminalLog(rawLogLine: String): Boolean {
+        val normalized = normalizeAutomationLogLine(rawLogLine)
+        if (normalized.isBlank()) return false
+        return normalized.startsWith("结束：") ||
+            normalized == "已停止" ||
+            normalized.startsWith("异常：")
+    }
+
+    private data class AutomationReadyState(
+            val ready: Boolean,
+            val reason: String,
+    )
+
+    private fun resolveAutomationReadyState(): AutomationReadyState {
+        val accessibilityReady = PhoneAgentAccessibilityService.instance != null
+        if (accessibilityReady) {
+            return AutomationReadyState(true, "")
+        }
+
+        val shizukuConnected = ShizukuBridge.pingBinder()
+        val shizukuGranted = if (shizukuConnected) ShizukuBridge.hasPermission() else false
+        if (shizukuConnected && shizukuGranted) {
+            return AutomationReadyState(true, "")
+        }
+
+        val reason =
+                when {
+                    !shizukuConnected -> "系统未就绪：无障碍未连接，且 Shizuku 未连接。"
+                    !shizukuGranted -> "系统未就绪：无障碍未连接，且 Shizuku 未授权。"
+                    else -> "系统未就绪：自动化通道不可用。"
+                }
+        return AutomationReadyState(false, reason)
     }
     
     /**
@@ -845,22 +1183,41 @@ class MainActivity : AppCompatActivity() {
         val targetX = (if (savedX != Int.MIN_VALUE) savedX else fallbackX).toFloat()
         val targetY = (if (savedY != Int.MIN_VALUE) savedY else fallbackY).toFloat()
         
-        // 收集当前聊天消息传递给小窗
+        // 仅保留近期消息，避免历史过大导致小窗启动异常
         val messagesList = ArrayList<String>()
-        activeConversation?.messages?.forEach { msg ->
-            messagesList.add("${if (msg.isUser) "我" else "Aries"}: ${msg.content}")
+        activeConversation?.messages?.takeLast(120)?.forEach { msg ->
+            val sanitizedContent =
+                if (msg.isUser) {
+                    msg.content.trim()
+                } else {
+                    stripAutomationMarker(msg.content).trim()
+                }
+            if (sanitizedContent.isNotBlank()) {
+                messagesList.add("${if (msg.isUser) "我" else "Aries"}: $sanitizedContent")
+            }
         }
 
-        // 启动悬浮窗服务，传递消息和位置
-        FloatingChatService.start(
-            this@MainActivity,
-            messages = messagesList,
-            fromX = targetX,
-            fromY = targetY,
-            fromWidth = miniWindowWidth,
-            fromHeight = miniWindowHeight,
-            showDelayMs = 120L,
-        )
+        val startOk = runCatching {
+            FloatingChatService.cacheMessagesForNextStart(this@MainActivity, messagesList)
+            // 消息从本地缓存恢复，避免通过 Intent 传长列表触发崩溃
+            FloatingChatService.start(
+                this@MainActivity,
+                messages = null,
+                fromX = targetX,
+                fromY = targetY,
+                fromWidth = miniWindowWidth,
+                fromHeight = miniWindowHeight,
+                showDelayMs = 120L,
+            )
+            true
+        }.getOrElse {
+            Toast.makeText(this, "小窗启动失败，请重试", Toast.LENGTH_SHORT).show()
+            false
+        }
+        if (!startOk) {
+            isAnimatingToMiniWindow = false
+            return
+        }
 
         isAnimatingToMiniWindow = false
 
@@ -937,7 +1294,7 @@ class MainActivity : AppCompatActivity() {
 
         apiInput = header.findViewById<EditText>(R.id.apiInput)
         apiStatus = header.findViewById<TextView>(R.id.apiStatus)
-        apiThirdPartySwitch = header.findViewById<SwitchMaterial>(R.id.swUseThirdPartyApi)
+        apiThirdPartySwitch = header.findViewById<MaterialSwitch>(R.id.swUseThirdPartyApi)
         apiThirdPartyContainer = header.findViewById<View>(R.id.apiThirdPartyContainer)
         apiBaseUrlInput = header.findViewById<EditText>(R.id.apiBaseUrlInput)
         apiModelInput = header.findViewById<EditText>(R.id.apiModelInput)
@@ -962,6 +1319,7 @@ class MainActivity : AppCompatActivity() {
         apiModelInput.setText(prefs.getString(apiThirdPartyModelPref, AutoGlmClient.DEFAULT_MODEL))
 
         val btnCheck = header.findViewById<android.widget.Button>(R.id.btnCheckApi)
+        val btnPasteApiInput = header.findViewById<View>(R.id.btnPasteApiInput)
 
         val btnGetApiKey = header.findViewById<View>(R.id.btnGetApiKey)
         btnGetApiKey?.setOnClickListener {
@@ -973,13 +1331,36 @@ class MainActivity : AppCompatActivity() {
                 startActivity(intent)
             }
         }
+        btnPasteApiInput?.setOnClickListener {
+            vibrateLight()
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+            val pasted =
+                    clipboard?.primaryClip
+                            ?.takeIf { it.itemCount > 0 }
+                            ?.getItemAt(0)
+                            ?.coerceToText(this)
+                            ?.toString()
+                            ?.trim()
+                            .orEmpty()
+            if (pasted.isBlank()) {
+                Toast.makeText(this, "剪贴板为空", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            apiInput.tag = ""
+            apiInput.requestFocus()
+            apiInput.setText(pasted)
+            apiInput.setSelection(apiInput.text?.length ?: 0)
+            Toast.makeText(this, "已粘贴 API Key", Toast.LENGTH_SHORT).show()
+        }
 
         binding.drawerLayout.setScrimColor(Color.TRANSPARENT)
         binding.drawerLayout.setStatusBarBackgroundColor(Color.TRANSPARENT)
         binding.drawerLayout.setStatusBarBackground(null)
-        binding.navigationView.setBackgroundColor(Color.parseColor("#F5F8FF"))
+        binding.navigationView.setBackgroundColor(
+            ContextCompat.getColor(this, R.color.m3t_drawer_background)
+        )
         binding.navigationView.itemTextColor =
-                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.blue_glass_text))
+                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.m3t_on_surface))
         
         binding.drawerLayout.addDrawerListener(
                 object : DrawerLayout.SimpleDrawerListener() {
@@ -1484,10 +1865,35 @@ class MainActivity : AppCompatActivity() {
         binding.inputBarCompose.apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                MaterialTheme {
+                val isDarkMode = !resources.getBoolean(R.bool.m3t_light_system_bars)
+                val inputColorScheme =
+                    if (isDarkMode) {
+                        darkColorScheme(
+                            primary = colorResource(R.color.m3t_primary),
+                            onPrimary = colorResource(R.color.m3t_on_primary),
+                            surface = colorResource(R.color.m3t_surface),
+                            surfaceVariant = colorResource(R.color.m3t_surface_container),
+                            onSurface = colorResource(R.color.m3t_on_surface),
+                            onSurfaceVariant = colorResource(R.color.m3t_on_surface_variant),
+                            error = colorResource(R.color.m3t_error),
+                        )
+                    } else {
+                        lightColorScheme(
+                            primary = colorResource(R.color.m3t_primary),
+                            onPrimary = colorResource(R.color.m3t_on_primary),
+                            surface = colorResource(R.color.m3t_surface),
+                            surfaceVariant = colorResource(R.color.m3t_surface_container),
+                            onSurface = colorResource(R.color.m3t_on_surface),
+                            onSurfaceVariant = colorResource(R.color.m3t_on_surface_variant),
+                            error = colorResource(R.color.m3t_error),
+                        )
+                    }
+
+                MaterialTheme(colorScheme = inputColorScheme) {
                     val text by remember { inputTextState }
                     val state by remember { inputBarState }
                     val amplitude by remember { voiceAmplitudeState }
+                    val agentModeEnabled by remember { agentModeEnabledState }
 
                     InputBar(
                         state = state,
@@ -1498,7 +1904,29 @@ class MainActivity : AppCompatActivity() {
                             val t = inputTextState.value.trim()
                             if (t.isNotBlank()) {
                                 hideKeyboard()
-                                sendMessage(t)
+                                if (agentModeEnabled) {
+                                    val dispatchResult =
+                                        ActivityAutomationInstructionGateway.dispatchManual(
+                                            context = this@MainActivity,
+                                            instruction = t
+                                        )
+                                    if (dispatchResult.success) {
+                                        inputTextState.value = ""
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            "Agent 模式已激活，任务已转交自动化",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    } else {
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            dispatchResult.message,
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                } else {
+                                    sendMessage(t)
+                                }
                             } else {
                                 Toast.makeText(this@MainActivity, "请输入内容", Toast.LENGTH_SHORT).show()
                             }
@@ -1523,8 +1951,14 @@ class MainActivity : AppCompatActivity() {
                         onAttachmentClick = {
                             Toast.makeText(this@MainActivity, "附件功能开发中", Toast.LENGTH_SHORT).show()
                         },
-                        onAgentClick = {
-                            Toast.makeText(this@MainActivity, "Agent 功能开发中", Toast.LENGTH_SHORT).show()
+                        agentModeEnabled = agentModeEnabled,
+                        onAgentToggle = { enabled ->
+                            agentModeEnabledState.value = enabled
+                            Toast.makeText(
+                                this@MainActivity,
+                                if (enabled) "Agent 模式已激活" else "Agent 模式未激活",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         },
                         onModelSelect = {
                             Toast.makeText(this@MainActivity, "模型选择器已打开", Toast.LENGTH_SHORT).show()
@@ -1579,13 +2013,16 @@ class MainActivity : AppCompatActivity() {
 
         val aiBar = binding.topAppBar
 
-        aiBar.elevation = 12f
-
-        aiBar.setBackgroundResource(R.drawable.rounded_top_bar_bg)
+        aiBar.elevation = 0f
+        aiBar.background = null
+        aiBar.setBackgroundColor(Color.TRANSPARENT)
+        aiBar.stateListAnimator = null
 
         val params = aiBar.layoutParams as LinearLayout.LayoutParams
 
-        params.topMargin = resources.getDimensionPixelSize(R.dimen.ai_bar_margin_top)
+        params.topMargin = 0
+        params.marginStart = 0
+        params.marginEnd = 0
 
         aiBar.layoutParams = params
     }
@@ -1669,6 +2106,7 @@ class MainActivity : AppCompatActivity() {
                 .setInterpolator(AccelerateInterpolator(1.8f)) // 纯加速，无回弹
                 .withEndAction {
                     binding.messagesContainer.removeAllViews()
+                    clearAutomationPanelRuntimeRefs()
                     
                     // 状态瞬间回位
                     binding.messagesContainer.translationY = 0f
@@ -1702,8 +2140,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderConversation(conversation: Conversation) {
         binding.messagesContainer.removeAllViews()
+        clearAutomationPanelRuntimeRefs()
         var lastUserContent: String? = null
-        for (m in conversation.messages) {
+        for ((index, m) in conversation.messages.withIndex()) {
             // 历史消息全部使用新的复杂气泡（如果是AI），确保视觉风格统一
             if (!m.isUser) {
                 // 无论是包含 leshoot 还是普通消息，都使用 appendComplexAiMessage
@@ -1713,7 +2152,8 @@ class MainActivity : AppCompatActivity() {
                     m.content,
                     animate = false,
                     timeCostMs = 0,
-                    retryUserText = lastUserContent
+                    retryUserText = lastUserContent,
+                    messageIndexInConversation = index
                 )
             } else {
                 lastUserContent = m.content
@@ -1728,6 +2168,48 @@ class MainActivity : AppCompatActivity() {
                 binding.messagesContainer.height
             )
         }
+    }
+
+    private fun extractAutomationInstruction(rawAnswer: String): Pair<String, String?> {
+        val markerRegex =
+                Regex(
+                        """\[\[AUTO_EXECUTE:(.*?)]]""",
+                        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+                )
+        val match = markerRegex.find(rawAnswer)
+        val instruction = match?.groupValues?.getOrNull(1)?.trim().orEmpty()
+        val cleaned = markerRegex.replace(rawAnswer, "").trim()
+        return cleaned to instruction.ifBlank { null }
+    }
+
+    private fun extractAutomationConfirmInstruction(rawMessage: String): Pair<String, String?> {
+        val markerRegex =
+                Regex(
+                        """\[\[AUTO_CONFIRM:(.*?)]]""",
+                        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+                )
+        val match = markerRegex.find(rawMessage)
+        val instruction = match?.groupValues?.getOrNull(1)?.trim().orEmpty()
+        val cleaned = markerRegex.replace(rawMessage, "").trim()
+        return cleaned to instruction.ifBlank { null }
+    }
+
+    private fun extractAutomationConfirmedMarker(rawMessage: String): Pair<String, Boolean> {
+        val markerRegex =
+                Regex(
+                        """\[\[AUTO_CONFIRMED]]""",
+                        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+                )
+        val hasMarker = markerRegex.containsMatchIn(rawMessage)
+        val cleaned = markerRegex.replace(rawMessage, "").trim()
+        return cleaned to hasMarker
+    }
+
+    private fun stripAutomationMarker(rawText: String): String {
+        val withoutExecute = extractAutomationInstruction(rawText).first
+        val withoutConfirm = extractAutomationConfirmInstruction(withoutExecute).first
+        val withoutConfirmed = extractAutomationConfirmedMarker(withoutConfirm).first
+        return extractAutomationLogMarkers(withoutConfirmed).first
     }
 
     private fun sendMessage(text: String, resendUser: Boolean = true, retryMode: Boolean = false) {
@@ -1777,49 +2259,53 @@ class MainActivity : AppCompatActivity() {
             inputTextState.value = ""
         }
 
-        // 移除旧的思考中提示
-        // showThinking() 
-        
-        val startTime = System.currentTimeMillis()
-
-        // 使用 StreamRenderHelper 绑定视图
-        val aiView = layoutInflater.inflate(R.layout.item_ai_message_complex, binding.messagesContainer, false)
-        binding.messagesContainer.addView(aiView)
-        val vh = StreamRenderHelper.bindViews(aiView)
-        StreamRenderHelper.initThinkingState(vh)
-
-        // 按钮事件绑定
-        val retryPrompt = text
-        vh.retryButton?.setOnClickListener {
-            setRetryButtonLoadingState(vh.retryButton, isLoading = true)
-            val started = retryMessage(retryPrompt)
-            if (!started) {
-                setRetryButtonLoadingState(vh.retryButton, isLoading = false)
-            }
-        }
-        
-        vh.copyButton?.setOnClickListener {
-             val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            val clip = android.content.ClipData.newPlainText("AI Reply", vh.messageContent.text)
-            cm.setPrimaryClip(clip)
-            Toast.makeText(this@MainActivity, "已复制内容", Toast.LENGTH_SHORT).show()
-        }
-
-        smoothScrollToBottom()
-
-        // 临时变量用于构建完整内容以方便保存
-        val reasoningSb = StringBuilder()
-        val contentSb = StringBuilder()
-        var floatingStreamStarted = false
-
-        if (FloatingChatService.isRunning()) {
-            FloatingChatService.getInstance()?.beginExternalStreamAiReply()
-            floatingStreamStarted = true
-        }
-
         isRequestInFlight = true
         lifecycleScope.launch {
             try {
+                val startTime = System.currentTimeMillis()
+
+                // 使用 StreamRenderHelper 绑定视图
+                val aiView =
+                        layoutInflater.inflate(
+                                R.layout.item_ai_message_complex,
+                                binding.messagesContainer,
+                                false,
+                        )
+                binding.messagesContainer.addView(aiView)
+                val vh = StreamRenderHelper.bindViews(aiView)
+                StreamRenderHelper.initThinkingState(vh)
+
+                // 按钮事件绑定
+                val retryPrompt = text
+                vh.retryButton?.setOnClickListener {
+                    setRetryButtonLoadingState(vh.retryButton, isLoading = true)
+                    val started = retryMessage(retryPrompt)
+                    if (!started) {
+                        setRetryButtonLoadingState(vh.retryButton, isLoading = false)
+                    }
+                }
+
+                vh.copyButton?.setOnClickListener {
+                    val cm =
+                            getSystemService(android.content.Context.CLIPBOARD_SERVICE) as
+                                    android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("AI Reply", vh.messageContent.text)
+                    cm.setPrimaryClip(clip)
+                    Toast.makeText(this@MainActivity, "已复制内容", Toast.LENGTH_SHORT).show()
+                }
+
+                smoothScrollToBottom()
+
+                // 临时变量用于构建完整内容以方便保存
+                val reasoningSb = StringBuilder()
+                val contentSb = StringBuilder()
+                var floatingStreamStarted = false
+
+                if (FloatingChatService.isRunning()) {
+                    FloatingChatService.getInstance()?.beginExternalStreamAiReply()
+                    floatingStreamStarted = true
+                }
+
                 // 构建对话历史
                 val chatHistory = buildChatHistory(c, retryMode).toMutableList()
                 if (!resendUser) {
@@ -1835,74 +2321,83 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 }
-                
+
                 var streamOk = false
                 var lastError: Throwable? = null
                 val maxAttempts = 2
 
                 for (attempt in 1..maxAttempts) {
                     if (attempt > 1) {
-                         // 重试前清理界面
+                        // 重试前清理界面
                         reasoningSb.clear()
                         contentSb.clear()
-                        runOnUiThread {
-                             StreamRenderHelper.initThinkingState(vh)
-                        }
+                        runOnUiThread { StreamRenderHelper.initThinkingState(vh) }
                         if (FloatingChatService.isRunning()) {
-                             FloatingChatService.getInstance()?.resetExternalStreamAiReply()
+                            FloatingChatService.getInstance()?.resetExternalStreamAiReply()
                         }
                     }
 
-                    val result = AutoGlmClient.sendChatStreamResult(
-                        apiKey = apiKey,
-                        baseUrl = resolvedBaseUrl,
-                        model = resolvedModel,
-                        messages = chatHistory,
-                        temperature = if (retryMode) 0.7f else null,
-                        onReasoningDelta = { delta ->
-                            if (delta.isNotBlank()) {
-                                reasoningSb.append(delta)
-                                runOnUiThread {
-                                    // 使用新的处理方法
-                                    StreamRenderHelper.processReasoningDelta(vh, delta, lifecycleScope) {
-                                        smoothScrollToBottom()
-                                    }
-                                }
-                                // 同步到悬浮窗
-                                if (FloatingChatService.isRunning()) {
-                                    FloatingChatService.getInstance()?.appendExternalReasoningDelta(delta)
-                                }
-                            }
-                        },
-                        onContentDelta = { delta ->
-                            if (delta.isNotEmpty()) {
-                                runOnUiThread {
-                                    // 使用新的智能解析处理方法
-                                    StreamRenderHelper.processContentDelta(
-                                        vh, 
-                                        delta, 
-                                        lifecycleScope,
-                                        this@MainActivity,
-                                        onScroll = { smoothScrollToBottom() },
-                                        onPhaseChange = { isAnswerPhase ->
-                                            if (isAnswerPhase) {
-                                                StreamRenderHelper.transitionToAnswer(vh)
+                    val result =
+                            AutoGlmClient.sendChatStreamResult(
+                                    apiKey = apiKey,
+                                    baseUrl = resolvedBaseUrl,
+                                    model = resolvedModel,
+                                    messages = chatHistory,
+                                    temperature = if (retryMode) 0.7f else null,
+                                    onReasoningDelta = { delta ->
+                                        if (delta.isNotBlank()) {
+                                            reasoningSb.append(delta)
+                                            runOnUiThread {
+                                                StreamRenderHelper.processReasoningDelta(
+                                                        vh,
+                                                        delta,
+                                                        lifecycleScope,
+                                                ) { smoothScrollToBottom() }
+                                            }
+                                            if (FloatingChatService.isRunning()) {
+                                                FloatingChatService.getInstance()
+                                                        ?.appendExternalReasoningDelta(delta)
                                             }
                                         }
-                                    )
-                                }
-                                
-                                // 更新 contentSb（用于保存）
-                                // 注意：这里我们保存原始内容，解析器会处理显示
-                                contentSb.append(delta)
-                                
-                                // 同步到悬浮窗
-                                if (FloatingChatService.isRunning()) {
-                                    FloatingChatService.getInstance()?.appendExternalContentDelta(delta)
-                                }
-                            }
-                        }
-                    )
+                                    },
+                                    onContentDelta = { delta ->
+                                        if (delta.isNotEmpty()) {
+                                            runOnUiThread {
+                                                StreamRenderHelper.processContentDelta(
+                                                        vh,
+                                                        delta,
+                                                        lifecycleScope,
+                                                        this@MainActivity,
+                                                        onScroll = { smoothScrollToBottom() },
+                                                        onPhaseChange = { isAnswerPhase ->
+                                                            if (isAnswerPhase) {
+                                                                StreamRenderHelper.transitionToAnswer(vh)
+                                                                if (
+                                                                        vh.thinkingText.visibility ==
+                                                                                View.VISIBLE ||
+                                                                                vh.thinkingContentArea
+                                                                                        .visibility ==
+                                                                                        View.VISIBLE
+                                                                ) {
+                                                                    vh.thinkingHeader.performClick()
+                                                                }
+                                                            }
+                                                        },
+                                                )
+                                            }
+
+                                            // 更新 contentSb（用于保存）
+                                            // 注意：这里我们保存原始内容，解析器会处理显示
+                                            contentSb.append(delta)
+
+                                            // 同步到悬浮窗
+                                            if (FloatingChatService.isRunning()) {
+                                                FloatingChatService.getInstance()
+                                                        ?.appendExternalContentDelta(delta)
+                                            }
+                                        }
+                                    },
+                            )
 
                     if (result.isSuccess) {
                         streamOk = true
@@ -1914,44 +2409,92 @@ class MainActivity : AppCompatActivity() {
 
                 // 处理结果
                 val timeCost = (System.currentTimeMillis() - startTime) / 1000
-                
-                val finalContent = if (streamOk) {
-                    contentSb.toString()
-                } else {
-                    val err = lastError?.message ?: "Unknown error"
-                    "请求失败: $err"
-                }
+
+                val finalContent =
+                        if (streamOk) {
+                            contentSb.toString()
+                        } else {
+                            val err = lastError?.message ?: "Unknown error"
+                            "请求失败: $err"
+                        }
 
                 // 显示完成状态
                 runOnUiThread {
                     StreamRenderHelper.markCompleted(vh, timeCost)
+                    if (
+                            vh.thinkingText.visibility == View.VISIBLE ||
+                                    vh.thinkingContentArea.visibility == View.VISIBLE
+                    ) {
+                        vh.thinkingHeader.performClick()
+                    }
                     if (!streamOk) {
-                         // 如果失败，直接显示错误信息
-                         vh.messageContent.text = finalContent
+                        // 如果失败，直接显示错误信息
+                        vh.messageContent.text = finalContent
                     }
                 }
-                
-                if (FloatingChatService.isRunning()) {
-                     FloatingChatService.getInstance()?.finishExternalStreamAiReply(timeCost.toInt(), finalContent)
+
+                if (floatingStreamStarted && FloatingChatService.isRunning()) {
+                    FloatingChatService.getInstance()
+                            ?.finishExternalStreamAiReply(timeCost.toInt(), finalContent)
                 }
 
                 // 保存到历史 - 使用解析后的内容
                 val thinkingContent = StreamRenderHelper.getThinkingText(vh)
-                val answerContent = StreamRenderHelper.getAnswerText(vh)
-                
-                val persistContent = if (thinkingContent.isNotEmpty()) {
-                    "꽁${thinkingContent}꽁\n${answerContent}"
-                } else if (answerContent.isNotEmpty()) {
-                    answerContent
-                } else {
-                    finalContent
+                val answerContentRaw = StreamRenderHelper.getAnswerText(vh)
+                val (answerContent, markerInAnswer) =
+                        extractAutomationInstruction(answerContentRaw)
+                val automationInstruction =
+                        markerInAnswer ?: extractAutomationInstruction(finalContent).second
+
+                if (answerContent != answerContentRaw) {
+                    runOnUiThread {
+                        StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, answerContent)
+                    }
                 }
+
+                val persistContent =
+                        if (thinkingContent.isNotEmpty()) {
+                            "<think>${thinkingContent}</think>\n${answerContent}"
+                        } else if (answerContent.isNotEmpty()) {
+                            answerContent
+                        } else {
+                            finalContent
+                        }
 
                 val cc = requireActiveConversation()
                 cc.messages.add(UiMessage(author = "Aries AI", content = persistContent, isUser = false))
                 cc.updatedAt = System.currentTimeMillis()
                 persistConversations()
 
+                if (!automationInstruction.isNullOrBlank()) {
+                    val readyState = resolveAutomationReadyState()
+                    val commandMessage =
+                        if (readyState.ready) {
+                            "待转交自动化命令：\n$automationInstruction\n[[AUTO_CONFIRM:$automationInstruction]]"
+                        } else {
+                            "待转交自动化命令：\n$automationInstruction\n\n${readyState.reason}"
+                        }
+                    cc.messages.add(
+                        UiMessage(
+                            author = "Aries AI",
+                            content = commandMessage,
+                            isUser = false
+                        )
+                    )
+                    cc.updatedAt = System.currentTimeMillis()
+                    persistConversations()
+
+                    runOnUiThread {
+                        appendComplexAiMessage(
+                            "Aries AI",
+                            commandMessage,
+                            animate = true,
+                            timeCostMs = 0,
+                            automationInstructionForConfirm = if (readyState.ready) automationInstruction else null,
+                            messageIndexInConversation = cc.messages.lastIndex
+                        )
+                    }
+                }
             } finally {
                 isRequestInFlight = false
             }
@@ -2002,6 +2545,553 @@ class MainActivity : AppCompatActivity() {
         val retryIconView = button.findViewById<ImageView?>(R.id.iv_retry_icon)
         retryIconView?.alpha = if (isLoading) 0.6f else 1f
     }
+
+    private fun bindAutomationConfirmButton(
+        button: View?,
+        textView: TextView?,
+        instruction: String?,
+        messageRef: AutomationMessageRef?,
+        isConfirmed: Boolean,
+        isFinished: Boolean
+    ) {
+        val statusView = findAutomationPanelStatusView(button)
+        val task = instruction?.trim().orEmpty()
+        val iconView = button?.findViewById<ImageView?>(R.id.iv_confirm_icon)
+
+        if (isConfirmed) {
+            if (isFinished) {
+                configureAutomationFinishedButton(
+                    button = button,
+                    textView = textView,
+                    iconView = iconView,
+                    statusView = statusView
+                )
+            } else {
+                configureAutomationTerminateButton(button, textView, iconView, statusView)
+            }
+            return
+        }
+
+        if (task.isBlank()) {
+            button?.visibility = View.GONE
+            button?.isEnabled = false
+            textView?.text = getString(R.string.automation_confirm)
+            return
+        }
+
+        button?.visibility = View.VISIBLE
+        button?.isEnabled = true
+        button?.alpha = 1f
+        textView?.text = getString(R.string.automation_confirm)
+        statusView?.text = getString(R.string.automation_scene_need_confirm)
+        button?.setOnClickListener {
+            if (button.isEnabled.not()) return@setOnClickListener
+            button.isEnabled = false
+            button.alpha = 0.7f
+            textView?.text = getString(R.string.automation_confirming)
+
+            val readyState = resolveAutomationReadyState()
+            if (!readyState.ready) {
+                button.isEnabled = true
+                button.alpha = 1f
+                textView?.text = getString(R.string.automation_not_ready_short)
+                statusView?.text = getString(R.string.automation_scene_not_ready)
+                return@setOnClickListener
+            }
+
+            val dispatchResult =
+                ActivityAutomationInstructionGateway.dispatchFromAdvancedAi(
+                    context = this@MainActivity,
+                    instruction = task
+                )
+
+            if (dispatchResult.success) {
+                markAutomationCommandConfirmed(task, messageRef)
+                configureAutomationTerminateButton(button, textView, iconView, statusView)
+            } else {
+                button.isEnabled = true
+                button.alpha = 1f
+                textView?.text = getString(R.string.automation_confirm)
+                statusView?.text = getString(R.string.automation_scene_need_confirm)
+            }
+        }
+    }
+
+    private fun configureAutomationTerminateButton(
+        button: View?,
+        textView: TextView?,
+        iconView: ImageView?,
+        statusView: TextView?
+    ) {
+        button?.visibility = View.VISIBLE
+        button?.isEnabled = true
+        button?.alpha = 1f
+        button?.background = ContextCompat.getDrawable(this, R.drawable.bg_action_button_oval_danger)
+        textView?.text = getString(R.string.automation_terminate)
+        textView?.setTextColor(ContextCompat.getColor(this, R.color.m3t_on_error_container))
+        iconView?.setImageResource(R.drawable.ic_stop_24)
+        iconView?.setColorFilter(ContextCompat.getColor(this, R.color.m3t_on_error_container))
+        statusView?.text = getString(R.string.automation_scene_confirmed)
+        button?.setOnClickListener {
+            requestAutomationStopFromHome()
+            textView?.text = getString(R.string.automation_terminating)
+            button.isEnabled = false
+            button.alpha = 0.75f
+        }
+    }
+
+    private fun configureAutomationFinishedButton(
+        button: View?,
+        textView: TextView?,
+        iconView: ImageView?,
+        statusView: TextView?
+    ) {
+        button?.visibility = View.VISIBLE
+        button?.isEnabled = false
+        button?.alpha = 1f
+        button?.background = ContextCompat.getDrawable(this, R.drawable.bg_action_button_oval)
+        textView?.setTextColor(ContextCompat.getColor(this, R.color.m3t_message_action))
+        iconView?.setColorFilter(ContextCompat.getColor(this, R.color.m3t_message_action))
+        statusView?.text = getString(R.string.automation_scene_finished)
+        textView?.text = getString(R.string.automation_confirmed)
+        iconView?.setImageResource(R.drawable.ic_check_circle_24)
+        button?.setOnClickListener(null)
+    }
+
+    private fun requestAutomationStopFromHome() {
+        runCatching {
+            sendBroadcast(
+                Intent(VirtualScreenPreviewOverlay.ACTION_STOP_AUTOMATION).apply {
+                    setPackage(packageName)
+                }
+            )
+        }
+        Toast.makeText(this, getString(R.string.automation_terminate_requested), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun markAutomationCommandConfirmed(instruction: String, messageRef: AutomationMessageRef?) {
+        val targetConversation =
+            when {
+                messageRef != null -> conversations.firstOrNull { it.id == messageRef.conversationId }
+                else -> activeConversation
+            } ?: return
+
+        val targetIndex =
+            when {
+                messageRef != null &&
+                    messageRef.messageIndex in targetConversation.messages.indices -> messageRef.messageIndex
+                else -> findLatestAutomationPanelMessageIndex(targetConversation)
+            }
+        if (targetIndex !in targetConversation.messages.indices) return
+
+        val origin = targetConversation.messages[targetIndex]
+        val existingInstruction = extractAutomationConfirmInstruction(origin.content).second
+        if (!existingInstruction.isNullOrBlank() && existingInstruction != instruction) return
+
+        val withoutConfirm = extractAutomationConfirmInstruction(origin.content).first
+        val withoutConfirmed = extractAutomationConfirmedMarker(withoutConfirm).first
+        val updated =
+            (withoutConfirmed.trimEnd() + "\n[[AUTO_CONFIRMED]]")
+                .trim()
+
+        if (updated == origin.content) return
+
+        targetConversation.messages[targetIndex] = origin.copy(content = updated)
+        targetConversation.updatedAt = System.currentTimeMillis()
+        persistConversations()
+    }
+
+    private fun findAutomationPanelStatusView(anchor: View?): TextView? {
+        var cursor: View? = anchor
+        while (cursor != null) {
+            val found = cursor.findViewById<TextView?>(R.id.automation_panel_status)
+            if (found != null) return found
+            cursor = cursor.parent as? View
+        }
+        return null
+    }
+
+    private fun extractAutomationCommand(message: String): String? {
+        val normalized = message.replace("\r\n", "\n").trim()
+        if (!normalized.contains("待转交自动化命令：")) return null
+        val lines = normalized.lines().map { it.trim() }.filter { it.isNotBlank() }
+        if (lines.isEmpty()) return null
+
+        val first = lines.first()
+        val inline = first.substringAfter("待转交自动化命令：", "").trim()
+        if (inline.isNotBlank()) return inline
+
+        return lines.drop(1).firstOrNull { !it.startsWith("系统未就绪：") }?.trim()?.ifBlank { null }
+    }
+
+    private fun normalizeAutomationLogLine(rawLine: String): String {
+        val line = rawLine.trim()
+        return line.replace(Regex("""^\[Step\s+\d+]\s*"""), "").trim()
+    }
+
+    private data class AutomationTimelineEntry(
+        var displayText: String,
+        var action: String? = null
+    )
+
+    private fun appendAutomationTimelineEntry(
+        timeline: MutableList<AutomationTimelineEntry>,
+        normalizedLogLine: String
+    ) {
+        val thinkingText = extractAutomationDisplayText(normalizedLogLine)
+        val intentText = extractAutomationIntentTextFromOutput(normalizedLogLine)
+        val actionLabel = extractAutomationActionLabel(normalizedLogLine)
+
+        if (!thinkingText.isNullOrBlank()) {
+            timeline.add(AutomationTimelineEntry(displayText = thinkingText, action = actionLabel))
+            return
+        }
+
+        if (!intentText.isNullOrBlank()) {
+            val lastWithoutAction = timeline.lastOrNull { it.action.isNullOrBlank() }
+            if (lastWithoutAction != null) {
+                lastWithoutAction.displayText = intentText
+                if (!actionLabel.isNullOrBlank()) {
+                    lastWithoutAction.action = actionLabel
+                }
+            } else {
+                timeline.add(AutomationTimelineEntry(displayText = intentText, action = actionLabel))
+            }
+            return
+        }
+
+        if (!actionLabel.isNullOrBlank()) {
+            val lastWithoutAction = timeline.lastOrNull { it.action.isNullOrBlank() }
+            if (lastWithoutAction != null) {
+                lastWithoutAction.action = actionLabel
+            } else {
+                timeline.add(
+                    AutomationTimelineEntry(
+                        displayText = "执行动作",
+                        action = actionLabel
+                    )
+                )
+            }
+        }
+    }
+
+    private fun renderAutomationTimelineRows(
+        container: LinearLayout,
+        timeline: List<AutomationTimelineEntry>
+    ) {
+        container.removeAllViews()
+
+        if (timeline.isEmpty()) {
+            val waitingView =
+                TextView(this).apply {
+                    text = getString(R.string.automation_scene_waiting)
+                    setTextAppearance(this@MainActivity, R.style.TextAppearance_M3t_Body_Small)
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface_variant))
+                }
+            container.addView(
+                waitingView,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+            return
+        }
+
+        val rowSpacing = resources.getDimensionPixelSize(R.dimen.m3t_spacing_xs)
+        timeline.forEachIndexed { index, entry ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+            }
+
+            val thoughtView =
+                TextView(this).apply {
+                    text = "• ${entry.displayText}"
+                    setTextAppearance(this@MainActivity, R.style.TextAppearance_M3t_Body_Small)
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface_variant))
+                }
+            val thoughtLp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            row.addView(thoughtView, thoughtLp)
+
+            val action = entry.action?.trim().orEmpty()
+            if (action.isNotBlank()) {
+                val chip = createAutomationInlineChip(action)
+                val chipLp =
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        topMargin = resources.getDimensionPixelSize(R.dimen.m3t_spacing_xxxs)
+                    }
+                row.addView(chip, chipLp)
+            }
+
+            val rowLp =
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    if (index > 0) topMargin = rowSpacing
+                }
+            container.addView(row, rowLp)
+        }
+    }
+
+    private fun createAutomationInlineChip(label: String): TextView {
+        return TextView(this).apply {
+            text = label
+            setTextAppearance(this@MainActivity, R.style.TextAppearance_M3t_Body_Small)
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_message_action))
+            val padH = resources.getDimensionPixelSize(R.dimen.m3t_spacing_sm)
+            val padV = resources.getDimensionPixelSize(R.dimen.m3t_spacing_xs)
+            setPadding(padH, padV, padH, padV)
+            background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_action_button_oval)
+        }
+    }
+
+    private fun extractAutomationDisplayText(logLine: String): String? {
+        val normalized = normalizeAutomationLogLine(logLine)
+        val thought =
+            when {
+                normalized.startsWith("思考：") -> normalized.substringAfter("思考：").trim()
+                normalized.startsWith("修复思考：") -> normalized.substringAfter("修复思考：").trim()
+                else -> ""
+            }
+        if (thought.isNotBlank()) return thought
+        return null
+    }
+
+    private fun extractAutomationIntentTextFromOutput(logLine: String): String? {
+        val normalized = normalizeAutomationLogLine(logLine)
+        val outputPayload =
+            when {
+                normalized.startsWith("输出：") -> normalized.substringAfter("输出：").trim()
+                normalized.startsWith("修复输出：") -> normalized.substringAfter("修复输出：").trim()
+                else -> ""
+            }
+        if (outputPayload.isBlank()) return null
+
+        val actionFromDo =
+            Regex("""action\s*=\s*"([^"]+)"""", RegexOption.IGNORE_CASE)
+                .find(outputPayload)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.trim()
+                ?.lowercase()
+                .orEmpty()
+        if (actionFromDo in setOf("type", "input", "text", "type_name")) {
+            return null
+        }
+
+        val textFromDo =
+            Regex("""text\s*=\s*"([^"]+)"""", RegexOption.IGNORE_CASE)
+                .find(outputPayload)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.trim()
+        if (!textFromDo.isNullOrBlank()) return textFromDo
+
+        val textFromJson =
+            Regex(""""text"\s*:\s*"([^"]+)"""", RegexOption.IGNORE_CASE)
+                .find(outputPayload)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.trim()
+        if (!textFromJson.isNullOrBlank()) return textFromJson
+
+        extractDescFromOutputPayload(outputPayload)?.let { return it }
+
+        return null
+    }
+
+    private fun extractDescFromOutputPayload(payload: String): String? {
+        val clean = payload.trim()
+        if (clean.isBlank()) return null
+
+        // 1) JSON/对象形式："desc":"..."
+        Regex(""""desc"\s*:\s*"([^"]+)"""")
+            .find(clean)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+
+        // 2) do(..., desc="...")
+        Regex("""desc\s*=\s*"([^"]+)"""")
+            .find(clean)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+
+        // 3) 文本形式：desc: ...
+        Regex("""\bdesc\b\s*[:=]\s*(.+)$""", RegexOption.IGNORE_CASE)
+            .find(clean)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+
+        return null
+    }
+
+    private fun mapAutomationActionLabel(rawAction: String): String {
+        return when (rawAction.trim().lowercase()) {
+            "tap", "click" -> "点击"
+            "type", "input" -> "输入"
+            "swipe" -> "滑动"
+            "launch", "open", "startapp" -> "启动"
+            "back" -> "返回"
+            "wait" -> "等待"
+            "longpress" -> "长按"
+            "scroll" -> "滚动"
+            "home" -> "回桌面"
+            else -> rawAction.trim().ifBlank { "执行" }.take(10)
+        }
+    }
+
+    private fun extractAutomationActionLabel(logLine: String): String? {
+        val normalized = normalizeAutomationLogLine(logLine)
+        val actionByCurrent = normalized.substringAfter("当前动作：", "").trim()
+        if (actionByCurrent.isNotBlank() && actionByCurrent != normalized) {
+            return actionByCurrent.take(10)
+        }
+
+        val outputPayload =
+            when {
+                normalized.startsWith("输出：") -> normalized.substringAfter("输出：").trim()
+                normalized.startsWith("修复输出：") -> normalized.substringAfter("修复输出：").trim()
+                else -> ""
+            }
+        if (outputPayload.isBlank()) return null
+
+        val actionFromDo =
+            Regex("""action\s*=\s*"([^"]+)"""")
+                .find(outputPayload)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
+        if (!actionFromDo.isNullOrBlank()) {
+            return mapAutomationActionLabel(actionFromDo)
+        }
+
+        val actionFromJson =
+            Regex(""""action"\s*:\s*"([^"]+)"""")
+                .find(outputPayload)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
+        if (!actionFromJson.isNullOrBlank()) {
+            return mapAutomationActionLabel(actionFromJson)
+        }
+
+        return null
+    }
+
+    private fun configureAutomationPanel(
+        command: String,
+        logs: List<String>,
+        hasConfirm: Boolean,
+        hasConfirmed: Boolean,
+        statusView: TextView,
+        commandView: TextView,
+        logContainer: LinearLayout
+    ) {
+        commandView.text = command
+        val hasTerminalLog = logs.any { isAutomationTerminalLog(it) }
+        statusView.text =
+            when {
+                hasConfirm -> getString(R.string.automation_scene_need_confirm)
+                hasTerminalLog -> getString(R.string.automation_scene_finished)
+                logs.isNotEmpty() -> getString(R.string.automation_scene_running)
+                hasConfirmed -> getString(R.string.automation_scene_confirmed)
+                else -> getString(R.string.automation_scene_not_ready)
+            }
+
+        val normalizedLogs = logs.map { normalizeAutomationLogLine(it) }.filter { it.isNotBlank() }
+        val timeline = mutableListOf<AutomationTimelineEntry>()
+        normalizedLogs.forEach { line -> appendAutomationTimelineEntry(timeline, line) }
+        logContainer.tag = timeline
+        renderAutomationTimelineRows(logContainer, timeline)
+    }
+
+    /**
+     * 兼容解析历史 AI 消息的多种持久化格式，避免旧分隔符直接显示到界面。
+     * 支持：
+     * 1) <think>...</think>\nanswer
+     * 2) 꽁thinking꽁\nanswer（旧版本）
+     * 3) leshootthinkingleshootanswer（更旧版本）
+     * 4) 【思考开始】...【思考结束】【回答开始】...【回答结束】
+     */
+    private fun parseStoredAiContent(raw: String): Pair<String?, String> {
+        val source = raw.trim()
+        if (source.isBlank()) return null to ""
+
+        val thinkTagRegex = "<think>([\\s\\S]*?)</think>\\s*([\\s\\S]*)".toRegex()
+        thinkTagRegex.find(source)?.let { match ->
+            val thinking = match.groupValues.getOrNull(1)?.trim().orEmpty()
+            val answer = match.groupValues.getOrNull(2)?.trim().orEmpty()
+            return (thinking.ifBlank { null }) to stripAutomationMarker(answer)
+        }
+
+        val markerStart = source.indexOf('꽁')
+        val markerEnd = if (markerStart >= 0) source.indexOf('꽁', markerStart + 1) else -1
+        if (markerStart >= 0 && markerEnd > markerStart) {
+            val thinking = source.substring(markerStart + 1, markerEnd).trim()
+            val answer = source.substring(markerEnd + 1).trimStart('\n', '\r', ' ').trim()
+            return (thinking.ifBlank { null }) to stripAutomationMarker(answer)
+        }
+
+        val leshootRegex = "leshoot([\\s\\S]*?)leshoot([\\s\\S]*)".toRegex()
+        leshootRegex.find(source)?.let { match ->
+            val thinking = match.groupValues.getOrNull(1)?.trim().orEmpty()
+            val answer = match.groupValues.getOrNull(2)?.trim().orEmpty()
+            return (thinking.ifBlank { null }) to stripAutomationMarker(answer)
+        }
+
+        val thinkStartTag = "【思考开始】"
+        val thinkEndTag = "【思考结束】"
+        val answerStartTag = "【回答开始】"
+        val answerEndTag = "【回答结束】"
+        val thinkStartIdx = source.indexOf(thinkStartTag)
+        val thinkEndIdx = source.indexOf(thinkEndTag)
+        if (thinkStartIdx >= 0 && thinkEndIdx > thinkStartIdx) {
+            val thinking =
+                source.substring(
+                    thinkStartIdx + thinkStartTag.length,
+                    thinkEndIdx
+                ).trim()
+            var answerPart = source.substring(thinkEndIdx + thinkEndTag.length)
+            val answerStartIdx = answerPart.indexOf(answerStartTag)
+            if (answerStartIdx >= 0) {
+                answerPart = answerPart.substring(answerStartIdx + answerStartTag.length)
+            }
+            val answerEndIdx = answerPart.indexOf(answerEndTag)
+            if (answerEndIdx >= 0) {
+                answerPart = answerPart.substring(0, answerEndIdx)
+            }
+            return (thinking.ifBlank { null }) to stripAutomationMarker(answerPart.trim())
+        }
+
+        if (source.contains(answerStartTag)) {
+            var answerPart = source.substring(source.indexOf(answerStartTag) + answerStartTag.length)
+            val answerEndIdx = answerPart.indexOf(answerEndTag)
+            if (answerEndIdx >= 0) {
+                answerPart = answerPart.substring(0, answerEndIdx)
+            }
+            return null to stripAutomationMarker(answerPart.trim())
+        }
+
+        return null to stripAutomationMarker(source.replace("꽁", "").trim())
+    }
     
     /**
      * 构建完整的对话历史，传递给AI模型
@@ -2015,6 +3105,8 @@ class MainActivity : AppCompatActivity() {
             role = "system",
             content = """
                 你是 Aries AI。
+                你具备手机自动化相关能力：当任务适合自动化时，你需要给出“可转交执行”的自动化指令；
+                真正执行由系统在用户确认后完成，而不是由你直接执行。
                 
                 你必须严格按以下结构输出（否则我的 Android 应用无法正确渲染）：
                 
@@ -2030,6 +3122,16 @@ class MainActivity : AppCompatActivity() {
                 1) 以上四个标记必须原样输出，且不要输出其它同名/相似标记。
                 2) 思考内容写在“思考开始/结束”之间；正式回答写在“回答开始/结束”之间。
                 3) 代码块使用三反引号 ``` 并尽量保持语法完整。
+                4) 如果你判断该请求适合转交手机自动化执行，请在“回答区域内”追加且仅追加一行：
+                   [[AUTO_EXECUTE:这里填写可直接执行的中文自动化指令]]
+                5) 自动化指令必须是自然语言任务描述（如“打开手机浏览器并访问 https://www.jd.com”），
+                   严禁输出 Selenium / JavaScript / Python / Node.js 代码。
+                6) 如果不需要自动化，不要输出 AUTO_EXECUTE 标记。
+                7) 自动化场景回答示例：
+                   【回答开始】
+                   我可以帮你执行这个手机操作。
+                   [[AUTO_EXECUTE:打开手机浏览器并访问 https://www.jd.com]]
+                   【回答结束】
             """.trimIndent()
         ))
 
@@ -2050,10 +3152,13 @@ class MainActivity : AppCompatActivity() {
         val recentMessages = conversation.messages.takeLast(20) // 10轮对话 = 20条消息
         for (msg in recentMessages) {
             val content = if (!msg.isUser) {
-                // 历史记录传递给模型时，如果包含 leshoot，是否保留？
-                // 通常保留可以让模型知道之前的思考逻辑，但也可能浪费 token。
-                // 这里选择保留完整内容。
-                msg.content
+                // 历史记录传给模型前统一清洗旧分隔符，避免把乱码标记带入上下文。
+                val (thinking, answer) = parseStoredAiContent(msg.content)
+                if (!thinking.isNullOrBlank()) {
+                    "<think>$thinking</think>\n$answer"
+                } else {
+                    answer
+                }
             } else {
                 msg.content
             }
@@ -2076,7 +3181,9 @@ class MainActivity : AppCompatActivity() {
         fullContent: String,
         animate: Boolean,
         timeCostMs: Long,
-        retryUserText: String? = null
+        retryUserText: String? = null,
+        automationInstructionForConfirm: String? = null,
+        messageIndexInConversation: Int? = null
     ) {
         // 1. Inflate 复杂布局
         val view = layoutInflater.inflate(R.layout.item_ai_message_complex, binding.messagesContainer, false)
@@ -2088,13 +3195,47 @@ class MainActivity : AppCompatActivity() {
         val thinkingIndicator = view.findViewById<TextView>(R.id.thinking_indicator_text)
         val messageContent = view.findViewById<TextView>(R.id.message_content)
         val authorName = view.findViewById<TextView>(R.id.ai_author_name)
-        
-        // 解析内容
-        val thinkRegex = "leshoot([\\s\\S]*?)leshoot([\\s\\S]*)".toRegex()
-        val match = thinkRegex.find(fullContent)
-        
-        val thinkContent = match?.groupValues?.get(1)?.trim()
-        val realContent = match?.groupValues?.get(2)?.trim() ?: fullContent
+        val btnConfirm = view.findViewById<View?>(R.id.btn_confirm)
+        val tvConfirmText = view.findViewById<TextView?>(R.id.tv_confirm_text)
+        val automationPanel = view.findViewById<LinearLayout>(R.id.automation_panel)
+        val automationStatus = view.findViewById<TextView>(R.id.automation_panel_status)
+        val automationCommand = view.findViewById<TextView>(R.id.automation_panel_command)
+        val automationLogContainer = view.findViewById<LinearLayout>(R.id.automation_log_container)
+
+        // 解析内容（兼容旧格式，避免展示旧分隔符）
+        val (contentWithoutLogMarkers, embeddedAutomationLogs) = extractAutomationLogMarkers(fullContent)
+        val (contentWithoutConfirmedMarker, hasConfirmedMarker) =
+            extractAutomationConfirmedMarker(contentWithoutLogMarkers)
+        val (contentWithoutConfirmMarker, confirmInstructionFromMessage) =
+            extractAutomationConfirmInstruction(contentWithoutConfirmedMarker)
+        val confirmInstruction =
+            if (hasConfirmedMarker) null else (automationInstructionForConfirm ?: confirmInstructionFromMessage)
+        val (storedThinking, storedAnswer) = parseStoredAiContent(contentWithoutConfirmMarker)
+        val thinkContent = storedThinking?.trim()
+        val realContent = storedAnswer.trim()
+        val automationCommandText = extractAutomationCommand(realContent) ?: confirmInstruction
+        val messageRef =
+            if (messageIndexInConversation != null && messageIndexInConversation >= 0) {
+                val cid = activeConversation?.id ?: -1L
+                if (cid > 0L) {
+                    AutomationMessageRef(
+                        conversationId = cid,
+                        messageIndex = messageIndexInConversation
+                    )
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
+        val initialAutomationLogs =
+            buildList {
+                addAll(embeddedAutomationLogs)
+                val notReadyReason =
+                    realContent.lines().map { it.trim() }.firstOrNull { it.startsWith("系统未就绪：") }
+                if (!notReadyReason.isNullOrBlank()) add(notReadyReason)
+            }
+        val isAutomationFinished = initialAutomationLogs.any { isAutomationTerminalLog(it) }
         
         // 设置作者名
         authorName.text = if (author == "Aries") "Aries AI" else author
@@ -2123,14 +3264,45 @@ class MainActivity : AppCompatActivity() {
         } else {
             thinkingLayout.visibility = View.GONE
         }
+
+        if (!automationCommandText.isNullOrBlank()) {
+            messageContent.visibility = View.GONE
+            automationPanel.visibility = View.VISIBLE
+            configureAutomationPanel(
+                command = automationCommandText,
+                logs = initialAutomationLogs,
+                hasConfirm = !confirmInstruction.isNullOrBlank(),
+                hasConfirmed = hasConfirmedMarker,
+                statusView = automationStatus,
+                commandView = automationCommand,
+                logContainer = automationLogContainer
+            )
+            val conversationId = activeConversation?.id ?: -1L
+            if (conversationId > 0L && messageIndexInConversation != null && messageIndexInConversation >= 0) {
+                activeAutomationPanelConversationId = conversationId
+                activeAutomationPanelMessageIndex = messageIndexInConversation
+                activeAutomationPanelLogContainer = automationLogContainer
+                activeAutomationPanelStatusView = automationStatus
+                activeAutomationPanelConfirmButton = btnConfirm
+                activeAutomationPanelConfirmTextView = tvConfirmText
+            }
+        } else {
+            messageContent.visibility = View.VISIBLE
+            automationPanel.visibility = View.GONE
+        }
         
         smoothScrollToBottom()
 
-        if (!animate) {
+        if (!animate || !automationCommandText.isNullOrBlank()) {
             if (!thinkContent.isNullOrBlank()) {
                 StreamRenderHelper.applyMarkdownToHistory(thinkingText, thinkContent)
+                if (thinkingText.visibility == View.VISIBLE) {
+                    thinkingHeader.performClick()
+                }
             }
-            StreamRenderHelper.applyMarkdownToHistory(messageContent, realContent)
+            if (messageContent.visibility == View.VISIBLE) {
+                StreamRenderHelper.applyMarkdownToHistory(messageContent, realContent)
+            }
             view.findViewById<View>(R.id.action_area).visibility = View.VISIBLE
 
             val btnCopy = view.findViewById<View>(R.id.btn_copy)
@@ -2155,6 +3327,14 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
                 }
             }
+            bindAutomationConfirmButton(
+                button = btnConfirm,
+                textView = tvConfirmText,
+                instruction = confirmInstruction,
+                messageRef = messageRef,
+                isConfirmed = hasConfirmedMarker,
+                isFinished = isAutomationFinished
+            )
             return
         }
         
@@ -2176,6 +3356,9 @@ class MainActivity : AppCompatActivity() {
                 }
                 thinkingText.text = thinkContent // 确保完整
                 delay(200) // 思考完停顿一下
+                if (thinkingText.visibility == View.VISIBLE) {
+                    thinkingHeader.performClick()
+                }
             }
             
             // 2. 播放正文打字机
@@ -2232,6 +3415,14 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
             }
         }
+        bindAutomationConfirmButton(
+            button = btnConfirm,
+            textView = tvConfirmText,
+            instruction = confirmInstruction,
+            messageRef = messageRef,
+            isConfirmed = hasConfirmedMarker,
+            isFinished = isAutomationFinished
+        )
         
         if (!animate) {
             // 如果非动画模式（如历史记录），直接显示操作栏
@@ -2354,7 +3545,7 @@ class MainActivity : AppCompatActivity() {
                                     this@MainActivity,
                                     if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
                             )
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.blue_glass_text))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface))
                 }
 
         val lp =
@@ -2424,7 +3615,7 @@ class MainActivity : AppCompatActivity() {
                                     this@MainActivity,
                                     if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
                             )
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.blue_glass_text))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface))
                 }
         val lp =
                 LinearLayout.LayoutParams(
@@ -2463,7 +3654,7 @@ class MainActivity : AppCompatActivity() {
                                     if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
                             )
 
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.blue_glass_text))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface))
                 }
 
         val lp =
@@ -2521,7 +3712,7 @@ class MainActivity : AppCompatActivity() {
         actionArea.visibility = View.GONE
 
         messageContent.text = "正在思考"
-        messageContent.setTextColor(Color.parseColor("#80505050"))
+        messageContent.setTextColor(ContextCompat.getColor(this, R.color.m3t_thinking_text))
 
         binding.messagesContainer.addView(view)
         thinkingView = view
@@ -2558,7 +3749,6 @@ class MainActivity : AppCompatActivity() {
             if (success) {
                 offlineModelReady = true
                 updateStatusText()
-                Toast.makeText(this@MainActivity, "本地语音模型已就绪 (Sherpa-ncnn)", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this@MainActivity, "语音模型初始化失败", Toast.LENGTH_LONG).show()
             }
@@ -2810,9 +4000,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showHistoryDialog() {
-        val displayed = conversations.filter { it.messages.isNotEmpty() }.toMutableList()
+        val displayed =
+            conversations
+                .filter { it.messages.isNotEmpty() }
+                .sortedByDescending { it.updatedAt }
+                .toMutableList()
         if (displayed.isEmpty()) {
-            Toast.makeText(this, "暂无历史对话", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.history_empty), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -2837,6 +4031,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         val rv = containerView.findViewById<RecyclerView>(R.id.rvHistory)
+        DialogSizingUtil.applyCompactSizing(
+            context = this,
+            cardView = cardView,
+            scrollBody = null,
+            listView = rv,
+            hasList = true,
+        )
         rv.layoutManager = LinearLayoutManager(this)
         val adapter =
             ConversationAdapter(
@@ -2845,7 +4046,8 @@ class MainActivity : AppCompatActivity() {
                     activeConversation = conv
                     renderConversation(conv)
                     persistConversations()
-                }
+                },
+                aiPreviewExtractor = { parseStoredAiContent(it).second },
             )
         rv.adapter = adapter
 
@@ -2917,6 +4119,7 @@ class MainActivity : AppCompatActivity() {
     private class ConversationAdapter(
             private val items: List<Conversation>,
             private val onClick: (Conversation) -> Unit,
+            private val aiPreviewExtractor: (String) -> String,
     ) : RecyclerView.Adapter<ConversationAdapter.VH>() {
 
         var onItemSelected: (() -> Unit)? = null
@@ -2935,8 +4138,26 @@ class MainActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val c = items[position]
-            holder.title.text = if (c.title.isBlank()) "新对话" else c.title
-            holder.subtitle.visibility = View.GONE
+            holder.title.text =
+                if (c.title.isBlank()) {
+                    holder.itemView.context.getString(R.string.history_new_chat)
+                } else {
+                    c.title
+                }
+            val lastMessage = c.messages.lastOrNull()
+            val previewRaw =
+                if (lastMessage?.isUser == false) {
+                    aiPreviewExtractor(lastMessage.content)
+                } else {
+                    lastMessage?.content.orEmpty()
+                }
+            val preview = previewRaw.replace('\n', ' ').trim()
+            if (preview.isBlank()) {
+                holder.subtitle.visibility = View.GONE
+            } else {
+                holder.subtitle.visibility = View.VISIBLE
+                holder.subtitle.text = preview
+            }
             holder.itemView.setOnClickListener {
                 onClick(c)
                 onItemSelected?.invoke()
@@ -2948,9 +4169,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun attachAnimatedRing(target: View, strokeDp: Float) {
         val strokePx = strokeDp * target.resources.displayMetrics.density
-        val blue = Color.rgb(63, 169, 255)
-        val cyan = Color.rgb(160, 235, 255)
-        val pink = Color.rgb(255, 90, 210)
+        val blue = ContextCompat.getColor(this, R.color.m3t_primary)
+        val cyan = ContextCompat.getColor(this, R.color.m3t_primary_container)
+        val pink = ContextCompat.getColor(this, R.color.m3t_tertiary)
         val maxHalf = (maxOf(strokePx * 1.6f, strokePx)) / 2f
 
         val glowPaint =
@@ -3084,9 +4305,9 @@ class MainActivity : AppCompatActivity() {
         val cornerPx = cornerDp * density
         val overlayHostView = (target.parent as? View) ?: target
         val overlayHostGroup = target.parent as? ViewGroup
-        val blue = Color.rgb(63, 169, 255)
-        val cyan = Color.rgb(160, 235, 255)
-        val pink = Color.rgb(255, 90, 210)
+        val blue = ContextCompat.getColor(this, R.color.m3t_primary)
+        val cyan = ContextCompat.getColor(this, R.color.m3t_primary_container)
+        val pink = ContextCompat.getColor(this, R.color.m3t_tertiary)
         val maxHalf = (maxOf(strokePx * 1.6f, strokePx)) / 2f
 
         val glowPaint =
@@ -3293,6 +4514,7 @@ class MainActivity : AppCompatActivity() {
         
         // 清除消息同步监听器，防止内存泄漏
         FloatingChatService.setMessageSyncListener(null)
+        unregisterAutomationLogReceiverIfNeeded()
 
         stopLocalVoiceInput()
 

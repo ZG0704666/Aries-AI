@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
-    android:color="#30000000">
+    android:color="@color/m3t_outline_variant">
     <item android:id="@android:id/mask">
         <shape android:shape="oval">
-            <solid android:color="@android:color/white" />
+            <solid android:color="@color/m3t_surface" />
         </shape>
     </item>
 </ripple>
+

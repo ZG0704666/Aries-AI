@@ -6,103 +6,94 @@
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/dialogCard"
+        style="@style/Widget.M3t.DialogCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:layout_marginHorizontal="20dp"
-        app:cardCornerRadius="32dp"
-        app:cardElevation="16dp"
-        app:strokeWidth="0dp"
-        app:cardBackgroundColor="@color/white">
+        android:layout_marginHorizontal="@dimen/m3t_dialog_card_margin_h"
+        app:cardBackgroundColor="@color/m3t_dialog_surface">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="20dp">
+            android:padding="@dimen/m3t_dialog_padding">
 
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp">
+                android:layout_marginBottom="@dimen/m3t_history_icon_padding">
 
                 <TextView
                     android:id="@+id/tvTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_centerVertical="true"
-                    android:text="发现新版本"
-                    android:textColor="#1A1A1A"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:letterSpacing="0.02" />
+                    android:text="@string/m3t_updates_found"
+                    android:textAppearance="@style/TextAppearance.M3t.Title.Large" />
 
                 <ImageView
                     android:id="@+id/btnClose"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
+                    style="@style/Widget.M3t.History.CloseButton"
                     android:layout_alignParentEnd="true"
-                    android:background="@drawable/bg_circle_light"
-                    android:padding="8dp"
-                    android:src="@drawable/ic_close_24"
-                    app:tint="#666666" />
+                    android:layout_centerVertical="true" />
             </RelativeLayout>
 
             <TextView
                 android:id="@+id/tvSubtitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/m3t_history_icon_padding"
                 android:text=""
-                android:textColor="#64748B"
-                android:textSize="13sp"
-                android:layout_marginBottom="10dp" />
+                android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
 
             <ScrollView
                 android:id="@+id/scrollBody"
                 android:layout_width="match_parent"
-                android:layout_height="120dp"
+                android:layout_height="@dimen/m3t_update_links_body_height"
+                android:layout_marginBottom="@dimen/m3t_spacing_md"
                 android:fillViewport="true"
-                android:overScrollMode="never"
-                android:layout_marginBottom="12dp">
+                android:overScrollMode="never">
 
                 <TextView
                     android:id="@+id/tvBody"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text=""
-                    android:textColor="#334155"
-                    android:textSize="14sp"
-                    android:lineSpacingExtra="3dp" />
+                    android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
             </ScrollView>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvLinks"
                 android:layout_width="match_parent"
-                android:layout_height="300dp"
+                android:layout_height="@dimen/m3t_update_links_list_height"
                 android:clipToPadding="false"
                 android:overScrollMode="never" />
 
             <LinearLayout
+                android:id="@+id/actionRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="14dp">
+                android:layout_marginTop="@dimen/m3t_spacing_lg"
+                android:orientation="horizontal">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnOpenRelease"
+                    style="@style/Widget.M3t.Button.Filled"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="@dimen/m3t_button_height"
                     android:layout_weight="1"
-                    android:text="查看发布"
+                    android:text="@string/m3t_updates_view_release"
                     android:textAllCaps="false" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnHistory"
+                    style="@style/Widget.M3t.Button.Tonal.Dialog"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="@dimen/m3t_button_height"
+                    android:layout_marginStart="@dimen/m3t_spacing_sm"
                     android:layout_weight="1"
-                    android:layout_marginLeft="10dp"
-                    android:text="更新历史"
+                    android:text="@string/m3t_updates_history"
                     android:textAllCaps="false" />
 
             </LinearLayout>

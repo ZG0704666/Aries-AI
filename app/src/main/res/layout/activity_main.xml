@@ -4,57 +4,54 @@
     android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/blue_glass_light">
+    android:background="@color/m3t_background">
 
     <LinearLayout
         android:id="@+id/contentRoot"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
+        android:background="@android:color/transparent"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:background="@android:color/transparent"
+        android:orientation="vertical"
         android:paddingTop="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/topAppBar"
+            style="@style/Widget.M3t.Toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@drawable/glass_toolbar_bg"
             android:gravity="center_vertical"
-            android:theme="@style/ThemeOverlay.MaterialComponents.Light"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="12dp"
-            android:layout_marginTop="1dp"
-            app:navigationIconTint="@color/blue_glass_icon"
-            app:titleTextColor="@color/blue_glass_text"
-            app:titleTextAppearance="@style/TextAppearance.Aries.ToolbarTitle"
-            app:contentInsetStart="6dp"
-            app:contentInsetStartWithNavigation="6dp"
-            app:titleMarginStart="0dp"
+            app:contentInsetStart="@dimen/m3t_spacing_sm"
+            app:contentInsetStartWithNavigation="@dimen/m3t_spacing_sm"
+            app:menu="@menu/top_app_bar"
             app:navigationIcon="@drawable/ic_menu_24"
+            app:navigationIconTint="@color/m3t_on_surface_variant"
             app:title="@string/app_name"
-            app:menu="@menu/top_app_bar" />
+            app:titleMarginStart="0dp"
+            app:titleTextAppearance="@style/TextAppearance.M3t.ToolbarTitle"
+            app:titleTextColor="@color/m3t_on_surface" />
 
         <TextView
             android:id="@+id/statusText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingStart="20dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="8dp"
+            android:paddingStart="@dimen/m3t_spacing_xl"
+            android:paddingTop="@dimen/m3t_spacing_xxxs"
+            android:paddingEnd="@dimen/m3t_spacing_md"
+            android:paddingBottom="@dimen/m3t_spacing_xxxs"
             android:text="@string/status_ready"
-            android:textColor="@color/blue_glass_text" />
+            android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
+            android:textColor="@color/m3t_on_surface" />
 
         <ScrollView
             android:id="@+id/scrollArea"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:paddingHorizontal="12dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp">
+            android:paddingHorizontal="@dimen/m3t_spacing_md"
+            android:paddingTop="@dimen/m3t_spacing_xxxs"
+            android:paddingBottom="@dimen/m3t_spacing_xxxs">
 
             <LinearLayout
                 android:id="@+id/messagesContainer"
@@ -66,29 +63,29 @@
         <androidx.compose.ui.platform.ComposeView
             android:id="@+id/inputBarCompose"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="2dp" />
+            android:layout_height="wrap_content" />
 
         <TextView
             android:id="@+id/aiNoticeText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="12dp"
-            android:text="@string/ai_generated_notice"
+            android:layout_marginStart="@dimen/m3t_spacing_md"
+            android:layout_marginEnd="@dimen/m3t_spacing_md"
             android:gravity="center"
-            android:textSize="10sp"
-            android:textColor="@color/blue_glass_text_dim"
-            android:paddingBottom="4dp" />
+            android:paddingBottom="@dimen/m3t_spacing_xs"
+            android:text="@string/ai_generated_notice"
+            android:textColor="@color/m3t_on_surface_variant"
+            android:textSize="10sp" />
     </LinearLayout>
 
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/navigationView"
-        android:layout_width="280dp"
+        android:layout_width="@dimen/m3t_drawer_width"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:background="@color/blue_glass_surface"
+        android:background="@color/m3t_drawer_background"
         app:headerLayout="@layout/drawer_header"
         app:menu="@menu/drawer_menu" />
 
 </androidx.drawerlayout.widget.DrawerLayout>
+

@@ -1,27 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/dialogContainer"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="20dp"
-    android:background="@android:color/white">
+    android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/tvLicensesTitle"
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardLicenses"
+        style="@style/Widget.M3t.DialogCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="开源许可声明"
-        android:textColor="@color/blue_glass_text"
-        android:textSize="20sp"
-        android:textStyle="bold" />
+        android:layout_gravity="center"
+        android:layout_marginHorizontal="@dimen/m3t_dialog_card_margin_h"
+        app:cardBackgroundColor="@color/m3t_dialog_surface">
 
-    <LinearLayout
-        android:id="@+id/licenseContainer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginTop="12dp"
-        android:divider="@null"
-        android:showDividers="none" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="@dimen/m3t_dialog_padding">
 
-</LinearLayout>
+            <TextView
+                android:id="@+id/tvLicensesTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/m3t_license_title"
+                android:textAppearance="@style/TextAppearance.M3t.Title.Large" />
+
+            <ScrollView
+                android:id="@+id/scrollLicenses"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/m3t_license_list_height"
+                android:layout_marginTop="@dimen/m3t_spacing_md"
+                android:fillViewport="true"
+                android:overScrollMode="ifContentScrolls">
+
+                <LinearLayout
+                    android:id="@+id/licenseContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </ScrollView>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCloseLicenses"
+                style="@style/Widget.M3t.Button.CloseAction"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/m3t_button_height"
+                android:layout_marginTop="@dimen/m3t_spacing_lg"
+                android:text="@string/m3t_updates_close"
+                android:textAllCaps="false" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+</FrameLayout>

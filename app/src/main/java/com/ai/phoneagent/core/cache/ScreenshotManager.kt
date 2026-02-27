@@ -99,48 +99,52 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
     }
 
     /** 获取虚拟屏截图 */
-    private fun getVirtualDisplayScreenshot(): PhoneAgentAccessibilityService.ScreenshotData? {
-        return try {
-            val b64 = VirtualDisplayController.screenshotPngBase64NonBlack()
-            if (b64.isNotEmpty()) {
-                // 使用虚拟屏最新内容尺寸（与参考实现一致）
-                val (vw, vh) = VirtualDisplayController.getContentSizeBestEffort()
-                PhoneAgentAccessibilityService.ScreenshotData(
-                        base64Png = b64,
-                        width = vw,
-                        height = vh,
-                        mimeType = "image/png",
-                )
-            } else {
+    private suspend fun getVirtualDisplayScreenshot(): PhoneAgentAccessibilityService.ScreenshotData? {
+        return ScreenshotOverlayGuard.withOverlaysHidden(hideDelayMs = 0L) {
+            try {
+                val b64 = VirtualDisplayController.screenshotPngBase64NonBlack()
+                if (b64.isNotEmpty()) {
+                    // 使用虚拟屏最新内容尺寸（与参考实现一致）
+                    val (vw, vh) = VirtualDisplayController.getContentSizeBestEffort()
+                    PhoneAgentAccessibilityService.ScreenshotData(
+                            base64Png = b64,
+                            width = vw,
+                            height = vh,
+                            mimeType = "image/png",
+                    )
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
                 null
             }
-        } catch (e: Exception) {
-            null
         }
     }
 
     /** 通过 Shizuku 截图（仅在 Shizuku 模式下使用） */
-    private fun getShizukuScreenshot(): PhoneAgentAccessibilityService.ScreenshotData? {
-        if (!ShizukuBridge.isShizukuAvailable()) return null
+    private suspend fun getShizukuScreenshot(): PhoneAgentAccessibilityService.ScreenshotData? {
+        return ScreenshotOverlayGuard.withOverlaysHidden(config.screenshotOverlayHideDelayMs) {
+            if (!ShizukuBridge.isShizukuAvailable()) return@withOverlaysHidden null
 
-        val pngBytes = ShizukuBridge.execBytes("screencap -p")
-        if (pngBytes.isEmpty()) return null
+            val pngBytes = ShizukuBridge.execBytes("screencap -p")
+            if (pngBytes.isEmpty()) return@withOverlaysHidden null
 
-        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size, options)
-        val width = options.outWidth
-        val height = options.outHeight
-        if (width <= 0 || height <= 0) return null
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size, options)
+            val width = options.outWidth
+            val height = options.outHeight
+            if (width <= 0 || height <= 0) return@withOverlaysHidden null
 
-        val base64Png = runCatching { Base64.encodeToString(pngBytes, Base64.NO_WRAP) }.getOrNull()
-        if (base64Png.isNullOrBlank()) return null
+            val base64Png = runCatching { Base64.encodeToString(pngBytes, Base64.NO_WRAP) }.getOrNull()
+            if (base64Png.isNullOrBlank()) return@withOverlaysHidden null
 
-        return PhoneAgentAccessibilityService.ScreenshotData(
-                width = width,
-                height = height,
-                base64Png = base64Png,
-                mimeType = "image/png",
-        )
+            PhoneAgentAccessibilityService.ScreenshotData(
+                    width = width,
+                    height = height,
+                    base64Png = base64Png,
+                    mimeType = "image/png",
+            )
+        }
     }
 
     /** 从缓存获取截图 */

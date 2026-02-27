@@ -217,7 +217,9 @@ class SherpaSpeechRecognizer(private val context: Context) {
                         featConfig = featConfig,
                         modelConfig = modelConfig,
                         decoderConfig = decoderConfig,
-                        enableEndpoint = true,
+                        // Push-to-talk: keep recording while user is holding the button,
+                        // and finalize only on explicit stopListening().
+                        enableEndpoint = false,
                         rule1MinTrailingSilence = 2.4f,
                         rule2MinTrailingSilence = 1.2f,
                         rule3MinUtteranceLength = 20.0f,

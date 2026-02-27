@@ -2,12 +2,17 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="oval">
-            <solid android:color="#F1F5F9" />
+            <solid android:color="@color/m3t_surface_container" />
         </shape>
     </item>
-    <item android:bottom="1dp" android:left="1dp" android:right="1dp" android:top="1dp">
+    <item
+        android:bottom="@dimen/m3t_stroke_thin"
+        android:left="@dimen/m3t_stroke_thin"
+        android:right="@dimen/m3t_stroke_thin"
+        android:top="@dimen/m3t_stroke_thin">
         <shape android:shape="oval">
-            <solid android:color="#FFFFFF" />
+            <solid android:color="@color/m3t_surface" />
         </shape>
     </item>
 </layer-list>
+

@@ -60,9 +60,11 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import com.ai.phoneagent.helper.StreamRenderHelper
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.*
 
 /** 悬浮聊天窗口服务 提供小窗模式的聊天界面和虚拟屏工具箱模式 */
@@ -74,6 +76,9 @@ class FloatingChatService : Service() {
         private const val CHANNEL_ID = "floating_chat_channel"
         private const val OPEN_APP_PI_REQUEST_CODE = 1002
         private const val LAUNCH_PROXY_EXTRA_TARGET_INTENT = "target_intent"
+        private const val PREFS_NAME = "floating_chat_prefs"
+        private const val PREF_KEY_FLOATING_MESSAGES = "floating_messages"
+        private const val PREF_KEY_FLOATING_MESSAGES_UPDATED_AT = "floating_messages_updated_at"
 
         const val ACTION_FLOATING_RETURNED = "com.ai.phoneagent.action.FLOATING_RETURNED"
 
@@ -92,9 +97,28 @@ class FloatingChatService : Service() {
 
         fun isRunning(): Boolean = instance != null
 
+        fun temporaryHideForScreenshot() {
+            instance?.temporaryHideForScreenshotInternal()
+        }
+
+        fun restoreVisibilityAfterScreenshot() {
+            instance?.restoreVisibilityAfterScreenshotInternal()
+        }
+
         /** 检查是否有悬浮窗权限 */
         fun hasOverlayPermission(context: Context): Boolean {
             return Settings.canDrawOverlays(context)
+        }
+
+        fun cacheMessagesForNextStart(context: Context, messages: List<String>) {
+            runCatching {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val json = com.google.gson.Gson().toJson(messages)
+                prefs.edit()
+                        .putString(PREF_KEY_FLOATING_MESSAGES, json)
+                        .putLong(PREF_KEY_FLOATING_MESSAGES_UPDATED_AT, System.currentTimeMillis())
+                        .apply()
+            }
         }
 
         /** 启动悬浮窗服务 */
@@ -108,9 +132,12 @@ class FloatingChatService : Service() {
                 showDelayMs: Long = 80L,
         ) {
             if (!hasOverlayPermission(context)) return
+            if (!messages.isNullOrEmpty()) {
+                cacheMessagesForNextStart(context, messages)
+            }
             val intent =
                     Intent(context, FloatingChatService::class.java).apply {
-                        messages?.let { putStringArrayListExtra("messages", it) }
+                        // restore from prefs in onStartCommand to avoid large binder payload
                         putExtra("from_x", fromX)
                         putExtra("from_y", fromY)
                         putExtra("from_width", fromWidth)
@@ -236,6 +263,11 @@ class FloatingChatService : Service() {
 
     private fun getAppPrefs(): SharedPreferences = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
 
+    private fun m3Color(colorRes: Int): Int = ContextCompat.getColor(this, colorRes)
+
+    private fun m3ColorWithAlpha(colorRes: Int, alpha: Int): Int =
+            ColorUtils.setAlphaComponent(m3Color(colorRes), alpha.coerceIn(0, 255))
+
     private fun resolveApiConfig(): Triple<String, String, String> {
             val appPrefs = getAppPrefs()
             val apiKey = appPrefs.getString("api_key", "")?.trim().orEmpty()
@@ -268,6 +300,9 @@ class FloatingChatService : Service() {
     private var overlayHiddenForReturn: Boolean = false
 
     private var overlayTouchBlockedForReturn: Boolean = false
+    private val screenshotHideCounter = AtomicInteger(0)
+    @Volatile private var wasFloatingVisibleBeforeScreenshot: Boolean = false
+    @Volatile private var wasToolboxVisibleBeforeScreenshot: Boolean = false
 
     private val returnAckReceiver: BroadcastReceiver =
             object : BroadcastReceiver() {
@@ -377,7 +412,7 @@ class FloatingChatService : Service() {
                         restoreOverlayAfterFailedReturn()
                     }
                 },
-                6000L
+                3500L
         )
     }
 
@@ -463,6 +498,49 @@ class FloatingChatService : Service() {
                 }
         if (isViewAdded && floatingView != null) {
             runCatching { windowManager.updateViewLayout(floatingView, lp) }
+        }
+    }
+
+    private fun temporaryHideForScreenshotInternal() {
+        val count = screenshotHideCounter.incrementAndGet()
+        if (count != 1) return
+        mainHandler.post {
+            val chatView = floatingView
+            val tbView = toolboxView
+            wasFloatingVisibleBeforeScreenshot = chatView?.visibility == View.VISIBLE
+            wasToolboxVisibleBeforeScreenshot = tbView?.visibility == View.VISIBLE
+            chatView?.visibility = View.GONE
+            tbView?.visibility = View.GONE
+        }
+    }
+
+    private fun restoreVisibilityAfterScreenshotInternal() {
+        val count = screenshotHideCounter.decrementAndGet()
+        if (count > 0) return
+        screenshotHideCounter.set(0)
+        mainHandler.post {
+            // If overlayHiddenForReturn is stale but we are no longer waiting ack, recover visibility.
+            if (overlayHiddenForReturn && !awaitingReturnAck) {
+                overlayHiddenForReturn = false
+                overlayTouchBlockedForReturn = false
+                setTouchable(true)
+            }
+            if (wasFloatingVisibleBeforeScreenshot && !overlayHiddenForReturn) {
+                floatingView?.let {
+                    it.visibility = View.VISIBLE
+                    it.alpha = 1f
+                    it.scaleX = 1f
+                    it.scaleY = 1f
+                }
+            }
+            if (wasToolboxVisibleBeforeScreenshot) {
+                toolboxView?.let {
+                    it.visibility = View.VISIBLE
+                    it.alpha = 1f
+                    it.scaleX = 1f
+                    it.scaleY = 1f
+                }
+            }
         }
     }
 
@@ -724,7 +802,8 @@ class FloatingChatService : Service() {
 
     // 显示聊天窗口（原有逻辑）
     private fun showChatWindow() {
-        val inflater = LayoutInflater.from(this)
+        val themedContext = ContextThemeWrapper(this, R.style.Theme_PhoneAgent)
+        val inflater = LayoutInflater.from(themedContext)
         floatingView = inflater.inflate(R.layout.floating_chat_window, null)
         setupFloatingView()
         windowManager.addView(floatingView, layoutParams)
@@ -963,19 +1042,22 @@ class FloatingChatService : Service() {
             return
         }
 
-        // 【优化】立即隐藏视图，完全避免闪烁
+        // 放大恢复时保持悬浮窗可见，避免“消失无响应”的感知。
         if (openApp) {
-            // 立即将视图设为不可见和不可触摸
             view.animate().cancel()
-            view.visibility = View.INVISIBLE
-            setTouchable(false)
-            overlayHiddenForReturn = true
+            view.visibility = View.VISIBLE
+            view.alpha = 0.78f
+            view.scaleX = 0.98f
+            view.scaleY = 0.98f
+            overlayHiddenForReturn = false
+            overlayTouchBlockedForReturn = false
+            prepareOverlayForReturn()
 
             awaitingReturnAck = true
             scheduleRetryOpenAppWhileWaitingAck()
             scheduleStopAfterReturnTimeout()
 
-            // 直接拉起主界面，不再做淡出动画（因为已经 INVISIBLE 了）
+            // 仅在主界面确认回执后才 stopSelf；失败则超时自动恢复可操作状态。
             mainHandler.post { requestOpenApp(allowProxy = false) }
             return
         }
@@ -1169,6 +1251,9 @@ class FloatingChatService : Service() {
                                                 onPhaseChange = { isAnswerPhase ->
                                                     if (isAnswerPhase) {
                                                         StreamRenderHelper.transitionToAnswer(vh)
+                                                        if (vh.thinkingText.visibility == View.VISIBLE || vh.thinkingContentArea.visibility == View.VISIBLE) {
+                                                            vh.thinkingHeader.performClick()
+                                                        }
                                                     }
                                                 }
                                         )
@@ -1183,11 +1268,14 @@ class FloatingChatService : Service() {
             withContext(Dispatchers.Main) {
                 if (vh != null) {
                     StreamRenderHelper.markCompleted(vh, 0)
+                    if (vh.thinkingText.visibility == View.VISIBLE || vh.thinkingContentArea.visibility == View.VISIBLE) {
+                        vh.thinkingHeader.performClick()
+                    }
                 }
 
                 if (!streamOk && contentSb.isEmpty()) {
                     vh?.messageContent?.text = "连接超时或服务遇到问题，请点击重试。"
-                    vh?.messageContent?.setTextColor(android.graphics.Color.RED)
+                    vh?.messageContent?.setTextColor(m3Color(R.color.m3t_error))
                 }
 
                 // 获取解析后的内容
@@ -1264,6 +1352,9 @@ class FloatingChatService : Service() {
                     onPhaseChange = { isAnswerPhase ->
                         if (isAnswerPhase) {
                             StreamRenderHelper.transitionToAnswer(vh)
+                            if (vh.thinkingText.visibility == View.VISIBLE || vh.thinkingContentArea.visibility == View.VISIBLE) {
+                                vh.thinkingHeader.performClick()
+                            }
                         }
                     }
             )
@@ -1279,6 +1370,9 @@ class FloatingChatService : Service() {
         val vh = currentStreamViewHolder ?: return
         Handler(Looper.getMainLooper()).post {
             StreamRenderHelper.markCompleted(vh, timeCost.toLong())
+            if (vh.thinkingText.visibility == View.VISIBLE || vh.thinkingContentArea.visibility == View.VISIBLE) {
+                vh.thinkingHeader.performClick()
+            }
 
             // 获取解析后的内容保存
             val thinkingContent = StreamRenderHelper.getThinkingText(vh)
@@ -1368,7 +1462,7 @@ class FloatingChatService : Service() {
                         TextView(this).apply {
                             text = msg
                             textSize = 12f
-                            setTextColor(0xFF999999.toInt())
+                            setTextColor(m3Color(R.color.m3t_on_surface_variant))
                             setPadding(16, 6, 16, 6)
                             setTypeface(null, android.graphics.Typeface.ITALIC)
                         }
@@ -1383,7 +1477,7 @@ class FloatingChatService : Service() {
                         TextView(this).apply {
                             text = content
                             textSize = 13.5f
-                            setTextColor(0xFF333333.toInt())
+                            setTextColor(m3Color(R.color.m3t_on_surface))
                             setPadding(16, 6, 16, 6)
                         }
                 container.addView(textView)
@@ -1419,10 +1513,10 @@ class FloatingChatService : Service() {
                 val headerTitle = vh.thinkingHeader.getChildAt(0) as? TextView
                 headerTitle?.text = "已思考"
 
-                var expanded = true
-                vh.thinkingText.visibility = View.VISIBLE
-                vh.thinkingContentArea.visibility = View.VISIBLE
-                vh.thinkingIndicator.text = " ⌄"
+                var expanded = false
+                vh.thinkingText.visibility = View.GONE
+                vh.thinkingContentArea.visibility = View.GONE
+                vh.thinkingIndicator.text = " ›"
 
                 vh.thinkingHeader.setOnClickListener {
                     expanded = !expanded
@@ -1590,7 +1684,7 @@ class FloatingChatService : Service() {
                                     ViewGroup.LayoutParams.MATCH_PARENT,
                                     headerHeight
                             )
-                    setBackgroundColor(android.graphics.Color.argb(200, 40, 50, 70))
+                    setBackgroundColor(m3ColorWithAlpha(R.color.m3t_floating_header, 220))
                 }
 
         // 标题栏：拖动手柄
@@ -1598,7 +1692,7 @@ class FloatingChatService : Service() {
                 TextView(context).apply {
                     text = "▼"
                     textSize = 10f
-                    setTextColor(android.graphics.Color.argb(150, 255, 255, 255))
+                    setTextColor(m3ColorWithAlpha(R.color.m3t_on_surface, 180))
                     gravity = Gravity.CENTER
                     layoutParams =
                             FrameLayout.LayoutParams(
@@ -1616,7 +1710,7 @@ class FloatingChatService : Service() {
         val titleText =
                 TextView(context).apply {
                     text = "虚拟屏工具箱"
-                    setTextColor(android.graphics.Color.WHITE)
+                    setTextColor(m3Color(R.color.m3t_on_surface))
                     textSize = 12f
                     gravity = Gravity.CENTER_VERTICAL
                     layoutParams =
@@ -1636,7 +1730,7 @@ class FloatingChatService : Service() {
                 TextView(context).apply {
                     text = "✕"
                     textSize = 14f
-                    setTextColor(android.graphics.Color.argb(200, 255, 255, 255))
+                    setTextColor(m3ColorWithAlpha(R.color.m3t_on_surface, 220))
                     gravity = Gravity.CENTER
                     layoutParams =
                             FrameLayout.LayoutParams(
@@ -1656,11 +1750,11 @@ class FloatingChatService : Service() {
                 FrameLayout(context).apply {
                     layoutParams =
                             FrameLayout.LayoutParams(
-                                            ViewGroup.LayoutParams.MATCH_PARENT,
-                                            previewHeight
-                                    )
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    previewHeight
+                            )
                                     .apply { topMargin = headerHeight }
-                    setBackgroundColor(android.graphics.Color.argb(230, 20, 20, 25))
+                    setBackgroundColor(m3Color(R.color.m3t_floating_surface))
                 }
 
         // 添加虚拟屏 TextureView 占位（实际由 VirtualScreenPreviewOverlay 绑定）
@@ -1668,7 +1762,7 @@ class FloatingChatService : Service() {
                 TextView(context).apply {
                     text = "📱 虚拟屏预览"
                     textSize = 14f
-                    setTextColor(android.graphics.Color.argb(150, 200, 200, 200))
+                    setTextColor(m3ColorWithAlpha(R.color.m3t_floating_text_secondary, 190))
                     gravity = Gravity.CENTER
                     layoutParams =
                             FrameLayout.LayoutParams(
@@ -1692,9 +1786,9 @@ class FloatingChatService : Service() {
         val statusBar =
                 TextView(context).apply {
                     text = "📍 等待任务开始..."
-                    setTextColor(android.graphics.Color.argb(200, 180, 180, 180))
+                    setTextColor(m3ColorWithAlpha(R.color.m3t_floating_text_secondary, 220))
                     textSize = 11f
-                    setBackgroundColor(android.graphics.Color.argb(100, 0, 0, 0))
+                    setBackgroundColor(m3ColorWithAlpha(R.color.m3t_surface_container_high, 200))
                     setPadding(
                             (8 * density).toInt(),
                             (4 * density).toInt(),
@@ -1718,10 +1812,10 @@ class FloatingChatService : Service() {
                 LinearLayout(context).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
-                    setBackgroundColor(android.graphics.Color.argb(220, 35, 35, 45))
+                    setBackgroundColor(m3ColorWithAlpha(R.color.m3t_floating_header, 230))
                     layoutParams =
                             FrameLayout.LayoutParams(
-                                            ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
                                             controlBarHeight
                                     )
                                     .apply { gravity = Gravity.BOTTOM }
@@ -1732,7 +1826,7 @@ class FloatingChatService : Service() {
         fun makeCtrlBtn(label: String, flex: Float = 1f, onClick: () -> Unit): TextView {
             return TextView(context).apply {
                 text = label
-                setTextColor(android.graphics.Color.WHITE)
+                setTextColor(m3Color(R.color.m3t_on_surface))
                 textSize = 10f
                 gravity = Gravity.CENTER
                 layoutParams =

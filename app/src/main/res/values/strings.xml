@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">Aries AI</string>
     <string name="app_title">Aries AI</string>
     <string name="status_ready">语音模型已就绪</string>
@@ -9,11 +9,62 @@
     <string name="ai_generated_notice">内容由AI生成</string>
     <string name="retry">重试</string>
     <string name="retrying">重试中...</string>
+    <string name="automation_confirm">确认</string>
+    <string name="automation_confirming">执行中...</string>
+    <string name="automation_confirmed">已执行</string>
+    <string name="automation_terminate">终止任务</string>
+    <string name="automation_terminating">终止中...</string>
+    <string name="automation_terminate_requested">已请求终止任务</string>
+    <string name="automation_start_now">立即开始</string>
+    <string name="automation_not_ready_short">未就绪</string>
+    <string name="automation_confirm_hint">检测到自动化任务，请点击确认按钮执行</string>
+    <string name="automation_dispatched">已转交自动化执行</string>
+    <string name="automation_dispatch_failed">自动化启动失败：%1$s</string>
+    <string name="automation_scene_title">自动化</string>
+    <string name="automation_scene_need_confirm">需求待确认</string>
+    <string name="automation_scene_confirmed">需求已确认</string>
+    <string name="automation_scene_not_ready">系统未就绪</string>
+    <string name="automation_scene_running">执行中</string>
+    <string name="automation_scene_finished">已结束</string>
+    <string name="automation_scene_waiting">等待执行日志...</string>
 
     <string name="accessibility_service_label">Aries AI 自动化</string>
     <string name="accessibility_service_desc">用于执行点击/滑动/返回等自动化动作（需要在系统无障碍中手动开启）</string>
 
     <string name="about_copyright">© 2025-2026 Aries AI. 保留所有权利。</string>
+    <string name="about_back">返回</string>
+    <string name="about_title">关于</string>
+    <string name="about_version_format">v%1$s</string>
+    <string name="about_check_updates">检查更新</string>
+    <string name="about_changelog">更新日志</string>
+    <string name="about_open_source_licenses">开源许可声明</string>
+    <string name="about_website">访问官网</string>
+    <string name="about_website_domain">aries-agent.com</string>
+    <string name="about_website_url">https://aries-agent.com/</string>
+    <string name="about_developer_info">开发者信息</string>
+    <string name="about_developer_name">ZG0704666</string>
+    <string name="about_developer_alias">xuanYu.xyla</string>
+    <string name="about_contact">联系我们：zhangyongqi@njit.edu.cn</string>
+    <string name="about_contact_copied">邮箱已复制到剪贴板</string>
+    <string name="about_thanks">感谢使用 Aries AI</string>
+    <string name="about_no_changelog">（无更新说明）</string>
+    <string name="about_open_release">打开发布页</string>
+    <string name="about_release_page">发布页</string>
+    <string name="about_update_found_format">发现新版本 %1$s</string>
+    <string name="about_update_repo_subtitle">%1$s/%2$s · %3$s</string>
+    <string name="about_link_copied">链接已复制</string>
+    <string name="about_choose_download_source">选择下载源</string>
+    <string name="about_no_release_found">未获取到 Release。</string>
+    <string name="about_up_to_date">已是最新版本</string>
+    <string name="about_current_version_format">当前版本：%1$s</string>
+    <string name="about_check_failed">检查更新失败</string>
+    <string name="about_license_format">许可: %1$s</string>
+    <string name="about_open_url_failed">无法打开网页</string>
+    <string name="about_history_tip">下方可以选择历史版本</string>
+
+    <string name="action_ok">确定</string>
+    <string name="action_close">关闭</string>
+    <string name="action_cancel">取消</string>
 
     <string name="user_agreement_title">用户协议与隐私政策</string>
     <string name="user_agreement_agree">我已阅读并同意</string>
