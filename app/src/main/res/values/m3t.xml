@@ -55,6 +55,7 @@
 
     <!-- M3T Dimensions -->
     <dimen name="m3t_spacing_xxxs">2dp</dimen>
+    <dimen name="m3t_size_zero">0dp</dimen>
     <dimen name="m3t_spacing_xs">4dp</dimen>
     <dimen name="m3t_spacing_sm">8dp</dimen>
     <dimen name="m3t_spacing_md">12dp</dimen>
@@ -185,6 +186,11 @@
         <item name="cardElevation">0dp</item>
         <item name="strokeWidth">0dp</item>
         <item name="strokeColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Widget.M3t.Card.About" parent="Widget.M3t.Card.Subtle">
+        <item name="cardBackgroundColor">@color/m3t_surface_container_high</item>
+        <item name="cardCornerRadius">@dimen/m3t_radius_lg</item>
     </style>
 
     <style name="Widget.M3t.Button.Filled" parent="Widget.MaterialComponents.Button">
