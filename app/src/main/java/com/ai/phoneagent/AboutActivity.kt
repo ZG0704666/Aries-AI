@@ -72,6 +72,7 @@ class AboutActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAboutBinding
     private val releaseRepo = ReleaseRepository()
+    private var isCheckingUpdates = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -359,9 +360,9 @@ class AboutActivity : AppCompatActivity() {
         var loaded: List<ReleaseEntry> = emptyList()
 
         val adapter = ReleaseHistoryAdapter(
-            onDetails = { showReleaseDetails(it) },
-            onOpenRelease = { ReleaseUiUtil.openUrl(this, it.releaseUrl) },
-            onDownload = { handleDownload(it) },
+            onDetails = { entry -> showReleaseDetails(entry) },
+            onOpenRelease = { entry -> openReleaseUrlWithFeedback(entry.releaseUrl) },
+            onDownload = { entry -> handleDownload(entry) },
         )
         recycler.adapter = adapter
 
@@ -425,14 +426,35 @@ class AboutActivity : AppCompatActivity() {
     }
 
     private fun showReleaseDetails(entry: ReleaseEntry) {
-        MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
-            .setTitle(entry.versionTag)
-            .setMessage(entry.body.ifBlank { getString(R.string.m3t_updates_no_changelog) })
-            .setPositiveButton(R.string.m3t_updates_open_release) { _, _ ->
-                ReleaseUiUtil.openUrl(this, entry.releaseUrl)
-            }
-            .setNegativeButton(R.string.m3t_updates_close, null)
-            .show()
+        if (isFinishing || isDestroyed) return
+        runCatching {
+            MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
+                .setTitle(entry.versionTag)
+                .setMessage(entry.body.ifBlank { getString(R.string.m3t_updates_no_changelog) })
+                .setPositiveButton(R.string.m3t_updates_open_release) { _, _ ->
+                    openReleaseUrlWithFeedback(entry.releaseUrl)
+                }
+                .setNegativeButton(R.string.m3t_updates_close, null)
+                .show()
+        }.onFailure {
+            Toast.makeText(this, R.string.update_open_detail_failed, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun setCheckUpdateLoading(isLoading: Boolean) {
+        isCheckingUpdates = isLoading
+        binding.btnCheckUpdate.isEnabled = !isLoading
+        binding.btnCheckUpdate.alpha = if (isLoading) 0.75f else 1f
+        binding.btnCheckUpdate.text =
+            if (isLoading) getString(R.string.about_checking_updates) else getString(R.string.about_check_updates)
+    }
+
+    private fun openReleaseUrlWithFeedback(url: String): Boolean {
+        val opened = ReleaseUiUtil.openUrl(this, url)
+        if (!opened) {
+            Toast.makeText(this, R.string.about_open_url_failed, Toast.LENGTH_SHORT).show()
+        }
+        return opened
     }
 
     private fun maybeShowUpdateDialogFromIntent() {
@@ -445,7 +467,7 @@ class AboutActivity : AppCompatActivity() {
             showUpdateLinksDialog(cached)
             return
         }
-        checkForUpdates(showLinksDialogIfNew = true)
+        checkForUpdates()
     }
 
     private fun showUpdateLinksDialog(entry: ReleaseEntry) {
@@ -499,7 +521,7 @@ class AboutActivity : AppCompatActivity() {
         rvLinks.layoutManager = LinearLayoutManager(this)
         rvLinks.adapter = UpdateLinkAdapter(
             items = links,
-            onOpen = { ReleaseUiUtil.openUrl(this@AboutActivity, it) },
+            onOpen = { openReleaseUrlWithFeedback(it) },
             onCopy = {
                 copyToClipboard(it)
                 Toast.makeText(this@AboutActivity, R.string.about_link_copied, Toast.LENGTH_SHORT).show()
@@ -523,7 +545,7 @@ class AboutActivity : AppCompatActivity() {
 
         containerView.findViewById<View>(R.id.btnOpenRelease).setOnClickListener {
             closeDialog()
-            ReleaseUiUtil.openUrl(this, entry.releaseUrl)
+            openReleaseUrlWithFeedback(entry.releaseUrl)
         }
 
         containerView.findViewById<View>(R.id.btnHistory).setOnClickListener {
@@ -546,67 +568,94 @@ class AboutActivity : AppCompatActivity() {
     }
 
     private fun handleDownload(entry: ReleaseEntry) {
-        if (BuildConfig.GITHUB_TOKEN.isNotBlank()) {
-            ApkDownloadUtil.enqueueApkDownload(this, entry)
-            return
-        }
-
-        val options = ReleaseUiUtil.mirroredDownloadOptions(entry.apkUrl)
-        if (options.isEmpty()) {
-            ReleaseUiUtil.openUrl(this, entry.releaseUrl)
-            return
-        }
-        if (options.size == 1) {
-            ReleaseUiUtil.openUrl(this, options.first().second)
-            return
-        }
-
-        val names = options.map { it.first }.toTypedArray()
-        MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
-            .setTitle(R.string.m3t_updates_choose_source)
-            .setItems(names) { _, which ->
-                ReleaseUiUtil.openUrl(this, options[which].second)
+        runCatching {
+            if (BuildConfig.GITHUB_TOKEN.isNotBlank()) {
+                val submitted = ApkDownloadUtil.enqueueApkDownload(this, entry)
+                if (!submitted) {
+                    Toast.makeText(this, R.string.update_download_submit_failed, Toast.LENGTH_SHORT).show()
+                    openReleaseUrlWithFeedback(entry.releaseUrl)
+                }
+                return
             }
-            .setNegativeButton(R.string.action_cancel, null)
-            .show()
+
+            if (entry.apkUrl.isNullOrBlank()) {
+                Toast.makeText(this, R.string.update_apk_missing_fallback_release, Toast.LENGTH_SHORT).show()
+                openReleaseUrlWithFeedback(entry.releaseUrl)
+                return
+            }
+
+            val options = ReleaseUiUtil.mirroredDownloadOptions(entry.apkUrl)
+            if (options.isEmpty()) {
+                Toast.makeText(this, R.string.update_apk_missing_fallback_release, Toast.LENGTH_SHORT).show()
+                openReleaseUrlWithFeedback(entry.releaseUrl)
+                return
+            }
+            if (options.size == 1) {
+                openReleaseUrlWithFeedback(options.first().second)
+                return
+            }
+
+            val names = options.map { it.first }.toTypedArray()
+            MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
+                .setTitle(R.string.m3t_updates_choose_source)
+                .setItems(names) { _, which ->
+                    openReleaseUrlWithFeedback(options[which].second)
+                }
+                .setNegativeButton(R.string.action_cancel, null)
+                .show()
+        }.onFailure {
+            Toast.makeText(this, R.string.update_download_submit_failed, Toast.LENGTH_SHORT).show()
+            openReleaseUrlWithFeedback(entry.releaseUrl)
+        }
     }
 
-    private fun checkForUpdates(showLinksDialogIfNew: Boolean = false) {
+    private fun checkForUpdates() {
+        if (isCheckingUpdates) return
         val currentVersion = currentVersionName()
+        setCheckUpdateLoading(true)
 
         lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                releaseRepo.fetchLatestReleaseResilient(includePrerelease = false)
-            }
-            result
-                .onSuccess { latest ->
-                    if (latest == null) {
-                        MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
-                            .setTitle(R.string.about_check_updates)
-                            .setMessage(R.string.about_no_release_found)
-                            .setPositiveButton(R.string.action_ok, null)
-                            .show()
-                        return@onSuccess
-                    }
-
-                    val newer = VersionComparator.compare(latest.version, currentVersion) > 0
-                    if (newer) {
-                        UpdateStore.saveLatest(this@AboutActivity, latest)
-                        if (showLinksDialogIfNew) {
-                            showUpdateLinksDialog(latest)
-                        } else {
-                            showUpdateLinksDialog(latest)
-                        }
-                    } else {
-                        MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
-                            .setTitle(R.string.about_up_to_date)
-                            .setMessage(getString(R.string.about_current_version_format, currentVersion))
-                            .setPositiveButton(R.string.action_ok, null)
-                            .setNeutralButton(R.string.about_changelog) { _, _ -> showReleaseHistoryDialog() }
-                            .show()
-                    }
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    releaseRepo.fetchLatestReleaseResilient(includePrerelease = false)
                 }
-                .onFailure { e ->
+                if (isFinishing || isDestroyed) return@launch
+
+                val latest = result.getOrNull()
+                val error = result.exceptionOrNull()
+                if (error != null) {
+                    MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
+                        .setTitle(R.string.about_check_failed)
+                        .setMessage(ReleaseUiUtil.formatError(error))
+                        .setPositiveButton(R.string.action_ok, null)
+                        .setNeutralButton(R.string.about_changelog) { _, _ -> showReleaseHistoryDialog() }
+                        .show()
+                    return@launch
+                }
+
+                if (latest == null) {
+                    MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
+                        .setTitle(R.string.about_check_updates)
+                        .setMessage(R.string.about_no_release_found)
+                        .setPositiveButton(R.string.action_ok, null)
+                        .show()
+                    return@launch
+                }
+
+                val newer = VersionComparator.compare(latest.version, currentVersion) > 0
+                if (newer) {
+                    UpdateStore.saveLatest(this@AboutActivity, latest)
+                    showUpdateLinksDialog(latest)
+                } else {
+                    MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
+                        .setTitle(R.string.about_up_to_date)
+                        .setMessage(getString(R.string.about_current_version_format, currentVersion))
+                        .setPositiveButton(R.string.action_ok, null)
+                        .setNeutralButton(R.string.about_changelog) { _, _ -> showReleaseHistoryDialog() }
+                        .show()
+                }
+            } catch (e: Throwable) {
+                if (!isFinishing && !isDestroyed) {
                     MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
                         .setTitle(R.string.about_check_failed)
                         .setMessage(ReleaseUiUtil.formatError(e))
@@ -614,6 +663,11 @@ class AboutActivity : AppCompatActivity() {
                         .setNeutralButton(R.string.about_changelog) { _, _ -> showReleaseHistoryDialog() }
                         .show()
                 }
+            } finally {
+                if (!isDestroyed) {
+                    setCheckUpdateLoading(false)
+                }
+            }
         }
     }
 

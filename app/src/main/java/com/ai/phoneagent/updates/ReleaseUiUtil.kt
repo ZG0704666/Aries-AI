@@ -18,34 +18,43 @@ object ReleaseUiUtil {
         val buildUrl: (String) -> String,
     )
 
-    private val GITHUB_MIRRORS = listOf(
+    private val githubMirrors = listOf(
         MirrorSite("官方直连") { it },
-        MirrorSite("镜像加速1") { "https://ghfast.top/$it" }
+        MirrorSite("镜像加速") { "https://ghfast.top/$it" },
     )
 
-    fun openUrl(context: Context, url: String) {
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            data = Uri.parse(url)
+    fun openUrl(context: Context, url: String): Boolean {
+        val target = url.trim()
+        if (target.isBlank()) return false
+
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        context.startActivity(intent)
+
+        return runCatching {
+            context.startActivity(intent)
+            true
+        }.getOrElse {
+            false
+        }
     }
 
     fun mirroredDownloadOptions(originalUrl: String?): List<Pair<String, String>> {
-        // 优先使用 API 返回的 browser_download_url（通常是 /releases/download/<tag>/xxx.apk）
-        // 不强制 latest/download，避免镜像站对 302/链式跳转兼容性差导致“打开空白”。
+        // 优先使用 release asset 的 browser_download_url，避免镜像站对 latest/download 的
+        // 302 跳转兼容性差导致点击无反馈。
         val url = originalUrl?.trim().orEmpty()
         if (url.isBlank()) return emptyList()
+
         val isReleaseAsset =
             url.contains("github.com") &&
                 (url.contains("/releases/download/") || url.contains("/releases/latest/download/"))
-        if (!isReleaseAsset) return listOf("官方" to url)
+        if (!isReleaseAsset) return listOf("官方直连" to url)
 
         val stableUrl =
             "https://github.com/${UpdateConfig.REPO_OWNER}/${UpdateConfig.REPO_NAME}/releases/latest/download/${UpdateConfig.APK_ASSET_NAME}"
         val target = url.takeIf { it.isNotBlank() } ?: stableUrl
 
-        return GITHUB_MIRRORS.map { site ->
+        return githubMirrors.map { site ->
             site.name to site.buildUrl(target)
         }
     }
@@ -140,7 +149,7 @@ object ReleaseUiUtil {
         if (http != null) {
             val code = http.code()
             return when (code) {
-                401, 403 -> "访问 GitHub 失败($code)：私有仓库需要 github.token（至少 repo 权限），或触发了 API 限流。"
+                401, 403 -> "访问 GitHub 失败($code)：可能触发限流，或缺少有效 token。"
                 404 -> "仓库或 Release 不存在(404)。"
                 else -> "网络错误：HTTP $code"
             }
@@ -152,7 +161,7 @@ object ReleaseUiUtil {
             val code = m.groupValues.getOrNull(1)?.toIntOrNull()
             if (code != null) {
                 return when (code) {
-                    401, 403 -> "访问 GitHub 失败($code)：可能触发了 API 限流，建议配置 github.token。"
+                    401, 403 -> "访问 GitHub 失败($code)：可能触发 API 限流。"
                     404 -> "仓库或 Release 不存在(404)。"
                     else -> "网络错误：HTTP $code"
                 }

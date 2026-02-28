@@ -169,6 +169,8 @@ class MainActivity : AppCompatActivity() {
     private var savedInputText: String = ""
 
     private var pendingSendAfterVoice: Boolean = false
+    private var voiceSessionSeed: Long = 0L
+    @Volatile private var activeVoiceSessionId: Long = 0L
 
     // 滑动手势相关
     private var swipeStartX = 0f
@@ -189,6 +191,8 @@ class MainActivity : AppCompatActivity() {
     private var activeAutomationPanelStatusView: TextView? = null
     private var activeAutomationPanelConfirmButton: View? = null
     private var activeAutomationPanelConfirmTextView: TextView? = null
+    private var automationTerminatePendingRef: AutomationMessageRef? = null
+    private var automationTerminateFallbackJob: Job? = null
 
     private val automationLogReceiver =
             object : BroadcastReceiver() {
@@ -904,6 +908,62 @@ class MainActivity : AppCompatActivity() {
         activeAutomationPanelConfirmTextView = null
     }
 
+    private fun allocateVoiceSessionId(): Long {
+        voiceSessionSeed += 1L
+        return voiceSessionSeed
+    }
+
+    private fun beginVoiceSession(): Long {
+        val id = allocateVoiceSessionId()
+        activeVoiceSessionId = id
+        return id
+    }
+
+    private fun isVoiceSessionActive(sessionId: Long): Boolean {
+        return activeVoiceSessionId == sessionId && sessionId > 0L
+    }
+
+    private fun clearVoiceSession(expectedSessionId: Long? = null) {
+        if (expectedSessionId == null || activeVoiceSessionId == expectedSessionId) {
+            activeVoiceSessionId = 0L
+        }
+    }
+
+    private fun resolveAutomationMessageRef(messageRef: AutomationMessageRef?): AutomationMessageRef? {
+        if (messageRef != null) return messageRef
+        val cid = activeAutomationPanelConversationId
+        val idx = activeAutomationPanelMessageIndex
+        return if (cid > 0L && idx >= 0) {
+            AutomationMessageRef(cid, idx)
+        } else {
+            null
+        }
+    }
+
+    private fun isAutomationTerminatePending(messageRef: AutomationMessageRef?): Boolean {
+        val ref = resolveAutomationMessageRef(messageRef) ?: return false
+        return automationTerminatePendingRef == ref
+    }
+
+    private fun markAutomationTerminatePending(messageRef: AutomationMessageRef?) {
+        automationTerminatePendingRef = resolveAutomationMessageRef(messageRef)
+    }
+
+    private fun clearAutomationTerminatePending(messageRef: AutomationMessageRef? = null) {
+        if (messageRef == null) {
+            automationTerminatePendingRef = null
+            automationTerminateFallbackJob?.cancel()
+            automationTerminateFallbackJob = null
+            return
+        }
+        val resolved = resolveAutomationMessageRef(messageRef) ?: return
+        if (automationTerminatePendingRef == resolved) {
+            automationTerminatePendingRef = null
+            automationTerminateFallbackJob?.cancel()
+            automationTerminateFallbackJob = null
+        }
+    }
+
     private fun hasEquivalentConversationMessage(
         conversation: Conversation,
         content: String,
@@ -970,6 +1030,7 @@ class MainActivity : AppCompatActivity() {
         val targetIndex = findLatestAutomationPanelMessageIndex(conversation)
         if (targetIndex < 0) return false
 
+        val normalizedLogLine = normalizeAutomationLogLine(logLine)
         val msg = conversation.messages[targetIndex]
         val marker = encodeAutomationLogMarker(logLine)
         if (msg.content.contains(marker)) {
@@ -993,6 +1054,14 @@ class MainActivity : AppCompatActivity() {
             renderConversation(conversation)
         } else {
             pendingAutomationLogUiRefresh = true
+        }
+        if (isAutomationTerminalLog(normalizedLogLine)) {
+            clearAutomationTerminatePending(
+                AutomationMessageRef(
+                    conversationId = conversation.id,
+                    messageIndex = targetIndex,
+                )
+            )
         }
         persistConversations()
         return true
@@ -1091,8 +1160,12 @@ class MainActivity : AppCompatActivity() {
         val normalized = normalizeAutomationLogLine(rawLogLine)
         if (normalized.isBlank()) return false
         return normalized.startsWith("结束：") ||
+            normalized.startsWith("结束:") ||
             normalized == "已停止" ||
-            normalized.startsWith("异常：")
+            normalized == "已请求停止" ||
+            normalized.startsWith("已请求停止") ||
+            normalized.startsWith("异常：") ||
+            normalized.startsWith("异常:")
     }
 
     private data class AutomationReadyState(
@@ -1261,15 +1334,17 @@ class MainActivity : AppCompatActivity() {
 
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-        if (requestCode == 100 &&
-                        pendingStartVoice &&
-                        grantResults.isNotEmpty() &&
-                        grantResults[0] == PackageManager.PERMISSION_GRANTED
-        ) {
-
+        if (requestCode == 100 && pendingStartVoice) {
             pendingStartVoice = false
-
-            startLocalVoiceInput()
+            val granted =
+                grantResults.isNotEmpty() &&
+                    grantResults[0] == PackageManager.PERMISSION_GRANTED
+            if (granted) {
+                clearVoiceSession()
+                Toast.makeText(this, getString(R.string.voice_permission_granted_retry_hold), Toast.LENGTH_SHORT).show()
+            } else {
+                clearVoiceSession()
+            }
         }
 
         if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
@@ -1933,20 +2008,24 @@ class MainActivity : AppCompatActivity() {
                         },
                         onVoiceStart = {
                             vibrateLight()
-                            ensureAudioPermission { 
+                            val sessionId = beginVoiceSession()
+                            ensureAudioPermission {
+                                if (!isVoiceSessionActive(sessionId)) return@ensureAudioPermission
                                 inputBarState.value = InputState.VoiceRecording()
-                                startLocalVoiceInput() 
+                                startLocalVoiceInput(sessionId)
                             }
                         },
                         onVoiceEnd = {
                             vibrateLight()
+                            val sessionId = activeVoiceSessionId
                             inputBarState.value = InputState.Idle
-                            stopLocalVoiceInput()
+                            stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
                         },
                         onVoiceCancel = {
                             vibrateLight()
+                            val sessionId = activeVoiceSessionId
                             inputBarState.value = InputState.Idle
-                            stopLocalVoiceInput()
+                            stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
                         },
                         onAttachmentClick = {
                             Toast.makeText(this@MainActivity, "附件功能开发中", Toast.LENGTH_SHORT).show()
@@ -1975,7 +2054,8 @@ class MainActivity : AppCompatActivity() {
                                     inputTextState.value = savedInputText
                                 }
                                 // 停止语音识别
-                                stopLocalVoiceInput()
+                                val sessionId = activeVoiceSessionId
+                                stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
                             }
                             // 更新输入栏状态，确保 UI 立即反应
                             inputBarState.value = if (isVoice) InputState.VoiceIdle else InputState.Idle
@@ -2567,7 +2647,13 @@ class MainActivity : AppCompatActivity() {
                     statusView = statusView
                 )
             } else {
-                configureAutomationTerminateButton(button, textView, iconView, statusView)
+                configureAutomationTerminateButton(
+                    button = button,
+                    textView = textView,
+                    iconView = iconView,
+                    statusView = statusView,
+                    messageRef = messageRef,
+                )
             }
             return
         }
@@ -2607,7 +2693,13 @@ class MainActivity : AppCompatActivity() {
 
             if (dispatchResult.success) {
                 markAutomationCommandConfirmed(task, messageRef)
-                configureAutomationTerminateButton(button, textView, iconView, statusView)
+                configureAutomationTerminateButton(
+                    button = button,
+                    textView = textView,
+                    iconView = iconView,
+                    statusView = statusView,
+                    messageRef = messageRef,
+                )
             } else {
                 button.isEnabled = true
                 button.alpha = 1f
@@ -2621,22 +2713,58 @@ class MainActivity : AppCompatActivity() {
         button: View?,
         textView: TextView?,
         iconView: ImageView?,
-        statusView: TextView?
+        statusView: TextView?,
+        messageRef: AutomationMessageRef? = null,
     ) {
         button?.visibility = View.VISIBLE
-        button?.isEnabled = true
-        button?.alpha = 1f
         button?.background = ContextCompat.getDrawable(this, R.drawable.bg_action_button_oval_danger)
-        textView?.text = getString(R.string.automation_terminate)
         textView?.setTextColor(ContextCompat.getColor(this, R.color.m3t_on_error_container))
         iconView?.setImageResource(R.drawable.ic_stop_24)
         iconView?.setColorFilter(ContextCompat.getColor(this, R.color.m3t_on_error_container))
+
+        if (isAutomationTerminatePending(messageRef)) {
+            textView?.text = getString(R.string.automation_terminating)
+            statusView?.text = getString(R.string.automation_scene_stop_requested)
+            button?.isEnabled = false
+            button?.alpha = 0.75f
+            return
+        }
+
+        button?.isEnabled = true
+        button?.alpha = 1f
+        textView?.text = getString(R.string.automation_terminate)
         statusView?.text = getString(R.string.automation_scene_confirmed)
         button?.setOnClickListener {
             requestAutomationStopFromHome()
+            markAutomationTerminatePending(messageRef)
             textView?.text = getString(R.string.automation_terminating)
+            statusView?.text = getString(R.string.automation_scene_stop_requested)
             button.isEnabled = false
             button.alpha = 0.75f
+            automationTerminateFallbackJob?.cancel()
+            val expectedRef = resolveAutomationMessageRef(messageRef)
+            automationTerminateFallbackJob =
+                lifecycleScope.launch {
+                    delay(8000L)
+                    if (expectedRef != null) {
+                        if (!isAutomationTerminatePending(expectedRef)) return@launch
+                        clearAutomationTerminatePending(expectedRef)
+                    } else {
+                        if (automationTerminatePendingRef == null) return@launch
+                        clearAutomationTerminatePending()
+                    }
+                    if (button.isAttachedToWindow) {
+                        button.isEnabled = true
+                        button.alpha = 1f
+                    }
+                    textView?.text = getString(R.string.automation_terminate)
+                    statusView?.text = getString(R.string.automation_scene_confirmed)
+                    Toast.makeText(
+                        this@MainActivity,
+                        getString(R.string.automation_terminate_timeout_retry),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
         }
     }
 
@@ -2646,6 +2774,7 @@ class MainActivity : AppCompatActivity() {
         iconView: ImageView?,
         statusView: TextView?
     ) {
+        clearAutomationTerminatePending()
         button?.visibility = View.VISIBLE
         button?.isEnabled = false
         button?.alpha = 1f
@@ -3832,11 +3961,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun startLocalVoiceInput() {
+    private fun startLocalVoiceInput(sessionId: Long) {
+        if (!isVoiceSessionActive(sessionId)) return
         val recognizer = sherpaSpeechRecognizer
         if (recognizer == null || !recognizer.isReady()) {
             Toast.makeText(this, "模型加载中…", Toast.LENGTH_SHORT).show()
             inputBarState.value = InputState.Idle
+            clearVoiceSession(sessionId)
             return
         }
 
@@ -3852,6 +3983,7 @@ class MainActivity : AppCompatActivity() {
         recognizer.startListening(object : SherpaSpeechRecognizer.RecognitionListener {
             override fun onPartialResult(text: String) {
                 runOnUiThread {
+                    if (!isVoiceSessionActive(sessionId)) return@runOnUiThread
                     // 有识别结果时，停止动画并显示实际文字
                     stopVoiceInputAnimation()
                     inputBarState.value = InputState.VoiceRecognizing
@@ -3862,6 +3994,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onResult(text: String) {
                 runOnUiThread {
+                    if (!isVoiceSessionActive(sessionId)) return@runOnUiThread
                     stopVoiceInputAnimation()
                     val txt = (voicePrefix + text).trimStart()
                     inputTextState.value = txt
@@ -3870,12 +4003,14 @@ class MainActivity : AppCompatActivity() {
 
             override fun onAmplitude(amplitude: Float) {
                 runOnUiThread {
+                    if (!isVoiceSessionActive(sessionId)) return@runOnUiThread
                     voiceAmplitudeState.value = amplitude
                 }
             }
 
             override fun onFinalResult(text: String) {
                 runOnUiThread {
+                    if (!isVoiceSessionActive(sessionId)) return@runOnUiThread
                     stopVoiceInputAnimation()
                     val txt = (voicePrefix + text).trimStart()
                     val rawText = if (txt.isBlank()) savedInputText else txt
@@ -3891,7 +4026,11 @@ class MainActivity : AppCompatActivity() {
                         inputBarState.value = InputState.Idle
                     }
                     
-                    stopLocalVoiceInput(triggerRecognizerStop = false)
+                    stopLocalVoiceInput(
+                        triggerRecognizerStop = false,
+                        expectedSessionId = sessionId,
+                        clearSession = true,
+                    )
 
                     applyAutoPunctuationIfNeeded(rawText) { punctuated ->
                         if (inputTextState.value == rawText) {
@@ -3912,6 +4051,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onError(exception: Exception) {
                 runOnUiThread {
+                    if (!isVoiceSessionActive(sessionId)) return@runOnUiThread
                     stopVoiceInputAnimation()
                     // 恢复原来的文字
                     inputTextState.value = savedInputText
@@ -3924,12 +4064,17 @@ class MainActivity : AppCompatActivity() {
                         inputBarState.value = InputState.Idle
                     }
                     
-                    stopLocalVoiceInput(triggerRecognizerStop = false)
+                    stopLocalVoiceInput(
+                        triggerRecognizerStop = false,
+                        expectedSessionId = sessionId,
+                        clearSession = true,
+                    )
                 }
             }
 
             override fun onTimeout() {
                 runOnUiThread {
+                    if (!isVoiceSessionActive(sessionId)) return@runOnUiThread
                     stopVoiceInputAnimation()
                     // 恢复原来的文字
                     inputTextState.value = savedInputText
@@ -3942,7 +4087,11 @@ class MainActivity : AppCompatActivity() {
                         inputBarState.value = InputState.Idle
                     }
                     
-                    stopLocalVoiceInput(triggerRecognizerStop = false)
+                    stopLocalVoiceInput(
+                        triggerRecognizerStop = false,
+                        expectedSessionId = sessionId,
+                        clearSession = true,
+                    )
                 }
             }
         })
@@ -3950,7 +4099,12 @@ class MainActivity : AppCompatActivity() {
         isListening = true
     }
 
-    private fun stopLocalVoiceInput(triggerRecognizerStop: Boolean = true) {
+    private fun stopLocalVoiceInput(
+        triggerRecognizerStop: Boolean = true,
+        expectedSessionId: Long? = null,
+        clearSession: Boolean = false,
+    ) {
+        if (expectedSessionId != null && !isVoiceSessionActive(expectedSessionId)) return
         val recognizer = sherpaSpeechRecognizer
         stopVoiceInputAnimation()
 
@@ -3970,6 +4124,9 @@ class MainActivity : AppCompatActivity() {
             recognizer?.cancel()
         }
         isListening = false
+        if (clearSession) {
+            clearVoiceSession(expectedSessionId)
+        }
     }
 
     private fun startMicAnimation() {
@@ -4505,7 +4662,7 @@ class MainActivity : AppCompatActivity() {
 
         persistConversations()
 
-        stopLocalVoiceInput()
+        stopLocalVoiceInput(clearSession = true)
     }
 
     override fun onDestroy() {
@@ -4516,7 +4673,8 @@ class MainActivity : AppCompatActivity() {
         FloatingChatService.setMessageSyncListener(null)
         unregisterAutomationLogReceiverIfNeeded()
 
-        stopLocalVoiceInput()
+        stopLocalVoiceInput(clearSession = true)
+        clearAutomationTerminatePending()
 
         sherpaSpeechRecognizer?.shutdown()
 
