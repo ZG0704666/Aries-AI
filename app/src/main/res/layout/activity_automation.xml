@@ -19,7 +19,7 @@
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="@drawable/ic_arrow_back_24"
             app:navigationIconTint="@color/m3t_on_surface_variant"
-            app:title="Aries AI 自动化控制台"
+            app:title="@string/automation_toolbar_title"
             app:titleCentered="true"
             app:titleTextColor="@color/m3t_on_surface" />
     </com.google.android.material.appbar.AppBarLayout>
@@ -70,7 +70,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:letterSpacing="0.1"
-                            android:text="系统状态"
+                            android:text="@string/automation_status_label"
                             android:textAllCaps="true"
                             android:textAppearance="@style/TextAppearance.M3t.Label.Small" />
 
@@ -79,17 +79,29 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="@dimen/m3t_spacing_xxxs"
-                            android:text="无障碍服务：未启用"
+                            android:text="@string/automation_accessibility_status_default"
                             android:textAppearance="@style/TextAppearance.M3t.Title.Medium" />
                     </LinearLayout>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnOpenAccessibility"
-                        style="@style/Widget.M3t.Button.Text"
+                    <LinearLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="@dimen/m3t_compact_button_height"
-                        android:text="去开启" />
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
 
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnOpenAccessibilitySettings"
+                            style="@style/Widget.M3t.Button.Text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="@dimen/m3t_compact_button_height"
+                            android:text="@string/automation_open_accessibility" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnShizukuAuthorize"
+                            style="@style/Widget.M3t.Button.Text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="@dimen/m3t_compact_button_height"
+                            android:text="@string/automation_one_tap_shizuku_authorize" />
+                    </LinearLayout>
                     <ImageButton
                         android:id="@+id/btnRefreshAccessibility"
                         android:layout_width="@dimen/m3t_automation_icon_button_size"
@@ -117,7 +129,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:letterSpacing="0.1"
-                        android:text="执行模式"
+                        android:text="@string/automation_execution_mode_label"
                         android:textAllCaps="true"
                         android:textAppearance="@style/TextAppearance.M3t.Label.Small" />
 
@@ -134,7 +146,7 @@
                             android:layout_height="wrap_content"
                             android:checked="true"
                             android:padding="@dimen/m3t_spacing_sm"
-                            android:text="前端执行（当前屏幕可见）"
+                            android:text="@string/automation_execution_front_mode"
                             android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
                             android:textColor="@color/m3t_on_surface" />
 
@@ -143,7 +155,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:padding="@dimen/m3t_spacing_sm"
-                            android:text="后台执行（虚拟屏隔离）"
+                            android:text="@string/automation_execution_background_mode"
                             android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
                             android:textColor="@color/m3t_on_surface" />
 
@@ -154,7 +166,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/m3t_spacing_xs"
-                        android:text="在前台屏幕执行自动化任务，您可以看到操作过程"
+                        android:text="@string/automation_mode_description_front"
                         android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
 
                     <TextView
@@ -165,7 +177,7 @@
                         android:background="@drawable/bg_rounded_input_light"
                         android:fontFamily="monospace"
                         android:padding="@dimen/m3t_spacing_sm"
-                        android:text="虚拟屏状态：未初始化"
+                        android:text="@string/automation_virtual_display_status_default"
                         android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
 
                     <com.google.android.material.materialswitch.MaterialSwitch
@@ -175,7 +187,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/m3t_spacing_sm"
                         android:paddingTop="@dimen/m3t_spacing_xs"
-                        android:text="Shizuku 模式"
+                        android:text="@string/automation_shizuku_mode_label"
                         android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
                         android:textColor="@color/m3t_on_surface"
                         app:useMaterialThemeColors="true" />
@@ -200,7 +212,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:letterSpacing="0.1"
-                        android:text="任务指令确认"
+                        android:text="@string/automation_task_confirm_label"
                         android:textAllCaps="true"
                         android:textAppearance="@style/TextAppearance.M3t.Label.Small" />
 
@@ -218,7 +230,7 @@
                             android:layout_toStartOf="@id/btnVoiceTask"
                             android:background="@null"
                             android:gravity="top"
-                            android:hint="在此输入或录入您的任务指令..."
+                            android:hint="@string/automation_task_hint"
                             android:inputType="textMultiLine"
                             android:maxLines="6"
                             android:minLines="3"
@@ -264,7 +276,7 @@
                             android:focusable="true"
                             android:gravity="center"
                             android:padding="@dimen/m3t_spacing_sm"
-                            android:text="点击尝试：查看当前电池状态"
+                            android:text="@string/automation_recommend_task_default"
                             android:textAppearance="@style/TextAppearance.M3t.Body.Small"
                             android:textColor="@color/m3t_primary"
                             android:textStyle="italic" />
@@ -287,7 +299,7 @@
                     android:layout_height="@dimen/m3t_button_height"
                     android:layout_marginEnd="@dimen/m3t_spacing_sm"
                     android:layout_weight="1"
-                    android:text="暂停"
+                    android:text="@string/automation_pause"
                     app:icon="@drawable/ic_pause_24"
                     app:iconGravity="textStart"
                     app:iconTint="@color/m3t_primary" />
@@ -298,7 +310,7 @@
                     android:layout_width="0dp"
                     android:layout_height="@dimen/m3t_button_height"
                     android:layout_weight="1.2"
-                    android:text="立即开始"
+                    android:text="@string/automation_start_now"
                     android:textStyle="bold" />
 
                 <com.google.android.material.button.MaterialButton
@@ -308,7 +320,7 @@
                     android:layout_height="@dimen/m3t_button_height"
                     android:layout_marginStart="@dimen/m3t_spacing_sm"
                     android:layout_weight="1"
-                    android:text="停止"
+                    android:text="@string/automation_stop"
                     android:textColor="@color/m3t_error"
                     app:icon="@drawable/ic_stop_24"
                     app:iconGravity="textStart"
@@ -348,7 +360,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="@dimen/m3t_history_icon_padding"
                             android:fontFamily="monospace"
-                            android:text="运行日志系统"
+                            android:text="@string/automation_log_system_label"
                             android:textAppearance="@style/TextAppearance.M3t.Label.Small"
                             android:textColor="@color/m3t_primary" />
 
@@ -366,7 +378,7 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="monospace"
                         android:lineSpacingExtra="@dimen/m3t_automation_log_line_spacing"
-                        android:text="系统已就绪，等待指令输入..."
+                        android:text="@string/automation_log_default"
                         android:textAppearance="@style/TextAppearance.M3t.Body.Small"
                         android:textColor="@color/m3t_on_surface" />
                 </LinearLayout>

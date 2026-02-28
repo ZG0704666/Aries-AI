@@ -3,6 +3,7 @@ package com.ai.phoneagent.updates
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -48,9 +49,9 @@ class UpdateHistoryActivity : AppCompatActivity() {
 
     private val adapter by lazy {
         ReleaseHistoryAdapter(
-            onDetails = { showDetails(it) },
-            onOpenRelease = { ReleaseUiUtil.openUrl(this, it.releaseUrl) },
-            onDownload = { handleDownload(it) },
+            onDetails = { entry -> showDetails(entry) },
+            onOpenRelease = { entry -> openReleaseUrlWithFeedback(entry.releaseUrl) },
+            onDownload = { entry -> handleDownload(entry) },
         )
     }
 
@@ -167,41 +168,70 @@ class UpdateHistoryActivity : AppCompatActivity() {
         }
     }
 
+    private fun openReleaseUrlWithFeedback(url: String): Boolean {
+        val opened = ReleaseUiUtil.openUrl(this, url)
+        if (!opened) {
+            Toast.makeText(this, R.string.about_open_url_failed, Toast.LENGTH_SHORT).show()
+        }
+        return opened
+    }
+
     private fun showDetails(entry: ReleaseEntry) {
-        MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
-            .setTitle(entry.versionTag)
-            .setMessage(entry.body.ifBlank { getString(R.string.m3t_updates_no_changelog) })
-            .setPositiveButton(getString(R.string.m3t_updates_open_release)) { _, _ ->
-                ReleaseUiUtil.openUrl(this, entry.releaseUrl)
-            }
-            .setNegativeButton(getString(R.string.m3t_updates_close), null)
-            .show()
+        if (isFinishing || isDestroyed) return
+        runCatching {
+            MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
+                .setTitle(entry.versionTag)
+                .setMessage(entry.body.ifBlank { getString(R.string.m3t_updates_no_changelog) })
+                .setPositiveButton(getString(R.string.m3t_updates_open_release)) { _, _ ->
+                    openReleaseUrlWithFeedback(entry.releaseUrl)
+                }
+                .setNegativeButton(getString(R.string.m3t_updates_close), null)
+                .show()
+        }.onFailure {
+            Toast.makeText(this, R.string.update_open_detail_failed, Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun handleDownload(entry: ReleaseEntry) {
-        if (BuildConfig.GITHUB_TOKEN.isNotBlank()) {
-            ApkDownloadUtil.enqueueApkDownload(this, entry)
-            return
-        }
-
-        val options = ReleaseUiUtil.mirroredDownloadOptions(entry.apkUrl)
-        if (options.isEmpty()) {
-            ReleaseUiUtil.openUrl(this, entry.releaseUrl)
-            return
-        }
-
-        if (options.size == 1) {
-            ReleaseUiUtil.openUrl(this, options.first().second)
-            return
-        }
-
-        val names = options.map { it.first }.toTypedArray()
-        MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
-            .setTitle(getString(R.string.m3t_updates_choose_source))
-            .setItems(names) { _, which ->
-                ReleaseUiUtil.openUrl(this, options[which].second)
+        runCatching {
+            if (BuildConfig.GITHUB_TOKEN.isNotBlank()) {
+                val submitted = ApkDownloadUtil.enqueueApkDownload(this, entry)
+                if (!submitted) {
+                    Toast.makeText(this, R.string.update_download_submit_failed, Toast.LENGTH_SHORT).show()
+                    openReleaseUrlWithFeedback(entry.releaseUrl)
+                }
+                return
             }
-            .setNegativeButton(getString(R.string.m3t_action_cancel), null)
-            .show()
+
+            if (entry.apkUrl.isNullOrBlank()) {
+                Toast.makeText(this, R.string.update_apk_missing_fallback_release, Toast.LENGTH_SHORT).show()
+                openReleaseUrlWithFeedback(entry.releaseUrl)
+                return
+            }
+
+            val options = ReleaseUiUtil.mirroredDownloadOptions(entry.apkUrl)
+            if (options.isEmpty()) {
+                Toast.makeText(this, R.string.update_apk_missing_fallback_release, Toast.LENGTH_SHORT).show()
+                openReleaseUrlWithFeedback(entry.releaseUrl)
+                return
+            }
+
+            if (options.size == 1) {
+                openReleaseUrlWithFeedback(options.first().second)
+                return
+            }
+
+            val names = options.map { it.first }.toTypedArray()
+            MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
+                .setTitle(getString(R.string.m3t_updates_choose_source))
+                .setItems(names) { _, which ->
+                    openReleaseUrlWithFeedback(options[which].second)
+                }
+                .setNegativeButton(getString(R.string.m3t_action_cancel), null)
+                .show()
+        }.onFailure {
+            Toast.makeText(this, R.string.update_download_submit_failed, Toast.LENGTH_SHORT).show()
+            openReleaseUrlWithFeedback(entry.releaseUrl)
+        }
     }
 }

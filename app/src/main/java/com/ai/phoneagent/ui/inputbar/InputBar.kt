@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
@@ -31,7 +32,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.random.Random
 
@@ -279,6 +279,32 @@ fun VoiceRecordButtonHandler(
     onOffsetChange: (Float, Boolean) -> Unit
 ) {
     var totalDy by remember { mutableStateOf(0f) }
+    var isLongPressConfirmed by remember { mutableStateOf(false) }
+    var isCancelling by remember { mutableStateOf(false) }
+    var activePointerId by remember { mutableStateOf<PointerId?>(null) }
+    val cancelEnterThreshold = -150f
+    val cancelExitThreshold = -110f
+
+    fun resetGestureState() {
+        totalDy = 0f
+        isLongPressConfirmed = false
+        isCancelling = false
+        activePointerId = null
+        onOffsetChange(0f, false)
+    }
+
+    fun finishGesture(cancelBySystem: Boolean) {
+        if (!isLongPressConfirmed) {
+            resetGestureState()
+            return
+        }
+        if (cancelBySystem || isCancelling) {
+            onCancel()
+        } else {
+            onPressEnd()
+        }
+        resetGestureState()
+    }
 
     Box(
         modifier = Modifier
@@ -288,24 +314,34 @@ fun VoiceRecordButtonHandler(
                 detectDragGesturesAfterLongPress(
                     onDragStart = {
                         totalDy = 0f
+                        isLongPressConfirmed = true
+                        isCancelling = false
+                        activePointerId = null
+                        onOffsetChange(0f, false)
                         onPressStart()
                     },
                     onDrag = { change, dragAmount ->
+                        if (!isLongPressConfirmed) return@detectDragGesturesAfterLongPress
+                        if (activePointerId == null) {
+                            activePointerId = change.id
+                        }
+                        if (activePointerId != change.id) return@detectDragGesturesAfterLongPress
                         change.consume()
                         totalDy += dragAmount.y
-                        onOffsetChange(totalDy, totalDy < -100f)
+
+                        isCancelling =
+                            when {
+                                isCancelling && totalDy > cancelExitThreshold -> false
+                                !isCancelling && totalDy < cancelEnterThreshold -> true
+                                else -> isCancelling
+                            }
+                        onOffsetChange(totalDy, isCancelling)
                     },
                     onDragEnd = {
-                        if (totalDy < -100f) {
-                            onCancel()
-                        } else {
-                            onPressEnd()
-                        }
-                        totalDy = 0f
+                        finishGesture(cancelBySystem = false)
                     },
                     onDragCancel = {
-                        onCancel()
-                        totalDy = 0f
+                        finishGesture(cancelBySystem = true)
                     }
                 )
             }

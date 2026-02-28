@@ -331,8 +331,9 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/m3t_spacing_xs"
                         android:text="@string/about_developer_alias"
-                        android:textAppearance="@style/TextAppearance.M3t.Body.Small"
-                        android:textColor="@color/m3t_primary" />
+                        android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
+                        android:textColor="@color/m3t_primary"
+                        android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/itemContact"

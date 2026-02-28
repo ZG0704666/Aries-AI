@@ -27,6 +27,30 @@
     <string name="automation_scene_running">执行中</string>
     <string name="automation_scene_finished">已结束</string>
     <string name="automation_scene_waiting">等待执行日志...</string>
+    <string name="automation_toolbar_title">Aries AI 自动化控制台</string>
+    <string name="automation_execution_mode_label">执行模式</string>
+    <string name="automation_execution_front_mode">前端执行（当前屏幕可见）</string>
+    <string name="automation_mode_description_front">在前台屏幕执行自动化任务，您可以看到操作过程</string>
+    <string name="automation_virtual_display_status_default">虚拟屏状态：未初始化</string>
+    <string name="automation_shizuku_mode_label">Shizuku 模式</string>
+    <string name="automation_task_confirm_label">任务指令确认</string>
+    <string name="automation_task_hint">在此输入或录入您的任务指令...</string>
+    <string name="automation_pause">暂停</string>
+    <string name="automation_stop">停止</string>
+    <string name="automation_log_system_label">运行日志系统</string>
+    <string name="automation_log_default">系统已就绪，等待指令输入...</string>
+    <string name="automation_scene_stop_requested">终止请求中</string>
+    <string name="automation_terminate_timeout_retry">终止超时，可再次尝试</string>
+    <string name="automation_status_label">系统状态</string>
+    <string name="automation_accessibility_status_default">无障碍服务：未启用</string>
+    <string name="automation_execution_background_mode">后台执行（虚拟屏隔离）</string>
+    <string name="automation_recommend_task_default">点击尝试：查看当前电池状态</string>
+    <string name="automation_open_accessibility">去开启</string>
+    <string name="automation_one_tap_shizuku_authorize">一键 Shizuku 授权</string>
+    <string name="automation_shizuku_not_connected">未检测到 Shizuku 服务连接</string>
+    <string name="automation_shizuku_permission_requested">已发起 Shizuku 授权请求，请在弹窗中确认</string>
+    <string name="automation_shizuku_authorize_success">已通过 Shizuku 自动开启无障碍</string>
+    <string name="automation_shizuku_authorize_failed">Shizuku 自动开启无障碍失败，请手动开启</string>
 
     <string name="accessibility_service_label">Aries AI 自动化</string>
     <string name="accessibility_service_desc">用于执行点击/滑动/返回等自动化动作（需要在系统无障碍中手动开启）</string>
@@ -36,6 +60,7 @@
     <string name="about_title">关于</string>
     <string name="about_version_format">v%1$s</string>
     <string name="about_check_updates">检查更新</string>
+    <string name="about_checking_updates">检查中...</string>
     <string name="about_changelog">更新日志</string>
     <string name="about_open_source_licenses">开源许可声明</string>
     <string name="about_website">访问官网</string>
@@ -60,7 +85,18 @@
     <string name="about_check_failed">检查更新失败</string>
     <string name="about_license_format">许可: %1$s</string>
     <string name="about_open_url_failed">无法打开网页</string>
+    <string name="about_release_action_failed_format">操作失败：%1$s</string>
     <string name="about_history_tip">下方可以选择历史版本</string>
+    <string name="update_apk_missing_fallback_release">未找到 APK，已为你跳转发布页</string>
+    <string name="update_download_title_format">下载 %1$s</string>
+    <string name="update_download_service_unavailable">无法获取下载服务</string>
+    <string name="update_download_failed_unknown">未知错误</string>
+    <string name="update_download_enqueue_failed_format">下载提交失败：%1$s</string>
+    <string name="update_download_started_format">开始下载：%1$s</string>
+    <string name="update_download_failed_reason_format">下载失败（reason=%1$d）</string>
+    <string name="update_download_submit_failed">下载未能提交，请稍后重试</string>
+    <string name="update_open_detail_failed">打开更新详情失败，请稍后重试</string>
+    <string name="voice_permission_granted_retry_hold">已授予麦克风权限，请重新长按开始录音</string>
 
     <string name="action_ok">确定</string>
     <string name="action_close">关闭</string>

@@ -242,6 +242,19 @@
         <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
     </style>
 
+    <style name="Widget.M3t.Button.Text.Dialog" parent="Widget.AppCompat.Button.ButtonBar.AlertDialog">
+        <item name="android:textColor">@color/m3t_primary</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
+    </style>
+
+    <style name="Widget.M3t.Dialog.TitleText" parent="MaterialAlertDialog.MaterialComponents.Title.Text">
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Title.Medium</item>
+    </style>
+
+    <style name="Widget.M3t.Dialog.BodyText" parent="MaterialAlertDialog.MaterialComponents.Body.Text">
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Body.Medium</item>
+    </style>
+
     <style name="Widget.M3t.Button.Tonal" parent="Widget.MaterialComponents.Button">
         <item name="android:minHeight">@dimen/m3t_button_height</item>
         <item name="cornerRadius">@dimen/m3t_radius_lg</item>
@@ -390,10 +403,11 @@
     <style name="Theme.M3t.Dialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
         <item name="colorPrimary">@color/m3t_primary</item>
         <item name="colorOnSurface">@color/m3t_on_surface</item>
-        <item name="materialAlertDialogBodyTextStyle">@style/TextAppearance.M3t.Body.Medium</item>
-        <item name="materialAlertDialogTitleTextStyle">@style/TextAppearance.M3t.Title.Medium</item>
-        <item name="buttonBarPositiveButtonStyle">@style/Widget.M3t.Button.Text</item>
-        <item name="buttonBarNegativeButtonStyle">@style/Widget.M3t.Button.Text</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/Widget.M3t.Dialog.BodyText</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/Widget.M3t.Dialog.TitleText</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.M3t.Button.Text.Dialog</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.M3t.Button.Text.Dialog</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.M3t.Button.Text.Dialog</item>
     </style>
 
     <style name="Theme.M3t.BottomSheet" parent="ThemeOverlay.MaterialComponents.BottomSheetDialog">
@@ -421,4 +435,3 @@
     <style name="Widget.Aries.TextInput" parent="Widget.M3t.TextInput" />
 
 </resources>
-
