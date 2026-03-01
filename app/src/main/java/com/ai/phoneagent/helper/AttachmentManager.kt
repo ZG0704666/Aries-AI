@@ -29,6 +29,8 @@ class AttachmentManager(private val context: Context) {
     companion object {
         private const val TAG = "AttachmentManager"
         private const val OCR_INLINE_INSTRUCTION = "Do not read the file, answer the user's question directly based on the attachment content and the user's question."
+        private const val MAX_TEXT_ATTACHMENT_CHARS = 120_000
+        private const val TEXT_ATTACHMENT_TRUNCATED_SUFFIX = "\n\n[附件内容过长，已截断]"
     }
     
     // 附件列表状态
@@ -120,12 +122,15 @@ class AttachmentManager(private val context: Context) {
                 val fileName = getFileNameFromUri(uri)
                 val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
                 val fileSize = getFileSizeFromUri(uri)
+                val attachmentContent =
+                    readTextAttachmentFromUri(uri, fileName, mimeType).orEmpty()
                 
                 val attachmentInfo = AttachmentInfo(
                     filePath = filePath,
                     fileName = fileName,
                     mimeType = mimeType,
-                    fileSize = fileSize
+                    fileSize = fileSize,
+                    content = attachmentContent
                 )
                 
                 addAttachment(attachmentInfo)
@@ -141,12 +146,15 @@ class AttachmentManager(private val context: Context) {
                 val fileName = file.name
                 val fileSize = file.length()
                 val mimeType = getMimeTypeFromPath(filePath) ?: "application/octet-stream"
+                val attachmentContent =
+                    readTextAttachmentFromFile(file, fileName, mimeType).orEmpty()
                 
                 val attachmentInfo = AttachmentInfo(
                     filePath = file.absolutePath,
                     fileName = fileName,
                     mimeType = mimeType,
-                    fileSize = fileSize
+                    fileSize = fileSize,
+                    content = attachmentContent
                 )
                 
                 addAttachment(attachmentInfo)
@@ -343,6 +351,59 @@ class AttachmentManager(private val context: Context) {
         }
         
         fileSize
+    }
+
+    private fun shouldExtractTextContent(fileName: String, mimeType: String): Boolean {
+        val normalizedMime = mimeType.substringBefore(";").trim().lowercase()
+        if (normalizedMime.startsWith("text/")) return true
+        if (
+            normalizedMime == "application/json" ||
+            normalizedMime == "application/xml" ||
+            normalizedMime == "application/x-yaml" ||
+            normalizedMime == "application/yaml" ||
+            normalizedMime == "application/csv"
+        ) {
+            return true
+        }
+
+        return when (fileName.substringAfterLast('.', "").lowercase()) {
+            "txt", "md", "markdown", "json", "xml", "csv", "log",
+            "kt", "java", "py", "js", "ts", "jsx", "tsx",
+            "html", "htm", "css", "yml", "yaml", "ini", "properties" -> true
+            else -> false
+        }
+    }
+
+    private fun truncateAttachmentText(raw: String): String {
+        val text = raw.replace("\u0000", "").trim()
+        if (text.length <= MAX_TEXT_ATTACHMENT_CHARS) return text
+        return text.take(MAX_TEXT_ATTACHMENT_CHARS) + TEXT_ATTACHMENT_TRUNCATED_SUFFIX
+    }
+
+    private suspend fun readTextAttachmentFromUri(
+        uri: Uri,
+        fileName: String,
+        mimeType: String
+    ): String? = withContext(Dispatchers.IO) {
+        if (!shouldExtractTextContent(fileName, mimeType)) return@withContext null
+        runCatching {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                truncateAttachmentText(input.readBytes().toString(Charsets.UTF_8))
+            }
+        }.getOrNull()?.takeIf { it.isNotBlank() }
+    }
+
+    private suspend fun readTextAttachmentFromFile(
+        file: File,
+        fileName: String,
+        mimeType: String
+    ): String? = withContext(Dispatchers.IO) {
+        if (!shouldExtractTextContent(fileName, mimeType)) return@withContext null
+        runCatching {
+            file.inputStream().use { input ->
+                truncateAttachmentText(input.readBytes().toString(Charsets.UTF_8))
+            }
+        }.getOrNull()?.takeIf { it.isNotBlank() }
     }
     
     /**

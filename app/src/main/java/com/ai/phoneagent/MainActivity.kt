@@ -108,6 +108,16 @@ import android.text.Html
 import com.google.android.material.materialswitch.MaterialSwitch
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AudioFile
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.ScreenshotMonitor
+import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material3.Icon
 import com.ai.phoneagent.core.automation.ActivityAutomationInstructionGateway
 import com.ai.phoneagent.core.automation.AutomationLogBridge
 import com.ai.phoneagent.ui.inputbar.InputState
@@ -117,9 +127,14 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.dp
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -2191,9 +2206,7 @@ class MainActivity : AppCompatActivity() {
                                         ).show()
                                     }
                                 } else {
-                                    // 构建包含附件的完整消息
-                                    val messageWithAttachments = chatViewModel.buildMessageWithAttachments(t)
-                                    sendMessage(messageWithAttachments)
+                                    sendMessage(t)
                                     inputTextState.value = ""
                                     chatViewModel.clearAttachments()
                                 }
@@ -2543,25 +2556,25 @@ class MainActivity : AppCompatActivity() {
         
         // 使用 ViewModel 处理附件，构建完整消息内容
         lifecycleScope.launch {
-            val messageContent = if (resendUser) {
-                content
-            } else {
-                content
-            }
-            val userAttachments =
-                if (resendUser) chatViewModel.attachments.value.toList() else emptyList()
-            
-            // 将消息内容转换为字符串用于显示
-            val messageContentStr = when (messageContent) {
-                is String -> messageContent
+            val baseUserText = when (content) {
+                is String -> content
                 is List<*> -> {
-                    // 提取所有文本部分
-                    messageContent.filterIsInstance<Map<*, *>>()
+                    content.filterIsInstance<Map<*, *>>()
                         .filter { it["type"] == "text" }
                         .joinToString("\n") { it["text"] as? String ?: "" }
                 }
-                else -> messageContent.toString()
+                else -> content.toString()
             }
+            val userAttachments = if (resendUser) chatViewModel.attachments.value.toList() else emptyList()
+            val messageContent: Any =
+                if (resendUser && userAttachments.isNotEmpty()) {
+                    chatViewModel.buildMessageWithAttachments(baseUserText, userAttachments)
+                } else {
+                    content
+                }
+
+            // 用户消息展示保持纯文本，附件通过图标展示
+            val messageContentStr = baseUserText
             
             if (resendUser) {
                 c.messages.add(
@@ -3601,7 +3614,7 @@ class MainActivity : AppCompatActivity() {
         // 添加对话历史（最多保留最近10轮对话，避免上下文过长）
         val recentMessages = conversation.messages.takeLast(20) // 10轮对话 = 20条消息
         for (msg in recentMessages) {
-            val content = if (!msg.isUser) {
+            val content: Any = if (!msg.isUser) {
                 // 历史记录传给模型前统一清洗旧分隔符，避免把乱码标记带入上下文。
                 val (thinking, answer) = parseStoredAiContent(msg.content)
                 if (!thinking.isNullOrBlank()) {
@@ -3609,6 +3622,11 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     answer
                 }
+            } else if (!msg.attachments.isNullOrEmpty()) {
+                chatViewModel.buildMessageWithAttachments(
+                    userMessage = msg.content,
+                    sourceAttachments = msg.attachments
+                )
             } else {
                 msg.content
             }
@@ -3929,21 +3947,53 @@ class MainActivity : AppCompatActivity() {
     /**
      * 用户消息复杂气泡：淡水蓝背景，右侧对齐，并与底部输入栏左右边界保持一致。
      */
-    private fun formatUserMessageDisplayContent(
-        content: String,
-        attachments: List<AttachmentInfo>
-    ): String {
-        if (attachments.isEmpty()) return content
+    private fun resolveAttachmentIcon(attachment: AttachmentInfo): ImageVector =
+        when {
+            attachment.fileName.startsWith("camera_") -> Icons.Default.PhotoCamera
+            attachment.mimeType.startsWith("image/") -> Icons.Default.Image
+            attachment.filePath.startsWith("screen_") -> Icons.Default.ScreenshotMonitor
+            attachment.mimeType.startsWith("audio/") -> Icons.Default.AudioFile
+            attachment.mimeType.startsWith("video/") -> Icons.Default.VideoLibrary
+            else -> Icons.Default.Description
+        }
 
-        val attachmentBlock =
-            attachments.joinToString(separator = "\n", prefix = "附件：\n") { attachment ->
-                val displayName =
-                    attachment.fileName.ifBlank {
-                        if (attachment.mimeType.startsWith("image/")) "图片附件" else "附件"
+    private fun bindUserAttachmentIcons(composeView: ComposeView, attachments: List<AttachmentInfo>) {
+        if (attachments.isEmpty()) {
+            composeView.visibility = View.GONE
+            composeView.setContent {}
+            return
+        }
+
+        composeView.visibility = View.VISIBLE
+        composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+        composeView.setContent {
+            val chipBg = colorResource(id = R.color.m3t_attachment_option_bg)
+            val chipIconTint = colorResource(id = R.color.m3t_attachment_option_icon)
+            val chipSize = dimensionResource(id = R.dimen.m3t_user_attachment_chip_size)
+            val iconSize = dimensionResource(id = R.dimen.m3t_user_attachment_chip_icon_size)
+            val chipSpacing = dimensionResource(id = R.dimen.m3t_user_attachment_chip_spacing)
+            val chipRadius = dimensionResource(id = R.dimen.m3t_user_attachment_chip_radius)
+
+            Row(horizontalArrangement = Arrangement.spacedBy(chipSpacing)) {
+                attachments.forEach { attachment ->
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(chipSize)
+                                .clip(RoundedCornerShape(chipRadius))
+                                .background(chipBg),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = resolveAttachmentIcon(attachment),
+                            contentDescription = attachment.fileName,
+                            tint = chipIconTint,
+                            modifier = Modifier.size(iconSize)
+                        )
                     }
-                "• $displayName"
+                }
             }
-        return if (content.isBlank()) attachmentBlock else "$content\n\n$attachmentBlock"
+        }
     }
 
     private fun appendComplexUserMessage(
@@ -3955,9 +4005,11 @@ class MainActivity : AppCompatActivity() {
         val bubble = layoutInflater.inflate(R.layout.item_user_message_complex, binding.messagesContainer, false)
         val tv = bubble.findViewById<TextView>(R.id.message_content)
         val authorTv = bubble.findViewById<TextView>(R.id.user_author_name)
+        val attachmentIconsView = bubble.findViewById<ComposeView>(R.id.user_attachment_icons)
         authorTv.text = author
         authorTv.visibility = View.GONE
-        val displayContent = formatUserMessageDisplayContent(content, attachments)
+        bindUserAttachmentIcons(attachmentIconsView, attachments)
+        tv.visibility = if (content.isBlank()) View.GONE else View.VISIBLE
 
         val density = resources.displayMetrics.density
         fun dp(v: Int): Int = (v * density).toInt()
@@ -3989,8 +4041,8 @@ class MainActivity : AppCompatActivity() {
 
         smoothScrollToBottom()
 
-        if (!animate) {
-            tv.text = displayContent
+        if (!animate || content.isBlank()) {
+            tv.text = content
             return
         }
 
@@ -3998,15 +4050,15 @@ class MainActivity : AppCompatActivity() {
             val sb = StringBuilder()
             val chunkSize = 2
             var idx = 0
-            while (idx < displayContent.length) {
-                val end = minOf(idx + chunkSize, displayContent.length)
-                sb.append(displayContent.substring(idx, end))
+            while (idx < content.length) {
+                val end = minOf(idx + chunkSize, content.length)
+                sb.append(content.substring(idx, end))
                 tv.text = sb.toString()
                 idx = end
                 smoothScrollToBottom()
                 delay(10)
             }
-            tv.text = displayContent
+            tv.text = content
         }
     }
     

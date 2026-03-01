@@ -25,5 +25,11 @@
         android:textAppearance="@style/TextAppearance.M3t.Chat.Message"
         android:textIsSelectable="true" />
 
-</LinearLayout>
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/user_attachment_icons"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/m3t_spacing_xs"
+        android:visibility="gone" />
 
+</LinearLayout>
