@@ -318,44 +318,14 @@ object StreamRenderHelper {
         onPhaseChange: (Boolean) -> Unit  // true = 进入回答阶段
     ) {
         if (delta.isEmpty()) return
-        
-        val parser = getParser(vh)
-        val chunks = parser.processContentDelta(delta)
-        
-        for (chunk in chunks) {
-            when (chunk.type) {
-                AriesStreamParser.ChunkType.THINKING -> {
-                    // 确保思考区域可见
-                    if (vh.thinkingLayout.visibility != View.VISIBLE) {
-                        vh.thinkingLayout.visibility = View.VISIBLE
-                    }
-                    
-                    // 追加到思考区域
-                    val animator = getAnimator(vh.thinkingText, coroutineScope, onScroll, useMarkdown = true)
-                    animator.append(chunk.content)
-                }
-                
-                AriesStreamParser.ChunkType.ANSWER -> {
-                    // 首次收到回答内容，触发状态切换
-                    val answerAnimator = animators[vh.messageContent.hashCode()]
-                    if (answerAnimator == null || answerAnimator.getText().isEmpty()) {
-                        onPhaseChange(true)
-                    }
-                    
-                    // 追加到回答区域
-                    val animator = getAnimator(vh.messageContent, coroutineScope, onScroll, useMarkdown = true)
-                    animator.append(chunk.content)
-                }
-                
-                AriesStreamParser.ChunkType.CONTROL -> {
-                    when (chunk.content) {
-                        "THINKING_END", "ANSWER_START" -> {
-                            onPhaseChange(true)
-                        }
-                    }
-                }
-            }
+
+        // 直接采用模型 content 流：不对实时流做标签拆分，避免“先解析后显示”导致正文丢失。
+        val answerAnimator = getAnimator(vh.messageContent, coroutineScope, onScroll, useMarkdown = true)
+        val isFirstAnswerChunk = answerAnimator.getText().isEmpty()
+        if (isFirstAnswerChunk) {
+            onPhaseChange(true)
         }
+        answerAnimator.append(delta)
     }
 
     /**
@@ -429,18 +399,18 @@ object StreamRenderHelper {
      * 获取思考文本
      */
     fun getThinkingText(vh: ViewHolder): String {
-        return animators[vh.thinkingText.hashCode()]?.getText()
-            ?: vh.thinkingText.text?.toString()
-            ?: ""
+        val animatorText = animators[vh.thinkingText.hashCode()]?.getText().orEmpty()
+        if (animatorText.isNotBlank()) return animatorText
+        return vh.thinkingText.text?.toString().orEmpty()
     }
 
     /**
      * 获取回答文本
      */
     fun getAnswerText(vh: ViewHolder): String {
-        return animators[vh.messageContent.hashCode()]?.getText()
-            ?: vh.messageContent.text?.toString()
-            ?: ""
+        val animatorText = animators[vh.messageContent.hashCode()]?.getText().orEmpty()
+        if (animatorText.isNotBlank()) return animatorText
+        return vh.messageContent.text?.toString().orEmpty()
     }
 
     /**

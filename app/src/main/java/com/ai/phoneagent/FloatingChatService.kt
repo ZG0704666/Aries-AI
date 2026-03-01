@@ -1121,21 +1121,10 @@ class FloatingChatService : Service() {
                             content =
                                     """
                             你是 Aries AI。
-                            
-                            你必须严格按以下结构输出（否则我的 Android 应用无法正确渲染）：
-                            
-                            【思考开始】
-                            （这里写你的思考过程）
-                            【思考结束】
-                            
-                            【回答开始】
-                            （这里写你的最终回答，使用 Markdown：标题/列表/代码块/表格等）
-                            【回答结束】
-                            
+
                             要求：
-                            1) 以上四个标记必须原样输出，且不要输出其它同名/相似标记。
-                            2) 思考内容写在“思考开始/结束”之间；正式回答写在“回答开始/结束”之间。
-                            3) 代码块使用三反引号 ``` 并尽量保持语法完整。
+                            1) 直接给出最终回答，使用 Markdown：标题/列表/代码块/表格等。
+                            2) 代码块使用三反引号 ``` 并尽量保持语法完整。
                         """.trimIndent(),
                     ),
             )
@@ -1280,9 +1269,18 @@ class FloatingChatService : Service() {
 
                 // 获取解析后的内容
                 val thinkingContent = vh?.let { StreamRenderHelper.getThinkingText(it) } ?: ""
+                val renderedAnswer = vh?.let { StreamRenderHelper.getAnswerText(it) }?.trim().orEmpty()
+                val fallbackAnswer = extractDisplayAnswer(contentSb.toString()).trim()
                 val answerContent =
-                        vh?.let { StreamRenderHelper.getAnswerText(it) }
-                                ?: (if (streamOk) contentSb.toString() else "请求失败")
+                        when {
+                            renderedAnswer.isNotBlank() -> renderedAnswer
+                            streamOk && fallbackAnswer.isNotBlank() -> fallbackAnswer
+                            streamOk -> contentSb.toString()
+                            else -> "请求失败"
+                        }
+                if (vh != null && renderedAnswer.isBlank() && answerContent.isNotBlank() && streamOk) {
+                    StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, answerContent)
+                }
 
                 val persistText =
                         if (thinkingContent.isNotEmpty()) {
@@ -1297,6 +1295,29 @@ class FloatingChatService : Service() {
                 chatHistory.add(ChatRequestMessage(role = "assistant", content = persistText))
             }
         }
+    }
+
+    private fun extractDisplayAnswer(raw: String): String {
+        val source = raw.trim()
+        if (source.isBlank()) return ""
+
+        val thinkTagRegex = "<think>([\\s\\S]*?)</think>\\s*([\\s\\S]*)".toRegex()
+        thinkTagRegex.find(source)?.let { match ->
+            return match.groupValues.getOrNull(2)?.trim().orEmpty()
+        }
+
+        val answerStartTag = "【回答开始】"
+        val answerEndTag = "【回答结束】"
+        if (source.contains(answerStartTag)) {
+            var answerPart = source.substring(source.indexOf(answerStartTag) + answerStartTag.length)
+            val answerEndIdx = answerPart.indexOf(answerEndTag)
+            if (answerEndIdx >= 0) {
+                answerPart = answerPart.substring(0, answerEndIdx)
+            }
+            return answerPart.trim()
+        }
+
+        return source
     }
 
     // --- 外部同步接口 (供 MainActivity 调用) ---

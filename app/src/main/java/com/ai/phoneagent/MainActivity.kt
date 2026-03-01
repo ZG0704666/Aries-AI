@@ -1535,12 +1535,6 @@ class MainActivity : AppCompatActivity() {
         apiThirdPartySwitch.setOnCheckedChangeListener { _, checked ->
             apiThirdPartyContainer.visibility = if (checked) View.VISIBLE else View.GONE
             prefs.edit().putBoolean(apiUseThirdPartyPref, checked).apply()
-            prefs.edit()
-                    .remove(apiLastCheckSigPref)
-                    .remove(apiLastCheckKeyPref)
-                    .remove(apiLastCheckOkPref)
-                    .remove(apiLastCheckTimePref)
-                    .apply()
             apiNeedsRecheckToastShown = false
             onApiConfigPotentiallyChanged(showNeedsCheckMessage = checked)
         }
@@ -1752,11 +1746,7 @@ class MainActivity : AppCompatActivity() {
 
         btnCheck.setOnClickListener {
             vibrateLight()
-            val textRaw = apiInput.text.toString()
-            val tagKey = (apiInput.tag as? String).orEmpty()
-            val key =
-                    (if (textRaw.contains("*") && textRaw == maskKey(tagKey)) tagKey else textRaw)
-                            .trim()
+            val key = resolveApiKeyFromInput()
 
             if (key.isBlank()) {
 
@@ -1902,6 +1892,7 @@ class MainActivity : AppCompatActivity() {
         updateStatusText()
 
         val seq = ++apiCheckSeq
+        val useThirdParty = apiThirdPartySwitch.isChecked
         val normalizedBaseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
         val baseUrlSecurityError = validateBaseUrlSecurity(normalizedBaseUrl)
         if (baseUrlSecurityError != null) {
@@ -1933,7 +1924,15 @@ class MainActivity : AppCompatActivity() {
             remoteApiOk = ok
             apiStatus.text = if (ok) "API 可用" else "API 检查失败"
             prefs.edit()
-                    .putString(apiLastCheckSigPref, apiConfigSignature(k, normalizedBaseUrl, resolvedModel))
+                    .putString(
+                            apiLastCheckSigPref,
+                            apiConfigSignature(
+                                    apiKey = k,
+                                    baseUrl = normalizedBaseUrl,
+                                    model = resolvedModel,
+                                    useThirdParty = useThirdParty,
+                            ),
+                    )
                     .putString(apiLastCheckKeyPref, k)
                     .putBoolean(apiLastCheckOkPref, ok)
                     .putLong(apiLastCheckTimePref, System.currentTimeMillis())
@@ -1944,6 +1943,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun onApiConfigChanged(clearApiValue: Boolean = false, showNeedsCheckMessage: Boolean = true) {
         if (clearApiValue) {
+            apiCheckSeq++
             remoteApiOk = null
             remoteApiChecking = false
             lastCheckedApiKey = ""
@@ -1960,6 +1960,7 @@ class MainActivity : AppCompatActivity() {
 
         val currentKey = prefs.getString("api_key", "").orEmpty()
         if (currentKey.isBlank()) {
+            apiCheckSeq++
             remoteApiOk = null
             remoteApiChecking = false
             lastCheckedApiKey = ""
@@ -1974,12 +1975,26 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        prefs.edit()
-                .remove(apiLastCheckSigPref)
-                .remove(apiLastCheckKeyPref)
-                .remove(apiLastCheckOkPref)
-                .remove(apiLastCheckTimePref)
-                .apply()
+        val currentSig =
+                apiConfigSignature(
+                        apiKey = currentKey,
+                        baseUrl = resolveApiBaseUrl(),
+                        model = resolveApiModel(),
+                        useThirdParty = apiThirdPartySwitch.isChecked,
+                )
+        val lastSig = prefs.getString(apiLastCheckSigPref, "").orEmpty()
+        val hasLast = prefs.contains(apiLastCheckOkPref)
+        if (hasLast && lastSig.isNotBlank() && lastSig == currentSig) {
+            val ok = prefs.getBoolean(apiLastCheckOkPref, false)
+            remoteApiOk = ok
+            remoteApiChecking = false
+            lastCheckedApiKey = currentKey
+            apiStatus.text = if (ok) "API 可用" else "API 检查失败"
+            updateStatusText()
+            return
+        }
+
+        apiCheckSeq++
         remoteApiOk = null
         remoteApiChecking = false
         lastCheckedApiKey = ""
@@ -2035,15 +2050,34 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun resolveApiModel(): String {
-        if (!apiThirdPartySwitch.isChecked) return "glm-4.6v-flash"
-        return apiModelInput.text?.toString()?.trim().orEmpty().ifBlank { "glm-4.6v-flash" }
+        if (!apiThirdPartySwitch.isChecked) return AutoGlmClient.DEFAULT_MODEL
+        return apiModelInput.text?.toString()?.trim().orEmpty().ifBlank { AutoGlmClient.DEFAULT_MODEL }
     }
 
-    private fun apiConfigSignature(apiKey: String, baseUrl: String, model: String): String {
+    private fun apiConfigSignature(
+            apiKey: String,
+            baseUrl: String,
+            model: String,
+            useThirdParty: Boolean = apiThirdPartySwitch.isChecked,
+    ): String {
         val normalizedBaseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
         val normalizedModel = model.ifBlank { AutoGlmClient.DEFAULT_MODEL }
-        val useThirdParty = apiThirdPartySwitch.isChecked
         return "${if (useThirdParty) "1" else "0"}|${apiKey.trim()}|$normalizedBaseUrl|$normalizedModel"
+    }
+
+    private fun resolveApiKeyFromInput(): String {
+        val displayed = apiInput.text?.toString().orEmpty()
+        val tagKey = (apiInput.tag as? String).orEmpty().trim()
+        val savedKey = prefs.getString("api_key", "").orEmpty().trim()
+
+        val resolved =
+                when {
+                    tagKey.isNotBlank() && displayed == maskKey(tagKey) -> tagKey
+                    savedKey.isNotBlank() && displayed == maskKey(savedKey) -> savedKey
+                    displayed.contains("*") && savedKey.isNotBlank() -> savedKey
+                    else -> displayed
+                }
+        return resolved.trim()
     }
 
     private fun updateStatusText() {
@@ -2837,7 +2871,17 @@ class MainActivity : AppCompatActivity() {
 
                 // 保存到历史 - 使用解析后的内容
                 val thinkingContent = StreamRenderHelper.getThinkingText(vh)
-                val answerContentRaw = StreamRenderHelper.getAnswerText(vh)
+                val renderedAnswerRaw = StreamRenderHelper.getAnswerText(vh).trim()
+                val parsedFinalAnswer = parseStoredAiContent(finalContent).second.trim()
+                val fallbackAnswerRaw =
+                    parsedFinalAnswer.ifBlank { stripAutomationMarker(finalContent).trim() }
+                val answerContentRaw =
+                    if (renderedAnswerRaw.isNotBlank()) renderedAnswerRaw else fallbackAnswerRaw
+                if (renderedAnswerRaw.isBlank() && answerContentRaw.isNotBlank() && streamOk && !shouldStopGeneration) {
+                    runOnUiThread {
+                        StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, answerContentRaw)
+                    }
+                }
                 val (answerContent, markerInAnswer) =
                         extractAutomationInstruction(answerContentRaw)
                 val automationInstruction =
@@ -3579,31 +3623,18 @@ class MainActivity : AppCompatActivity() {
                 你是 Aries AI。
                 你具备手机自动化相关能力：当任务适合自动化时，你需要给出“可转交执行”的自动化指令；
                 真正执行由系统在用户确认后完成，而不是由你直接执行。
-                
-                你必须严格按以下结构输出（否则我的 Android 应用无法正确渲染）：
-                
-                【思考开始】
-                （这里写你的思考过程）
-                【思考结束】
-                
-                【回答开始】
-                （这里写你的最终回答，使用 Markdown：标题/列表/代码块/表格等）
-                【回答结束】
-                
+
                 要求：
-                1) 以上四个标记必须原样输出，且不要输出其它同名/相似标记。
-                2) 思考内容写在“思考开始/结束”之间；正式回答写在“回答开始/结束”之间。
-                3) 代码块使用三反引号 ``` 并尽量保持语法完整。
-                4) 如果你判断该请求适合转交手机自动化执行，请在“回答区域内”追加且仅追加一行：
+                1) 直接给出最终回答，使用 Markdown：标题/列表/代码块/表格等。
+                2) 代码块使用三反引号 ``` 并尽量保持语法完整。
+                3) 如果你判断该请求适合转交手机自动化执行，请在回复中追加且仅追加一行：
                    [[AUTO_EXECUTE:这里填写可直接执行的中文自动化指令]]
-                5) 自动化指令必须是自然语言任务描述（如“打开手机浏览器并访问 https://www.jd.com”），
+                4) 自动化指令必须是自然语言任务描述（如“打开手机浏览器并访问 https://www.jd.com”），
                    严禁输出 Selenium / JavaScript / Python / Node.js 代码。
-                6) 如果不需要自动化，不要输出 AUTO_EXECUTE 标记。
-                7) 自动化场景回答示例：
-                   【回答开始】
+                5) 如果不需要自动化，不要输出 AUTO_EXECUTE 标记。
+                6) 自动化场景回答示例：
                    我可以帮你执行这个手机操作。
                    [[AUTO_EXECUTE:打开手机浏览器并访问 https://www.jd.com]]
-                   【回答结束】
             """.trimIndent()
         ))
 

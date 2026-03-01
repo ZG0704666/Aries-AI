@@ -8,6 +8,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -41,6 +42,7 @@ import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.content.FileProvider
 import com.ai.phoneagent.data.AttachmentInfo
 import com.ai.phoneagent.helper.AttachmentManager
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -57,19 +59,28 @@ fun AttachmentSelectorPanel(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    
-    // 图片选择器
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris: List<Uri> ->
+
+    fun processPickedUris(uris: List<Uri>) {
         if (uris.isNotEmpty()) {
             coroutineScope.launch {
                 uris.forEach { uri ->
                     attachmentManager.handleAttachment(uri.toString())
                 }
-                onDismiss()
             }
         }
+    }
+    
+    // 图片选择器
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri> ->
+        processPickedUris(uris)
+    }
+
+    val systemPhotoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(20)
+    ) { uris: List<Uri> ->
+        processPickedUris(uris)
     }
     
     // 文件选择器
@@ -82,6 +93,21 @@ fun AttachmentSelectorPanel(
                     attachmentManager.handleAttachment(uri.toString())
                 }
                 onDismiss()
+            }
+        }
+    }
+
+    val launchImagePicker: () -> Unit = {
+        onDismiss()
+        coroutineScope.launch {
+            // 让底部面板先完成收起，避免与系统选择器过渡时颜色不一致
+            delay(120)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                systemPhotoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            } else {
+                imagePickerLauncher.launch("image/*")
             }
         }
     }
@@ -111,7 +137,7 @@ fun AttachmentSelectorPanel(
         AttachmentOption(
             icon = Icons.Default.Image,
             label = "相册",
-            onClick = { imagePickerLauncher.launch("image/*") }
+            onClick = launchImagePicker
         ),
         AttachmentOption(
             icon = Icons.Default.Description,
