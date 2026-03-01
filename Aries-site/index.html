@@ -8,13 +8,7 @@
     <!-- Favicons -->
     <link rel="icon" type="image/png" href="./assets/favicon.png?v=3">
     <link rel="apple-touch-icon" href="./assets/favicon.png?v=3">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="dns-prefetch" href="//fonts.googleapis.com">
-    <link rel="dns-prefetch" href="//fonts.gstatic.com">
-    <link rel="dns-prefetch" href="//static.cloudflareinsights.com">
-    <link rel="preload" as="image" href="./app-screen-q82.jpg" fetchpriority="high">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="./styles/model-marquee.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -76,6 +70,8 @@
         }
     </script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
         :root {
             --safe-top: env(safe-area-inset-top, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -107,9 +103,93 @@
             scroll-behavior: smooth;
         }
 
-        .defer-render {
-            content-visibility: auto;
-            contain-intrinsic-size: 1px 900px;
+        /* ============================================
+           性能优化
+           ============================================ */
+
+        /* GPU硬件加速 */
+        .aurora-blob,
+        .star,
+        .glass-card,
+        .hero-capsule,
+        button,
+        .card-hover-lift,
+        .marquee-track {
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        /* 减少动画复杂度 */
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* 优化will-change */
+        .aurora-blob {
+            will-change: transform, opacity;
+        }
+
+        .star {
+            will-change: opacity, transform;
+        }
+
+        .glass-card:hover,
+        .hero-capsule:hover,
+        button:hover {
+            will-change: transform, box-shadow;
+        }
+
+        /* 移除hover时的will-change */
+        .glass-card:not(:hover),
+        .hero-capsule:not(:hover),
+        button:not(:hover) {
+            will-change: auto;
+        }
+
+        /* 优化滚动性能 */
+        .smooth-scroll {
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 图片和媒体优化 */
+        img,
+        video {
+            max-width: 100%;
+            height: auto;
+            image-rendering: -webkit-optimize-contrast;
+        }
+
+        /* 字体渲染优化 */
+        * {
+            text-rendering: optimizeLegibility;
+        }
+
+        /* 触摸设备优化 */
+        @media (hover: none) and (pointer: coarse) {
+            .aurora-blob {
+                animation: none !important;
+                opacity: 0.2 !important;
+            }
+
+            .star {
+                animation: none !important;
+                opacity: 0.3 !important;
+            }
+
+            /* 减少backdrop-filter */
+            .glass-card {
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+            }
         }
 
         /* --- 1. 动态极光背景 & 星空 --- */
@@ -542,16 +622,43 @@
         }
 
         .app-capsule {
-            padding: 0.95rem 1.9rem;
+            padding: 0.5rem 1.25rem 0.5rem 0.5rem;
             border-radius: 9999px;
             font-size: 1.05rem;
             font-weight: 600;
             white-space: nowrap;
             display: flex;
             align-items: center;
-            gap: 0.7rem;
-            transition: all 0.3s;
+            gap: 0.75rem;
+            transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: default;
+        }
+
+        .app-icon-wrapper {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+            overflow: hidden;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        .app-icon-wrapper img {
+            width: 28px;
+            height: 28px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .app-name {
+            font-weight: 600;
+            font-size: 0.95rem;
         }
 
         html.dark .app-capsule {
@@ -767,9 +874,66 @@
         }
 
         html.light .hero-capsule.glass-card:hover {
-            background: rgba(255, 255, 255, 0.72) !important;
-            border-color: rgba(59, 130, 246, 0.3) !important;
-            box-shadow: 0 16px 46px rgba(15, 23, 42, 0.10), 0 0 0 1px rgba(15, 23, 42, 0.04) inset !important;
+            background: rgba(255, 255, 255, 0.85) !important;
+            border-color: rgba(59, 130, 246, 0.5) !important;
+            box-shadow:
+                0 20px 50px rgba(59, 130, 246, 0.2),
+                0 0 0 1px rgba(59, 130, 246, 0.1) inset,
+                0 0 30px rgba(59, 130, 246, 0.15) !important;
+            transform: scale(1.05) translateY(-2px) !important;
+        }
+
+        /* 亮色模式胶囊特殊效果 */
+        html.light .hero-capsule {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.95)) !important;
+            border: 1px solid rgba(59, 130, 246, 0.25) !important;
+            box-shadow:
+                0 8px 32px rgba(59, 130, 246, 0.15),
+                0 2px 8px rgba(0, 0, 0, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+            position: relative;
+            overflow: hidden !important;
+        }
+
+        /* 亮色模式胶囊光晕效果 */
+        html.light .hero-capsule::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899, #3b82f6);
+            background-size: 300% 100%;
+            border-radius: 9999px;
+            z-index: -1;
+            opacity: 0.4;
+            filter: blur(8px);
+            animation: borderGlow 3s linear infinite;
+        }
+
+        @keyframes borderGlow {
+
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        /* 亮色模式文字增强 */
+        html.light .hero-capsule .text-gradient-flow {
+            background-image: linear-gradient(to right, #2563eb, #7c3aed, #db2777, #2563eb) !important;
+            background-size: 200% auto;
+            animation: textShine 3s linear infinite;
+            font-weight: 700 !important;
+            letter-spacing: 0.02em;
+        }
+
+        @keyframes textShine {
+            to {
+                background-position: 200% center;
+            }
         }
 
         /* --- 新增：高级图标样式 --- */
@@ -846,26 +1010,288 @@
         }
 
         /* --- 7. 移动端优化 --- */
-        @media (max-width: 640px) {
 
-            /* 移动端性能优化：禁用或简化动画 */
+        /* ============================================
+           极简响应式设计
+           ============================================ */
+
+        /* 基础：所有设备默认样式 */
+        html,
+        body {
+            overflow-x: hidden;
+            max-width: 100vw;
+        }
+
+        /* 手机和平板：单列居中布局 */
+        @media (max-width: 1023px) {
+
+            /* 导航栏 */
+            nav .h-20 {
+                height: 3.5rem;
+            }
+
+            nav img {
+                width: 34px;
+                height: 34px;
+            }
+
+            nav span.text-xl {
+                font-size: 1.1rem;
+            }
+
+            /* Header */
+            header {
+                padding-top: calc(5rem + var(--safe-top));
+                padding-bottom: 2.5rem;
+                min-height: 100vh;
+                min-height: 100dvh;
+            }
+
+            /* 强制单列布局 */
+            .hero-grid {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 2rem;
+            }
+
+            /* 强制内容居中 */
+            .hero-content {
+                width: 100%;
+                max-width: 100%;
+                padding: 0 1rem;
+                margin: 0 auto;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            /* 隐藏Hero区域的手机图片 */
+            .hero-phone {
+                display: none !important;
+            }
+
+            /* 手机展示区域 */
+            .phone-showcase {
+                display: flex;
+                padding: 2rem 0;
+                min-height: auto;
+            }
+
+            /* 字体大小 */
+            h1 {
+                font-size: 1.85rem;
+                line-height: 1.15;
+            }
+
+            .hero-capsule {
+                padding: 12px 20px;
+                margin: 0 auto 1.25rem;
+                max-width: 92%;
+            }
+
+            .hero-capsule>span {
+                font-size: 13px;
+                gap: 6px;
+                white-space: normal;
+            }
+
+            .model-badge {
+                font-size: 10px;
+                padding: 6px 14px;
+            }
+
+            header p {
+                font-size: 0.95rem;
+                margin: 0.75rem 0 1.5rem;
+            }
+
+            /* 按钮 */
+            #btn-download-hero,
+            header button {
+                font-size: 0.9rem;
+                padding: 0.875rem 1.75rem;
+            }
+
+            /* 按钮垂直排列 */
+            header .flex.flex-col.sm\:flex-row {
+                flex-direction: column;
+                gap: 0.75rem;
+                width: 100%;
+            }
+
+            /* 性能优化 */
             .aurora-blob {
-                animation: none !important;
-                opacity: 0.25 !important;
+                animation: none;
+                opacity: 0.25;
             }
 
             .star {
-                animation: none !important;
-                opacity: 0.4 !important;
+                animation: none;
+                opacity: 0.4;
+            }
+        }
+
+        /* 超小屏幕 */
+        @media (max-width: 374px) {
+            h1 {
+                font-size: 1.6rem;
             }
 
-            button,
-            a[role="button"] {
-                min-height: 44px;
-                min-width: 44px;
-                padding: 0.6rem 0.9rem;
+            .hero-capsule {
+                padding: 10px 16px;
             }
 
+            .hero-capsule>span {
+                font-size: 12px;
+            }
+        }
+
+        /* 平板端优化 (768px - 1023px) */
+        @media (min-width: 768px) and (max-width: 1023px) {
+
+            /* 胶囊单行显示 */
+            .hero-capsule span.lg\:hidden {
+                display: none !important;
+            }
+
+            .hero-capsule span.hidden.lg\:inline {
+                display: inline !important;
+            }
+
+            .hero-capsule {
+                padding: 14px 32px;
+                font-size: 1.1rem;
+            }
+        }
+
+        /* 电脑端：双列布局 - 大气分散 */
+        @media (min-width: 1024px) {
+            header {
+                padding: 8rem 3rem 6rem;
+            }
+
+            header .max-w-7xl {
+                max-width: 1400px;
+            }
+
+            .hero-grid {
+                display: grid;
+                grid-template-columns: 1.1fr 0.9fr;
+                gap: 8rem;
+                align-items: center;
+            }
+
+            .hero-content {
+                text-align: left;
+                align-items: flex-start;
+                padding: 0 2rem;
+                max-width: 700px;
+            }
+
+            /* 胶囊位置调整 */
+            .hero-capsule {
+                margin-bottom: 3.5rem;
+                padding: 16px 36px;
+                font-size: 1.1rem;
+            }
+
+            /* 徽章间距 */
+            .model-badge {
+                margin-bottom: 3rem;
+                font-size: 12px;
+                padding: 8px 20px;
+            }
+
+            /* 标题间距 */
+            h1 {
+                margin-bottom: 3rem;
+                line-height: 1.1;
+                font-size: 4.5rem;
+            }
+
+            h1 span.block:first-child {
+                margin-bottom: 1rem;
+            }
+
+            h1 span.block:last-child {
+                font-size: 4rem;
+            }
+
+            /* 描述文字间距 */
+            header p {
+                margin: 3rem 0 3.5rem;
+                font-size: 1.25rem;
+                line-height: 1.9;
+                max-width: 85%;
+            }
+
+            /* 按钮区域 */
+            header .flex.flex-col.sm\:flex-row {
+                gap: 2rem;
+                margin-top: 1.5rem;
+            }
+
+            /* 按钮尺寸 */
+            #btn-download-hero,
+            header button {
+                padding: 1.25rem 3rem;
+                font-size: 1.1rem;
+            }
+
+            /* 右侧手机图片 */
+            .hero-phone {
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+                padding-right: 1rem;
+                overflow: visible;
+            }
+
+            .hero-phone>div {
+                transform: scale(1.05);
+                max-width: 100%;
+            }
+
+            /* 隐藏单独的手机展示区域 */
+            .phone-showcase {
+                display: none !important;
+            }
+        }
+
+        /* 大屏幕进一步优化 */
+        @media (min-width: 1280px) {
+            .hero-grid {
+                gap: 10rem;
+            }
+
+            .hero-content {
+                max-width: 750px;
+                padding: 0 3rem;
+            }
+
+            h1 {
+                font-size: 5.5rem;
+            }
+
+            h1 span.block:last-child {
+                font-size: 5rem;
+            }
+
+            header p {
+                font-size: 1.35rem;
+                max-width: 80%;
+            }
+
+            .hero-phone>div {
+                transform: scale(1.08);
+            }
+        }
+
+        /* 通用移动端样式 */
+        @media (max-width: 640px) {
             #download-modal {
                 padding: 12px !important;
             }
@@ -881,50 +1307,25 @@
                 font-size: 0.875rem;
             }
 
-            nav .h-20 {
-                height: 4rem;
-            }
-
-            header {
-                padding-top: calc(6rem + var(--safe-top)) !important;
-                padding-bottom: 5rem !important;
-            }
-
+            /* Hero胶囊优化 */
             .hero-capsule {
                 border-radius: 9999px !important;
                 background: rgba(255, 255, 255, 0.15) !important;
-                padding: 10px 16px !important;
-                display: inline-flex !important;
-                justify-content: center !important;
-                align-items: center !important;
-                min-height: auto !important;
-                height: auto !important;
-                width: auto !important;
-                max-width: 95% !important;
-                margin: 0 auto 2.5rem auto !important;
             }
 
-            .hero-capsule>span.flex {
+            .hero-capsule>span {
                 display: flex !important;
                 flex-direction: row !important;
                 align-items: center !important;
                 justify-content: center !important;
                 flex-wrap: nowrap !important;
-                gap: 8px !important;
-            }
-
-            .hero-capsule>span.flex>span:first-child {
-                flex-shrink: 0;
-                display: inline-block;
-                font-size: 0.95rem !important;
                 margin-top: -1px;
             }
 
-            .hero-capsule>span.flex>span:last-child {
-                font-size: 13px !important;
-                line-height: 1.3 !important;
-                text-align: left;
-                white-space: normal !important;
+            .hero-capsule>span>span:last-child {
+                font-size: 15px !important;
+                line-height: 1.4 !important;
+                text-align: center;
             }
 
             .hero-capsule span {
@@ -938,6 +1339,14 @@
                 justify-content: center;
             }
 
+            /* Model Badge 优化 */
+            .model-badge {
+                font-size: 11px !important;
+                padding: 7px 16px !important;
+                margin-bottom: 1.125rem !important;
+                letter-spacing: 0.2em !important;
+            }
+
             .marquee-wrapper {
                 padding: 5px 0;
             }
@@ -947,7 +1356,23 @@
             }
 
             .app-capsule {
-                padding: 0.5rem 1rem;
+                padding: 0.35rem 0.9rem 0.35rem 0.35rem;
+                font-size: 0.8rem;
+                gap: 0.4rem;
+            }
+
+            .app-icon-wrapper {
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+            }
+
+            .app-icon-wrapper img {
+                width: 22px;
+                height: 22px;
+            }
+
+            .app-name {
                 font-size: 0.8rem;
             }
 
@@ -970,8 +1395,8 @@
             }
 
             section {
-                padding-left: 0.875rem;
-                padding-right: 0.875rem;
+                padding-left: 1rem;
+                padding-right: 1rem;
                 padding-top: 3rem;
                 padding-bottom: 3rem;
             }
@@ -981,25 +1406,28 @@
                 padding: 1.25rem !important;
             }
 
+            /* 标题字体优化 */
             h1 {
-                font-size: 2rem !important;
-                line-height: 1.15 !important;
+                font-size: 2.25rem !important;
+                line-height: 1.2 !important;
+                margin-bottom: 1rem !important;
             }
 
             h2 {
-                font-size: 1.35rem !important;
+                font-size: 1.5rem !important;
             }
 
             h3 {
-                font-size: 1.1rem !important;
+                font-size: 1.2rem !important;
             }
 
             h4 {
-                font-size: 0.95rem !important;
+                font-size: 1rem !important;
             }
 
+            /* 段落优化 */
             p {
-                font-size: 0.95rem !important;
+                font-size: 1rem !important;
                 line-height: 1.6 !important;
             }
 
@@ -1013,35 +1441,134 @@
                 height: 22px;
             }
 
-            .model-badge {
-                font-size: 10px !important;
-                padding: 5px 12px !important;
-                margin-bottom: 1.5rem !important;
-            }
-
             header .grid {
                 gap: 2rem !important;
             }
 
-            header h1 {
+            header p {
+                margin-top: 0.75rem !important;
                 margin-bottom: 1.5rem !important;
             }
 
-            header p {
-                margin-top: 1.25rem !important;
-                margin-bottom: 2.5rem !important;
+            header .mt-8,
+            header .mt-10,
+            header .mt-16 {
+                margin-top: 2rem !important;
             }
 
+            /* 按钮优化 */
             #btn-download-hero,
             #btn-download-nav,
             header button {
-                font-size: 0.9rem !important;
-                padding: 0.85rem 1.75rem !important;
-                min-height: 48px !important;
+                font-size: 1rem !important;
+                padding: 1rem 2.25rem !important;
+                min-height: 54px !important;
             }
 
             header .flex.flex-col {
-                gap: 1.25rem !important;
+                gap: 1rem !important;
+            }
+
+            header .flex.flex-col.sm\:flex-row {
+                flex-direction: column !important;
+            }
+
+            /* 手机展示区域优化 */
+            section.min-h-screen.lg\:hidden {
+                padding-top: 3rem !important;
+                padding-bottom: 3rem !important;
+                min-height: auto !important;
+            }
+
+            /* 核心能力区域优化 */
+            #features .grid.lg\:grid-cols-2 {
+                gap: 1.5rem !important;
+            }
+
+            #features .glass-card {
+                padding: 1.5rem !important;
+            }
+
+            #features h2 {
+                font-size: 1.5rem !important;
+                margin-bottom: 1.5rem !important;
+            }
+
+            #features .space-y-6 {
+                gap: 1rem !important;
+            }
+
+            #features .flex.gap-5 {
+                gap: 0.875rem !important;
+            }
+
+            /* 架构图区域优化 */
+            #features .glass-card.rounded-\[1\.5rem\] {
+                padding: 1.25rem !important;
+            }
+
+            #features .glass-card.rounded-\[1\.5rem\] .space-y-6 {
+                gap: 0.875rem !important;
+            }
+
+            #features .glass-card.rounded-\[1\.5rem\] .glass-card {
+                padding: 0.875rem 1rem !important;
+            }
+
+            #features .glass-card.rounded-\[1\.5rem\] .tech-icon-box {
+                width: 40px;
+                height: 40px;
+                border-radius: 10px;
+            }
+
+            #features .glass-card.rounded-\[1\.5rem\] .icon-svg {
+                width: 20px;
+                height: 20px;
+            }
+
+            /* 成功案例区域优化 */
+            #cases .grid.md\:grid-cols-3 {
+                grid-template-columns: 1fr !important;
+                gap: 1rem !important;
+            }
+
+            #cases h2 {
+                margin-bottom: 2rem !important;
+            }
+
+            /* 路线图区域优化 */
+            #roadmap .grid.md\:grid-cols-2 {
+                grid-template-columns: 1fr !important;
+                gap: 1rem !important;
+            }
+
+            #roadmap .glass-card {
+                padding: 1.25rem !important;
+            }
+
+            /* Footer 优化 */
+            footer .flex.flex-wrap {
+                gap: 0.75rem !important;
+            }
+
+            footer .glass-card {
+                padding: 0.5rem 0.875rem !important;
+                font-size: 0.875rem !important;
+            }
+
+            /* 主题切换按钮优化 */
+            .theme-toggle {
+                width: 48px;
+                height: 26px;
+            }
+
+            .toggle-dot {
+                width: 20px;
+                height: 20px;
+            }
+
+            html.dark .toggle-dot {
+                transform: translateX(22px);
             }
         }
 
@@ -1056,50 +1583,91 @@
             }
 
             h1 {
-                font-size: 1.75rem !important;
+                font-size: 1.85rem !important;
+                margin-bottom: 1rem !important;
             }
 
             h2 {
-                font-size: 1.2rem !important;
+                font-size: 1.35rem !important;
             }
 
             header {
-                padding-top: calc(5.5rem + var(--safe-top)) !important;
-                padding-bottom: 4rem !important;
+                padding-top: calc(5rem + var(--safe-top)) !important;
+                padding-bottom: 2.5rem !important;
+                min-height: 100vh !important;
+                min-height: 100dvh !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+            }
+
+            header>div {
+                width: 100% !important;
+            }
+
+            header .max-w-xl {
+                max-width: 100% !important;
+                padding-left: 1rem;
+                padding-right: 1rem;
             }
 
             .hero-capsule {
-                padding: 8px 12px !important;
-                margin: 0 auto 2rem auto !important;
+                padding: 12px 22px !important;
+                margin: 0 auto 1.25rem auto !important;
+                max-width: 92% !important;
+                border-radius: 9999px !important;
+                min-width: auto !important;
+                width: auto !important;
             }
 
-            .hero-capsule>span.flex>span:first-child {
-                font-size: 0.85rem !important;
+            .hero-capsule>span {
+                font-size: 14px !important;
+                gap: 8px !important;
+                white-space: normal !important;
+                line-height: 1.4 !important;
             }
 
-            .hero-capsule>span.flex>span:last-child {
-                font-size: 12px !important;
+            .hero-capsule>span>span:first-child {
+                font-size: 16px !important;
+                flex-shrink: 0 !important;
+            }
+
+            .hero-capsule>span>span:last-child {
+                font-size: 14px !important;
+                line-height: 1.4 !important;
             }
 
             .model-badge {
-                margin-bottom: 1.25rem !important;
-            }
-
-            header h1 {
-                margin-bottom: 1.25rem !important;
+                margin-bottom: 1.125rem !important;
+                font-size: 10px !important;
+                padding: 6px 14px !important;
             }
 
             header p {
-                margin-top: 1rem !important;
-                margin-bottom: 2rem !important;
+                margin-top: 0.75rem !important;
+                margin-bottom: 1.75rem !important;
+                font-size: 0.95rem !important;
             }
 
             header .flex.flex-col {
                 gap: 1rem !important;
             }
 
+            header .mt-8,
+            header .mt-10,
+            header .mt-16 {
+                margin-top: 1.75rem !important;
+            }
+
             p {
                 font-size: 0.9rem !important;
+            }
+
+            #btn-download-hero,
+            header button {
+                font-size: 0.95rem !important;
+                padding: 1rem 2rem !important;
+                min-height: 52px !important;
             }
         }
 
@@ -1109,13 +1677,14 @@
 
         .reveal-on-scroll {
             opacity: 0;
-            transform: translateY(30px);
-            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+            transform: translateY(40px) scale(0.96);
+            transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            will-change: transform, opacity;
         }
 
         .reveal-on-scroll.revealed {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
         }
 
         .card-hover-lift {
@@ -1176,22 +1745,42 @@
             <div class="flex justify-between h-20 items-center">
                 <!-- Logo -->
                 <div class="flex items-center gap-3 cursor-pointer group" onclick="window.scrollTo(0,0)">
-                    <img src="./assets/favicon.png" alt="Aries AI" decoding="async"
+                    <img src="./assets/favicon.png" alt="Aries AI"
                         class="w-10 h-10 rounded-xl shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300 object-cover">
                     <span class="text-xl font-bold tracking-tight dark:text-white text-gray-900 transition-colors">Aries
                         AI</span>
                 </div>
 
 
-                <!-- Hamburger Mobile Menu Button -->
-                <button
-                    class="md:hidden w-10 h-10 flex items-center justify-center rounded-full glass-card border border-white/10 text-gray-600 dark:text-gray-300 active:scale-95 transition"
-                    onclick="toggleMobileMenu()">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
-                </button>
+                <!-- 移动端顶部控制区：左侧主题切换，右侧菜单按钮 -->
+                <div class="md:hidden flex items-center gap-3">
+                    <!-- Theme Toggle (左侧) -->
+                    <div class="relative flex flex-col items-center">
+                        <div class="theme-toggle" onclick="toggleTheme()">
+                            <div class="toggle-dot">
+                                <svg class="w-3 h-3 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <svg class="w-3 h-3 hidden dark:block" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hamburger Mobile Menu Button (右侧) -->
+                    <button
+                        class="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 border border-white/10 dark:bg-white/10 dark:border-white/10 text-gray-600 dark:text-gray-300 active:scale-95 transition"
+                        onclick="toggleMobileMenu()">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                </div>
 
                 <!-- Menu (Order Updated) -->
                 <div class="hidden md:flex items-center space-x-8 font-medium text-sm">
@@ -1235,18 +1824,19 @@
     </nav>
 
     <!-- Hero Section -->
-    <header class="relative min-h-screen px-5 sm:px-8 pt-24 pb-14 overflow-hidden">
-        <div class="max-w-7xl mx-auto relative z-10">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+    <header class="relative min-h-screen px-4 sm:px-6 lg:px-8 pt-24 pb-14 overflow-hidden">
+        <div class="max-w-7xl mx-auto relative z-10 w-full h-full">
+            <div class="hero-grid grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center h-full">
 
                 <!-- Left: Copy -->
-                <div class="text-center max-w-xl lg:max-w-[560px] lg:ml-auto lg:mr-4 mx-auto">
+                <div
+                    class="hero-content text-center max-w-xl lg:max-w-[560px] mx-auto w-full flex flex-col items-center justify-center">
                     <div
-                        class="hero-capsule relative inline-flex items-center justify-center text-center max-w-[92%] sm:max-w-[560px] glass-card rounded-full px-5 sm:px-10 py-3 sm:py-4 mb-7 cursor-pointer hover:scale-105 transition-transform duration-300 group shadow-[0_0_35px_rgba(59,130,246,0.3)] border border-blue-400/30">
+                        class="hero-capsule relative inline-flex items-center justify-center text-center glass-card rounded-full px-5 sm:px-8 py-3 sm:py-3.5 mb-6 sm:mb-7 cursor-pointer hover:scale-105 transition-transform duration-300 group shadow-[0_0_35px_rgba(59,130,246,0.3)] border border-blue-400/30">
                         <span
-                            class="relative z-10 font-bold text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 text-gradient-flow tracking-wide text-center">
-                            <span class="animate-bounce-slight text-base sm:text-xl">✨</span>
-                            <span class="text-center">想旅行？说走就走！Aries 支持一句话定高铁票/机票！</span>
+                            class="relative z-10 font-bold text-xs sm:text-sm md:text-base text-gradient-flow tracking-wide text-center leading-snug lg:whitespace-nowrap">
+                            <span class="lg:hidden">想旅行？Aries 一句话定<br>高铁票/机票！</span>
+                            <span class="hidden lg:inline">想旅行？Aries 一句话定高铁票/机票！</span>
                         </span>
                     </div>
 
@@ -1256,9 +1846,9 @@
                     </span>
 
                     <h1
-                        class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold dark:text-white text-gray-900 tracking-tight leading-[1.05]">
-                        开启手机智能
-                        <span class="gradient-text-fix mt-2 pb-2 block">新交互时代</span>
+                        class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold dark:text-white text-gray-900 tracking-tight leading-[1.1] whitespace-nowrap">
+                        <span class="block">开启手机智能</span>
+                        <span class="gradient-text-fix mt-1 sm:mt-2 block">新交互时代</span>
                     </h1>
 
                     <p
@@ -1282,9 +1872,10 @@
                     </div>
 
                     <!-- 手机端向下滚动提示 -->
-                    <div class="mt-16 flex justify-center lg:hidden">
+                    <div class="mt-8 sm:mt-10 flex justify-center lg:hidden">
                         <div class="animate-bounce">
-                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
                             </svg>
@@ -1292,9 +1883,9 @@
                     </div>
                 </div>
 
-                <!-- Right: Phone mockup (只在电脑端显示) -->
-                <div class="relative flex justify-center lg:justify-end hidden lg:flex">
-                    <div class="relative w-[270px] sm:w-[320px] md:w-[360px] lg:w-[390px] max-w-full">
+                <!-- Right: Phone mockup (电脑端显示) -->
+                <div class="hero-phone relative flex justify-center lg:justify-end hidden lg:flex">
+                    <div class="relative w-[270px] sm:w-[320px] md:w-[340px] lg:w-[390px] max-w-full">
                         <div
                             class="pointer-events-none absolute -inset-10 rounded-[48px] bg-gradient-to-br from-blue-500/25 via-purple-500/18 to-pink-500/18 blur-[40px] dark:from-blue-500/20 dark:via-purple-500/16 dark:to-pink-500/14">
                         </div>
@@ -1309,8 +1900,7 @@
 
                             <div
                                 class="relative rounded-[34px] overflow-hidden bg-white dark:bg-black border border-black/10 dark:border-white/10">
-                                <img src="app-screen-q82.jpg" alt="Aries AI 手机界面" width="1170" height="2532"
-                                    fetchpriority="high" decoding="async" class="block w-full h-auto select-none" />
+                                <img src="APP界面.jpg" alt="Aries AI 手机界面" class="block w-full h-auto select-none" />
 
                                 <div
                                     class="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/45 via-white/0 to-white/0 dark:from-white/10">
@@ -1330,8 +1920,8 @@
         </div>
     </header>
 
-    <!-- 手机展示区域 (只在手机端显示，占据第二屏) -->
-    <section class="min-h-screen flex items-center justify-center relative z-10 lg:hidden">
+    <!-- 手机展示区域 (在手机端和平板端显示，占据第二屏) -->
+    <section class="phone-showcase min-h-screen flex items-center justify-center relative z-10 lg:hidden">
         <div class="max-w-7xl mx-auto px-5 sm:px-8">
             <div class="flex justify-center items-center">
                 <div class="relative w-[280px] sm:w-[320px] max-w-full">
@@ -1346,8 +1936,7 @@
                         </div>
                         <div
                             class="relative rounded-[34px] overflow-hidden bg-white dark:bg-black border border-black/10 dark:border-white/10">
-                            <img src="app-screen-q82.jpg" alt="Aries AI 手机界面" width="1170" height="2532" loading="lazy"
-                                decoding="async" class="block w-full h-auto select-none" />
+                            <img src="APP界面.jpg" alt="Aries AI 手机界面" class="block w-full h-auto select-none" />
                             <div
                                 class="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/45 via-white/0 to-white/0 dark:from-white/10">
                             </div>
@@ -1372,8 +1961,18 @@
         </div>
     </section>
 
+    <!-- 模型提供商滚动展示 -->
+    <section class="model-marquee-section relative z-10">
+        <div class="model-marquee-header">
+            <h2 class="model-marquee-title">支持 20+ 主流大模型服务商</h2>
+        </div>
+        <div class="model-marquee-container" id="model-marquee-row-1">
+            <div class="model-marquee-track"></div>
+        </div>
+    </section>
+
     <!-- 核心能力 -->
-    <section id="features" class="py-16 md:py-24 relative z-10 defer-render">
+    <section id="features" class="py-16 md:py-24 relative z-10">
         <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12">
             <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-stretch">
 
@@ -1527,7 +2126,7 @@
     </section>
 
     <!-- 成功案例 (Moved UP) -->
-    <section id="cases" class="py-16 md:py-24 relative z-10 border-t dark:border-white/5 border-gray-200 defer-render">
+    <section id="cases" class="py-16 md:py-24 relative z-10 border-t dark:border-white/5 border-gray-200">
         <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12">
             <h2
                 class="text-2xl md:text-3xl font-bold text-center mb-12 md:mb-16 dark:text-white text-gray-900 section-title">
@@ -1584,35 +2183,37 @@
 
     <!-- 支持应用 (Moved DOWN & Dynamics Updated) -->
     <section id="apps"
-        class="py-16 md:py-24 relative z-10 dark:bg-white/5 bg-white/30 backdrop-blur-sm overflow-hidden defer-render">
-        <div class="relative z-10 w-full flex flex-col items-center">
-            <div
-                class="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[980px] h-[420px] rounded-full bg-gradient-to-r from-blue-500/25 via-purple-500/25 to-pink-500/25 blur-[70px]">
-            </div>
-            <div
-                class="pointer-events-none absolute -bottom-28 left-1/2 -translate-x-1/2 w-[820px] h-[380px] rounded-full bg-gradient-to-r from-cyan-400/15 via-sky-500/15 to-fuchsia-500/15 blur-[80px]">
-            </div>
+        class="py-16 md:py-24 relative z-10 dark:bg-white/5 bg-white/30 backdrop-blur-sm overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+            <div class="flex flex-col items-center">
+                <div
+                    class="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[980px] h-[420px] rounded-full bg-gradient-to-r from-blue-500/25 via-purple-500/25 to-pink-500/25 blur-[70px]">
+                </div>
+                <div
+                    class="pointer-events-none absolute -bottom-28 left-1/2 -translate-x-1/2 w-[820px] h-[380px] rounded-full bg-gradient-to-r from-cyan-400/15 via-sky-500/15 to-fuchsia-500/15 blur-[80px]">
+                </div>
 
-            <h2 class="text-2xl font-bold text-center mb-4 dark:text-white text-gray-900 section-title relative">
-                适配100+款主流应用
-                <span
-                    class="block mx-auto mt-3 h-[3px] w-20 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 shadow-[0_0_18px_rgba(99,102,241,0.35)]"></span>
-            </h2>
-            <p class="text-center dark:text-gray-300 text-gray-700 mb-12 mt-6 text-sm">覆盖社交、购物、出行、娱乐全场景生态</p>
+                <h2 class="text-2xl font-bold text-center mb-4 dark:text-white text-gray-900 section-title relative">
+                    适配100+款主流应用
+                    <span
+                        class="block mx-auto mt-3 h-[3px] w-20 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 shadow-[0_0_18px_rgba(99,102,241,0.35)]"></span>
+                </h2>
+                <p class="text-center dark:text-gray-300 text-gray-700 mb-12 mt-6 text-sm">覆盖社交、购物、出行、娱乐全场景生态</p>
 
-            <!-- Speed control handled by JS with decay -->
-            <div class="marquee-wrapper w-full" id="marquee-row-1" data-direction="-1">
-                <div class="marquee-track marquee-left"></div>
-            </div>
+                <!-- Speed control handled by JS with decay -->
+                <div class="marquee-wrapper w-full" id="marquee-row-1" data-direction="-1">
+                    <div class="marquee-track marquee-left"></div>
+                </div>
 
-            <div class="marquee-wrapper w-full" id="marquee-row-2" data-direction="1">
-                <div class="marquee-track marquee-right"></div>
+                <div class="marquee-wrapper w-full" id="marquee-row-2" data-direction="1">
+                    <div class="marquee-track marquee-right"></div>
+                </div>
             </div>
         </div>
     </section>
 
     <!-- 路线图 -->
-    <section id="roadmap" class="py-16 md:py-24 relative z-10 defer-render">
+    <section id="roadmap" class="py-16 md:py-24 relative z-10">
         <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12">
             <h2
                 class="text-2xl md:text-3xl font-bold text-center mb-12 md:mb-16 dark:text-white text-gray-900 section-title">
@@ -1662,7 +2263,7 @@
 
     <!-- Footer -->
     <footer
-        class="mt-auto dark:bg-black/90 bg-white/80 backdrop-blur-md border-t dark:border-white/5 border-gray-200 py-10 md:py-12 relative z-10 defer-render">
+        class="mt-auto dark:bg-black/90 bg-white/80 backdrop-blur-md border-t dark:border-white/5 border-gray-200 py-10 md:py-12 relative z-10">
         <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 text-center">
             <h3 class="text-xl font-extrabold mb-5 dark:text-white text-gray-900 section-title inline-block">联系我们</h3>
 
@@ -1724,11 +2325,11 @@
         <div
             class="relative glass-card modal-panel w-full max-w-md sm:max-w-lg md:max-w-2xl p-5 sm:p-6 md:p-8 text-left rounded-2xl shadow-2xl dark:text-white text-gray-900 max-h-[90vh] overflow-y-auto">
             <button id="download-modal-close"
-                class="absolute top-4 right-4 sm:top-5 sm:right-5 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors"
-                type="button" aria-label="关闭">✕</button>
+                class="absolute top-4 right-4 sm:top-5 sm:right-5 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/15 transition-colors z-50 cursor-pointer"
+                type="button" aria-label="关闭" onclick="closeDownloadModal()">✕</button>
 
             <div class="flex items-start gap-3 sm:gap-4 mb-6 pr-12">
-                <img src="./assets/favicon.png" alt="Aries AI 图标" loading="lazy" decoding="async"
+                <img src="./assets/favicon.png" alt="Aries AI 图标"
                     class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl shadow-xl border border-white/20 flex-shrink-0 object-cover" />
                 <div class="flex-1 pt-1">
                     <p class="text-xs uppercase tracking-[0.2em] text-blue-400 mb-1 sm:mb-2">Aries AI</p>
@@ -1743,8 +2344,7 @@
                     target="_blank" rel="noopener noreferrer">
                     <div class="flex-1">
                         <div class="text-sm sm:text-base md:text-lg font-semibold">官方直连</div>
-                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">GitHub Releases V1.2.0
-                        </div>
+                        <div class="text-xs sm:text-sm mt-1 dark:text-gray-300 text-gray-600">GitHub Releases</div>
                     </div>
                     <span
                         class="text-xs sm:text-sm font-semibold text-blue-400 whitespace-nowrap self-start sm:self-auto mt-1 sm:mt-0">官方</span>
@@ -1778,7 +2378,9 @@
     </div>
     </div>
 
-    <script src="./assets/app.js" defer></script>
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+    <script src="./scripts/model-marquee.js"></script>
+    <script src="./assets/app.js"></script>
     <script>
         // Fallback / Inline script to ensure mobile menu works even if app.js fails or is cached
         function toggleMobileMenu() {
@@ -1801,9 +2403,26 @@
                 document.body.style.overflow = ''; // Restore scrolling
             }
         }
+
+        // 关闭下载弹窗
+        function closeDownloadModal() {
+            const modal = document.getElementById('download-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                modal.setAttribute('aria-hidden', 'true');
+            }
+        }
+
         // Expose to window immediately
         window.toggleMobileMenu = toggleMobileMenu;
+        window.closeDownloadModal = closeDownloadModal;
     </script>
+
+
+    <!-- Cloudflare Pages Analytics -->
+    <script defer src='https://static.cloudflareinsights.com/beacon.min.js'
+        data-cf-beacon='{"token": "156f8e672ec9456e96bfed3333888630"}'></script><!-- Cloudflare Pages Analytics -->
     <script defer
         src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015"
         integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ=="
@@ -1841,23 +2460,6 @@
             </div>
 
             <div class="pt-6 border-t border-gray-200/10 dark:border-white/5 space-y-4">
-                <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-600 dark:text-gray-400">外观主题</span>
-                    <div class="theme-toggle" onclick="toggleTheme()">
-                        <div class="toggle-dot">
-                            <svg class="w-3 h-3 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                            <svg class="w-3 h-3 hidden dark:block" fill="none" viewBox="0 0 24 24"
-                                stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-
                 <div
                     class="text-xs text-slate-500 dark:text-slate-400 pt-4 border-t border-gray-100 dark:border-white/5 space-y-2">
                     <p class="font-bold mb-1 text-slate-700 dark:text-slate-300">联系我们</p>

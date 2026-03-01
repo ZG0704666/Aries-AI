@@ -777,7 +777,7 @@ cd phone-agent
 
 ## 开发指南
 
-详见 [BUILDING.md](docs/BUILDING.md)
+详见 [BUILDING.md](./BUILDING.md)
 
 ## 代码规范
 
@@ -821,6 +821,6 @@ cd phone-agent
 
 ---
 
-**文档版本**：v1.0
-**最后更新**：2026-01-09
-**维护人**：项目负责人
+**文档版本**：v1.3
+**最后更新**：2026-02-28
+**维护人**：ZG0704666

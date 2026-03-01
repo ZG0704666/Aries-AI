@@ -1,353 +1,412 @@
-# Aries AI 🚀
-
 <div align="center">
 
-<img src="Aries-site/assets/favicon_rounded.png" width="120" height="120" alt="Aries AI Logo">
+<img src="Aries-site/assets/favicon_rounded.png" width="140" alt="Aries AI">
 
-**让大模型在 Android 上丝滑执行 UI 自动化任务的推理加速引擎**
+# Aries AI
 
-[![AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Android](https://img.shields.io/badge/Platform-Android%2011%20--%2036-brightgreen.svg)]()
-[![Kotlin](https://img.shields.io/badge/Language-Kotlin-orange.svg)]()
-[![GitHub Stars](https://img.shields.io/github/stars/ZG0704666/Aries-AI?style=social)](https://github.com/ZG0704666/Aries-AI)
+**开源 Android AI 自动化引擎**
 
-[![QQ群](https://img.shields.io/badge/QQ群-746439473-12B7F5?logo=tencent-qq&logoColor=white)](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=&authKey=&noverify=0&group_code=746439473)
-[![Email](https://img.shields.io/badge/Email-zhangyongqi@njit.edu.cn-EA4335?logo=gmail&logoColor=white)](mailto:zhangyongqi@njit.edu.cn)
-[![Issues](https://img.shields.io/badge/Issues-欢迎反馈-green?logo=github)](https://github.com/ZG0704666/Aries-AI/issues)
+让普通 Android 手机也能实现 AI 自动化功能
+
+[![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Android%2011+-green.svg)]()
+[![Kotlin](https://img.shields.io/badge/Kotlin-1.9+-purple.svg)]()
+[![Stars](https://img.shields.io/github/stars/ZG0704666/Aries-AI?style=social)](https://github.com/ZG0704666/Aries-AI)
+
+[快速开始](#-快速开始) • [功能特性](#-功能特性) • [使用文档](#-使用文档) • [开发指南](#-开发指南) • [加入社区](#-社区)
 
 </div>
 
 ---
 
-## ✨ 核心特性
+## 🎯 项目简介
 
-| 特性 | 说明 |
-|------|------|
-| **虚拟屏幕后台执行** | 创建独立虚拟屏幕运行自动化任务，不影响主屏幕，焦点输入完全隔离 |
-| **实时预览窗口** | 浮动窗口实时显示虚拟屏幕操作画面，支持最小化/恢复，进度可视 |
-| **智能截图压缩** | 质量 85%，最大 150KB，80% 缩放，平衡清晰度与传输体积 |
-| **流式早停机制** | 识别可执行动作后提前结束，减少等待时间 |
-| **并行状态采集** | 截图与 UI 树同时获取，避免串行等待 |
-| **Tap+Type 合并** | 连续点击+输入操作合并执行，减少交互轮次 |
-| **智能缓存策略** | 页面截图缓存复用，TTL 过期机制防止数据过期 |
-| **上下文管理** | 基于 Token 估算的对话截断，保持上下文在合理范围 |
+Aries AI 是一个开源的 Android UI 自动化引擎，让普通 Android 手机也能实现类似豆包手机的 AI 自动化功能。通过接入大语言模型，AI 可以理解屏幕内容并自动执行复杂任务。
+
+**为什么选择 Aries AI**：
+- 📱 **广泛兼容**：支持 Android 11+ 设备，无需特定硬件
+- 🔓 **完全开源**：代码透明，可自由定制和扩展
+- 🚀 **性能优化**：多项加速技术，响应时间 1.8s，成功率 94%
+- 🖥️ **后台运行**：虚拟屏幕技术，不干扰主屏幕使用
+- 🔌 **模型灵活**：兼容 OpenAI 接口，支持 20+ 种大模型
+
+**典型应用场景**：
+- 自动化订票、预订餐厅等日常任务
+- 批量处理重复性操作
+- 应用自动化测试
+- 数据采集与爬虫
 
 ---
 
-## 📊 性能数据
+## ✨ 功能特性
 
-基于典型 UI 自动化任务的实测结果：
+### 核心功能
 
-| 指标 | 优化前 | 优化后 |
-|------|--------|--------|
-| 平均响应时间 | ~3.2s | ~1.8s |
-| 截图传输大小 | ~250KB | ~85KB |
-| UI 树处理 | ~5000 chars | ~3000 chars |
-| 状态采集方式 | 串行 | 并行 |
-| 任务成功率 | ~82% | ~94% |
+| 功能 | 说明 |
+|------|------|
+| **虚拟屏幕执行** | 在独立虚拟屏幕中运行任务，主屏幕完全不受影响，支持实时预览 |
+| **多模型支持** | 兼容 OpenAI 接口标准，支持 20+ 种大模型（GLM、DeepSeek、Qwen 等） |
+| **语音交互** | 支持语音输入任务指令，基于 Sherpa-ncnn 离线识别 |
+| **预设任务** | 内置餐厅预订、火车票、机票等常用场景模板 |
+| **完全开源** | 代码透明可审计，支持自定义扩展和二次开发 |
+
+### 性能优化
+
+<table>
+<tr>
+<td width="50%">
+
+**输入优化**
+- 智能截图压缩（85% 质量，最大 150KB）
+- UI 树智能截断
+- 截图缓存与复用（TTL 机制）
+
+</td>
+<td width="50%">
+
+**推理加速**
+- 流式早停机制
+- 并行状态采集
+- 上下文智能管理
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**执行优化**
+- Tap+Type 操作合并
+- 智能应用预启动
+- 动作延迟动态调整
+
+</td>
+<td width="50%">
+
+**性能表现**
+- 响应时间：3.2s → 1.8s
+- 截图大小：250KB → 85KB
+- 成功率：82% → 94%
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🚀 快速开始
+
+### 用户安装
+
+**系统要求**：Android 11+ 设备（无需特定品牌或型号）
+
+1. **下载安装包**
+   - 从 [Releases](https://github.com/ZG0704666/Aries-AI/releases) 下载最新 APK
+   - 或加入 [QQ 群 746439473](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=&authKey=&noverify=0&group_code=746439473) 获取
+
+2. **配置环境**
+   - 安装到设备并开启无障碍服务权限
+   - 配置 API Key（兼容 OpenAI 接口的任意服务商）
+   - 推荐：[智谱 GLM](https://open.bigmodel.cn/)、[DeepSeek](https://platform.deepseek.com/)、[硅基流动](https://siliconflow.cn/) 等
+
+3. **开始使用**
+   - 语音或文本输入任务指令
+   - 选择预设任务快速开始
+   - 开启虚拟屏幕后台运行
+
+### 开发者构建
+
+```bash
+# 克隆仓库
+git clone https://github.com/ZG0704666/Aries-AI.git
+cd Aries-AI
+
+# 构建项目
+./gradlew assembleDebug
+
+# 安装到设备
+adb install app/build/outputs/apk/debug/app-debug.apk
+```
+
+**环境要求**：
+- JDK 17+
+- Android SDK 34+
+- Gradle 8.0+
+
+**可选配置**：
+- 语音模型：从 [Google Drive](https://drive.google.com/drive/folders/1LnebW8G1wmpMeGIEQunAYMnmT1BpXmCD?usp=sharing) 下载，放置到 `app/src/main/assets/sherpa-models`
+
+---
+
+## 📖 使用文档
+
+### 基础使用
+
+**方式一：主界面对话**
+
+直接与 AI 对话，描述你的需求：
+```
+"帮我在大众点评预订明天中午12点的火锅店，2个人"
+"打开微信给张三发消息说明天见"
+```
+
+**方式二：预设任务**
+
+选择内置任务模板，快速执行常见操作：
+- 餐厅预订
+- 火车票预订
+- 机票预订
+- 自定义任务
+
+**方式三：虚拟屏幕模式**
+
+后台独立运行，不影响主屏幕：
+- 点击"虚拟屏幕"按钮启动
+- 实时预览窗口显示执行过程
+- 主屏幕可继续使用其他应用
+
+### API 使用
+
+```kotlin
+// 1. 创建 Agent 实例
+val agent = UiAutomationAgent(
+    config = AgentConfiguration(
+        maxSteps = 100,
+        maxTokens = 4096,
+        screenshotCompressionQuality = 85,
+        enableScreenshotCache = true,
+        useStreamingWithEarlyStop = true
+    )
+)
+
+// 2. 执行任务
+val result = agent.run(
+    apiKey = "your-api-key",
+    model = "glm-4.6v-flash",  // 主页默认模型，自动化界面默认使用 autoglm-phone
+    task = "打开微信发消息给张三",
+    service = accessibilityService,
+    onLog = { log -> println(log) }
+)
+
+// 3. 处理结果
+when {
+    result.success -> println("✅ 任务完成：${result.message}")
+    else -> println("❌ 任务失败：${result.message}")
+}
+```
+
+**配置参数说明**：
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `maxSteps` | 最大执行步数 | 100 |
+| `maxTokens` | 最大输出 token | 4096 |
+| `maxContextTokens` | 上下文 token 上限 | 30000 |
+| `screenshotCompressionQuality` | 截图压缩质量 | 85 |
+| `enableScreenshotCache` | 启用截图缓存 | true |
+| `useStreamingWithEarlyStop` | 启用流式早停 | true |
 
 ---
 
 ## 🏗️ 技术架构
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Aries AI 架构                               │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐               │
-│  │  UI 层      │   │  控制层      │   │  工具层      │               │
-│  │Automation   │   │UiAutomation │   │AppPackage   │               │
-│  │ActivityNew  │   │   Agent     │   │  Manager    │               │
-│  └──────┬──────┘   └──────┬──────┘   └──────┬──────┘               │
-│         │                 │                 │                       │
-│         └────────────┬────┴────────────────┘                       │
-│                      ▼                                              │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │                     核心引擎层                                 │  │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │  │
-│  │  │   配置中心   │  │   动作解析   │  │   动作执行   │           │  │
-│  │  │AgentConfig  │  │ActionParser │  │ActionExecutor│           │  │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘           │  │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │  │
-│  │  │   提示模板   │  │   状态缓存   │  │   截图管理   │           │  │
-│  │  │PromptTemplate│  │ScreenshotMgr│  │ScreenshotCache│          │  │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘           │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                      ▼                                              │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │                     模型接入层                                 │  │
-│  │  ┌─────────────────────────────────────────────────────────┐  │  │
-│  │  │              AutoGlmClient 多模型网关                    │  │  │
-│  │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │  │  │
-│  │  │  │ 智谱 (Zhipu)│  │ OpenAI 兼容 │  │  流式支持    │     │  │  │
-│  │  │  └─────────────┘  └─────────────┘  └─────────────┘     │  │  │
-│  │  └─────────────────────────────────────────────────────────┘  │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                      ▼                                              │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │                     系统服务层                                 │  │
-│  │  ┌─────────────────┐  ┌─────────────────┐                   │  │
-│  │  │AccessibilitySvc │  │  浮动窗 (Overlay)│                   │  │
-│  │  │  无障碍服务      │  │  实时进度展示    │                   │  │
-│  │  └─────────────────┘  └─────────────────┘                   │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                      Aries AI                            │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  ┌────────────────────────────────────────────────┐    │
+│  │  UI 层 (AutomationActivity)                    │    │
+│  │  • 主界面交互  • 虚拟屏幕管理  • 实时预览      │    │
+│  └────────────────┬───────────────────────────────┘    │
+│                   │                                      │
+│  ┌────────────────▼───────────────────────────────┐    │
+│  │  控制层 (UiAutomationAgent)                    │    │
+│  │  • 任务调度  • 状态管理  • 错误处理            │    │
+│  └────────────────┬───────────────────────────────┘    │
+│                   │                                      │
+│  ┌────────────────▼───────────────────────────────┐    │
+│  │  核心引擎层                                     │    │
+│  │  ┌──────────────┐  ┌──────────────┐           │    │
+│  │  │ 配置中心      │  │ 动作解析器    │           │    │
+│  │  │ AgentConfig  │  │ ActionParser │           │    │
+│  │  └──────────────┘  └──────────────┘           │    │
+│  │  ┌──────────────┐  ┌──────────────┐           │    │
+│  │  │ 动作执行器    │  │ 提示模板      │           │    │
+│  │  │ActionExecutor│  │PromptTemplate│           │    │
+│  │  └──────────────┘  └──────────────┘           │    │
+│  │  ┌──────────────┐  ┌──────────────┐           │    │
+│  │  │ 截图管理器    │  │ 缓存管理      │           │    │
+│  │  │ScreenshotMgr │  │ CacheManager │           │    │
+│  │  └──────────────┘  └──────────────┘           │    │
+│  └────────────────┬───────────────────────────────┘    │
+│                   │                                      │
+│  ┌────────────────▼───────────────────────────────┐    │
+│  │  模型接入层 (AutoGlmClient)                    │    │
+│  │  • 兼容 OpenAI 接口标准                        │    │
+│  │  • 支持 20+ 种大模型服务商                     │    │
+│  │  • 流式响应支持                                │    │
+│  └────────────────┬───────────────────────────────┘    │
+│                   │                                      │
+│  ┌────────────────▼───────────────────────────────┐    │
+│  │  系统服务层                                     │    │
+│  │  • 无障碍服务 (AccessibilityService)           │    │
+│  │  • 浮动窗口 (Overlay)                          │    │
+│  │  • 虚拟屏幕 (VirtualDisplay)                   │    │
+│  └────────────────────────────────────────────────┘    │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### 核心模块说明
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    加速策略实现                              │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  1️⃣ 输入优化层                                               │
-│     ├── ScreenshotManager (截图缓存 + 节流 + 压缩)           │
-│     ├── ScreenshotCache (TTL + Key 过期策略)                 │
-│     └── ActionUtils.truncateUiTree (UI 树截断)               │
-│                                                              │
-│  2️⃣ 推理加速层                                               │
-│     ├── 流式早停 (shouldStop callback)                       │
-│     ├── 并行采集 (coroutine async/await)                     │
-│     └── 上下文截断 (trimHistory)                             │
-│                                                              │
-│  3️⃣ 执行优化层                                               │
-│     ├── Tap+Type 合并执行                                    │
-│     ├── 智能应用预启动                                        │
-│     └── 动作延迟动态映射                                      │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
+**关键技术点**：
+- **无障碍服务**：获取 UI 树结构和执行操作
+- **虚拟屏幕**：创建独立显示环境，隔离主屏幕
+- **协程并发**：并行采集截图和 UI 树，提升效率
+- **流式处理**：边接收边解析，识别到动作立即执行
 
 ---
 
-## 🚀 快速开始
+## 🛠️ 开发指南
 
-### 📦 普通用户（直接安装）
+### 项目结构
 
-可从官网或 QQ 群下载安装包，直接安装使用：
+```
+Aries-AI/
+├── app/
+│   ├── src/main/
+│   │   ├── java/com/aries/ai/
+│   │   │   ├── agent/          # 核心 Agent 逻辑
+│   │   │   ├── ui/             # UI 界面
+│   │   │   ├── service/        # 系统服务
+│   │   │   ├── model/          # 数据模型
+│   │   │   └── utils/          # 工具类
+│   │   ├── assets/             # 资源文件
+│   │   └── res/                # Android 资源
+│   └── build.gradle.kts
+├── docs/                       # 文档目录
+│   ├── BUILDING.md            # 构建指南
+│   ├── CODING_STANDARDS.md    # 代码规范
+│   └── GIT_WORKFLOW.md        # Git 工作流
+└── README.md
+```
 
-1. 下载 APK 安装包
-2. 安装到 Android 设备
-3. 开启无障碍服务
-4. 配置 API Key 开始使用
-
-### 🎙️ 语音模型下载（针对二次开发者，普通用户无需下载）
-
-如需使用**离线语音识别**功能，请下载语音模型文件：
-
-> **📥 下载地址**: [Google Drive - 语音模型](https://drive.google.com/drive/folders/1LnebW8G1wmpMeGIEQunAYMnmT1BpXmCD?usp=sharing)
-
-**说明**：
-- 由于模型文件较大，GitHub 无法直接上传
-- 开发者需自行从 Google Drive 下载模型文件
-- 下载后将模型文件放置到应用指定目录：Aries-AI\app\src\main\assets\sherpa-models
-- 语音识别功能基于 Sherpa-ncnn 离线引擎，无需联网即可使用
-
-**模型文件说明**：
-- 包含中文语音识别模型
-- 支持离线实时语音转文字
-- 适用于语音输入任务指令
-
-### 💻 二次开发（从源码构建）
-
-如需修改代码或贡献开发，请参考详细文档：
+### 开发文档
 
 | 文档 | 说明 |
 |------|------|
-| [BUILDING.md](./BUILDING.md) | 环境要求、依赖安装、项目配置、编译运行 |
+| [BUILDING.md](./BUILDING.md) | 环境配置、依赖安装、编译运行 |
 | [CODING_STANDARDS.md](./CODING_STANDARDS.md) | 代码规范、命名规则、注释要求 |
 | [GIT_WORKFLOW.md](./GIT_WORKFLOW.md) | Git 使用规范、分支管理、提交规范 |
+| [docs/frontend-readme.md](./docs/frontend-readme.md) | 前端开发指南 |
+| [docs/api-interface-spec.md](./docs/api-interface-spec.md) | API 接口规范 |
+| [docs/backend-technical-solution.md](./docs/backend-technical-solution.md) | 后端技术方案 |
 
-### 📚 文档中心（/docs）
+### 技术栈
 
-为提升前后端协作与 Agent 辅助编码效率，新增以下核心文档：
-
-| 文档 | 说明 |
+| 类别 | 技术 |
 |------|------|
-| [docs/frontend-readme.md](./docs/frontend-readme.md) | 前端启动、联调、环境变量与协作规范 |
-| [docs/api-interface-spec.md](./docs/api-interface-spec.md) | 前后端接口契约、错误码、分页与版本规范 |
-| [docs/backend-technical-solution.md](./docs/backend-technical-solution.md) | 后端技术架构、工程治理与发布方案 |
+| 语言 | Kotlin 1.9+ |
+| 构建 | Gradle 8.0+ |
+| 网络 | OkHttp + Retrofit |
+| 异步 | Kotlin Coroutines |
+| JSON | Gson |
+| UI | AndroidX + Material Design |
+| 语音 | Sherpa-ncnn |
 
-```bash
-# 克隆项目
-git clone https://github.com/ZG0704666/Aries-AI.git
-cd Aries-AI
-
-# 构建 Debug APK
-.\gradlew assembleDebug
-
-# 构建 Release APK
-.\gradlew assembleRelease
-
-# 安装到设备
-adb install app/build/outputs/apk/release/app-release.apk
-```
-
-> **提示**：API Key 可在 [智谱开放平台](https://open.bigmodel.cn/) 注册后获取，在应用内配置。
-
----
-
-## 📖 使用示例
-
-配置完 API Key 后，即可在主界面使用 Aries AI：
-
-### 三种使用方式
-
-#### 🎙️ 主界面 AI 聊天
-
-在主界面与 AI 进行自然对话，AI 会根据您的需求操控手机完成各项任务。
-
-- **语音输入**：点击麦克风图标直接语音指令
-- **文本输入**：在输入框中描述您的需求
-
-#### 🤖 侧边栏自动化功能
-
-点击侧边栏 **"自动化"** 进入自动化任务界面，可选择预设任务或输入自定义指令：
-
-| 预设任务 | 示例 |
-|---------|------|
-| 餐厅预订 | "打开大众点评帮我预订一个明天中午11点的周围火锅店的位置，4个人" |
-| 火车订票 | "打开12306订一张2月5日南京到北京的票，选最便宜的" |
-| 机票预订 | "打开航旅纵横订一张2月5日从南京飞往成都的机票" |
-
-#### 🖥️ 虚拟屏幕模式（新功能 v1.3.0+）
-
-独立创建虚拟屏幕在后台运行自动化任务，同时不影响主屏幕的正常使用：
-
-- **后台独立运行**：虚拟屏幕在后台执行任务，主屏幕完全独立，可继续使用其他应用
-- **实时预览**：小窗口实时显示虚拟屏幕的操作画面，随时了解任务执行进度
-- **灵活切换**：可随时最小化/恢复虚拟屏幕预览窗口，不打断主屏幕工作流
-- **多任务支持**：支持同时启动虚拟屏幕执行后台任务，主屏幕进行其他操作
-- **焦点隔离**：虚拟屏幕与主屏幕输入完全隔离，互不干扰
-
-**使用场景**：
-- 订票/订座时，AI 在虚拟屏幕后台操作，不影响你在主屏幕查看其他信息
-- 后台爬虫/数据采集任务，主屏幕可继续日常使用
-- 批量操作多个应用，虚拟屏幕处理，主屏幕不受打扰
-
----
-
-## 🛠️ 核心 API
-
-### UiAutomationAgent
-
-```kotlin
-class UiAutomationAgent(config: AgentConfiguration = AgentConfiguration.DEFAULT) {
-    suspend fun run(
-        apiKey: String,
-        model: String,
-        task: String,
-        service: PhoneAgentAccessibilityService,
-        control: Control = NoopControl,
-        onLog: (String) -> Unit,
-    ): AgentResult
-}
-```
-
-### AgentConfiguration
-
-```kotlin
-data class AgentConfiguration(
-    val maxSteps: Int = 100,              // 最大执行步数
-    val maxTokens: Int? = 4096,           // 最大输出 token
-    val maxContextTokens: Int = 30000,    // 上下文 token 上限
-    val stepDelayMs: Long = 160L,         // 每步延迟
-    val maxModelRetries: Int = 3,         // 模型重试次数
-    val maxParseRepairs: Int = 2,         // 解析修复次数
-    val maxActionRepairs: Int = 1,        // 动作修复次数
-    val screenshotCompressionQuality: Int = 85,
-    val screenshotMaxSizeKB: Int = 150,
-    val enableScreenshotCache: Boolean = true,
-    val parallelScreenshotAndUi: Boolean = true,
-    val useStreamingWithEarlyStop: Boolean = true,
-    // ... 更多配置
-)
-```
-
-### AgentResult
-
-```kotlin
-data class AgentResult(
-    val success: Boolean,
-    val message: String,   // 完成消息或失败原因
-    val steps: Int,        // 实际执行步数
-)
-```
-
----
-
-## 🧪 测试
+### 测试
 
 ```bash
 # 运行单元测试
-.\gradlew test
+./gradlew test
 
-# 运行 lint 检查
-.\gradlew lint
+# 运行 Lint 检查
+./gradlew lint
+
+# 生成测试报告
+./gradlew testDebugUnitTest --tests "*"
 ```
 
 ---
 
-## 📦 依赖技术
+## 🤝 贡献指南
 
-| 类别 | 技术 | 用途 |
-|------|------|------|
-| 网络 | OkHttp + Retrofit | HTTP 客户端 |
-| JSON | Gson | 序列化/反序列化 |
-| 异步 | Kotlin Coroutines | 协程并发 |
-| 渲染 | Markwon | Markdown 显示 |
-| 语音 | Sherpa-ncnn | 离线语音识别 |
-| 架构 | AndroidX Lifecycle | 生命周期管理 |
+我们欢迎所有形式的贡献！无论是新功能、Bug 修复、文档改进还是问题反馈。
 
----
+### 如何贡献
 
-## 🤝 贡献
+1. **Fork 项目** 到你的 GitHub 账号
+2. **创建分支** (`git checkout -b feature/AmazingFeature`)
+3. **编写代码** 并遵循项目代码规范
+4. **提交更改** (`git commit -m 'Add some AmazingFeature'`)
+5. **推送分支** (`git push origin feature/AmazingFeature`)
+6. **提交 PR** 并描述你的更改
 
-欢迎提交 Issue 和 Pull Request！
+### 贡献类型
 
-1. Fork 本仓库
-2. 创建分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交改动 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
+- 🐛 **Bug 修复**：发现并修复问题
+- ✨ **新功能**：添加新的功能特性
+- 📝 **文档**：改进文档和示例
+- 🎨 **UI/UX**：优化界面和用户体验
+- ⚡ **性能**：提升性能和效率
+- 🧪 **测试**：添加或改进测试用例
+
+### 行为准则
+
+- 尊重所有贡献者
+- 提供建设性的反馈
+- 专注于对项目最有利的事情
+- 保持友好和专业的态度
 
 ---
 
 ## 📄 开源协议
 
-本项目基于 **AGPL-3.0-only** 开源协议发布。
+本项目采用 [AGPL-3.0](LICENSE) 协议开源。
 
-```
-Copyright (c) 2025-2026 ZG0704666
+**简单来说**：
+- ✅ 可以自由使用、修改和分发
+- ✅ 可用于商业和非商业用途
+- ⚠️ 修改后分发必须保持相同协议
+- ⚠️ 作为网络服务提供时必须公开源代码
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Affero General Public License for more details.
-```
-
-**注意**: 如果您将本项目作为网络服务提供，您必须向用户公开完整的源代码。
+详细条款请查看 [LICENSE](LICENSE) 文件。
 
 ---
 
-## 📧 联系方式
+## 🌟 社区
 
-- **作者**: ZG0704666
-- **邮箱**: zhangyongqi@njit.edu.cn
-- **项目**: [https://github.com/ZG0704666/Aries-AI](https://github.com/ZG0704666/Aries-AI)
+### 获取帮助
+
+- 💬 **QQ 群**：[746439473](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=&authKey=&noverify=0&group_code=746439473)
+- 🐛 **问题反馈**：[GitHub Issues](https://github.com/ZG0704666/Aries-AI/issues)
+- 💡 **功能建议**：[GitHub Discussions](https://github.com/ZG0704666/Aries-AI/discussions)
+- 📧 **邮件联系**：zhangyongqi@njit.edu.cn
+
+### 贡献者
+
+感谢所有为 Aries AI 做出贡献的开发者！
+
+<a href="https://github.com/ZG0704666/Aries-AI/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=ZG0704666/Aries-AI" />
+</a>
+
+---
+
+## 📊 项目状态
+
+![GitHub stars](https://img.shields.io/github/stars/ZG0704666/Aries-AI?style=social)
+![GitHub forks](https://img.shields.io/github/forks/ZG0704666/Aries-AI?style=social)
+![GitHub issues](https://img.shields.io/github/issues/ZG0704666/Aries-AI)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/ZG0704666/Aries-AI)
+![GitHub last commit](https://img.shields.io/github/last-commit/ZG0704666/Aries-AI)
 
 ---
 
 <div align="center">
 
-**如果这个项目对你有帮助，欢迎 ⭐ Star 支持！**
+**如果这个项目对你有帮助，请给我们一个 ⭐ Star！**
+
+Made with ❤️ by [ZG0704666](https://github.com/ZG0704666)
+
+[返回顶部](#aries-ai)
 
 </div>

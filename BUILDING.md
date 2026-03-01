@@ -1,4 +1,4 @@
-﻿# Phone Agent 编译指南
+# Phone Agent 编译指南
 
 > 本文档提供完整的环境搭建、依赖安装、项目配置和编译步骤，帮助新成员快速开始开发。
 
@@ -22,9 +22,11 @@
 
 | 软件 | 最低版本 | 推荐版本 | 下载地址 |
 |------|----------|----------|----------|
-| JDK | 17 | Android Studio 自带 JBR（Java 21） | https://developer.android.com/studio |
-| Android Studio | Hedgehog (2023.1.1) | 最新稳定版（建议使用官方稳定版） | https://developer.android.com/studio |
-| Gradle | 以Wrapper为准 | 以Wrapper为准 | 使用项目自带gradlew |
+| JDK | 17 | 21（Android Studio 自带 JBR） | https://developer.android.com/studio |
+| Android Studio | Hedgehog (2023.1.1) | Ladybug (2024.2.1) 或更高 | https://developer.android.com/studio |
+| Gradle | 8.13（Wrapper） | 8.13（Wrapper） | 使用项目自带 gradlew |
+| Kotlin | 2.0.21 | 2.0.21 | 由项目配置 |
+| AGP | 8.13.2 | 8.13.2 | 由项目配置 |
 | Git | 2.30+ | 2.40+ | https://git-scm.com/downloads |
 
 ### 1.2 Android SDK 要求
@@ -38,8 +40,8 @@
 ```bash
 # 检查JDK版本
 java -version
-# 推荐：使用 Android Studio 自带 JBR（通常是 21.x）
-# 兼容：外部 JDK 17/21 也可（以 Gradle Sync/编译结果为准）
+# 应输出：openjdk version "17.x.x" 或 "21.x.x"
+# 推荐：使用 Android Studio 自带 JBR 21
 
 # 检查Git版本
 git --version
@@ -47,14 +49,26 @@ git --version
 
 # 检查Gradle版本（在项目根目录）
 ./gradlew --version
-# 以项目 Gradle Wrapper 输出为准
+# 应输出：Gradle 8.13
+
+# 检查 Kotlin 版本
+./gradlew --version | grep Kotlin
+# 应输出：Kotlin version 2.0.21
+
+# 检查 AGP 版本
+cat gradle/libs.versions.toml | grep agp
+# 应输出：agp = "8.13.2"
 ```
 
 ### 1.4 版本权威来源（请以仓库配置为准）
 
-- **Gradle 版本**：`gradle/wrapper/gradle-wrapper.properties` 的 `distributionUrl`
-- **AGP / Kotlin 插件版本**：`gradle/libs.versions.toml`（Version Catalog）
-- **仓库与插件解析源**：`settings.gradle.kts`（`pluginManagement` / `dependencyResolutionManagement`）
+- **Gradle 版本**：`gradle/wrapper/gradle-wrapper.properties` → `distributionUrl`
+- **AGP 版本**：`gradle/libs.versions.toml` → `agp = "8.13.2"`
+- **Kotlin 版本**：`gradle/libs.versions.toml` → `kotlin = "2.0.21"`
+- **应用版本**：`app/build.gradle.kts` → `defaultConfig` 中的 `versionCode` 和 `versionName`
+- **仓库配置**：`settings.gradle.kts` → `repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)`
+
+> ⚠️ **重要**：项目启用了 `FAIL_ON_PROJECT_REPOS` 模式，只能在 `settings.gradle.kts` 中配置仓库，不能在模块的 `build.gradle.kts` 中添加 `repositories {}`。
 
 ### 1.5 环境变量配置
 
@@ -77,50 +91,43 @@ adb --version
 
 ## 二、依赖库清单
 
-### 2.1 核心依赖
+### 2.1 核心依赖（已在 libs.versions.toml 中定义）
 
-| 依赖库 | 版本 | 用途 | 是否已包含 |
-|---------|------|------|-----------|
-| AndroidX Core KTX | 1.17.0 | Android核心库 | ✅ |
-| AndroidX AppCompat | 1.7.1 | 向后兼容 | ✅ |
-| Material Design | 1.13.0 | UI组件 | ✅ |
-| ConstraintLayout | 2.1.4 | 布局管理 | ✅ |
-| Lifecycle Runtime KTX | 2.8.7 | 生命周期管理 | ✅ |
-| RecyclerView | 1.3.2 | 列表显示 | ✅ |
+| 依赖库 | 版本 | 用途 |
+|---------|------|------|
+| AndroidX Core KTX | 1.17.0 | Android 核心库 |
+| AndroidX AppCompat | 1.7.1 | 向后兼容 |
+| Material Design | 1.13.0 | UI 组件 |
 
-### 2.2 Kotlin协程
+### 2.2 其他依赖（在 app/build.gradle.kts 中直接声明）
 
-| 依赖库 | 版本 | 用途 | 是否已包含 |
-|---------|------|------|-----------|
-| Kotlin Coroutines Android | 1.8.1 | 异步编程 | ✅ |
+以下依赖未在 Version Catalog 中定义，而是在 `app/build.gradle.kts` 中直接声明：
 
-### 2.3 网络与序列化
+- Kotlin Coroutines（异步编程）
+- OkHttp / Retrofit（网络请求）
+- Gson（JSON 序列化）
+- Markwon（Markdown 渲染）
+- Shizuku（系统级权限）
+- Sherpa-ncnn（语音识别）
 
-| 依赖库 | 版本 | 用途 | 是否已包含 |
-|---------|------|------|-----------|
-| OkHttp | 4.12.0 | HTTP客户端 | ✅ |
-| OkHttp Logging Interceptor | 4.12.0 | 日志拦截 | ✅ |
-| Retrofit | 2.11.0 | REST API | ✅ |
-| Retrofit Gson Converter | 2.11.0 | JSON转换 | ✅ |
-| Gson | 2.10.1 | JSON序列化 | ✅ |
+**查看完整依赖列表**：
+```bash
+./gradlew :app:dependencies
+```
 
-### 2.4 后台任务
+**说明**：项目采用混合依赖管理方式，核心依赖使用 Version Catalog，其他依赖直接声明。
 
-| 依赖库 | 版本 | 用途 | 是否已包含 |
-|---------|------|------|-----------|
-| Work Runtime KTX | 2.9.1 | 后台任务 | ✅ |
+### 2.3 测试依赖
 
-### 2.5 测试依赖
+| 依赖库 | 版本 | 用途 |
+|---------|------|------|
+| JUnit | 4.13.2 | 单元测试 |
+| AndroidX JUnit | 1.3.0 | Android 测试 |
+| Espresso Core | 3.7.0 | UI 测试 |
 
-| 依赖库 | 版本 | 用途 | 是否已包含 |
-|---------|------|------|-----------|
-| JUnit | 4.13.2 | 单元测试 | ✅ |
-| AndroidX JUnit | 1.3.2 | Android测试 | ✅ |
-| Espresso Core | 3.7.0 | UI测试 | ✅ |
+### 2.4 自动安装说明
 
-### 2.6 自动安装说明
-
-项目使用Gradle版本目录（Version Catalog），所有依赖会自动下载和配置，无需手动安装。
+项目使用 Gradle 版本目录（Version Catalog），所有依赖会自动下载和配置，无需手动安装。
 
 ---
 
@@ -172,12 +179,12 @@ git checkout -b feature/ui-tree-张三
 
 | 插件名称 | 用途 | 是否必需 |
 |----------|------|---------|
-| Kotlin Language | Kotlin语法高亮 | ✅ 必需 |
-| Android Code Snippet | Android代码片段 | ⭐ 推荐 |
-| Gradle Language Support | Gradle语法支持 | ⭐ 推荐 |
-| GitLens | Git增强 | ⭐ 推荐 |
-| Error Lens | 错误信息增强 | ⭐ 推荐 |
-| Rainbow Brackets | 彩虹括号 | ⭐ 可选 |
+| Kotlin Language | Kotlin语法高亮 | |
+| Android Code Snippet | Android代码片段 | |
+| Gradle Language Support | Gradle语法支持 | |
+| GitLens | Git增强 | |
+| Error Lens | 错误信息增强 | |
+| Rainbow Brackets | 彩虹括号 | |
 
 ### 4.2 VSCode设置
 
@@ -228,10 +235,10 @@ git checkout -b feature/ui-tree-张三
 
 | 插件名称 | 用途 | 是否必需 |
 |----------|------|---------|
-| Kotlin | Kotlin语言支持 | ✅ 必需 |
-| .gitignore | Git忽略文件生成 | ⭐ 推荐 |
-| Markdown Navigator | Markdown文件预览 | ⭐ 推荐 |
-| Rainbow Brackets | 彩虹括号 | ⭐ 可选 |
+| Kotlin | Kotlin语言支持 | |
+| .gitignore | Git忽略文件生成 | |
+| Markdown Navigator | Markdown文件预览 | |
+| Rainbow Brackets | 彩虹括号 | |
 
 ### 5.2 Gradle配置
 
@@ -241,12 +248,15 @@ git checkout -b feature/ui-tree-张三
 
 ```
 Gradle JDK:
-  ☑ Use Gradle JDK
-  ☑ 使用 Android Studio 自带 JBR（推荐）
+  ☑ 选择 "Android Studio 自带 JBR (JetBrains Runtime) 21"
+  或
+  ☑ 选择外部 JDK 17/21
 
 Gradle VM options:
-  -Xmx2048m -Dfile.encoding=UTF-8
+  -Xmx4096m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
 ```
+
+> 💡 **提示**：项目较大，建议分配至少 4GB 内存给 Gradle。
 
 #### 5.2.2 配置编译选项
 
@@ -268,6 +278,31 @@ Target JVM version: 以项目 Gradle 配置为准
 ---
 
 ## 六、编译和运行
+
+### 6.0 当前版本信息
+
+**版本号位置**：`app/build.gradle.kts` → `defaultConfig` 部分
+
+```kotlin
+// 示例结构（实际值以代码为准）
+android {
+    defaultConfig {
+        versionCode = ?  // 内部版本号，每次发布递增
+        versionName = "?.?.?"  // 用户可见版本号，遵循语义化版本
+        minSdk = 30  // Android 11
+        targetSdk = 36  // Android 16
+    }
+}
+```
+
+**查看当前版本**：
+```bash
+# 方法 1：运行验证脚本
+.\verify-docs.ps1
+
+# 方法 2：直接查看文件
+cat app/build.gradle.kts | Select-String "versionCode|versionName"
+```
 
 ### 6.1 编译Debug版本
 
@@ -361,7 +396,16 @@ distributionUrl=https\://mirrors.aliyun.com/gradle/gradle-8.13-bin.zip
 
 **解决方案**：
 
-1. 配置Maven镜像，请优先编辑`settings.gradle.kts`：
+> ⚠️ **重要提示**：
+> 
+> 本项目启用了 `FAIL_ON_PROJECT_REPOS` 模式，这意味着：
+> - ✅ 只能在 `settings.gradle.kts` 中配置仓库
+> - ❌ 不能在 `app/build.gradle.kts` 或其他模块中添加 `repositories {}`
+> - ❌ 否则会导致构建失败
+> 
+> 如果需要添加新的 Maven 仓库，请在 `settings.gradle.kts` 的 `dependencyResolutionManagement` 中添加。
+
+1. 配置Maven镜像，编辑`settings.gradle.kts`：
 
 ```kotlin
 pluginManagement {
@@ -375,7 +419,9 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        // 如需使用国内镜像，可以添加：
         maven { url = uri("https://maven.aliyun.com/repository/public") }
         maven { url = uri("https://maven.aliyun.com/repository/google") }
         maven { url = uri("https://maven.aliyun.com/repository/central") }
@@ -384,8 +430,6 @@ dependencyResolutionManagement {
     }
 }
 ```
-
-> 注意：本项目启用了 `repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)`，不建议在各模块的 `build.gradle(.kts)` 中新增 `repositories {}`，否则可能触发构建失败。
 
 2. 使用代理（如果需要）：
 
@@ -466,7 +510,7 @@ Heap Size: 4096 MB
 - [FEISHU_COLLABORATION.md](./FEISHU_COLLABORATION.md) - 飞书协作文档模板
 - [CODING_STANDARDS.md](./CODING_STANDARDS.md) - 代码规范
 - [GIT_WORKFLOW.md](./GIT_WORKFLOW.md) - Git工作流
-- [README.md](./README.md) - 项目概述
+- [README.md](../../README.md) - 项目概述
 
 ---
 
@@ -474,8 +518,8 @@ Heap Size: 4096 MB
 
 在开始开发前，请确认：
 
-- [ ] JDK 17已安装并配置
-- [ ] Android Studio Hedgehog+已安装
+- [ ] 推荐使用 Android Studio 自带 JBR（Java 21）
+- [ ] Android Studio 已安装（建议使用官方最新稳定版）
 - [ ] 已通过 `gradlew` 验证Gradle Wrapper可用
 - [ ] 已安装 Android SDK Platform 36 (API 36)
 - [ ] 项目已克隆到本地
@@ -487,6 +531,6 @@ Heap Size: 4096 MB
 
 ---
 
-**文档版本**：v1.1
-**最后更新**：2026-01-25
-**维护人**：ZG666
+**文档版本**：v1.3
+**最后更新**：2026-02-28
+**维护人**：ZG0704666

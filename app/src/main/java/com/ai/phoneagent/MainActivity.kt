@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -26,6 +26,7 @@ import android.content.Context
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import java.io.File
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorFilter
@@ -111,12 +112,24 @@ import com.ai.phoneagent.core.automation.AutomationLogBridge
 import com.ai.phoneagent.ui.inputbar.InputState
 import com.ai.phoneagent.ui.inputbar.InputBar
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.res.colorResource
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.runtime.livedata.observeAsState
+import com.ai.phoneagent.viewmodel.ChatViewModel
 
 class MainActivity : AppCompatActivity() {
+    
+    // ViewModel for managing chat and attachment state
+    private val chatViewModel: ChatViewModel by viewModels()
 
     companion object {
         const val EXTRA_SCROLL_TO_BOTTOM = "extra_scroll_to_bottom"
@@ -164,6 +177,9 @@ class MainActivity : AppCompatActivity() {
 
     // 防止并发请求导致重试时更容易出现空回复/失败提示
     private var isRequestInFlight: Boolean = false
+    
+    // 用于停止生成的标志
+    private var shouldStopGeneration: Boolean = false
 
     private var voiceInputAnimJob: Job? = null
     private var savedInputText: String = ""
@@ -182,6 +198,7 @@ class MainActivity : AppCompatActivity() {
     private var isAnimatingToMiniWindow = false
     private val OVERLAY_PERMISSION_REQUEST_CODE = 1234
     private val NOTIFICATION_PERMISSION_REQUEST_CODE = 1235
+    private val CAMERA_PERMISSION_REQUEST_CODE = 1236
     private var pendingEnterMiniWindowAfterNotifPerm: Boolean = false
     private var pendingAutomationLogUiRefresh: Boolean = false
     private var automationLogReceiverRegistered: Boolean = false
@@ -226,6 +243,16 @@ class MainActivity : AppCompatActivity() {
     private val voiceAmplitudeState = mutableStateOf(0f)
     private val agentModeEnabledState = mutableStateOf(false)
 
+    // Aries附件上传相关 - 简化为只保留 ActivityResultLauncher
+    private lateinit var ariesImagePickerLauncher: ActivityResultLauncher<String>
+    private lateinit var ariesPdfPickerLauncher: ActivityResultLauncher<String>
+    private lateinit var ariesFilePickerLauncher: ActivityResultLauncher<String>
+    private lateinit var ariesCameraLauncher: ActivityResultLauncher<Uri>
+    private var tempCameraUri: Uri? = null
+    
+    // 附件预览状态（由 ViewModel 管理，UI 层仅负责显示）
+    private var attachmentPreviewView: View? = null
+
     @Volatile private var suppressApiInputWatcher: Boolean = false
     @Volatile private var apiNeedsRecheckToastShown: Boolean = false
     private lateinit var apiInput: EditText
@@ -265,6 +292,88 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * TODO: 设置附件观察者 - 使用 ViewModel 管理状态
+     */
+    private fun setupAttachmentObservers() {
+        // TODO: 实现附件观察者
+        // 观察附件状态
+        // chatViewModel.currentAttachment.observe(this) { attachment ->
+        //     if (attachment != null) {
+        //         showAttachmentPreview(attachment)
+        //     } else {
+        //         hideAttachmentPreview()
+        //     }
+        // }
+        
+        // TODO: 观察错误消息
+        // chatViewModel.errorMessage.observe(this) { error ->
+        //     error?.let {
+        //         Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+        //         chatViewModel.clearError()
+        //     }
+        // }
+    }
+    
+    /**
+     * TODO: 显示附件预览（由 ViewModel 状态驱动）
+     */
+    private fun showAttachmentPreview(attachment: Any) {
+        // TODO: 实现附件预览
+        // 移除旧的预览视图
+        // hideAttachmentPreview()
+        
+        // val previewView = layoutInflater.inflate(
+        //     R.layout.aries_selected_file_preview,
+        //     binding.messagesContainer,
+        //     false
+        // )
+        
+        // previewView.findViewById<ImageView>(R.id.ariesSelectedFileIcon).apply {
+        //     val iconRes = when (attachment.attachmentType) {
+        //         AriesAttachmentType.IMAGE -> R.drawable.ic_aries_image
+        //         AriesAttachmentType.PDF -> R.drawable.ic_aries_pdf
+        //         AriesAttachmentType.DOCUMENT -> R.drawable.ic_aries_document
+        //         else -> R.drawable.ic_aries_file
+        //     }
+        //     setImageResource(iconRes)
+        // }
+        
+        // previewView.findViewById<TextView>(R.id.ariesSelectedFileName).text = attachment.fileName
+        // previewView.findViewById<TextView>(R.id.ariesSelectedFileSize).text = 
+        //     formatFileSize(attachment.fileSize)
+        
+        // previewView.findViewById<ImageButton>(R.id.ariesBtnRemoveFile).setOnClickListener {
+        //     chatViewModel.clearAttachment()
+        // }
+        
+        // previewView.visibility = View.VISIBLE
+        // attachmentPreviewView = previewView
+        
+        // binding.messagesContainer.addView(previewView, 0)
+        
+        // binding.scrollArea.post {
+        //     binding.scrollArea.smoothScrollTo(0, 0)
+        // }
+    }
+    
+    /**
+     * 隐藏附件预览
+     */
+    private fun hideAttachmentPreview() {
+        attachmentPreviewView?.let { view ->
+            view.animate()
+                .alpha(0f)
+                .translationY(-20f)
+                .setDuration(200)
+                .withEndAction {
+                    binding.messagesContainer.removeView(view)
+                    attachmentPreviewView = null
+                }
+                .start()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
 
         super.onCreate(savedInstanceState)
@@ -272,6 +381,12 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
 
         setContentView(binding.root)
+
+        // 设置附件观察者（使用 ViewModel）
+        setupAttachmentObservers()
+        
+        // 设置附件选择器
+        setupAriesAttachment()
 
         checkUserAgreement()
 
@@ -1187,9 +1302,9 @@ class MainActivity : AppCompatActivity() {
 
         val reason =
                 when {
-                    !shizukuConnected -> "系统未就绪：无障碍未连接，且 Shizuku 未连接。"
-                    !shizukuGranted -> "系统未就绪：无障碍未连接，且 Shizuku 未授权。"
-                    else -> "系统未就绪：自动化通道不可用。"
+                    !shizukuConnected -> "⚠️ 无障碍权限未开启\n\n自动化功能需要无障碍权限才能执行。\n请前往「自动化」页面开启无障碍权限，或启动 Shizuku 服务。"
+                    !shizukuGranted -> "⚠️ 无障碍权限未开启\n\n自动化功能需要无障碍权限才能执行。\n请前往「自动化」页面开启无障碍权限，或授权 Shizuku。"
+                    else -> "⚠️ 自动化通道不可用\n\n请前往「自动化」页面检查权限配置。"
                 }
         return AutomationReadyState(false, reason)
     }
@@ -1357,6 +1472,18 @@ class MainActivity : AppCompatActivity() {
             } else {
                 pendingEnterMiniWindowAfterNotifPerm = false
                 Toast.makeText(this, "需要通知权限以显示小窗运行通知", Toast.LENGTH_SHORT).show()
+            }
+        }
+        
+        if (requestCode == CAMERA_PERMISSION_REQUEST_CODE) {
+            val granted =
+                    grantResults.isNotEmpty() &&
+                            grantResults[0] == PackageManager.PERMISSION_GRANTED
+            if (granted) {
+                // 权限授予后，重新启动相机
+                launchCamera()
+            } else {
+                Toast.makeText(this, "需要相机权限才能拍照", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -1877,8 +2004,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun resolveApiModel(): String {
-        if (!apiThirdPartySwitch.isChecked) return AutoGlmClient.DEFAULT_MODEL
-        return apiModelInput.text?.toString()?.trim().orEmpty().ifBlank { AutoGlmClient.DEFAULT_MODEL }
+        if (!apiThirdPartySwitch.isChecked) return "glm-4.6v-flash"
+        return apiModelInput.text?.toString()?.trim().orEmpty().ifBlank { "glm-4.6v-flash" }
     }
 
     private fun apiConfigSignature(apiKey: String, baseUrl: String, model: String): String {
@@ -1908,7 +2035,7 @@ class MainActivity : AppCompatActivity() {
         return if (raw.length <= 6) raw else raw.substring(0, 6) + "*".repeat(raw.length - 6)
     }
 
-    /** 轻微震动反馈 */
+    /** 轻微震动反馈 - 30ms */
     private fun vibrateLight() {
         try {
             val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -1921,6 +2048,32 @@ class MainActivity : AppCompatActivity() {
 
             // vibrate may throw SecurityException on some devices if permission/implementation differs;
             // catch any throwable to avoid crashing the app when haptic feedback fails.
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(30)
+                }
+            } catch (_: Throwable) {
+                // ignore vibrate failures
+            }
+        } catch (_: Throwable) {
+            // defensively ignore any unexpected errors here to prevent UI crashes
+        }
+    }
+
+    /** 中等震动反馈 - 30ms */
+    private fun vibrateMedium() {
+        try {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = getSystemService(VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vibratorManager?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(VIBRATOR_SERVICE) as? Vibrator
+            } ?: return
+
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     vibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
@@ -1969,15 +2122,37 @@ class MainActivity : AppCompatActivity() {
                     val state by remember { inputBarState }
                     val amplitude by remember { voiceAmplitudeState }
                     val agentModeEnabled by remember { agentModeEnabledState }
+                    
+                    // 监听附件状态
+                    val attachments by chatViewModel.attachments.collectAsState()
+                    val attachmentSelectorVisible by chatViewModel.attachmentSelectorVisible.collectAsState()
 
-                    InputBar(
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            // 附件预览列表
+                            if (attachments.isNotEmpty()) {
+                                com.ai.phoneagent.ui.components.AttachmentPreviewList(
+                                    attachments = attachments,
+                                    attachmentManager = chatViewModel.getAttachmentManager(),
+                                    onInsertReference = { attachment ->
+                                        val reference = chatViewModel.createAttachmentReference(attachment)
+                                        inputTextState.value = inputTextState.value + "\n" + reference
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                            
+                            // 原始的 InputBar
+                            InputBar(
                         state = state,
                         text = text,
                         onTextChange = { inputTextState.value = it },
                         onSend = {
                             vibrateLight()
                             val t = inputTextState.value.trim()
-                            if (t.isNotBlank()) {
+                            if (t.isNotBlank() || chatViewModel.attachments.value.isNotEmpty()) {
                                 hideKeyboard()
                                 if (agentModeEnabled) {
                                     val dispatchResult =
@@ -1987,6 +2162,7 @@ class MainActivity : AppCompatActivity() {
                                         )
                                     if (dispatchResult.success) {
                                         inputTextState.value = ""
+                                        chatViewModel.clearAttachments()
                                         Toast.makeText(
                                             this@MainActivity,
                                             "Agent 模式已激活，任务已转交自动化",
@@ -2000,10 +2176,14 @@ class MainActivity : AppCompatActivity() {
                                         ).show()
                                     }
                                 } else {
-                                    sendMessage(t)
+                                    // 构建包含附件的完整消息
+                                    val messageWithAttachments = chatViewModel.buildMessageWithAttachments(t)
+                                    sendMessage(messageWithAttachments)
+                                    inputTextState.value = ""
+                                    chatViewModel.clearAttachments()
                                 }
                             } else {
-                                Toast.makeText(this@MainActivity, "请输入内容", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@MainActivity, "请输入内容或添加附件", Toast.LENGTH_SHORT).show()
                             }
                         },
                         onVoiceStart = {
@@ -2028,7 +2208,10 @@ class MainActivity : AppCompatActivity() {
                             stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
                         },
                         onAttachmentClick = {
-                            Toast.makeText(this@MainActivity, "附件功能开发中", Toast.LENGTH_SHORT).show()
+                            // 点击加号时添加200ms震动反馈
+                            vibrateMedium()
+                            // 显示附件选择器
+                            chatViewModel.toggleAttachmentSelector()
                         },
                         agentModeEnabled = agentModeEnabled,
                         onAgentToggle = { enabled ->
@@ -2044,27 +2227,19 @@ class MainActivity : AppCompatActivity() {
                         },
                         onModeChange = { isVoice ->
                             vibrateLight()
-                            // 立即停止任何正在进行的语音输入，确保状态一致
                             val currentState = inputBarState.value
                             if (currentState is InputState.VoiceRecording || currentState is InputState.VoiceRecognizing) {
-                                // 停止语音动画
                                 stopVoiceInputAnimation()
-                                // 清理"正在语音输入..."的动画文本，恢复之前的内容
                                 if (inputTextState.value.startsWith("正在语音输入")) {
                                     inputTextState.value = savedInputText
                                 }
-                                // 停止语音识别
                                 val sessionId = activeVoiceSessionId
                                 stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
                             }
-                            // 更新输入栏状态，确保 UI 立即反应
                             inputBarState.value = if (isVoice) InputState.VoiceIdle else InputState.Idle
-                            // 处理键盘显示/隐藏
                             if (isVoice) {
-                                // 切换到语音模式时隐藏键盘
                                 hideKeyboard()
                             }
-                            // 切换到文本模式时，系统会在 TextField 获得焦点时自动显示键盘
                         },
                         voiceAmplitude = amplitude,
                         onUpdateCancelState = { isCancelling ->
@@ -2072,12 +2247,20 @@ class MainActivity : AppCompatActivity() {
                             if (current is InputState.VoiceRecording) {
                                 if (current.isCancelling != isCancelling) {
                                     inputBarState.value = current.copy(isCancelling = isCancelling)
-                                    // 震动反馈当状态改变时
                                     vibrateLight()
                                 }
                             }
                         }
                     )
+                        }
+                        
+                        // 附件选择器面板（覆盖在底部）
+                        com.ai.phoneagent.ui.components.AttachmentSelectorPanel(
+                            visible = attachmentSelectorVisible,
+                            attachmentManager = chatViewModel.getAttachmentManager(),
+                            onDismiss = { chatViewModel.hideAttachmentSelector() }
+                        )
+                    }
                 }
             }
         }
@@ -2222,6 +2405,7 @@ class MainActivity : AppCompatActivity() {
         binding.messagesContainer.removeAllViews()
         clearAutomationPanelRuntimeRefs()
         var lastUserContent: String? = null
+        val currentModel = resolveApiModel() // 获取当前模型配置
         for ((index, m) in conversation.messages.withIndex()) {
             // 历史消息全部使用新的复杂气泡（如果是AI），确保视觉风格统一
             if (!m.isUser) {
@@ -2233,7 +2417,8 @@ class MainActivity : AppCompatActivity() {
                     animate = false,
                     timeCostMs = 0,
                     retryUserText = lastUserContent,
-                    messageIndexInConversation = index
+                    messageIndexInConversation = index,
+                    modelName = currentModel
                 )
             } else {
                 lastUserContent = m.content
@@ -2292,7 +2477,7 @@ class MainActivity : AppCompatActivity() {
         return extractAutomationLogMarkers(withoutConfirmed).first
     }
 
-    private fun sendMessage(text: String, resendUser: Boolean = true, retryMode: Boolean = false) {
+    private fun sendMessage(content: Any, resendUser: Boolean = true, retryMode: Boolean = false) {
 
         if (isRequestInFlight) {
             Toast.makeText(this, "正在生成回复，请稍后…", Toast.LENGTH_SHORT).show()
@@ -2320,27 +2505,68 @@ class MainActivity : AppCompatActivity() {
         val resolvedModel = resolveApiModel()
 
         val c = requireActiveConversation()
-        if (c.title.isBlank()) {
-            c.title = text.take(18)
+        
+        // 提取文本用于标题（如果content是多模态数组，提取第一个文本）
+        val textForTitle = when (content) {
+            is String -> content
+            is List<*> -> {
+                (content.firstOrNull { 
+                    it is Map<*, *> && it["type"] == "text" 
+                } as? Map<*, *>)?.get("text") as? String ?: ""
+            }
+            else -> content.toString()
         }
         
-        if (resendUser) {
-            c.messages.add(UiMessage(author = "我", content = text, isUser = true))
-            c.updatedAt = System.currentTimeMillis()
-            persistConversations()
-
-            appendComplexUserMessage("我", text, animate = true)
+        if (c.title.isBlank()) {
+            c.title = textForTitle.take(18)
+        }
+        
+        // 使用 ViewModel 处理附件，构建完整消息内容
+        lifecycleScope.launch {
+            val messageContent = if (resendUser) {
+                content
+            } else {
+                content
+            }
             
-            // 同步消息到悬浮窗（如果运行中）
-            if (FloatingChatService.isRunning()) {
-                FloatingChatService.getInstance()?.addMessage("我: $text", isUser = true)
+            // 将消息内容转换为字符串用于显示
+            val messageContentStr = when (messageContent) {
+                is String -> messageContent
+                is List<*> -> {
+                    // 提取所有文本部分
+                    messageContent.filterIsInstance<Map<*, *>>()
+                        .filter { it["type"] == "text" }
+                        .joinToString("\n") { it["text"] as? String ?: "" }
+                }
+                else -> messageContent.toString()
+            }
+            
+            if (resendUser) {
+                c.messages.add(UiMessage(author = "我", content = messageContentStr, isUser = true))
+                c.updatedAt = System.currentTimeMillis()
+                persistConversations()
+
+                appendComplexUserMessage("我", messageContentStr, animate = true)
+                
+                // 同步消息到悬浮窗（如果运行中）
+                if (FloatingChatService.isRunning()) {
+                    FloatingChatService.getInstance()?.addMessage("我: $messageContentStr", isUser = true)
+                }
+
+                inputTextState.value = ""
+                
+                // 发送后清除附件
+                chatViewModel.clearAttachments()
             }
 
-            inputTextState.value = ""
-        }
-
-        isRequestInFlight = true
-        lifecycleScope.launch {
+            isRequestInFlight = true
+            
+            // 重置停止标志
+            shouldStopGeneration = false
+            
+            // 设置生成状态
+            inputBarState.value = InputState.Generating
+            
             try {
                 val startTime = System.currentTimeMillis()
 
@@ -2356,7 +2582,7 @@ class MainActivity : AppCompatActivity() {
                 StreamRenderHelper.initThinkingState(vh)
 
                 // 按钮事件绑定
-                val retryPrompt = text
+                val retryPrompt = textForTitle
                 vh.retryButton?.setOnClickListener {
                     setRetryButtonLoadingState(vh.retryButton, isLoading = true)
                     val started = retryMessage(retryPrompt)
@@ -2389,15 +2615,16 @@ class MainActivity : AppCompatActivity() {
                 // 构建对话历史
                 val chatHistory = buildChatHistory(c, retryMode).toMutableList()
                 if (!resendUser) {
-                    val targetIndex = chatHistory.indexOfLast { it.role == "user" && it.content == text }
+                    val targetIndex = chatHistory.indexOfLast { it.role == "user" }
                     if (targetIndex >= 0) {
                         while (chatHistory.size > targetIndex + 1) {
                             chatHistory.removeAt(chatHistory.lastIndex)
                         }
                     } else {
                         val last = chatHistory.lastOrNull()
-                        if (last == null || last.role != "user" || last.content != text) {
-                            chatHistory.add(ChatRequestMessage(role = "user", content = text))
+                        // 使用 messageContent（包含附件）
+                        if (last == null || last.role != "user") {
+                            chatHistory.add(ChatRequestMessage(role = "user", content = messageContent))
                         }
                     }
                 }
@@ -2425,6 +2652,11 @@ class MainActivity : AppCompatActivity() {
                                     messages = chatHistory,
                                     temperature = if (retryMode) 0.7f else null,
                                     onReasoningDelta = { delta ->
+                                        // 检查是否需要停止
+                                        if (shouldStopGeneration) {
+                                            return@sendChatStreamResult // 提前退出
+                                        }
+                                        
                                         if (delta.isNotBlank()) {
                                             reasoningSb.append(delta)
                                             runOnUiThread {
@@ -2441,6 +2673,11 @@ class MainActivity : AppCompatActivity() {
                                         }
                                     },
                                     onContentDelta = { delta ->
+                                        // 检查是否需要停止
+                                        if (shouldStopGeneration) {
+                                            return@sendChatStreamResult // 提前退出
+                                        }
+                                        
                                         if (delta.isNotEmpty()) {
                                             runOnUiThread {
                                                 StreamRenderHelper.processContentDelta(
@@ -2491,7 +2728,9 @@ class MainActivity : AppCompatActivity() {
                 val timeCost = (System.currentTimeMillis() - startTime) / 1000
 
                 val finalContent =
-                        if (streamOk) {
+                        if (shouldStopGeneration) {
+                            "生成已停止"
+                        } else if (streamOk) {
                             contentSb.toString()
                         } else {
                             val err = lastError?.message ?: "Unknown error"
@@ -2507,8 +2746,8 @@ class MainActivity : AppCompatActivity() {
                     ) {
                         vh.thinkingHeader.performClick()
                     }
-                    if (!streamOk) {
-                        // 如果失败，直接显示错误信息
+                    if (!streamOk || shouldStopGeneration) {
+                        // 如果失败或被停止，直接显示消息
                         vh.messageContent.text = finalContent
                     }
                 }
@@ -2548,6 +2787,18 @@ class MainActivity : AppCompatActivity() {
 
                 if (!automationInstruction.isNullOrBlank()) {
                     val readyState = resolveAutomationReadyState()
+                    
+                    // 如果权限未就绪，显示 Toast 提示
+                    if (!readyState.ready) {
+                        runOnUiThread {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "⚠️ 无障碍权限未开启，请前往「自动化」页面开启",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                    
                     val commandMessage =
                         if (readyState.ready) {
                             "待转交自动化命令：\n$automationInstruction\n[[AUTO_CONFIRM:$automationInstruction]]"
@@ -2571,12 +2822,14 @@ class MainActivity : AppCompatActivity() {
                             animate = true,
                             timeCostMs = 0,
                             automationInstructionForConfirm = if (readyState.ready) automationInstruction else null,
-                            messageIndexInConversation = cc.messages.lastIndex
+                            messageIndexInConversation = cc.messages.lastIndex,
+                            modelName = resolvedModel
                         )
                     }
                 }
             } finally {
                 isRequestInFlight = false
+                inputBarState.value = InputState.Idle
             }
         }
     }
@@ -2682,6 +2935,11 @@ class MainActivity : AppCompatActivity() {
                 button.alpha = 1f
                 textView?.text = getString(R.string.automation_not_ready_short)
                 statusView?.text = getString(R.string.automation_scene_not_ready)
+                Toast.makeText(
+                    this@MainActivity,
+                    "⚠️ 无障碍权限未开启\n请前往「自动化」页面开启无障碍权限",
+                    Toast.LENGTH_LONG
+                ).show()
                 return@setOnClickListener
             }
 
@@ -3312,7 +3570,8 @@ class MainActivity : AppCompatActivity() {
         timeCostMs: Long,
         retryUserText: String? = null,
         automationInstructionForConfirm: String? = null,
-        messageIndexInConversation: Int? = null
+        messageIndexInConversation: Int? = null,
+        modelName: String? = null
     ) {
         // 1. Inflate 复杂布局
         val view = layoutInflater.inflate(R.layout.item_ai_message_complex, binding.messagesContainer, false)
@@ -3330,6 +3589,7 @@ class MainActivity : AppCompatActivity() {
         val automationStatus = view.findViewById<TextView>(R.id.automation_panel_status)
         val automationCommand = view.findViewById<TextView>(R.id.automation_panel_command)
         val automationLogContainer = view.findViewById<LinearLayout>(R.id.automation_log_container)
+        val tvModelName = view.findViewById<TextView>(R.id.tv_model_name)
 
         // 解析内容（兼容旧格式，避免展示旧分隔符）
         val (contentWithoutLogMarkers, embeddedAutomationLogs) = extractAutomationLogMarkers(fullContent)
@@ -3369,6 +3629,14 @@ class MainActivity : AppCompatActivity() {
         // 设置作者名
         authorName.text = if (author == "Aries") "Aries AI" else author
         authorName.visibility = View.VISIBLE
+        
+        // 设置模型名称（显示在作者名右侧）
+        if (!modelName.isNullOrBlank()) {
+            tvModelName.text = "调用模型：$modelName"
+            tvModelName.visibility = View.VISIBLE
+        } else {
+            tvModelName.visibility = View.GONE
+        }
         
         // 设置思考部分交互
         if (!thinkContent.isNullOrBlank()) {
@@ -4679,5 +4947,93 @@ class MainActivity : AppCompatActivity() {
         sherpaSpeechRecognizer?.shutdown()
 
         sherpaSpeechRecognizer = null
+    }
+
+    // ============================================
+    // Aries附件上传功能
+    // ============================================
+
+    /**
+     * 设置Aries附件选择器 - 简化版，逻辑移到 ViewModel
+     */
+    private fun setupAriesAttachment() {
+        ariesImagePickerLauncher = registerForActivityResult(
+            ActivityResultContracts.GetContent()
+        ) { uri ->
+            uri?.let { 
+                lifecycleScope.launch {
+                    val filePath = it.toString()
+                    chatViewModel.handleAttachment(filePath)
+                }
+            }
+        }
+        
+        ariesPdfPickerLauncher = registerForActivityResult(
+            ActivityResultContracts.GetContent()
+        ) { uri ->
+            uri?.let { 
+                lifecycleScope.launch {
+                    val filePath = it.toString()
+                    chatViewModel.handleAttachment(filePath)
+                }
+            }
+        }
+        
+        ariesFilePickerLauncher = registerForActivityResult(
+            ActivityResultContracts.GetContent()
+        ) { uri ->
+            uri?.let { 
+                lifecycleScope.launch {
+                    val filePath = it.toString()
+                    chatViewModel.handleAttachment(filePath)
+                }
+            }
+        }
+        
+        // 相机拍照 Launcher
+        ariesCameraLauncher = registerForActivityResult(
+            ActivityResultContracts.TakePicture()
+        ) { success ->
+            if (success) {
+                tempCameraUri?.let { uri ->
+                    lifecycleScope.launch {
+                        chatViewModel.handleTakenPhoto(uri)
+                        tempCameraUri = null
+                    }
+                }
+            } else {
+                tempCameraUri = null
+            }
+        }
+    }
+    
+    /**
+     * 启动相机拍照（带权限检查）
+     */
+    private fun launchCamera() {
+        // 检查相机权限
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) 
+            != PackageManager.PERMISSION_GRANTED) {
+            // 请求相机权限
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.CAMERA),
+                CAMERA_PERMISSION_REQUEST_CODE
+            )
+            return
+        }
+        
+        // 创建临时文件URI
+        try {
+            val authority = "${applicationContext.packageName}.fileprovider"
+            val tmpFile = File.createTempFile("camera_", ".jpg", cacheDir).apply {
+                createNewFile()
+            }
+            val uri = androidx.core.content.FileProvider.getUriForFile(this, authority, tmpFile)
+            tempCameraUri = uri
+            ariesCameraLauncher.launch(uri)
+        } catch (e: Exception) {
+            Toast.makeText(this, "启动相机失败: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 }

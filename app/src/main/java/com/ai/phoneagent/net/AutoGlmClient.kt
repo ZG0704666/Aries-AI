@@ -117,7 +117,7 @@ object AutoGlmClient {
 
         // 如需替换其他网关，可修改此处
         const val DEFAULT_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/"
-        const val DEFAULT_MODEL = "glm-4-flash"
+        const val DEFAULT_MODEL = "glm-4.6v-flash"
         const val PHONE_MODEL = "autoglm-phone"
 
         private const val DEFAULT_TEMPERATURE = 0.0f

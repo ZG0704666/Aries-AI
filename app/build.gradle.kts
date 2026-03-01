@@ -22,8 +22,12 @@ val githubToken: String by lazy {
 
 android {
     namespace = "com.ai.phoneagent"
-    compileSdk {
-        version = release(36)
+    compileSdk = 36
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+        }
     }
 
     externalNativeBuild {
@@ -36,8 +40,8 @@ android {
         applicationId = "com.ai.phoneagent"
         minSdk = 30
         targetSdk = 36
-        versionCode = 15
-        versionName = "1.4.0-alpha"
+        versionCode = 16
+        versionName = "1.4.0"
 
         buildConfigField("String", "GITHUB_TOKEN", "\"\"")
 
@@ -166,6 +170,14 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    implementation("androidx.compose.runtime:runtime-livedata")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    
+    // ViewModel 和 LiveData
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.7")
+    
+    // PDF 处理
+    implementation("com.itextpdf:itext7-core:7.2.5")
 }

@@ -9,17 +9,39 @@
     android:background="@drawable/bg_glass_pane"
     android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/ai_author_name"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="6dp"
-        android:letterSpacing="0.03"
-        android:text="Aries AI"
-        android:textColor="@color/m3t_primary"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:visibility="gone" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="6dp">
+
+        <TextView
+            android:id="@+id/ai_author_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:letterSpacing="0.03"
+            android:text="Aries AI"
+            android:textColor="@color/m3t_primary"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tv_model_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/m3t_spacing_sm"
+            android:background="@drawable/bg_rounded_input_light"
+            android:paddingStart="@dimen/m3t_spacing_xs"
+            android:paddingTop="2dp"
+            android:paddingEnd="@dimen/m3t_spacing_xs"
+            android:paddingBottom="2dp"
+            android:text=""
+            android:textColor="@color/m3t_on_surface_variant"
+            android:textSize="11sp"
+            android:visibility="gone" />
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/thinking_layout"

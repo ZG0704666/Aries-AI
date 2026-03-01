@@ -1,0 +1,201 @@
+/**
+ * 模型提供商无限滚动展示
+ * 大图标 + 慢速播放
+ */
+
+.model-marquee-section {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  padding: 4rem 0;
+}
+
+.model-marquee-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(to right,
+      transparent 0%,
+      black 5%,
+      black 95%,
+      transparent 100%);
+  -webkit-mask-image: linear-gradient(to right,
+      transparent 0%,
+      black 5%,
+      black 95%,
+      transparent 100%);
+}
+
+/* 滚动轨道 */
+.model-marquee-track {
+  display: flex;
+  width: max-content;
+  gap: 3rem;
+  padding-left: 3rem;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  animation-play-state: paused;
+}
+
+/* 向左滚动 - 60秒更慢更流畅 */
+.model-marquee-track.scroll-left {
+  animation: scrollLeft 60s linear infinite;
+}
+
+@keyframes scrollLeft {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/* 暂停动画（悬停时） */
+.model-marquee-container:hover .model-marquee-track {
+  animation-play-state: paused;
+}
+
+/* 模型提供商项 */
+.model-provider-item {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition: transform 0.2s ease;
+}
+
+.model-provider-item:hover {
+  transform: translate3d(0, 0, 0) scale(1.05);
+}
+
+/* 模型提供商名称 - 更大 */
+.model-provider-name {
+  font-size: 32px;
+  font-weight: 700;
+  color: #e2e8f0;
+  white-space: nowrap;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  user-select: none;
+}
+
+html.light .model-provider-name {
+  color: #1e293b;
+}
+
+/* 模型提供商图标 - 更大 */
+.model-provider-icon {
+  height: 60px;
+  width: auto;
+  max-width: 90px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
+  transform: translate3d(0, 0, 0);
+}
+
+/* SVG 图标容器 */
+.model-provider-icon-svg {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.model-provider-icon-svg svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* 标题区域 */
+.model-marquee-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.model-marquee-title {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+html.dark .model-marquee-title {
+  color: #94a3b8;
+}
+
+/* 平板端优化 */
+@media (max-width: 1024px) {
+  .model-marquee-section {
+    padding: 3rem 0;
+  }
+
+  .model-marquee-track {
+    gap: 2.5rem;
+    padding-left: 2.5rem;
+  }
+
+  .model-provider-name {
+    font-size: 28px;
+  }
+
+  .model-provider-icon {
+    height: 52px;
+  }
+}
+
+/* 移动端优化 */
+@media (max-width: 640px) {
+  .model-marquee-section {
+    padding: 2.5rem 0;
+  }
+
+  .model-marquee-container {
+    mask-image: linear-gradient(to right,
+        transparent 0%,
+        black 3%,
+        black 97%,
+        transparent 100%);
+    -webkit-mask-image: linear-gradient(to right,
+        transparent 0%,
+        black 3%,
+        black 97%,
+        transparent 100%);
+  }
+
+  .model-marquee-track {
+    gap: 2rem;
+    padding-left: 2rem;
+  }
+
+  .model-provider-item {
+    gap: 14px;
+  }
+
+  .model-provider-name {
+    font-size: 22px;
+  }
+
+  .model-provider-icon {
+    height: 42px;
+  }
+
+  .model-marquee-title {
+    font-size: 1rem;
+  }
+}
+
+/* 减少动画（用户偏好） */
+@media (prefers-reduced-motion: reduce) {
+  .model-marquee-track {
+    animation: none !important;
+  }
+}

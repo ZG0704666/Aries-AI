@@ -444,17 +444,19 @@ android {
 
 ```bash
 # 1. 更新版本号
-# 修改app/build.gradle.kts中的versionCode和versionName
+# 修改 app/build.gradle.kts 中的 versionCode 和 versionName
+# versionCode: 递增（如 15 -> 16）
+# versionName: 遵循语义化版本（如 1.3.2 -> 1.4.0）
 
-# 2. 创建版本标签
-git tag -a v1.0.1 -m "Release v1.0.1 - 新增get_page_info工具"
+# 2. 创建版本标签（使用实际版本号）
+git tag -a v1.4.0 -m "Release v1.4.0 - 架构优化"
 
 # 3. 推送标签
-git push origin v1.0.1
+git push origin v1.4.0
 
 # 4. 创建GitHub Release
-gh release create v1.0.1 \
-    --title "v1.0.1 - 新增get_page_info工具" \
+gh release create v1.4.0 \
+    --title "v1.4.0 - 架构优化" \
     --notes "## 新增功能\n\n- ...\n\n## Bug修复\n\n- ..." \
     --target main
 ```
@@ -544,6 +546,6 @@ git push origin --delete feature/xxx-张三
 
 ---
 
-**文档版本**：v1.0
-**最后更新**：2026-01-09
-**维护人**：项目负责人
+**文档版本**：v1.1
+**最后更新**：2026-02-28
+**维护人**：ZG0704666

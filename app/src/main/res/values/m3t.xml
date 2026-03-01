@@ -57,6 +57,7 @@
     <color name="m3t_dialog_surface">#E4F2FF</color>
     <color name="m3t_dialog_surface_alt">#E2F4E6</color>
     <color name="m3t_button_white">#FFFFFF</color>
+    <color name="m3t_button_light_blue">#B3D9FF</color>
     <color name="m3t_about_page_bg">#F2F8FF</color>
     <color name="m3t_automation_page_bg">#F6FAFF</color>
     <color name="m3t_about_card_bg">#E6F0FF</color>
@@ -288,7 +289,7 @@
     <style name="Widget.M3t.Button.CloseAction" parent="Widget.MaterialComponents.Button">
         <item name="android:minHeight">@dimen/m3t_button_height</item>
         <item name="cornerRadius">@dimen/m3t_radius_lg</item>
-        <item name="backgroundTint">@color/m3t_primary_container</item>
+        <item name="backgroundTint">@color/m3t_button_light_blue</item>
         <item name="android:textColor">@color/m3t_on_primary_container</item>
         <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
         <item name="android:elevation">0dp</item>
