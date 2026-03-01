@@ -143,6 +143,34 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         return messageBuilder.toString().trim()
     }
 
+    private fun isImageAttachment(attachment: AttachmentInfo): Boolean {
+        if (attachment.mimeType.startsWith("image/", ignoreCase = true)) return true
+        val extension =
+            attachment.fileName.substringAfterLast('.', "").ifBlank {
+                attachment.filePath.substringAfterLast('.', "")
+            }.lowercase()
+        return extension in setOf("jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp")
+    }
+
+    private fun resolveImageMimeType(attachment: AttachmentInfo): String {
+        if (attachment.mimeType.startsWith("image/", ignoreCase = true)) {
+            return attachment.mimeType
+        }
+        return when (
+            attachment.fileName.substringAfterLast('.', "").ifBlank {
+                attachment.filePath.substringAfterLast('.', "")
+            }.lowercase()
+        ) {
+            "jpg", "jpeg" -> "image/jpeg"
+            "png" -> "image/png"
+            "gif" -> "image/gif"
+            "webp" -> "image/webp"
+            "heic", "heif" -> "image/heic"
+            "bmp" -> "image/bmp"
+            else -> "image/jpeg"
+        }
+    }
+
     /**
      * 构建包含附件的完整消息（多模态格式）
      *
@@ -159,11 +187,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
         
         // 检查是否有图片附件
-        val imageAttachments = currentAttachments.filter { 
-            it.mimeType.startsWith("image/") 
-        }
+        val imageAttachments = currentAttachments.filter { isImageAttachment(it) }
         
-        val nonImageAttachments = currentAttachments.filterNot { it.mimeType.startsWith("image/") }
+        val nonImageAttachments = currentAttachments.filterNot { isImageAttachment(it) }
         val textPayload = buildAttachmentAwareText(userMessage, nonImageAttachments)
 
         if (imageAttachments.isNotEmpty()) {
@@ -183,10 +209,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 // 读取图片并转换为base64
                 val imageData = readImageAsBase64(attachment.filePath)
                 if (imageData != null) {
+                    val imageMimeType = resolveImageMimeType(attachment)
                     contentArray.add(mapOf(
                         "type" to "image_url",
                         "image_url" to mapOf(
-                            "url" to "data:${attachment.mimeType};base64,$imageData"
+                            "url" to "data:${imageMimeType};base64,$imageData"
                         )
                     ))
                 }

@@ -121,6 +121,8 @@
     <dimen name="m3t_user_attachment_chip_icon_size">14dp</dimen>
     <dimen name="m3t_user_attachment_chip_spacing">4dp</dimen>
     <dimen name="m3t_user_attachment_chip_radius">8dp</dimen>
+    <dimen name="m3t_user_attachment_thumb_size">32dp</dimen>
+    <dimen name="m3t_user_attachment_name_max_width">148dp</dimen>
 
     <dimen name="m3t_radius_sm">12dp</dimen>
     <dimen name="m3t_radius_md">16dp</dimen>

@@ -32,6 +32,8 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorFilter
 import android.graphics.Matrix
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Rect
@@ -109,6 +111,7 @@ import com.google.android.material.materialswitch.MaterialSwitch
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AudioFile
@@ -118,6 +121,7 @@ import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.ScreenshotMonitor
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import com.ai.phoneagent.core.automation.ActivityAutomationInstructionGateway
 import com.ai.phoneagent.core.automation.AutomationLogBridge
 import com.ai.phoneagent.ui.inputbar.InputState
@@ -133,15 +137,20 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.livedata.observeAsState
 import com.ai.phoneagent.data.AttachmentInfo
 import com.ai.phoneagent.viewmodel.ChatViewModel
+import java.io.InputStream
 
 class MainActivity : AppCompatActivity() {
     
@@ -3950,12 +3959,67 @@ class MainActivity : AppCompatActivity() {
     private fun resolveAttachmentIcon(attachment: AttachmentInfo): ImageVector =
         when {
             attachment.fileName.startsWith("camera_") -> Icons.Default.PhotoCamera
-            attachment.mimeType.startsWith("image/") -> Icons.Default.Image
+            isImageAttachment(attachment) -> Icons.Default.Image
             attachment.filePath.startsWith("screen_") -> Icons.Default.ScreenshotMonitor
             attachment.mimeType.startsWith("audio/") -> Icons.Default.AudioFile
             attachment.mimeType.startsWith("video/") -> Icons.Default.VideoLibrary
             else -> Icons.Default.Description
         }
+
+    private fun isImageAttachment(attachment: AttachmentInfo): Boolean {
+        if (attachment.mimeType.startsWith("image/", ignoreCase = true)) return true
+        val extension =
+            attachment.fileName.substringAfterLast('.', "").ifBlank {
+                attachment.filePath.substringAfterLast('.', "")
+            }.lowercase()
+        return extension in setOf("jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp")
+    }
+
+    private fun openAttachmentInputStream(filePath: String): InputStream? {
+        return runCatching {
+            when {
+                filePath.startsWith("content://") || filePath.startsWith("file://") -> {
+                    contentResolver.openInputStream(Uri.parse(filePath))
+                }
+                else -> {
+                    val file = File(filePath)
+                    if (file.exists() && file.isFile) file.inputStream() else null
+                }
+            }
+        }.getOrNull()
+    }
+
+    private fun calculateInSampleSize(options: BitmapFactory.Options, reqSizePx: Int): Int {
+        val outHeight = options.outHeight
+        val outWidth = options.outWidth
+        var inSampleSize = 1
+        if (outHeight > reqSizePx || outWidth > reqSizePx) {
+            var halfHeight = outHeight / 2
+            var halfWidth = outWidth / 2
+            while ((halfHeight / inSampleSize) >= reqSizePx && (halfWidth / inSampleSize) >= reqSizePx) {
+                inSampleSize *= 2
+            }
+        }
+        return inSampleSize.coerceAtLeast(1)
+    }
+
+    private fun decodeAttachmentThumbnail(filePath: String, reqSizePx: Int): Bitmap? {
+        val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        openAttachmentInputStream(filePath)?.use { input ->
+            BitmapFactory.decodeStream(input, null, boundsOptions)
+        } ?: return null
+
+        if (boundsOptions.outWidth <= 0 || boundsOptions.outHeight <= 0) return null
+
+        val decodeOptions =
+            BitmapFactory.Options().apply {
+                inSampleSize = calculateInSampleSize(boundsOptions, reqSizePx)
+                inPreferredConfig = Bitmap.Config.RGB_565
+            }
+        return openAttachmentInputStream(filePath)?.use { input ->
+            BitmapFactory.decodeStream(input, null, decodeOptions)
+        }
+    }
 
     private fun bindUserAttachmentIcons(composeView: ComposeView, attachments: List<AttachmentInfo>) {
         if (attachments.isEmpty()) {
@@ -3967,28 +4031,96 @@ class MainActivity : AppCompatActivity() {
         composeView.visibility = View.VISIBLE
         composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
         composeView.setContent {
-            val chipBg = colorResource(id = R.color.m3t_attachment_option_bg)
-            val chipIconTint = colorResource(id = R.color.m3t_attachment_option_icon)
-            val chipSize = dimensionResource(id = R.dimen.m3t_user_attachment_chip_size)
-            val iconSize = dimensionResource(id = R.dimen.m3t_user_attachment_chip_icon_size)
-            val chipSpacing = dimensionResource(id = R.dimen.m3t_user_attachment_chip_spacing)
-            val chipRadius = dimensionResource(id = R.dimen.m3t_user_attachment_chip_radius)
+            val density = LocalDensity.current
+            val itemBg = colorResource(id = R.color.m3t_attachment_preview_card_bg)
+            val iconBg = colorResource(id = R.color.m3t_attachment_option_bg)
+            val iconTint = colorResource(id = R.color.m3t_attachment_option_icon)
+            val textColor = colorResource(id = R.color.m3t_attachment_preview_name)
 
-            Row(horizontalArrangement = Arrangement.spacedBy(chipSpacing)) {
+            val itemSpacing = dimensionResource(id = R.dimen.m3t_user_attachment_chip_spacing)
+            val itemRadius = dimensionResource(id = R.dimen.m3t_user_attachment_chip_radius)
+            val itemPaddingH = dimensionResource(id = R.dimen.m3t_spacing_sm)
+            val itemPaddingV = dimensionResource(id = R.dimen.m3t_spacing_xs)
+            val thumbSize = dimensionResource(id = R.dimen.m3t_user_attachment_thumb_size)
+            val iconBoxSize = dimensionResource(id = R.dimen.m3t_user_attachment_chip_size)
+            val iconSize = dimensionResource(id = R.dimen.m3t_user_attachment_chip_icon_size)
+            val titleMaxWidth = dimensionResource(id = R.dimen.m3t_user_attachment_name_max_width)
+
+            Column(verticalArrangement = Arrangement.spacedBy(itemSpacing)) {
                 attachments.forEach { attachment ->
-                    Box(
+                    val isImage = isImageAttachment(attachment)
+                    val previewSizePx = with(density) { thumbSize.roundToPx() }.coerceAtLeast(1)
+                    val previewBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
+                        initialValue = null,
+                        key1 = attachment.filePath,
+                        key2 = previewSizePx
+                    ) {
+                        value = decodeAttachmentThumbnail(attachment.filePath, previewSizePx)?.asImageBitmap()
+                    }
+                    val shouldRenderImageStyle = isImage || previewBitmap != null
+
+                    Row(
                         modifier =
                             Modifier
-                                .size(chipSize)
-                                .clip(RoundedCornerShape(chipRadius))
-                                .background(chipBg),
-                        contentAlignment = Alignment.Center
+                                .clip(RoundedCornerShape(itemRadius))
+                                .background(itemBg)
+                                .padding(horizontal = itemPaddingH, vertical = itemPaddingV),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(itemSpacing)
                     ) {
-                        Icon(
-                            imageVector = resolveAttachmentIcon(attachment),
-                            contentDescription = attachment.fileName,
-                            tint = chipIconTint,
-                            modifier = Modifier.size(iconSize)
+                        if (shouldRenderImageStyle) {
+                            if (previewBitmap != null) {
+                                Image(
+                                    bitmap = previewBitmap!!,
+                                    contentDescription = attachment.fileName,
+                                    contentScale = ContentScale.Crop,
+                                    modifier =
+                                        Modifier
+                                            .size(thumbSize)
+                                            .clip(RoundedCornerShape(itemRadius))
+                                )
+                            } else {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .size(thumbSize)
+                                            .clip(RoundedCornerShape(itemRadius))
+                                            .background(iconBg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = resolveAttachmentIcon(attachment),
+                                        contentDescription = attachment.fileName,
+                                        tint = iconTint,
+                                        modifier = Modifier.size(iconSize)
+                                    )
+                                }
+                            }
+                        } else {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(iconBoxSize)
+                                        .clip(RoundedCornerShape(itemRadius))
+                                        .background(iconBg),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = resolveAttachmentIcon(attachment),
+                                    contentDescription = attachment.fileName,
+                                    tint = iconTint,
+                                    modifier = Modifier.size(iconSize)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = attachment.fileName.ifBlank { if (isImage) "图片" else "文件" },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = textColor,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.widthIn(max = titleMaxWidth)
                         )
                     }
                 }

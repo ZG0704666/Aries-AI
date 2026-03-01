@@ -120,15 +120,18 @@ class AttachmentManager(private val context: Context) {
             if (filePath.startsWith("content://")) {
                 val uri = Uri.parse(filePath)
                 val fileName = getFileNameFromUri(uri)
-                val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
+                val resolvedMimeType =
+                    context.contentResolver.getType(uri)
+                        ?: getMimeTypeFromPath(fileName)
+                        ?: "application/octet-stream"
                 val fileSize = getFileSizeFromUri(uri)
                 val attachmentContent =
-                    readTextAttachmentFromUri(uri, fileName, mimeType).orEmpty()
+                    readTextAttachmentFromUri(uri, fileName, resolvedMimeType).orEmpty()
                 
                 val attachmentInfo = AttachmentInfo(
                     filePath = filePath,
                     fileName = fileName,
-                    mimeType = mimeType,
+                    mimeType = resolvedMimeType,
                     fileSize = fileSize,
                     content = attachmentContent
                 )
