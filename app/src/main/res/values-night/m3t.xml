@@ -71,6 +71,15 @@
     <color name="m3t_perm_sheet_handle_tint">#8B92A0</color>
     <color name="m3t_perm_sheet_card_bg">#18222E</color>
     <color name="m3t_perm_sheet_separator">#434A56</color>
+    <color name="m3t_attachment_option_bg">#2F4762</color>
+    <color name="m3t_attachment_option_icon">#E8F2FF</color>
+    <color name="m3t_attachment_option_text">#E2EDFF</color>
+    <color name="m3t_attachment_preview_title">#BCCADF</color>
+    <color name="m3t_attachment_preview_card_bg">#223448</color>
+    <color name="m3t_attachment_preview_card_stroke">#47617B</color>
+    <color name="m3t_attachment_preview_icon">#BFD8FF</color>
+    <color name="m3t_attachment_preview_name">#E5F0FF</color>
+    <color name="m3t_attachment_preview_size">#A9BCD4</color>
     <color name="m3t_vd_mini_bg">#DC1F3A5C</color>
     <color name="m3t_vd_mini_stroke">#99D7E3FF</color>
     <color name="m3t_vd_bg_progress_bg">#E6202A36</color>

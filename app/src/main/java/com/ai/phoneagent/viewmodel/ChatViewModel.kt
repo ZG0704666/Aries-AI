@@ -8,6 +8,7 @@ import com.ai.phoneagent.helper.AttachmentManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 
 /**
  * ChatViewModel
@@ -183,10 +184,18 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private fun readImageAsBase64(filePath: String): String? {
         return try {
             val context = getApplication<Application>()
-            val uri = android.net.Uri.parse(filePath)
-            val inputStream = context.contentResolver.openInputStream(uri)
-            val bytes = inputStream?.readBytes()
-            inputStream?.close()
+            val inputStream =
+                when {
+                    filePath.startsWith("content://") || filePath.startsWith("file://") -> {
+                        val uri = android.net.Uri.parse(filePath)
+                        context.contentResolver.openInputStream(uri)
+                    }
+                    else -> {
+                        val file = File(filePath)
+                        if (file.exists() && file.isFile) file.inputStream() else null
+                    }
+                }
+            val bytes = inputStream?.use { it.readBytes() }
             bytes?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) }
         } catch (e: Exception) {
             e.printStackTrace()

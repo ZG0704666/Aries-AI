@@ -71,6 +71,7 @@ fun InputBar(
     // 状态为 Recording (录音中), Recognizing (识别中) 时显示全屏悬浮层
     val showVoiceOverlay = state is InputState.VoiceRecording || state is InputState.VoiceRecognizing
     val isVoiceMode = state is InputState.VoiceIdle || showVoiceOverlay
+    val isGenerating = state is InputState.Generating
 
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
         // 语音输入时的波形显示区域 - 直接嵌入在输入栏上方，不遮挡全屏
@@ -206,14 +207,25 @@ fun InputBar(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(if (text.isNotEmpty()) colorButtonEnabled else colorButtonDisabled)
-                                .clickable(enabled = text.isNotEmpty(), onClick = onSend),
+                                .background(
+                                    when {
+                                        isGenerating -> colorScheme.error
+                                        text.isNotEmpty() -> colorButtonEnabled
+                                        else -> colorButtonDisabled
+                                    }
+                                )
+                                .clickable(
+                                    enabled = isGenerating || text.isNotEmpty(),
+                                    onClick = onSend
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_send_24),
-                                contentDescription = "发送",
-                                tint = colorButtonIcon,
+                                painter = painterResource(
+                                    id = if (isGenerating) R.drawable.ic_stop_24 else R.drawable.ic_send_24
+                                ),
+                                contentDescription = if (isGenerating) "终止生成" else "发送",
+                                tint = if (isGenerating) colorScheme.onError else colorButtonIcon,
                                 modifier = Modifier.size(18.dp)
                             )
                         }

@@ -26,6 +26,7 @@ import android.content.Context
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import android.content.res.Configuration
 import java.io.File
 import android.graphics.Canvas
 import android.graphics.Color
@@ -124,6 +125,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.livedata.observeAsState
+import com.ai.phoneagent.data.AttachmentInfo
 import com.ai.phoneagent.viewmodel.ChatViewModel
 
 class MainActivity : AppCompatActivity() {
@@ -140,6 +142,8 @@ class MainActivity : AppCompatActivity() {
             val author: String,
             val content: String,
             val isUser: Boolean,
+            val thinkingDurationMs: Long? = null,
+            val attachments: List<AttachmentInfo>? = null,
     )
 
     private data class Conversation(
@@ -1563,6 +1567,9 @@ class MainActivity : AppCompatActivity() {
         )
         binding.navigationView.itemTextColor =
                 ColorStateList.valueOf(ContextCompat.getColor(this, R.color.m3t_on_surface))
+        val isNightMode =
+                (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                        Configuration.UI_MODE_NIGHT_YES
         
         binding.drawerLayout.addDrawerListener(
                 object : DrawerLayout.SimpleDrawerListener() {
@@ -1590,7 +1597,7 @@ class MainActivity : AppCompatActivity() {
                         binding.contentRoot.scaleY = scale
                         
                         // 2. 透明度：主界面轻微变暗
-                        binding.contentRoot.alpha = 1f - (t * 0.3f)
+                        binding.contentRoot.alpha = if (isNightMode) 1f else 1f - (t * 0.3f)
                         
                         // 3. 位移补偿：侧边栏推开主界面的同时，保持平滑平移
                         binding.contentRoot.translationX = w * t
@@ -1607,7 +1614,7 @@ class MainActivity : AppCompatActivity() {
                         }
                         
                         // 5. 侧边栏本身也平滑淡入
-                        drawerView.alpha = 0.5f + (0.5f * t)
+                        drawerView.alpha = if (isNightMode) 1f else 0.5f + (0.5f * t)
                     }
 
                     override fun onDrawerClosed(drawerView: View) {
@@ -2151,6 +2158,14 @@ class MainActivity : AppCompatActivity() {
                         onTextChange = { inputTextState.value = it },
                         onSend = {
                             vibrateLight()
+                            if (state is InputState.Generating) {
+                                if (!shouldStopGeneration) {
+                                    shouldStopGeneration = true
+                                    runCatching { AutoGlmClient.cancelActiveStream() }
+                                    Toast.makeText(this@MainActivity, "已请求终止生成", Toast.LENGTH_SHORT).show()
+                                }
+                                return@InputBar
+                            }
                             val t = inputTextState.value.trim()
                             if (t.isNotBlank() || chatViewModel.attachments.value.isNotEmpty()) {
                                 hideKeyboard()
@@ -2415,14 +2430,19 @@ class MainActivity : AppCompatActivity() {
                     m.author,
                     m.content,
                     animate = false,
-                    timeCostMs = 0,
+                    timeCostMs = m.thinkingDurationMs ?: 0L,
                     retryUserText = lastUserContent,
                     messageIndexInConversation = index,
                     modelName = currentModel
                 )
             } else {
                 lastUserContent = m.content
-                appendComplexUserMessage(m.author, m.content, animate = false)
+                appendComplexUserMessage(
+                    m.author,
+                    m.content,
+                    animate = false,
+                    attachments = m.attachments.orEmpty()
+                )
             }
         }
         
@@ -2528,6 +2548,8 @@ class MainActivity : AppCompatActivity() {
             } else {
                 content
             }
+            val userAttachments =
+                if (resendUser) chatViewModel.attachments.value.toList() else emptyList()
             
             // 将消息内容转换为字符串用于显示
             val messageContentStr = when (messageContent) {
@@ -2542,11 +2564,23 @@ class MainActivity : AppCompatActivity() {
             }
             
             if (resendUser) {
-                c.messages.add(UiMessage(author = "我", content = messageContentStr, isUser = true))
+                c.messages.add(
+                    UiMessage(
+                        author = "我",
+                        content = messageContentStr,
+                        isUser = true,
+                        attachments = userAttachments.takeIf { it.isNotEmpty() }
+                    )
+                )
                 c.updatedAt = System.currentTimeMillis()
                 persistConversations()
 
-                appendComplexUserMessage("我", messageContentStr, animate = true)
+                appendComplexUserMessage(
+                    "我",
+                    messageContentStr,
+                    animate = true,
+                    attachments = userAttachments
+                )
                 
                 // 同步消息到悬浮窗（如果运行中）
                 if (FloatingChatService.isRunning()) {
@@ -2580,6 +2614,13 @@ class MainActivity : AppCompatActivity() {
                 binding.messagesContainer.addView(aiView)
                 val vh = StreamRenderHelper.bindViews(aiView)
                 StreamRenderHelper.initThinkingState(vh)
+                val tvModelName = aiView.findViewById<TextView>(R.id.tv_model_name)
+                if (resolvedModel.isNotBlank()) {
+                    tvModelName.text = resolvedModel
+                    tvModelName.visibility = View.VISIBLE
+                } else {
+                    tvModelName.visibility = View.GONE
+                }
 
                 // 按钮事件绑定
                 val retryPrompt = textForTitle
@@ -2614,7 +2655,16 @@ class MainActivity : AppCompatActivity() {
 
                 // 构建对话历史
                 val chatHistory = buildChatHistory(c, retryMode).toMutableList()
-                if (!resendUser) {
+                if (resendUser) {
+                    val latestUserIndex = chatHistory.indexOfLast { it.role == "user" }
+                    if (latestUserIndex >= 0) {
+                        // Preserve multimodal payload (e.g. image_url list) for the current turn.
+                        chatHistory[latestUserIndex] =
+                            ChatRequestMessage(role = "user", content = messageContent)
+                    } else {
+                        chatHistory.add(ChatRequestMessage(role = "user", content = messageContent))
+                    }
+                } else {
                     val targetIndex = chatHistory.indexOfLast { it.role == "user" }
                     if (targetIndex >= 0) {
                         while (chatHistory.size > targetIndex + 1) {
@@ -2714,8 +2764,13 @@ class MainActivity : AppCompatActivity() {
                                             }
                                         }
                                     },
+                                    shouldStop = { shouldStopGeneration },
                             )
 
+                    if (shouldStopGeneration) {
+                        streamOk = true
+                        break
+                    }
                     if (result.isSuccess) {
                         streamOk = true
                         break
@@ -2725,7 +2780,8 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 // 处理结果
-                val timeCost = (System.currentTimeMillis() - startTime) / 1000
+                val timeCostMs = System.currentTimeMillis() - startTime
+                val timeCost = timeCostMs / 1000
 
                 val finalContent =
                         if (shouldStopGeneration) {
@@ -2781,7 +2837,14 @@ class MainActivity : AppCompatActivity() {
                         }
 
                 val cc = requireActiveConversation()
-                cc.messages.add(UiMessage(author = "Aries AI", content = persistContent, isUser = false))
+                cc.messages.add(
+                    UiMessage(
+                        author = "Aries AI",
+                        content = persistContent,
+                        isUser = false,
+                        thinkingDurationMs = timeCostMs
+                    )
+                )
                 cc.updatedAt = System.currentTimeMillis()
                 persistConversations()
 
@@ -3632,7 +3695,7 @@ class MainActivity : AppCompatActivity() {
         
         // 设置模型名称（显示在作者名右侧）
         if (!modelName.isNullOrBlank()) {
-            tvModelName.text = "调用模型：$modelName"
+            tvModelName.text = modelName
             tvModelName.visibility = View.VISIBLE
         } else {
             tvModelName.visibility = View.GONE
@@ -3866,12 +3929,35 @@ class MainActivity : AppCompatActivity() {
     /**
      * 用户消息复杂气泡：淡水蓝背景，右侧对齐，并与底部输入栏左右边界保持一致。
      */
-    private fun appendComplexUserMessage(author: String, content: String, animate: Boolean) {
+    private fun formatUserMessageDisplayContent(
+        content: String,
+        attachments: List<AttachmentInfo>
+    ): String {
+        if (attachments.isEmpty()) return content
+
+        val attachmentBlock =
+            attachments.joinToString(separator = "\n", prefix = "附件：\n") { attachment ->
+                val displayName =
+                    attachment.fileName.ifBlank {
+                        if (attachment.mimeType.startsWith("image/")) "图片附件" else "附件"
+                    }
+                "• $displayName"
+            }
+        return if (content.isBlank()) attachmentBlock else "$content\n\n$attachmentBlock"
+    }
+
+    private fun appendComplexUserMessage(
+        author: String,
+        content: String,
+        animate: Boolean,
+        attachments: List<AttachmentInfo> = emptyList()
+    ) {
         val bubble = layoutInflater.inflate(R.layout.item_user_message_complex, binding.messagesContainer, false)
         val tv = bubble.findViewById<TextView>(R.id.message_content)
         val authorTv = bubble.findViewById<TextView>(R.id.user_author_name)
         authorTv.text = author
         authorTv.visibility = View.GONE
+        val displayContent = formatUserMessageDisplayContent(content, attachments)
 
         val density = resources.displayMetrics.density
         fun dp(v: Int): Int = (v * density).toInt()
@@ -3904,7 +3990,7 @@ class MainActivity : AppCompatActivity() {
         smoothScrollToBottom()
 
         if (!animate) {
-            tv.text = content
+            tv.text = displayContent
             return
         }
 
@@ -3912,15 +3998,15 @@ class MainActivity : AppCompatActivity() {
             val sb = StringBuilder()
             val chunkSize = 2
             var idx = 0
-            while (idx < content.length) {
-                val end = minOf(idx + chunkSize, content.length)
-                sb.append(content.substring(idx, end))
+            while (idx < displayContent.length) {
+                val end = minOf(idx + chunkSize, displayContent.length)
+                sb.append(displayContent.substring(idx, end))
                 tv.text = sb.toString()
                 idx = end
                 smoothScrollToBottom()
                 delay(10)
             }
-            tv.text = content
+            tv.text = displayContent
         }
     }
     

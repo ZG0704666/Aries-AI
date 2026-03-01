@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -183,12 +184,13 @@ fun AttachmentPreviewList(
     modifier: Modifier = Modifier
 ) {
     if (attachments.isEmpty()) return
+    val titleColor = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_preview_title)
     
     Column(modifier = modifier) {
         Text(
             text = "附件 (${attachments.size})",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            color = titleColor,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
         )
         
@@ -220,6 +222,11 @@ private fun AttachmentPreviewItem(
     onRemove: () -> Unit,
     onInsert: () -> Unit
 ) {
+    val previewCardBg = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_preview_card_bg)
+    val previewCardStroke = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_preview_card_stroke)
+    val previewIconColor = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_preview_icon)
+    val previewNameColor = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_preview_name)
+    val previewSizeColor = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_preview_size)
     val icon = when {
         attachment.fileName.startsWith("camera_") -> Icons.Default.PhotoCamera
         attachment.mimeType.startsWith("image/") -> Icons.Default.Image
@@ -234,10 +241,10 @@ private fun AttachmentPreviewItem(
             .clip(RoundedCornerShape(8.dp))
             .border(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                color = previewCardStroke,
                 shape = RoundedCornerShape(8.dp)
             )
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .background(previewCardBg)
             .clickable(onClick = onInsert)
     ) {
         Row(
@@ -248,7 +255,7 @@ private fun AttachmentPreviewItem(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = previewIconColor,
                 modifier = Modifier.size(24.dp)
             )
             
@@ -259,6 +266,7 @@ private fun AttachmentPreviewItem(
                 Text(
                     text = attachmentManager.getDisplayName(attachment),
                     style = MaterialTheme.typography.bodySmall,
+                    color = previewNameColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -267,7 +275,7 @@ private fun AttachmentPreviewItem(
                     Text(
                         text = attachmentManager.formatFileSize(attachment.fileSize),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = previewSizeColor
                     )
                 }
             }
@@ -300,6 +308,9 @@ private fun AttachmentOptionItem(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val optionBgColor = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_option_bg)
+    val optionIconColor = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_option_icon)
+    val optionTextColor = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_option_text)
     
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -317,15 +328,13 @@ private fun AttachmentOptionItem(
             modifier = Modifier
                 .size(68.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .background(
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                ),
+                .background(optionBgColor),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+                tint = optionIconColor,
                 modifier = Modifier.size(32.dp)
             )
         }
@@ -336,7 +345,7 @@ private fun AttachmentOptionItem(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+            color = optionTextColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             fontSize = 14.sp
