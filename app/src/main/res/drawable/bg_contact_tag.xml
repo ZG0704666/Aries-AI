@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#F8FAFC" />
+    <solid android:color="@color/m3t_perm_sheet_card_bg" />
     <corners android:radius="16dp" />
-    <stroke android:width="0.5dp" android:color="#E2E8F0" />
+    <stroke android:width="0.5dp" android:color="@color/m3t_perm_sheet_handle" />
 </shape>

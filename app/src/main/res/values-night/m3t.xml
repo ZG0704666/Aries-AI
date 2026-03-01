@@ -61,6 +61,40 @@
     <color name="m3t_automation_page_bg">#111C28</color>
     <color name="m3t_about_card_bg">#223243</color>
     <color name="m3t_automation_card_bg">#1E2C3B</color>
+    <color name="m3t_virtual_welcome_bg">#FF000000</color>
+    <color name="m3t_virtual_welcome_text">#FFE1E7F1</color>
+    <color name="m3t_automation_progress_bg">#1D3A23</color>
+    <color name="m3t_automation_progress_title">#86D990</color>
+    <color name="m3t_automation_progress_text">#E1E7F1</color>
+    <color name="m3t_automation_progress_text_secondary">#C1C7D3</color>
+    <color name="m3t_perm_sheet_handle">#434A56</color>
+    <color name="m3t_perm_sheet_handle_tint">#8B92A0</color>
+    <color name="m3t_perm_sheet_card_bg">#18222E</color>
+    <color name="m3t_perm_sheet_separator">#434A56</color>
+    <color name="m3t_vd_mini_bg">#DC1F3A5C</color>
+    <color name="m3t_vd_mini_stroke">#99D7E3FF</color>
+    <color name="m3t_vd_bg_progress_bg">#E6202A36</color>
+    <color name="m3t_vd_bg_progress_stroke">#648B92A0</color>
+    <color name="m3t_vd_bg_progress_text">#FFE1E7F1</color>
+    <color name="m3t_vd_bg_progress_close_text">#B4E1E7F1</color>
+    <color name="m3t_vd_container_bg">#E6141D27</color>
+    <color name="m3t_vd_container_stroke">#645E7188</color>
+    <color name="m3t_vd_header_bg">#C81F2C3B</color>
+    <color name="m3t_vd_header_text">#FFE1E7F1</color>
+    <color name="m3t_vd_header_action">#C8E1E7F1</color>
+    <color name="m3t_vd_status_bg">#782A3139</color>
+    <color name="m3t_vd_status_text">#C8C1C7D3</color>
+    <color name="m3t_vd_control_bar_bg">#DC1F2A37</color>
+    <color name="m3t_vd_control_btn_bg">#3CE1E7F1</color>
+    <color name="m3t_voice_wave_start">#7FB4FF</color>
+    <color name="m3t_voice_wave_mid">#A892FF</color>
+    <color name="m3t_voice_wave_end">#FF7AA2</color>
+    <color name="m3t_btn_glow_border_start">#669FCBFF</color>
+    <color name="m3t_btn_glow_border_end">#334A6CA0</color>
+    <color name="m3t_btn_glow_inner_start">#1A7FB4FF</color>
+    <color name="m3t_btn_glow_inner_end">#00FFFFFF</color>
+    <color name="m3t_card_border_grad_start">#558BB8EA</color>
+    <color name="m3t_card_border_grad_end">#333E6796</color>
+    <color name="m3t_circle_glass_bg">#339BCBFF</color>
 
 </resources>
-

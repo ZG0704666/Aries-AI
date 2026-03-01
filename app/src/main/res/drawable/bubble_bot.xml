@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#F2F6FF"/>
+    <solid android:color="@color/m3t_message_ai_bg"/>
     <corners android:radius="16dp"/>
     <padding android:left="12dp" android:top="8dp" android:right="12dp" android:bottom="8dp"/>
 </shape>

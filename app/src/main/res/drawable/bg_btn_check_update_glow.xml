@@ -7,8 +7,8 @@
             <corners android:radius="26dp" />
             <gradient
                 android:angle="315"
-                android:startColor="#77B6E6FF"
-                android:endColor="#3383CFFF" />
+                android:startColor="@color/m3t_btn_glow_border_start"
+                android:endColor="@color/m3t_btn_glow_border_end" />
         </shape>
     </item>
 
@@ -20,7 +20,7 @@
         android:bottom="2dp">
         <shape android:shape="rectangle">
             <corners android:radius="24dp" />
-            <solid android:color="@android:color/white" />
+            <solid android:color="@color/m3t_button_white" />
         </shape>
     </item>
 
@@ -37,8 +37,8 @@
                 android:centerX="0.5"
                 android:centerY="0.25"
                 android:gradientRadius="220dp"
-                android:startColor="#1A6BA8FF"
-                android:endColor="#00FFFFFF" />
+                android:startColor="@color/m3t_btn_glow_inner_start"
+                android:endColor="@color/m3t_btn_glow_inner_end" />
         </shape>
     </item>
 

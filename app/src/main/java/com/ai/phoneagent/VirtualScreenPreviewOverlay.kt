@@ -8,7 +8,6 @@ package com.ai.phoneagent
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.SurfaceTexture
 import android.graphics.drawable.GradientDrawable
@@ -27,6 +26,8 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.annotation.ColorRes
+import androidx.core.content.ContextCompat
 import com.ai.phoneagent.core.utils.DisplayUtils
 import com.ai.phoneagent.input.InputHelper
 import com.ai.phoneagent.vdiso.ShizukuVirtualDisplayEngine
@@ -341,8 +342,8 @@ object VirtualScreenPreviewOverlay {
         init {
             val bg = GradientDrawable()
             bg.shape = GradientDrawable.OVAL
-            bg.setColor(Color.argb(220, 40, 120, 220))
-            bg.setStroke(dp(1), Color.argb(180, 255, 255, 255))
+            bg.setColor(m3Color(R.color.m3t_vd_mini_bg))
+            bg.setStroke(dp(1), m3Color(R.color.m3t_vd_mini_stroke))
             background = bg
             elevation = dp(6).toFloat()
 
@@ -407,6 +408,8 @@ object VirtualScreenPreviewOverlay {
                                 context.resources.displayMetrics
                         )
                         .toInt()
+
+        private fun m3Color(@ColorRes colorRes: Int): Int = ContextCompat.getColor(context, colorRes)
     }
 
     // ═══════════════════════════════════════════════════════
@@ -431,8 +434,8 @@ object VirtualScreenPreviewOverlay {
             // 整体背景
             val bg = GradientDrawable()
             bg.cornerRadius = dp(8).toFloat()
-            bg.setColor(Color.argb(230, 40, 40, 50))
-            bg.setStroke(dp(1), Color.argb(100, 100, 100, 150))
+            bg.setColor(m3Color(R.color.m3t_vd_bg_progress_bg))
+            bg.setStroke(dp(1), m3Color(R.color.m3t_vd_bg_progress_stroke))
             background = bg
             elevation = dp(6).toFloat()
 
@@ -450,7 +453,7 @@ object VirtualScreenPreviewOverlay {
             statusText =
                     TextView(context).apply {
                         text = "后台运行中..."
-                        setTextColor(Color.WHITE)
+                        setTextColor(m3Color(R.color.m3t_vd_bg_progress_text))
                         textSize = 12f
                         gravity = Gravity.CENTER_VERTICAL
                         layoutParams =
@@ -467,7 +470,7 @@ object VirtualScreenPreviewOverlay {
             val closeBtn =
                     TextView(context).apply {
                         text = "✕"
-                        setTextColor(Color.argb(180, 255, 255, 255))
+                        setTextColor(m3Color(R.color.m3t_vd_bg_progress_close_text))
                         textSize = 12f
                         gravity = Gravity.CENTER
                         layoutParams = LayoutParams(dp(24), LayoutParams.MATCH_PARENT)
@@ -529,6 +532,8 @@ object VirtualScreenPreviewOverlay {
                                 context.resources.displayMetrics
                         )
                         .toInt()
+
+        private fun m3Color(@ColorRes colorRes: Int): Int = ContextCompat.getColor(context, colorRes)
     }
 
     // ═══════════════════════════════════════════════════════
@@ -586,8 +591,8 @@ object VirtualScreenPreviewOverlay {
             // 整体背景
             val bg = GradientDrawable()
             bg.cornerRadius = dp(12).toFloat()
-            bg.setColor(Color.argb(230, 30, 30, 35))
-            bg.setStroke(dp(1), Color.argb(100, 100, 100, 120))
+            bg.setColor(m3Color(R.color.m3t_vd_container_bg))
+            bg.setStroke(dp(1), m3Color(R.color.m3t_vd_container_stroke))
             background = bg
             clipToOutline = true
             elevation = dp(8).toFloat()
@@ -596,13 +601,13 @@ object VirtualScreenPreviewOverlay {
             val header =
                     FrameLayout(context).apply {
                         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, dp(HEADER_HEIGHT_DP))
-                        setBackgroundColor(Color.argb(200, 50, 50, 60))
+                        setBackgroundColor(m3Color(R.color.m3t_vd_header_bg))
                     }
 
             header.addView(
                     TextView(context).apply {
                         text = "虚拟屏预览"
-                        setTextColor(Color.WHITE)
+                        setTextColor(m3Color(R.color.m3t_vd_header_text))
                         textSize = 11f
                         layoutParams =
                                 LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
@@ -617,7 +622,7 @@ object VirtualScreenPreviewOverlay {
             header.addView(
                     TextView(context).apply {
                         text = "－"
-                        setTextColor(Color.argb(200, 255, 255, 255))
+                        setTextColor(m3Color(R.color.m3t_vd_header_action))
                         textSize = 16f
                         gravity = Gravity.CENTER
                         layoutParams =
@@ -720,9 +725,9 @@ object VirtualScreenPreviewOverlay {
             val statusTv =
                     TextView(context).apply {
                         text = "执行中..."
-                        setTextColor(Color.argb(200, 200, 200, 200))
+                        setTextColor(m3Color(R.color.m3t_vd_status_text))
                         textSize = 10f
-                        setBackgroundColor(Color.argb(120, 0, 0, 0))
+                        setBackgroundColor(m3Color(R.color.m3t_vd_status_bg))
                         setPadding(dp(6), dp(2), dp(6), dp(2))
                         layoutParams =
                                 LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
@@ -739,7 +744,7 @@ object VirtualScreenPreviewOverlay {
                     LinearLayout(context).apply {
                         orientation = LinearLayout.HORIZONTAL
                         gravity = Gravity.CENTER_VERTICAL
-                        setBackgroundColor(Color.argb(220, 40, 40, 50))
+                        setBackgroundColor(m3Color(R.color.m3t_vd_control_bar_bg))
                         layoutParams =
                                 LayoutParams(LayoutParams.MATCH_PARENT, dp(CONTROL_BAR_HEIGHT_DP))
                                         .apply { gravity = Gravity.BOTTOM }
@@ -750,7 +755,7 @@ object VirtualScreenPreviewOverlay {
             fun makeCtrlBtn(label: String, flex: Float = 1f, onClick: () -> Unit): TextView {
                 return TextView(context).apply {
                     text = label
-                    setTextColor(Color.WHITE)
+                    setTextColor(m3Color(R.color.m3t_vd_header_text))
                     textSize = 10f
                     gravity = Gravity.CENTER
                     layoutParams =
@@ -765,7 +770,7 @@ object VirtualScreenPreviewOverlay {
                     val pressedBg =
                             GradientDrawable().apply {
                                 cornerRadius = dp(4).toFloat()
-                                setColor(Color.argb(60, 255, 255, 255))
+                                setColor(m3Color(R.color.m3t_vd_control_btn_bg))
                             }
                     background = pressedBg
                 }
@@ -883,5 +888,7 @@ object VirtualScreenPreviewOverlay {
                                 context.resources.displayMetrics
                         )
                         .toInt()
+
+        private fun m3Color(@ColorRes colorRes: Int): Int = ContextCompat.getColor(context, colorRes)
     }
 }

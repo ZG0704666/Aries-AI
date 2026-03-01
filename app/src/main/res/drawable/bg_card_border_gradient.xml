@@ -7,8 +7,8 @@
             <corners android:radius="20dp" />
             <gradient
                 android:angle="315"
-                android:startColor="#66B6E6FF"
-                android:endColor="#3383CFFF" />
+                android:startColor="@color/m3t_card_border_grad_start"
+                android:endColor="@color/m3t_card_border_grad_end" />
         </shape>
     </item>
 
@@ -20,7 +20,7 @@
         android:bottom="1dp">
         <shape android:shape="rectangle">
             <corners android:radius="19dp" />
-            <solid android:color="@android:color/white" />
+            <solid android:color="@color/m3t_button_white" />
         </shape>
     </item>
 

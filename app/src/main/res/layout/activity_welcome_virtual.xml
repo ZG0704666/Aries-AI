@@ -2,7 +2,7 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FF000000"
+    android:background="@color/m3t_virtual_welcome_bg"
     android:fillViewport="true">
 
     <LinearLayout
@@ -17,7 +17,7 @@
             android:gravity="center"
             android:padding="24dp"
             android:text="欢迎使用虚拟隔离模式"
-            android:textColor="#FFFFFFFF"
+            android:textColor="@color/m3t_virtual_welcome_text"
             android:textSize="34sp"
             android:textStyle="bold" />
 

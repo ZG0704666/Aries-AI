@@ -16,10 +16,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.ai.phoneagent.R
 import kotlin.math.abs
 import kotlin.random.Random
 
@@ -36,6 +37,9 @@ fun VoiceWaveform(
     val barSpacing = 3.dp
     val maxHeight = 48.dp
     val minHeight = 6.dp
+    val waveStart = colorResource(id = R.color.m3t_voice_wave_start)
+    val waveMid = colorResource(id = R.color.m3t_voice_wave_mid)
+    val waveEnd = colorResource(id = R.color.m3t_voice_wave_end)
     
     Row(
         modifier = modifier,
@@ -60,8 +64,8 @@ fun VoiceWaveform(
             // 渐变颜色 - 蓝→紫→粉
             val colorPosition = index.toFloat() / barCount
             val barColor = lerp(
-                lerp(Color(0xFF007AFF), Color(0xFF5856D6), (colorPosition * 2f).coerceAtMost(1f)),
-                Color(0xFFFF2D55),
+                lerp(waveStart, waveMid, (colorPosition * 2f).coerceAtMost(1f)),
+                waveEnd,
                 (colorPosition - 0.5f).coerceAtLeast(0f) * 2f
             )
             

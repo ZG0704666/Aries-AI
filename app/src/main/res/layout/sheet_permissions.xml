@@ -13,10 +13,10 @@
     <View
         android:layout_width="40dp"
         android:layout_height="4dp"
-        android:background="#E2E8F0"
+        android:background="@color/m3t_perm_sheet_handle"
         android:layout_gravity="center_horizontal"
         android:layout_marginBottom="24dp"
-        android:backgroundTint="#CBD5E1" />
+        android:backgroundTint="@color/m3t_perm_sheet_handle_tint" />
 
     <TextView
         android:id="@+id/tvPermTitle"
@@ -42,8 +42,8 @@
         android:layout_marginTop="24dp"
         app:cardCornerRadius="24dp"
         app:cardElevation="0dp"
-        app:cardBackgroundColor="#F8FAFC"
-        app:strokeColor="#F1F5F9"
+        app:cardBackgroundColor="@color/m3t_perm_sheet_card_bg"
+        app:strokeColor="@color/m3t_perm_sheet_separator"
         app:strokeWidth="1dp">
 
         <LinearLayout
@@ -101,7 +101,7 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#F1F5F9"
+                android:background="@color/m3t_perm_sheet_separator"
                 android:layout_marginVertical="16dp" />
 
             <LinearLayout
@@ -153,7 +153,7 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#F1F5F9"
+                android:background="@color/m3t_perm_sheet_separator"
                 android:layout_marginVertical="16dp" />
 
             <LinearLayout
