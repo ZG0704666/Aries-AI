@@ -180,4 +180,9 @@ dependencies {
     
     // PDF 处理
     implementation("com.itextpdf:itext7-core:7.2.5")
+
+    // Office 文档解析（doc/docx/ppt/pptx/xls/xlsx）
+    implementation("org.apache.poi:poi:5.2.5")
+    implementation("org.apache.poi:poi-ooxml:5.2.5")
+    implementation("org.apache.poi:poi-scratchpad:5.2.5")
 }
