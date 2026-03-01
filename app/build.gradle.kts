@@ -30,12 +30,6 @@ android {
         }
     }
 
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-        }
-    }
-
     defaultConfig {
         applicationId = "com.ai.phoneagent"
         minSdk = 30

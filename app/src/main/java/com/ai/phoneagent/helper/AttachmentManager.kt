@@ -26,7 +26,9 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor
 import org.apache.poi.xwpf.usermodel.XWPFDocument
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.InputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -67,6 +69,11 @@ class AttachmentManager(private val context: Context) {
 
     private val structuredDocumentExtensions =
         setOf("pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx")
+
+    private sealed class LimitedReadResult {
+        data class Success(val bytes: ByteArray) : LimitedReadResult()
+        data class TooLarge(val bytesRead: Long) : LimitedReadResult()
+    }
     
     /**
      * 添加多个附件（去重）
@@ -389,8 +396,16 @@ class AttachmentManager(private val context: Context) {
         } catch (e: Exception) {
             // Ignore
         }
-        
-        fileSize
+
+        if (fileSize > 0L) {
+            return@withContext fileSize
+        }
+
+        runCatching {
+            context.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
+                descriptor.statSize.takeIf { it > 0L } ?: 0L
+            } ?: 0L
+        }.getOrDefault(0L)
     }
 
     private fun detectExtension(fileName: String, mimeType: String): String {
@@ -524,6 +539,25 @@ class AttachmentManager(private val context: Context) {
             }
         }.getOrNull()
 
+    private fun InputStream.readBytesLimited(maxBytes: Long): LimitedReadResult {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var totalBytes = 0L
+
+        while (true) {
+            val readCount = read(buffer)
+            if (readCount <= 0) break
+
+            totalBytes += readCount
+            if (totalBytes > maxBytes) {
+                return LimitedReadResult.TooLarge(totalBytes)
+            }
+            output.write(buffer, 0, readCount)
+        }
+
+        return LimitedReadResult.Success(output.toByteArray())
+    }
+
     private suspend fun readAttachmentContentFromUri(
         uri: Uri,
         fileName: String,
@@ -536,8 +570,12 @@ class AttachmentManager(private val context: Context) {
         }
         runCatching {
             context.contentResolver.openInputStream(uri)?.use { input ->
-                val bytes = input.readBytes()
-                extractAttachmentText(bytes, fileName, mimeType)
+                when (val readResult = input.readBytesLimited(MAX_EXTRACTABLE_FILE_BYTES)) {
+                    is LimitedReadResult.Success ->
+                        extractAttachmentText(readResult.bytes, fileName, mimeType)
+                    is LimitedReadResult.TooLarge ->
+                        FILE_TOO_LARGE_TEMPLATE.format(maxOf(fileSize, readResult.bytesRead))
+                }
             }
         }.getOrNull()
     }
@@ -554,8 +592,12 @@ class AttachmentManager(private val context: Context) {
         }
         runCatching {
             file.inputStream().use { input ->
-                val bytes = input.readBytes()
-                extractAttachmentText(bytes, fileName, mimeType)
+                when (val readResult = input.readBytesLimited(MAX_EXTRACTABLE_FILE_BYTES)) {
+                    is LimitedReadResult.Success ->
+                        extractAttachmentText(readResult.bytes, fileName, mimeType)
+                    is LimitedReadResult.TooLarge ->
+                        FILE_TOO_LARGE_TEMPLATE.format(maxOf(fileSize, readResult.bytesRead))
+                }
             }
         }.getOrNull()
     }

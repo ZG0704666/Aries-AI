@@ -381,29 +381,62 @@ object AutoGlmClient {
                 baseUrl: String = DEFAULT_BASE_URL,
                 model: String = DEFAULT_MODEL,
         ): Boolean =
-                runCatching {
-                                val normalizedApiKey = normalizeApiKey(apiKey)
-                                val res =
-                                        getService(baseUrl).chat(
-                                                auth = "Bearer $normalizedApiKey",
-                                                request =
+                withContext(Dispatchers.IO) {
+                        runCatching {
+                                        val normalizedApiKey = normalizeApiKey(apiKey)
+                                        val requestBodyJson =
+                                                Gson().toJson(
                                                         ChatRequest(
                                                                 model = resolveModel(model),
                                                                 messages =
                                                                         listOf(
                                                                                 ChatRequestMessage(
-                                                                                        role =
-                                                                                                "user",
-                                                                                        content =
-                                                                                                "ping"
+                                                                                        role = "user",
+                                                                                        content = "ping"
                                                                                 )
                                                                         ),
-                                                                stream = false
+                                                                stream = false,
+                                                                max_tokens = 16,
                                                         )
-                                        )
-                                !res.choices.isNullOrEmpty()
-                        }
-                        .getOrDefault(false)
+                                                )
+                                        val request =
+                                                Request.Builder()
+                                                        .url(normalizeBaseUrl(baseUrl) + "chat/completions")
+                                                        .addHeader("Authorization", "Bearer $normalizedApiKey")
+                                                        .addHeader("Content-Type", "application/json")
+                                                        .post(
+                                                                requestBodyJson.toRequestBody(
+                                                                        "application/json; charset=utf-8"
+                                                                                .toMediaType()
+                                                                )
+                                                        )
+                                                        .build()
+
+                                        SharedHttpClient.fastInstance.newCall(request).execute().use { response ->
+                                                if (!response.isSuccessful) {
+                                                        return@use false
+                                                }
+                                                val body = response.body?.string().orEmpty()
+                                                if (body.isBlank()) {
+                                                        return@use true
+                                                }
+                                                isApiCheckResponseAcceptable(body)
+                                        }
+                                }
+                                .getOrDefault(false)
+                }
+
+        private fun isApiCheckResponseAcceptable(body: String): Boolean {
+                val root = runCatching { JsonParser.parseString(body) }.getOrNull() ?: return true
+                if (!root.isJsonObject) return true
+
+                val obj = root.asJsonObject
+                if (obj.has("error") && !obj.get("error").isJsonNull) {
+                        return false
+                }
+                val choices = obj.getAsJsonArray("choices") ?: return true
+                return choices.size() > 0
+        }
 
         suspend fun sendChat(
                 apiKey: String,

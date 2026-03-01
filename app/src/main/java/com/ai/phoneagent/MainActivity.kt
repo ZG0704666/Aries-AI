@@ -42,6 +42,7 @@ import android.graphics.SweepGradient
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.util.Base64
+import android.util.LruCache
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
@@ -280,6 +281,7 @@ class MainActivity : AppCompatActivity() {
     
     // 附件预览状态（由 ViewModel 管理，UI 层仅负责显示）
     private var attachmentPreviewView: View? = null
+    private val attachmentThumbnailCache = LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(64)
 
     @Volatile private var suppressApiInputWatcher: Boolean = false
     @Volatile private var apiNeedsRecheckToastShown: Boolean = false
@@ -4084,9 +4086,29 @@ class MainActivity : AppCompatActivity() {
                     val previewBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
                         initialValue = null,
                         key1 = attachment.filePath,
-                        key2 = previewSizePx
+                        key2 = previewSizePx,
+                        key3 = isImage
                     ) {
-                        value = decodeAttachmentThumbnail(attachment.filePath, previewSizePx)?.asImageBitmap()
+                        if (!isImage) {
+                            value = null
+                            return@produceState
+                        }
+
+                        val cacheKey = "${attachment.filePath}#$previewSizePx"
+                        val cachedBitmap = attachmentThumbnailCache.get(cacheKey)
+                        if (cachedBitmap != null) {
+                            value = cachedBitmap
+                            return@produceState
+                        }
+
+                        val decodedBitmap =
+                            withContext(Dispatchers.IO) {
+                                decodeAttachmentThumbnail(attachment.filePath, previewSizePx)?.asImageBitmap()
+                            }
+                        if (decodedBitmap != null) {
+                            attachmentThumbnailCache.put(cacheKey, decodedBitmap)
+                        }
+                        value = decodedBitmap
                     }
                     val shouldRenderImageStyle = isImage || previewBitmap != null
 

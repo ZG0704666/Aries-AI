@@ -11,41 +11,50 @@ function(force_release_flags_for_debug target_name)
 endfunction()
 
 if(ANDROID)
+    option(ARIES_ENABLE_SHERPA_NCNN "Build sherpa-ncnn native modules when submodules are available." ON)
+
     set(SHERPA_NCNN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/sherpa-ncnn")
     set(SHERPA_NCNN_CMAKELISTS "${SHERPA_NCNN_SOURCE_DIR}/CMakeLists.txt")
-    if(NOT EXISTS "${SHERPA_NCNN_CMAKELISTS}")
-        message(FATAL_ERROR
-                "Missing sherpa-ncnn submodule contents: ${SHERPA_NCNN_CMAKELISTS}\n"
-                "Run: git submodule update --init --recursive -- thirdparty/sherpa-ncnn")
+    set(NCNN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ncnn")
+    set(NCNN_CMAKELISTS "${NCNN_SOURCE_DIR}/CMakeLists.txt")
+
+    if(NOT ARIES_ENABLE_SHERPA_NCNN)
+        message(STATUS "ARIES_ENABLE_SHERPA_NCNN=OFF, skipping sherpa-ncnn native build.")
+    elseif(NOT EXISTS "${SHERPA_NCNN_CMAKELISTS}" OR NOT EXISTS "${NCNN_CMAKELISTS}")
+        message(WARNING
+                "Native submodule sources are missing. Skipping sherpa-ncnn native build.\n"
+                "Expected: ${SHERPA_NCNN_CMAKELISTS}\n"
+                "Expected: ${NCNN_CMAKELISTS}\n"
+                "Run: git submodule update --init --recursive")
+    else()
+        # Build sherpa-ncnn as part of Android Studio externalNativeBuild.
+        # Use local submodules to avoid downloading a different ncnn build.
+        list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+        list(APPEND CMAKE_MODULE_PATH "${SHERPA_NCNN_SOURCE_DIR}/cmake")
+        include_directories("${SHERPA_NCNN_SOURCE_DIR}")
+
+        set(FETCHCONTENT_SOURCE_DIR_NCNN "${NCNN_SOURCE_DIR}" CACHE PATH "" FORCE)
+
+        set(SHERPA_NCNN_ENABLE_PORTAUDIO OFF CACHE BOOL "" FORCE)
+        set(SHERPA_NCNN_ENABLE_BINARY OFF CACHE BOOL "" FORCE)
+        set(SHERPA_NCNN_ENABLE_TEST OFF CACHE BOOL "" FORCE)
+        set(SHERPA_NCNN_ENABLE_C_API OFF CACHE BOOL "" FORCE)
+        set(SHERPA_NCNN_ENABLE_JNI ON CACHE BOOL "" FORCE)
+        set(SHERPA_NCNN_ENABLE_PYTHON OFF CACHE BOOL "" FORCE)
+        set(SHERPA_NCNN_ENABLE_FFMPEG_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(SHERPA_NCNN_ENABLE_GENERATE_INT8_SCALE_TABLE OFF CACHE BOOL "" FORCE)
+
+        # Keep sherpa/ncnn static inside libsherpa-ncnn-jni and avoid OpenMP abort issues.
+        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+        set(NCNN_OPENMP OFF CACHE BOOL "" FORCE)
+
+        add_subdirectory(
+                "${SHERPA_NCNN_SOURCE_DIR}"
+                "${CMAKE_BINARY_DIR}/sherpa_ncnn_build"
+        )
+
+        force_release_flags_for_debug(ncnn)
+        force_release_flags_for_debug(sherpa-ncnn-core)
+        force_release_flags_for_debug(sherpa-ncnn-jni)
     endif()
-
-    # Build sherpa-ncnn as part of Android Studio externalNativeBuild.
-    # Use local submodules to avoid downloading a different ncnn build.
-    list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-    list(APPEND CMAKE_MODULE_PATH "${SHERPA_NCNN_SOURCE_DIR}/cmake")
-    include_directories("${SHERPA_NCNN_SOURCE_DIR}")
-
-    set(FETCHCONTENT_SOURCE_DIR_NCNN "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ncnn" CACHE PATH "" FORCE)
-
-    set(SHERPA_NCNN_ENABLE_PORTAUDIO OFF CACHE BOOL "" FORCE)
-    set(SHERPA_NCNN_ENABLE_BINARY OFF CACHE BOOL "" FORCE)
-    set(SHERPA_NCNN_ENABLE_TEST OFF CACHE BOOL "" FORCE)
-    set(SHERPA_NCNN_ENABLE_C_API OFF CACHE BOOL "" FORCE)
-    set(SHERPA_NCNN_ENABLE_JNI ON CACHE BOOL "" FORCE)
-    set(SHERPA_NCNN_ENABLE_PYTHON OFF CACHE BOOL "" FORCE)
-    set(SHERPA_NCNN_ENABLE_FFMPEG_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(SHERPA_NCNN_ENABLE_GENERATE_INT8_SCALE_TABLE OFF CACHE BOOL "" FORCE)
-
-    # Keep sherpa/ncnn static inside libsherpa-ncnn-jni and avoid OpenMP abort issues.
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-    set(NCNN_OPENMP OFF CACHE BOOL "" FORCE)
-
-    add_subdirectory(
-            "${SHERPA_NCNN_SOURCE_DIR}"
-            "${CMAKE_BINARY_DIR}/sherpa_ncnn_build"
-    )
-
-    force_release_flags_for_debug(ncnn)
-    force_release_flags_for_debug(sherpa-ncnn-core)
-    force_release_flags_for_debug(sherpa-ncnn-jni)
 endif()
