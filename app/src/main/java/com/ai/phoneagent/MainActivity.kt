@@ -1789,17 +1789,24 @@ class MainActivity : AppCompatActivity() {
             apiInput.setSelection(apiInput.text?.length ?: 0)
             suppressApiInputWatcher = false
 
-            if (apiThirdPartySwitch.isChecked) {
-                prefs.edit().putString(apiThirdPartyBaseUrlPref, apiBaseUrlInput.text.toString().trim()).apply()
-                prefs.edit().putString(apiThirdPartyModelPref, apiModelInput.text.toString().trim()).apply()
+            val useThirdParty = apiThirdPartySwitch.isChecked
+            val baseUrlSnapshot = resolveApiBaseUrl()
+            val modelSnapshot = resolveApiModel()
+            if (useThirdParty) {
+                // 检查前先固化第三方配置，避免开关切换后读到不一致的临时状态
+                prefs.edit()
+                        .putString(apiThirdPartyBaseUrlPref, baseUrlSnapshot)
+                        .putString(apiThirdPartyModelPref, modelSnapshot)
+                        .apply()
             }
 
             apiNeedsRecheckToastShown = false
 
             startApiCheck(
                     key = key,
-                    baseUrl = resolveApiBaseUrl(),
-                    model = resolveApiModel(),
+                    baseUrl = baseUrlSnapshot,
+                    model = modelSnapshot,
+                    useThirdParty = useThirdParty,
                     force = true,
             )
         }
@@ -1897,6 +1904,7 @@ class MainActivity : AppCompatActivity() {
             key: String,
             baseUrl: String = AutoGlmClient.DEFAULT_BASE_URL,
             model: String = AutoGlmClient.DEFAULT_MODEL,
+            useThirdParty: Boolean = apiThirdPartySwitch.isChecked,
             force: Boolean,
     ) {
         val k = key.trim()
@@ -1918,7 +1926,6 @@ class MainActivity : AppCompatActivity() {
         updateStatusText()
 
         val seq = ++apiCheckSeq
-        val useThirdParty = apiThirdPartySwitch.isChecked
         val normalizedBaseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
         val baseUrlSecurityError = validateBaseUrlSecurity(normalizedBaseUrl)
         if (baseUrlSecurityError != null) {

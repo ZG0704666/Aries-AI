@@ -101,6 +101,8 @@ private object SharedHttpClient {
 /** 简化版 AutoGLM 客户端：用于单轮对话与 API 健康检查。 */
 object AutoGlmClient {
 
+        private const val API_CHECK_EXPECTED_REPLY = "xyla"
+
         private val activeStreamCall = AtomicReference<Call?>(null)
 
         fun cancelActiveStream() {
@@ -396,11 +398,11 @@ object AutoGlmClient {
                                                                         listOf(
                                                                                 ChatRequestMessage(
                                                                                         role = "user",
-                                                                                        content = "ping"
+                                                                                        content = "请仅回复：xyla"
                                                                                 )
                                                                         ),
                                                                 stream = false,
-                                                                max_tokens = 16,
+                                                                max_tokens = 32,
                                                         )
                                                 )
                                         val request =
@@ -421,25 +423,58 @@ object AutoGlmClient {
                                                         return@use false
                                                 }
                                                 val body = response.body?.string().orEmpty()
-                                                if (body.isBlank()) {
-                                                        return@use true
-                                                }
-                                                isApiCheckResponseAcceptable(body)
+                                                if (body.isBlank()) return@use false
+                                                isApiCheckResponseContainsExpectedReply(body)
                                         }
                                 }
                                 .getOrDefault(false)
                 }
 
-        private fun isApiCheckResponseAcceptable(body: String): Boolean {
-                val root = runCatching { JsonParser.parseString(body) }.getOrNull() ?: return true
-                if (!root.isJsonObject) return true
+        private fun isApiCheckResponseContainsExpectedReply(body: String): Boolean {
+                val root = runCatching { JsonParser.parseString(body) }.getOrNull() ?: return false
+                if (!root.isJsonObject) return false
 
                 val obj = root.asJsonObject
-                if (obj.has("error") && !obj.get("error").isJsonNull) {
-                        return false
+                if (obj.has("error") && !obj.get("error").isJsonNull) return false
+
+                val choices = obj.getAsJsonArray("choices") ?: return false
+                if (choices.size() == 0) return false
+                val choice0 = choices[0].asJsonObject
+                val message = choice0.getAsJsonObject("message") ?: return false
+                val contentEl = message.get("content") ?: return false
+
+                val contentText = extractMessageContentText(contentEl)
+                if (contentText.isNullOrBlank()) return false
+                return contentText.contains(API_CHECK_EXPECTED_REPLY, ignoreCase = true)
+        }
+
+        private fun extractMessageContentText(contentEl: com.google.gson.JsonElement): String? {
+                if (contentEl.isJsonNull) return null
+                if (contentEl.isJsonPrimitive) {
+                        return runCatching { contentEl.asString }.getOrNull()
                 }
-                val choices = obj.getAsJsonArray("choices") ?: return true
-                return choices.size() > 0
+                if (contentEl.isJsonArray) {
+                        val parts =
+                                contentEl.asJsonArray.mapNotNull { part ->
+                                        when {
+                                                part == null || part.isJsonNull -> null
+                                                part.isJsonPrimitive ->
+                                                        runCatching { part.asString }.getOrNull()
+                                                part.isJsonObject -> {
+                                                        val obj = part.asJsonObject
+                                                        val textEl = obj.get("text")
+                                                        if (textEl != null && !textEl.isJsonNull) {
+                                                                runCatching { textEl.asString }.getOrNull()
+                                                        } else {
+                                                                null
+                                                        }
+                                                }
+                                                else -> null
+                                        }
+                                }
+                        return if (parts.isEmpty()) null else parts.joinToString("\n")
+                }
+                return null
         }
 
         suspend fun sendChat(
