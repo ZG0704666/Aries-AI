@@ -4,14 +4,14 @@ project(aries_sherpa_native)
 
 function(force_release_flags_for_debug target_name)
     if(TARGET ${target_name})
-        # Keep app variant as Debug, but compile heavy native libs with release-like optimization.
+        # 保持 App 变体为 Debug，但重型 native 库使用接近 Release 的优化参数编译。
         target_compile_definitions(${target_name} PRIVATE $<$<CONFIG:Debug>:NDEBUG>)
         target_compile_options(${target_name} PRIVATE $<$<CONFIG:Debug>:-O3 -g0>)
     endif()
 endfunction()
 
 if(ANDROID)
-    option(ARIES_ENABLE_SHERPA_NCNN "Build sherpa-ncnn native modules when submodules are available." ON)
+    option(ARIES_ENABLE_SHERPA_NCNN "当 submodule 可用时构建 sherpa-ncnn native 模块。" ON)
 
     set(SHERPA_NCNN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/sherpa-ncnn")
     set(SHERPA_NCNN_CMAKELISTS "${SHERPA_NCNN_SOURCE_DIR}/CMakeLists.txt")
@@ -19,16 +19,16 @@ if(ANDROID)
     set(NCNN_CMAKELISTS "${NCNN_SOURCE_DIR}/CMakeLists.txt")
 
     if(NOT ARIES_ENABLE_SHERPA_NCNN)
-        message(STATUS "ARIES_ENABLE_SHERPA_NCNN=OFF, skipping sherpa-ncnn native build.")
+        message(STATUS "ARIES_ENABLE_SHERPA_NCNN=OFF，跳过 sherpa-ncnn native 构建。")
     elseif(NOT EXISTS "${SHERPA_NCNN_CMAKELISTS}" OR NOT EXISTS "${NCNN_CMAKELISTS}")
         message(WARNING
-                "Native submodule sources are missing. Skipping sherpa-ncnn native build.\n"
-                "Expected: ${SHERPA_NCNN_CMAKELISTS}\n"
-                "Expected: ${NCNN_CMAKELISTS}\n"
-                "Run: git submodule update --init --recursive")
+                "缺少 native submodule 源码，已跳过 sherpa-ncnn native 构建。\n"
+                "期望存在: ${SHERPA_NCNN_CMAKELISTS}\n"
+                "期望存在: ${NCNN_CMAKELISTS}\n"
+                "请执行: git submodule update --init --recursive")
     else()
-        # Build sherpa-ncnn as part of Android Studio externalNativeBuild.
-        # Use local submodules to avoid downloading a different ncnn build.
+        # 作为 Android Studio externalNativeBuild 的一部分构建 sherpa-ncnn。
+        # 使用本地 submodule，避免下载到不同版本的 ncnn 构建结果。
         list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
         list(APPEND CMAKE_MODULE_PATH "${SHERPA_NCNN_SOURCE_DIR}/cmake")
         include_directories("${SHERPA_NCNN_SOURCE_DIR}")
@@ -44,7 +44,7 @@ if(ANDROID)
         set(SHERPA_NCNN_ENABLE_FFMPEG_EXAMPLES OFF CACHE BOOL "" FORCE)
         set(SHERPA_NCNN_ENABLE_GENERATE_INT8_SCALE_TABLE OFF CACHE BOOL "" FORCE)
 
-        # Keep sherpa/ncnn static inside libsherpa-ncnn-jni and avoid OpenMP abort issues.
+        # 将 sherpa/ncnn 静态链接进 libsherpa-ncnn-jni，避免 OpenMP 异常中止问题。
         set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
         set(NCNN_OPENMP OFF CACHE BOOL "" FORCE)
 

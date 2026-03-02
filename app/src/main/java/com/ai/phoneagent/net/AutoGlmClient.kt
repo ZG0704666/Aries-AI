@@ -43,8 +43,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * 鍏变韩 OkHttpClient 宸ュ巶
- * 浣跨敤杩炴帴姹犲鐢ㄨ繛鎺ワ紝鎻愰珮鎬ц兘
+ * 共享 OkHttpClient 工厂。
+ * 通过连接池复用连接，提高网络请求性能。
  */
 private object SharedHttpClient {
         val instance: OkHttpClient by lazy {
@@ -59,19 +59,23 @@ private object SharedHttpClient {
                 OkHttpClient.Builder()
                         .addInterceptor(logger)
                         .retryOnConnectionFailure(true)
-                        // 澧炲姞杩炴帴瓒呮椂浠ラ€傚簲鎱㈤€熺綉缁?                        .connectTimeout(60, TimeUnit.SECONDS)
-                        // 璁剧疆杈冮暱鐨勮鍐欒秴鏃朵互鏀寔闀挎椂闂存ā鍨嬪搷搴?                        .readTimeout(300, TimeUnit.SECONDS)
+                        // 增加连接超时，适配慢速网络
+                        .connectTimeout(60, TimeUnit.SECONDS)
+                        // 读取超时设置更长，支持长时模型响应
+                        .readTimeout(300, TimeUnit.SECONDS)
                         .writeTimeout(120, TimeUnit.SECONDS)
                         .callTimeout(360, TimeUnit.SECONDS)
-                        // 浣跨敤杩炴帴姹犲鐢ㄨ繛鎺ワ紝鎻愰珮鎬ц兘
+                        // 使用连接池复用连接，提高性能
                         .connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
-                        // 鏀寔 HTTP/2 鍗忚
+                        // 支持 HTTP/2 协议
                         .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
                         .build()
         }
 
         /**
-         * 鑷姩鍖栧満鏅笓鐢細鏇寸煭鐨勮秴鏃讹紝閬垮厤鈥滆姹傛ā鍨嬧€濋樁娈甸暱鏃堕棿鍗′綇銆?         * 娉ㄦ剰锛氳繖涓嶄細璁╂ā鍨嬫湰韬洿蹇紝浣嗚兘璁╂參/寮傚父杩炴帴鏇村揩澶辫触骞惰Е鍙戦噸璇?闄嶇骇銆?         */
+         * 自动化场景专用：使用更短超时，避免请求长时间卡住。
+         * 注意：这不会让模型本身更快，但能让慢/异常连接更快失败并触发重试或降级。
+         */
         val fastInstance: OkHttpClient by lazy {
                 val logger =
                         HttpLoggingInterceptor().apply {
@@ -94,7 +98,7 @@ private object SharedHttpClient {
         }
 }
 
-/** 绠€鍖栫増 AutoGLM 瀹㈡埛绔細浠呯敤浜庡崟杞璇濅笌 API 鍋ュ悍妫€鏌ャ€?榛樿 BASE_URL 鎸囧悜鏅鸿氨瀹樻柟 OpenAI 鍏煎鎺ュ彛锛屽彲鏍规嵁闇€瑕佽皟鏁淬€?*/
+/** 简化版 AutoGLM 客户端：用于单轮对话与 API 健康检查。 */
 object AutoGlmClient {
 
         private val activeStreamCall = AtomicReference<Call?>(null)
@@ -119,7 +123,7 @@ object AutoGlmClient {
                         cause
                 )
 
-        // 濡傞渶鏇挎崲鍏朵粬缃戝叧锛屽彲淇敼姝ゅ
+        // 如需切换到其他网关，可在此修改
         const val DEFAULT_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/"
         const val DEFAULT_MODEL = "glm-4.6v-flash"
         const val PHONE_MODEL = "autoglm-phone"
@@ -469,7 +473,7 @@ object AutoGlmClient {
                 maxTokens: Int? = DEFAULT_MAX_TOKENS,
                 topP: Float? = DEFAULT_TOP_P,
                 frequencyPenalty: Float? = DEFAULT_FREQUENCY_PENALTY,
-                /** 鑷姩鍖栧満鏅彲鍚敤鏇寸煭瓒呮椂锛岄伩鍏嶉暱鍗′綇 */
+                /** 自动化场景可启用更短超时，避免长时间卡住 */
                 useFastTimeouts: Boolean = false,
         ): Result<String> {
                 return try {
