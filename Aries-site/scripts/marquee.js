@@ -72,11 +72,11 @@
     '滴滴': { color: '#FF7D00', domain: 'didiglobal.com' }
   };
 
-  // Cloudflare友好的图标源（按可靠性排序）
+  const APP_ICON_BASE = './assets/icons/apps/';
+
+  // 本地图标源（离线可用）
   const ICON_SOURCES = [
-    (domain) => `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
-    (domain) => `https://favicon.im/${domain}?larger=true`,
-    (domain) => `https://icon.horse/icon/${domain}`
+    (domain) => `${APP_ICON_BASE}${domain}.ico`
   ];
 
   // 生成SVG图标作为备选

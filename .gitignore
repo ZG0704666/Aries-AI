@@ -58,26 +58,18 @@ app/src/main/assets/sherpa-models/*
 logs/
 **/logs/
 **/*.log
+.trae/documents/
 docs/思考回答区域修复说明.md
-.trae/documents/Phone Agent 更新机制优化方案.md
 COMPLETION_REPORT.md
 IMPLEMENTATION_SUMMARY.md
 TODO001_未来优化方案.md
-.trae/documents/Phone Agent 对齐Operit方案 - 详细TODO清单.md
-Phone Agent 对齐Operit方案 - 详细TODO清单.md
-对齐Operit_实施与验收手册.md
-更新检查与下载流程优化提示词.md
 IMPLEMENTATION_GUIDE.md
 PROGRESS_ANALYSIS.md
-.trae/documents/plan_20260113_063756.md
-北京出差汇报_20260130.md
-Aries AI对齐Operit方案 - 详细TODO清单.md
 
 docs/VIRTUAL_DISPLAY_FOCUS_ISOLATION_ANALYSIS.md
 docs/VIRTUAL_DISPLAY_FOCUS_SOLUTION_SUMMARY.md
 docs/VIRTUAL_DISPLAY_FOCUS_TESTING.md
 .gitignore
-.trae/documents/虚拟屏幕后台执行问题全面分析与修复方案.md
 docs/api-interface-spec.md
 docs/backend-technical-solution.md
 docs/frontend-readme.md

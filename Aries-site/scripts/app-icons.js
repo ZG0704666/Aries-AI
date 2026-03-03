@@ -28,7 +28,7 @@
     '快手': { color: '#FF6600', icon: 'kuaishou', domain: 'kuaishou.com' },
     '网易云音乐': { color: '#C20C0C', icon: 'netease-music', domain: 'music.163.com' },
     '微博': { color: '#E6162D', icon: 'weibo', domain: 'weibo.com' },
-    'Keep': { color: '#20C6B6', icon: 'keep', domain: 'keep.com' },
+    'Keep': { color: '#20C6B6', icon: 'keep', domain: 'gotokeep.com' },
     'WPS': { color: '#E60012', icon: 'wps', domain: 'wps.cn' },
     '大众点评': { color: '#FF9900', icon: 'dianping', domain: 'dianping.com' },
     '滴滴出行': { color: '#FF7D00', icon: 'didi', domain: 'didiglobal.com' },
@@ -92,16 +92,17 @@
     return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
   }
 
-  // 获取图标URL - 优先使用Google Favicon服务，备选使用生成的SVG
+  const APP_ICON_BASE = './assets/icons/apps/';
+
+  // 获取图标URL - 优先使用本地图标，缺失时再走生成 SVG
   function getIconUrl(name) {
     const config = APP_ICONS[name];
     if (!config) {
       return generateAppIcon(name, { color: '#666' });
     }
     
-    // 使用Google的favicon服务，更稳定
     const domain = config.domain;
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+    return `${APP_ICON_BASE}${domain}.ico`;
   }
 
   // 获取APP配置

@@ -6,18 +6,15 @@
 (function () {
   'use strict';
 
-  const ICON_BASE = 'https://assets.qc-ai.cn/maashub/icons/models/';
+  const ICON_BASE = './assets/icons/models/';
 
-  // 官方图标 - 使用可靠的 CDN
+  // 官方图标 - 使用可国内访问的镜像
   const OFFICIAL_ICONS = {
-    // Google Gemini - 使用 Gemini 专用 Logo
-    Gemini: 'https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg',
-    // Meta Llama - 使用 DuckDuckGo favicon 服务
-    Llama: 'https://www.google.com/s2/favicons?domain=meta.com&sz=64',
+    Gemini: './assets/icons/models/gemini.svg',
+    Llama: './assets/icons/models/meta.com.ico',
     // 小米 MIMO - 使用高清 Logo
-    MIMO: 'https://s02.mifile.cn/assets/static/image/logo-mi2.png',
-    // OpenAI - 使用 DuckDuckGo favicon 服务
-    OpenAI: 'https://www.google.com/s2/favicons?domain=openai.com&sz=64',
+    MIMO: './assets/icons/models/mimo.png',
+    OpenAI: './assets/icons/models/openai.com.ico',
   };
 
   // 模型提供商数据
@@ -37,9 +34,9 @@
     // 国际厂商 - 使用官方图标
     { name: 'OpenAI', icon: OFFICIAL_ICONS.OpenAI, type: 'official' },
     { name: 'Gemini', icon: OFFICIAL_ICONS.Gemini, type: 'official' },
-    { name: 'Claude', icon: 'https://www.google.com/s2/favicons?domain=anthropic.com&sz=64', type: 'external' },
+    { name: 'Claude', icon: './assets/icons/models/anthropic.com.ico', type: 'external' },
     { name: 'Llama', icon: OFFICIAL_ICONS.Llama, type: 'official' },
-    { name: 'Mistral', icon: 'https://www.google.com/s2/favicons?domain=mistral.ai&sz=64', type: 'external' },
+    { name: 'Mistral', icon: './assets/icons/models/mistral.ai.ico', type: 'external' },
     { name: 'MIMO', icon: OFFICIAL_ICONS.MIMO, type: 'official' },
   ];
 
