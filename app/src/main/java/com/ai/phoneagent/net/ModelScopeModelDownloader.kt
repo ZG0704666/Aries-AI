@@ -15,8 +15,8 @@ import org.json.JSONObject
 object ModelScopeModelDownloader {
 
     // MNN local-inference package (contains llm.mnn / llm.mnn.weight / llm_config.json).
-    const val QWEN35_MODEL_ID = "MNN/Qwen3.5-2B-MNN"
-    const val QWEN35_MODEL_NAME = "Qwen3.5-2B"
+    const val QWEN35_MODEL_ID = "MNN/Qwen3.5-9B-MNN"
+    const val QWEN35_MODEL_NAME = "Qwen3.5-9B"
 
     private const val MODELSCOPE_API_BASE = "https://www.modelscope.cn/api/v1/models"
     private const val MODELSCOPE_RESOLVE_BASE = "https://www.modelscope.cn/models"
@@ -34,6 +34,11 @@ object ModelScopeModelDownloader {
             "tokenizer.txt",
             "visual.mnn",
             "visual.mnn.weight",
+        )
+
+    private val extraRequiredExactNamesByModelId =
+        mapOf(
+            "MNN/Qwen3.5-9B-MNN" to setOf("embeddings_bf16.bin"),
         )
 
     data class EnqueueResult(
@@ -76,6 +81,7 @@ object ModelScopeModelDownloader {
     fun isQwen35ModelReady(context: Context): Boolean {
         val modelDir = getQwen35ModelDir(context) ?: return false
         if (!modelDir.exists() || !modelDir.isDirectory) return false
+        val requiredNames = requiredFileNamesForCurrentModel()
 
         val filesInDir =
             modelDir.walkTopDown()
@@ -83,7 +89,7 @@ object ModelScopeModelDownloader {
                 .filter { it.isFile }
                 .associateBy({ it.name }, { it })
 
-        return requiredExactNames.all { name ->
+        return requiredNames.all { name ->
             val file = filesInDir[name] ?: return@all false
             file.length() > 0L
         }
@@ -109,7 +115,12 @@ object ModelScopeModelDownloader {
 
     private fun isRequiredPath(path: String): Boolean {
         val fileName = path.substringAfterLast('/')
-        return fileName in requiredExactNames
+        return fileName in requiredFileNamesForCurrentModel()
+    }
+
+    private fun requiredFileNamesForCurrentModel(): Set<String> {
+        val extras = extraRequiredExactNamesByModelId[QWEN35_MODEL_ID].orEmpty()
+        return requiredExactNames + extras
     }
 
     private fun enqueueDownloads(

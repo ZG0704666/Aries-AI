@@ -330,6 +330,7 @@ class MainActivity : AppCompatActivity() {
     private val apiThirdPartyBaseUrlPref = "api_third_party_base_url"
     private val apiThirdPartyModelPref = "api_third_party_model"
     private val apiUseLocalModelPref = "api_use_local_model"
+    private val localModelDownloadButtonVisiblePref = "local_model_download_button_visible"
     private val qwenPendingDownloadIdsPref = "qwen_pending_download_ids"
 
     private val permGuideShownPref = "perm_guide_shown"
@@ -359,6 +360,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var apiStatus: TextView
     private lateinit var apiThirdPartySwitch: MaterialSwitch
     private lateinit var localModelSwitch: MaterialSwitch
+    private lateinit var localModelSwitchRow: View
     private lateinit var apiRemoteConfigContainer: View
     private lateinit var apiThirdPartyContainer: View
     private lateinit var apiBaseUrlInput: EditText
@@ -1184,12 +1186,43 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshLocalModelReadyState() {
         localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
+        updateLocalModelSwitchAvailabilityUi()
         updateQwenDownloadButtonState()
         updateStatusText()
     }
 
+    private fun updateLocalModelSwitchAvailabilityUi() {
+        if (!::localModelSwitchRow.isInitialized || !::localModelSwitch.isInitialized) return
+
+        if (localModelReady) {
+            localModelSwitchRow.visibility = View.VISIBLE
+            return
+        }
+
+        localModelSwitchRow.visibility = View.GONE
+
+        val prefEnabled = prefs.getBoolean(apiUseLocalModelPref, false)
+        val switchEnabled = localModelSwitch.isChecked
+        if (prefEnabled || switchEnabled) {
+            suppressModelSwitchWatcher = true
+            localModelSwitch.isChecked = false
+            suppressModelSwitchWatcher = false
+            prefs.edit().putBoolean(apiUseLocalModelPref, false).apply()
+            applyLocalModelUiState(false)
+            onApiConfigPotentiallyChanged(showNeedsCheckMessage = false)
+        } else {
+            applyLocalModelUiState(false)
+        }
+    }
+
     private fun updateQwenDownloadButtonState() {
         val button = qwenDownloadButton ?: return
+        val shouldShow = prefs.getBoolean(localModelDownloadButtonVisiblePref, false)
+        if (!shouldShow) {
+            button.visibility = View.GONE
+            return
+        }
+        button.visibility = View.VISIBLE
         when {
             qwenDownloadInFlight -> {
                 button.isEnabled = false
@@ -1778,15 +1811,23 @@ class MainActivity : AppCompatActivity() {
         apiRemoteConfigContainer = header.findViewById<View>(R.id.apiRemoteConfigContainer)
         apiThirdPartySwitch = header.findViewById<MaterialSwitch>(R.id.swUseThirdPartyApi)
         localModelSwitch = header.findViewById<MaterialSwitch>(R.id.swUseLocalModel)
+        localModelSwitchRow = header.findViewById<View>(R.id.localModelSwitchRow)
         apiThirdPartyContainer = header.findViewById<View>(R.id.apiThirdPartyContainer)
         apiBaseUrlInput = header.findViewById<EditText>(R.id.apiBaseUrlInput)
         apiModelInput = header.findViewById<EditText>(R.id.apiModelInput)
+        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
 
         apiThirdPartySwitch.isChecked = prefs.getBoolean(apiUseThirdPartyPref, false)
         apiThirdPartyContainer.visibility =
                 if (apiThirdPartySwitch.isChecked) View.VISIBLE else View.GONE
-        localModelSwitch.isChecked = prefs.getBoolean(apiUseLocalModelPref, false)
-        applyLocalModelUiState(localModelSwitch.isChecked)
+        val savedLocalModelEnabled = prefs.getBoolean(apiUseLocalModelPref, false)
+        val initialLocalModelEnabled = savedLocalModelEnabled && localModelReady
+        if (savedLocalModelEnabled && !localModelReady) {
+            prefs.edit().putBoolean(apiUseLocalModelPref, false).apply()
+        }
+        localModelSwitch.isChecked = initialLocalModelEnabled
+        applyLocalModelUiState(initialLocalModelEnabled)
+        updateLocalModelSwitchAvailabilityUi()
 
         apiThirdPartySwitch.setOnCheckedChangeListener { _, checked ->
             if (suppressModelSwitchWatcher) return@setOnCheckedChangeListener

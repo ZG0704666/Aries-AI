@@ -72,6 +72,8 @@
     <string name="about_contact">联系我们：zhangyongqi@njit.edu.cn</string>
     <string name="about_contact_copied">邮箱已复制到剪贴板</string>
     <string name="about_thanks">感谢使用 Aries AI</string>
+    <string name="about_local_model_download_button_shown">本地模型下载按钮已显示</string>
+    <string name="about_local_model_download_button_hidden">本地模型下载按钮已隐藏</string>
     <string name="about_no_changelog">（无更新说明）</string>
     <string name="about_open_release">打开发布页</string>
     <string name="about_release_page">发布页</string>

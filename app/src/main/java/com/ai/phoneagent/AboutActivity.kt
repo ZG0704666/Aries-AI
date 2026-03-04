@@ -27,6 +27,7 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -73,6 +74,11 @@ class AboutActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAboutBinding
     private val releaseRepo = ReleaseRepository()
     private var isCheckingUpdates = false
+    private val localModelDownloadButtonVisiblePref = "local_model_download_button_visible"
+    private val localModelDownloadToggleTapRequired = 5
+    private val localModelDownloadToggleTapIntervalMs = 1200L
+    private var developerTapCount = 0
+    private var lastDeveloperTapAtMs = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -232,7 +238,33 @@ class AboutActivity : AppCompatActivity() {
         // 开发者
         binding.itemDeveloper.setOnClickListener {
             vibrateLight()
-            Toast.makeText(this, R.string.about_thanks, Toast.LENGTH_SHORT).show()
+            val now = SystemClock.elapsedRealtime()
+            developerTapCount =
+                if (now - lastDeveloperTapAtMs <= localModelDownloadToggleTapIntervalMs) {
+                    developerTapCount + 1
+                } else {
+                    1
+                }
+            lastDeveloperTapAtMs = now
+
+            if (developerTapCount >= localModelDownloadToggleTapRequired) {
+                val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+                val nextVisible = !prefs.getBoolean(localModelDownloadButtonVisiblePref, false)
+                prefs.edit().putBoolean(localModelDownloadButtonVisiblePref, nextVisible).apply()
+                developerTapCount = 0
+                lastDeveloperTapAtMs = 0L
+                Toast.makeText(
+                    this,
+                    if (nextVisible) {
+                        R.string.about_local_model_download_button_shown
+                    } else {
+                        R.string.about_local_model_download_button_hidden
+                    },
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                Toast.makeText(this, R.string.about_thanks, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
