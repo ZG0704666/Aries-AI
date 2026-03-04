@@ -1342,9 +1342,45 @@ class MainActivity : AppCompatActivity() {
             val reason: String,
     )
 
+    private fun isAutomationAccessibilityEnabled(): Boolean {
+        return runCatching {
+            val accessibilityEnabled =
+                Settings.Secure.getInt(
+                    contentResolver,
+                    Settings.Secure.ACCESSIBILITY_ENABLED,
+                    0
+                ) == 1
+            if (!accessibilityEnabled) return@runCatching false
+
+            val enabledServices =
+                Settings.Secure.getString(
+                    contentResolver,
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                ).orEmpty()
+            if (enabledServices.isBlank()) return@runCatching false
+
+            val serviceId = "$packageName/${PhoneAgentAccessibilityService::class.java.name}"
+            enabledServices.split(':').any { it.equals(serviceId, ignoreCase = true) }
+        }.getOrDefault(false)
+    }
+
+    private fun resolveAutomationNotReadyToast(reason: String): String {
+        val firstLine = reason.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
+        return if (firstLine.isNotBlank()) {
+            firstLine
+        } else {
+            getString(R.string.automation_scene_not_ready)
+        }
+    }
+
     private fun resolveAutomationReadyState(): AutomationReadyState {
-        val accessibilityReady = PhoneAgentAccessibilityService.instance != null
-        if (accessibilityReady) {
+        val accessibilityConnected = PhoneAgentAccessibilityService.instance != null
+        if (accessibilityConnected) {
+            return AutomationReadyState(true, "")
+        }
+
+        val accessibilityEnabled = isAutomationAccessibilityEnabled()
+        if (accessibilityEnabled) {
             return AutomationReadyState(true, "")
         }
 
@@ -2955,7 +2991,7 @@ class MainActivity : AppCompatActivity() {
                         runOnUiThread {
                             Toast.makeText(
                                 this@MainActivity,
-                                "⚠️ 无障碍权限未开启，请前往「自动化」页面开启",
+                                resolveAutomationNotReadyToast(readyState.reason),
                                 Toast.LENGTH_LONG
                             ).show()
                         }
@@ -3099,7 +3135,7 @@ class MainActivity : AppCompatActivity() {
                 statusView?.text = getString(R.string.automation_scene_not_ready)
                 Toast.makeText(
                     this@MainActivity,
-                    "⚠️ 无障碍权限未开启\n请前往「自动化」页面开启无障碍权限",
+                    resolveAutomationNotReadyToast(readyState.reason),
                     Toast.LENGTH_LONG
                 ).show()
                 return@setOnClickListener
