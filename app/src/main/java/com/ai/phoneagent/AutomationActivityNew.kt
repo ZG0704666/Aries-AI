@@ -860,6 +860,7 @@ class AutomationActivityNew : AppCompatActivity() {
         val useThirdPartyApi =
                 getSharedPreferences("app_prefs", MODE_PRIVATE).getBoolean(apiUseThirdPartyPref, false)
         val useShizukuInteraction = switchShizukuInteraction.isChecked
+        var allowAccessibilityPendingConnection = false
         if (useShizukuInteraction) {
             val beforeState = collectRuntimeConnectionState()
             if (beforeState.shizukuBinderConnected &&
@@ -875,9 +876,28 @@ class AutomationActivityNew : AppCompatActivity() {
                     return
                 }
             }
+        } else if (fromHomeDispatch) {
+            val beforeState = collectRuntimeConnectionState()
+            if (beforeState.shizukuReady && !beforeState.accessibilityEnabled) {
+                val granted = grantAccessibilityViaShizuku()
+                if (granted) {
+                    allowAccessibilityPendingConnection = true
+                    appendLog("主页启动：检测到 Shizuku 已就绪，已自动开启无障碍，等待服务连接…")
+                    refreshStatusAfterOneTapAuthorize()
+                } else {
+                    appendLog("主页启动：Shizuku 自动开启无障碍失败，将按当前连接状态继续校验")
+                }
+            }
         }
         val state = collectRuntimeConnectionState()
-        val effectiveUseShizuku = resolveRuntimeInteractionPreference(useShizukuInteraction, state)
+        var effectiveUseShizuku = resolveRuntimeInteractionPreference(useShizukuInteraction, state)
+        if (effectiveUseShizuku == null &&
+                allowAccessibilityPendingConnection &&
+                !useShizukuInteraction &&
+                state.accessibilityEnabled) {
+            // 主页派发场景下，刚通过 Shizuku 打开无障碍时允许继续启动，后续再等待服务实例接入。
+            effectiveUseShizuku = false
+        }
 
         if (effectiveUseShizuku == null) {
             val msg =
