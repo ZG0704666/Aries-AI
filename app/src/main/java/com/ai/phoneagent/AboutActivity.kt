@@ -51,6 +51,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.ai.phoneagent.core.prompt.MainChatPromptRepository
 import com.ai.phoneagent.databinding.ActivityAboutBinding
 import com.ai.phoneagent.updates.ApkDownloadUtil
 import com.ai.phoneagent.updates.DialogSizingUtil
@@ -89,6 +90,10 @@ class AboutActivity : AppCompatActivity() {
         setupToolbar()
         setupClickListeners()
         binding.tvAppVersion.text = getString(R.string.about_version_format, currentVersionName())
+        binding.tvPromptVersion.text = getString(
+            R.string.about_prompt_version_format,
+            MainChatPromptRepository.getMainChatSystemPromptVersion(this),
+        )
 
         // 入场动画
         binding.root.post {

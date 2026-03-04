@@ -153,6 +153,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import com.ai.phoneagent.core.automation.ActivityAutomationInstructionGateway
 import com.ai.phoneagent.core.automation.AutomationLogBridge
+import com.ai.phoneagent.core.prompt.MainChatPromptRepository
 import com.ai.phoneagent.ui.inputbar.InputState
 import com.ai.phoneagent.ui.inputbar.InputBar
 import androidx.compose.runtime.*
@@ -522,6 +523,15 @@ class MainActivity : AppCompatActivity() {
         initSherpaModel()
 
         silentCheckUpdatesOnLaunch()
+        refreshMainChatPromptOnLaunch()
+    }
+
+    private fun refreshMainChatPromptOnLaunch() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                MainChatPromptRepository.refreshFromRemoteIfNewer(this@MainActivity)
+            }
+        }
     }
 
     private fun silentCheckUpdatesOnLaunch() {
@@ -4070,26 +4080,12 @@ class MainActivity : AppCompatActivity() {
         val history = mutableListOf<ChatRequestMessage>()
         
         // 添加系统提示
-        history.add(ChatRequestMessage(
-            role = "system",
-            content = """
-                你是 Aries AI。
-                你具备手机自动化相关能力：当任务适合自动化时，你需要给出“可转交执行”的自动化指令；
-                真正执行由系统在用户确认后完成，而不是由你直接执行。
-
-                要求：
-                1) 直接给出最终回答，使用 Markdown：标题/列表/代码块/表格等。
-                2) 代码块使用三反引号 ``` 并尽量保持语法完整。
-                3) 如果你判断该请求适合转交手机自动化执行，请在回复中追加且仅追加一行：
-                   [[AUTO_EXECUTE:这里填写可直接执行的中文自动化指令]]
-                4) 自动化指令必须是自然语言任务描述（如“打开手机浏览器并访问 https://www.jd.com”），
-                   严禁输出 Selenium / JavaScript / Python / Node.js 代码。
-                5) 如果不需要自动化，不要输出 AUTO_EXECUTE 标记。
-                6) 自动化场景回答示例：
-                   我可以帮你执行这个手机操作。
-                   [[AUTO_EXECUTE:打开手机浏览器并访问 https://www.jd.com]]
-            """.trimIndent()
-        ))
+        history.add(
+            ChatRequestMessage(
+                role = "system",
+                content = MainChatPromptRepository.getMainChatSystemPrompt(this)
+            )
+        )
 
         if (retryMode) {
             val retryNonce = "retry-${System.currentTimeMillis()}"

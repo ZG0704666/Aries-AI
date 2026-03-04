@@ -59,6 +59,7 @@
     <string name="about_back">返回</string>
     <string name="about_title">关于</string>
     <string name="about_version_format">v%1$s</string>
+    <string name="about_prompt_version_format">Prompt 版本：%1$s</string>
     <string name="about_check_updates">检查更新</string>
     <string name="about_checking_updates">检查中...</string>
     <string name="about_changelog">更新日志</string>
