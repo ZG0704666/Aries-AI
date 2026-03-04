@@ -42,6 +42,7 @@
 package com.ai.phoneagent
 
 import android.Manifest
+import android.app.DownloadManager
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
 import android.animation.ValueAnimator
@@ -104,6 +105,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.ai.phoneagent.databinding.ActivityMainBinding
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
+import com.ai.phoneagent.net.LocalMnnInferenceEngine
+import com.ai.phoneagent.net.ModelScopeModelDownloader
 import com.ai.phoneagent.updates.ReleaseRepository
 import com.ai.phoneagent.updates.ReleaseEntry
 import com.ai.phoneagent.updates.ReleaseUiUtil
@@ -132,6 +135,7 @@ import android.view.WindowManager
 import android.graphics.drawable.ColorDrawable
 import android.view.ViewAnimationUtils
 import android.text.Html
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -272,6 +276,43 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+    private val qwenDownloadReceiver =
+        object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
+                val downloadId =
+                    intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
+                if (downloadId <= 0L) return
+                if (!pendingQwenDownloadIds.remove(downloadId)) return
+                persistPendingQwenDownloadIds()
+
+                val status = queryDownloadStatus(downloadId)
+                if (status.first == DownloadManager.STATUS_FAILED) {
+                    val reason = status.second
+                    Toast.makeText(
+                        this@MainActivity,
+                        getString(R.string.m3t_sidebar_qwen_download_failed_reason_format, reason),
+                        Toast.LENGTH_LONG
+                    ).show()
+                    refreshLocalModelReadyState()
+                    return
+                }
+
+                if (pendingQwenDownloadIds.isEmpty()) {
+                    refreshLocalModelReadyState()
+                    if (localModelReady) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            getString(R.string.m3t_sidebar_qwen_download_complete),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                } else {
+                    updateStatusText()
+                }
+            }
+        }
+
     private val conversationsKey = "conversations_json"
     private val activeConversationIdKey = "active_conversation_id"
 
@@ -288,6 +329,8 @@ class MainActivity : AppCompatActivity() {
     private val apiUseThirdPartyPref = "api_use_third_party"
     private val apiThirdPartyBaseUrlPref = "api_third_party_base_url"
     private val apiThirdPartyModelPref = "api_third_party_model"
+    private val apiUseLocalModelPref = "api_use_local_model"
+    private val qwenPendingDownloadIdsPref = "qwen_pending_download_ids"
 
     private val permGuideShownPref = "perm_guide_shown"
 
@@ -308,13 +351,21 @@ class MainActivity : AppCompatActivity() {
     private val attachmentThumbnailCache = LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(64)
 
     @Volatile private var suppressApiInputWatcher: Boolean = false
+    @Volatile private var suppressModelSwitchWatcher: Boolean = false
     @Volatile private var apiNeedsRecheckToastShown: Boolean = false
+    @Volatile private var qwenDownloadInFlight: Boolean = false
+    @Volatile private var localModelReady: Boolean = false
     private lateinit var apiInput: EditText
     private lateinit var apiStatus: TextView
     private lateinit var apiThirdPartySwitch: MaterialSwitch
+    private lateinit var localModelSwitch: MaterialSwitch
+    private lateinit var apiRemoteConfigContainer: View
     private lateinit var apiThirdPartyContainer: View
     private lateinit var apiBaseUrlInput: EditText
     private lateinit var apiModelInput: EditText
+    private var qwenDownloadButton: MaterialButton? = null
+    private val pendingQwenDownloadIds = linkedSetOf<Long>()
+    private var qwenDownloadReceiverRegistered = false
 
     private fun persistConversations() {
         try {
@@ -449,6 +500,9 @@ class MainActivity : AppCompatActivity() {
         setupToolbar()
 
         setupDrawer()
+        restorePendingQwenDownloadIds()
+        registerQwenDownloadReceiverIfNeeded()
+        reconcilePendingQwenDownloads()
 
         setupInputBar()
         registerAutomationLogReceiverIfNeeded()
@@ -851,6 +905,7 @@ class MainActivity : AppCompatActivity() {
         handleAutomationOverlayReturnIntent()
 
         restoreApiKey()
+        reconcilePendingQwenDownloads()
         maybeShowPermissionBottomSheet()
 
         // 设置消息同步监听器
@@ -1066,6 +1121,140 @@ class MainActivity : AppCompatActivity() {
         } finally {
             automationLogReceiverRegistered = false
         }
+    }
+
+    private fun registerQwenDownloadReceiverIfNeeded() {
+        if (qwenDownloadReceiverRegistered) return
+        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(qwenDownloadReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(qwenDownloadReceiver, filter)
+            }
+            qwenDownloadReceiverRegistered = true
+        } catch (_: Exception) {
+            qwenDownloadReceiverRegistered = false
+        }
+    }
+
+    private fun unregisterQwenDownloadReceiverIfNeeded() {
+        if (!qwenDownloadReceiverRegistered) return
+        try {
+            unregisterReceiver(qwenDownloadReceiver)
+        } catch (_: Exception) {
+        } finally {
+            qwenDownloadReceiverRegistered = false
+        }
+    }
+
+    private fun persistPendingQwenDownloadIds() {
+        val values = pendingQwenDownloadIds.map { it.toString() }.toSet()
+        prefs.edit().putStringSet(qwenPendingDownloadIdsPref, values).apply()
+    }
+
+    private fun restorePendingQwenDownloadIds() {
+        pendingQwenDownloadIds.clear()
+        val values = prefs.getStringSet(qwenPendingDownloadIdsPref, emptySet()).orEmpty()
+        values.forEach { token ->
+            token.toLongOrNull()?.let { id ->
+                if (id > 0L) pendingQwenDownloadIds.add(id)
+            }
+        }
+    }
+
+    private fun queryDownloadStatus(downloadId: Long): Pair<Int, Int> {
+        val dm = getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+        if (dm == null) return DownloadManager.STATUS_FAILED to -1
+        val query = DownloadManager.Query().setFilterById(downloadId)
+        return runCatching {
+            dm.query(query).use { cursor ->
+                if (cursor == null || !cursor.moveToFirst()) {
+                    return@use DownloadManager.STATUS_FAILED to -1
+                }
+                val statusIdx = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                val reasonIdx = cursor.getColumnIndex(DownloadManager.COLUMN_REASON)
+                val status = if (statusIdx >= 0) cursor.getInt(statusIdx) else DownloadManager.STATUS_FAILED
+                val reason = if (reasonIdx >= 0) cursor.getInt(reasonIdx) else -1
+                status to reason
+            }
+        }.getOrDefault(DownloadManager.STATUS_FAILED to -1)
+    }
+
+    private fun refreshLocalModelReadyState() {
+        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
+        updateQwenDownloadButtonState()
+        updateStatusText()
+    }
+
+    private fun updateQwenDownloadButtonState() {
+        val button = qwenDownloadButton ?: return
+        when {
+            qwenDownloadInFlight -> {
+                button.isEnabled = false
+                button.text = getString(R.string.m3t_sidebar_qwen_download_preparing)
+            }
+            localModelReady -> {
+                button.isEnabled = true
+                button.text = getString(R.string.m3t_sidebar_qwen_download_ready)
+            }
+            else -> {
+                button.isEnabled = true
+                button.text = getString(R.string.m3t_sidebar_qwen_download)
+            }
+        }
+    }
+
+    private fun reconcilePendingQwenDownloads() {
+        if (pendingQwenDownloadIds.isEmpty()) {
+            refreshLocalModelReadyState()
+            return
+        }
+        var changed = false
+        var failedCount = 0
+        val iterator = pendingQwenDownloadIds.iterator()
+        while (iterator.hasNext()) {
+            val id = iterator.next()
+            val status = queryDownloadStatus(id).first
+            if (status == DownloadManager.STATUS_SUCCESSFUL || status == DownloadManager.STATUS_FAILED) {
+                if (status == DownloadManager.STATUS_FAILED) {
+                    failedCount++
+                }
+                iterator.remove()
+                changed = true
+            }
+        }
+        if (changed) {
+            persistPendingQwenDownloadIds()
+        }
+        refreshLocalModelReadyState()
+        if (changed && pendingQwenDownloadIds.isEmpty()) {
+            when {
+                localModelReady -> {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.m3t_sidebar_qwen_download_complete),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                failedCount > 0 -> {
+                    Toast.makeText(
+                        this,
+                        getString(
+                            R.string.m3t_sidebar_qwen_download_failed_format,
+                            getString(R.string.update_download_failed_unknown)
+                        ),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
+    private fun applyLocalModelUiState(enabled: Boolean) {
+        apiRemoteConfigContainer.visibility = if (enabled) View.GONE else View.VISIBLE
+        updateStatusText()
     }
 
     private fun clearAutomationPanelRuntimeRefs() {
@@ -1586,7 +1775,9 @@ class MainActivity : AppCompatActivity() {
 
         apiInput = header.findViewById<EditText>(R.id.apiInput)
         apiStatus = header.findViewById<TextView>(R.id.apiStatus)
+        apiRemoteConfigContainer = header.findViewById<View>(R.id.apiRemoteConfigContainer)
         apiThirdPartySwitch = header.findViewById<MaterialSwitch>(R.id.swUseThirdPartyApi)
+        localModelSwitch = header.findViewById<MaterialSwitch>(R.id.swUseLocalModel)
         apiThirdPartyContainer = header.findViewById<View>(R.id.apiThirdPartyContainer)
         apiBaseUrlInput = header.findViewById<EditText>(R.id.apiBaseUrlInput)
         apiModelInput = header.findViewById<EditText>(R.id.apiModelInput)
@@ -1594,11 +1785,35 @@ class MainActivity : AppCompatActivity() {
         apiThirdPartySwitch.isChecked = prefs.getBoolean(apiUseThirdPartyPref, false)
         apiThirdPartyContainer.visibility =
                 if (apiThirdPartySwitch.isChecked) View.VISIBLE else View.GONE
+        localModelSwitch.isChecked = prefs.getBoolean(apiUseLocalModelPref, false)
+        applyLocalModelUiState(localModelSwitch.isChecked)
+
         apiThirdPartySwitch.setOnCheckedChangeListener { _, checked ->
+            if (suppressModelSwitchWatcher) return@setOnCheckedChangeListener
             apiThirdPartyContainer.visibility = if (checked) View.VISIBLE else View.GONE
             prefs.edit().putBoolean(apiUseThirdPartyPref, checked).apply()
             apiNeedsRecheckToastShown = false
             onApiConfigPotentiallyChanged(showNeedsCheckMessage = checked)
+        }
+        localModelSwitch.setOnCheckedChangeListener { _, checked ->
+            if (suppressModelSwitchWatcher) return@setOnCheckedChangeListener
+            prefs.edit().putBoolean(apiUseLocalModelPref, checked).apply()
+            applyLocalModelUiState(checked)
+            onApiConfigPotentiallyChanged(showNeedsCheckMessage = !checked)
+            if (checked) {
+                Toast.makeText(
+                    this,
+                    getString(R.string.m3t_sidebar_local_model_switch_to_qwen),
+                    Toast.LENGTH_SHORT
+                ).show()
+                if (!localModelReady && pendingQwenDownloadIds.isEmpty()) {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.m3t_sidebar_local_model_not_ready),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
         }
 
         apiBaseUrlInput.setText(prefs.getString(apiThirdPartyBaseUrlPref, AutoGlmClient.DEFAULT_BASE_URL))
@@ -1606,6 +1821,9 @@ class MainActivity : AppCompatActivity() {
 
         val btnCheck = header.findViewById<android.widget.Button>(R.id.btnCheckApi)
         val btnPasteApiInput = header.findViewById<View>(R.id.btnPasteApiInput)
+        val btnDownloadQwenModel = header.findViewById<MaterialButton>(R.id.btnDownloadQwenModel)
+        qwenDownloadButton = btnDownloadQwenModel
+        updateQwenDownloadButtonState()
 
         val btnGetApiKey = header.findViewById<View>(R.id.btnGetApiKey)
         btnGetApiKey?.setOnClickListener {
@@ -1637,6 +1855,54 @@ class MainActivity : AppCompatActivity() {
             apiInput.setText(pasted)
             apiInput.setSelection(apiInput.text?.length ?: 0)
             Toast.makeText(this, "已粘贴 API Key", Toast.LENGTH_SHORT).show()
+        }
+
+        btnDownloadQwenModel?.setOnClickListener {
+            if (qwenDownloadInFlight) return@setOnClickListener
+            qwenDownloadInFlight = true
+            updateQwenDownloadButtonState()
+
+            lifecycleScope.launch {
+                val result = ModelScopeModelDownloader.enqueueQwen35Downloads(this@MainActivity)
+
+                qwenDownloadInFlight = false
+                updateQwenDownloadButtonState()
+
+                result.onSuccess { enqueueResult ->
+                    if (enqueueResult.downloadIds.isNotEmpty()) {
+                        pendingQwenDownloadIds.addAll(enqueueResult.downloadIds)
+                        persistPendingQwenDownloadIds()
+                    }
+                    refreshLocalModelReadyState()
+
+                    val message =
+                        when {
+                            enqueueResult.enqueuedCount > 0 ->
+                                getString(
+                                    R.string.m3t_sidebar_qwen_download_summary_format,
+                                    enqueueResult.enqueuedCount,
+                                    enqueueResult.skippedCount,
+                                    enqueueResult.targetDir
+                                )
+                            enqueueResult.skippedCount > 0 ->
+                                getString(R.string.m3t_sidebar_qwen_download_cached)
+                            else ->
+                                getString(R.string.m3t_sidebar_qwen_download_enqueued)
+                        }
+                    Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                }.onFailure { err ->
+                    updateQwenDownloadButtonState()
+                    val reason =
+                        err.message?.trim().orEmpty().ifBlank {
+                            getString(R.string.update_download_failed_unknown)
+                        }
+                    Toast.makeText(
+                        this@MainActivity,
+                        getString(R.string.m3t_sidebar_qwen_download_failed_format, reason),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
         }
 
         binding.drawerLayout.setScrimColor(Color.TRANSPARENT)
@@ -1895,9 +2161,13 @@ class MainActivity : AppCompatActivity() {
 
         apiInput.tag = saved
         suppressApiInputWatcher = true
+        suppressModelSwitchWatcher = true
         apiInput.setText(maskKey(saved))
         apiInput.setSelection(apiInput.text?.length ?: 0)
-        apiThirdPartySwitch.isChecked = prefs.getBoolean(apiUseThirdPartyPref, false)
+        val useThirdParty = prefs.getBoolean(apiUseThirdPartyPref, false)
+        val useLocalModel = prefs.getBoolean(apiUseLocalModelPref, false)
+        apiThirdPartySwitch.isChecked = useThirdParty
+        localModelSwitch.isChecked = useLocalModel
         apiThirdPartyContainer.visibility =
                 if (apiThirdPartySwitch.isChecked) View.VISIBLE else View.GONE
         apiBaseUrlInput.setText(
@@ -1906,7 +2176,9 @@ class MainActivity : AppCompatActivity() {
         apiModelInput.setText(
                 prefs.getString(apiThirdPartyModelPref, AutoGlmClient.DEFAULT_MODEL)
         )
+        applyLocalModelUiState(useLocalModel)
         suppressApiInputWatcher = false
+        suppressModelSwitchWatcher = false
 
         if (saved.isBlank()) {
             onApiConfigChanged(clearApiValue = true, showNeedsCheckMessage = false)
@@ -2080,18 +2352,33 @@ class MainActivity : AppCompatActivity() {
         onApiConfigChanged(clearApiValue = false, showNeedsCheckMessage = showNeedsCheckMessage)
     }
 
-    private fun resolveApiBaseUrl(): String {
-        if (!apiThirdPartySwitch.isChecked) return AutoGlmClient.DEFAULT_BASE_URL
-        val rawUrl = apiBaseUrlInput.text?.toString()?.trim().orEmpty()
-        if (rawUrl.isBlank()) return AutoGlmClient.DEFAULT_BASE_URL
+    private fun isLocalModelModeEnabled(): Boolean {
+        return ::localModelSwitch.isInitialized && localModelSwitch.isChecked
+    }
+
+    private fun normalizeBaseUrlInput(rawUrl: String): String? {
+        val trimmed = rawUrl.trim()
+        if (trimmed.isBlank()) return null
         return if (
-                rawUrl.startsWith("http://", ignoreCase = true) ||
-                        rawUrl.startsWith("https://", ignoreCase = true)
+            trimmed.startsWith("http://", ignoreCase = true) ||
+            trimmed.startsWith("https://", ignoreCase = true)
         ) {
-            rawUrl
+            trimmed
         } else {
-            "https://$rawUrl"
+            "https://$trimmed"
         }
+    }
+
+    private fun resolveApiBaseUrl(): String {
+        if (isLocalModelModeEnabled()) {
+            val storedThirdPartyBaseUrl =
+                prefs.getString(apiThirdPartyBaseUrlPref, "").orEmpty()
+            return normalizeBaseUrlInput(storedThirdPartyBaseUrl)
+                ?: AutoGlmClient.DEFAULT_BASE_URL
+        }
+        if (!apiThirdPartySwitch.isChecked) return AutoGlmClient.DEFAULT_BASE_URL
+        val rawUrl = apiBaseUrlInput.text?.toString().orEmpty()
+        return normalizeBaseUrlInput(rawUrl) ?: AutoGlmClient.DEFAULT_BASE_URL
     }
 
     private fun validateBaseUrlSecurity(baseUrl: String): String? {
@@ -2119,6 +2406,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun resolveApiModel(): String {
+        if (isLocalModelModeEnabled()) {
+            return ModelScopeModelDownloader.QWEN35_MODEL_NAME
+        }
         if (!apiThirdPartySwitch.isChecked) return AutoGlmClient.DEFAULT_MODEL
         return apiModelInput.text?.toString()?.trim().orEmpty().ifBlank { AutoGlmClient.DEFAULT_MODEL }
     }
@@ -2150,6 +2440,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateStatusText() {
+        val localModeEnabled = ::localModelSwitch.isInitialized && localModelSwitch.isChecked
+        if (localModeEnabled) {
+            val localText =
+                when {
+                    qwenDownloadInFlight || pendingQwenDownloadIds.isNotEmpty() ->
+                        getString(R.string.m3t_sidebar_local_model_downloading)
+                    localModelReady -> getString(R.string.m3t_sidebar_local_model_ready)
+                    else -> getString(R.string.m3t_sidebar_local_model_not_ready)
+                }
+            binding.statusText.text = localText
+            return
+        }
+
         val text =
                 when {
                     remoteApiChecking && offlineModelReady -> "已配置语音模型 | API 检查中..."
@@ -2629,9 +2932,19 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        val localModeEnabled = isLocalModelModeEnabled()
         val apiKey = prefs.getString("api_key", "") ?: ""
 
-        if (apiKey.isBlank()) {
+        if (localModeEnabled && !localModelReady) {
+            Toast.makeText(
+                this,
+                getString(R.string.m3t_sidebar_local_model_not_ready),
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+
+        if (!localModeEnabled && apiKey.isBlank()) {
 
             Toast.makeText(this, "请先在边栏配置 API Key", Toast.LENGTH_SHORT).show()
 
@@ -2640,13 +2953,16 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val resolvedBaseUrl = resolveApiBaseUrl()
-        val baseUrlSecurityError = validateBaseUrlSecurity(resolvedBaseUrl)
-        if (baseUrlSecurityError != null) {
-            Toast.makeText(this, baseUrlSecurityError, Toast.LENGTH_LONG).show()
-            return
+        val resolvedBaseUrl =
+            if (localModeEnabled) AutoGlmClient.DEFAULT_BASE_URL else resolveApiBaseUrl()
+        if (!localModeEnabled) {
+            val baseUrlSecurityError = validateBaseUrlSecurity(resolvedBaseUrl)
+            if (baseUrlSecurityError != null) {
+                Toast.makeText(this, baseUrlSecurityError, Toast.LENGTH_LONG).show()
+                return
+            }
+            maybeWarnInsecureHttpBaseUrl(resolvedBaseUrl)
         }
-        maybeWarnInsecureHttpBaseUrl(resolvedBaseUrl)
         val resolvedModel = resolveApiModel()
 
         val c = requireActiveConversation()
@@ -2819,78 +3135,83 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
 
+                    val reasoningDeltaHandler: (String) -> Unit = { delta ->
+                        if (shouldStopGeneration) {
+                            // stop requested; ignore incoming delta
+                        } else if (delta.isNotBlank()) {
+                            reasoningSb.append(delta)
+                            runOnUiThread {
+                                StreamRenderHelper.processReasoningDelta(
+                                    vh,
+                                    delta,
+                                    lifecycleScope,
+                                ) { smoothScrollToBottom() }
+                            }
+                            if (FloatingChatService.isRunning()) {
+                                FloatingChatService.getInstance()
+                                    ?.appendExternalReasoningDelta(delta)
+                            }
+                        }
+                    }
+
+                    val contentDeltaHandler: (String) -> Unit = { delta ->
+                        if (shouldStopGeneration) {
+                            // stop requested; ignore incoming delta
+                        } else if (delta.isNotEmpty()) {
+                            runOnUiThread {
+                                StreamRenderHelper.processContentDelta(
+                                    vh,
+                                    delta,
+                                    lifecycleScope,
+                                    this@MainActivity,
+                                    onScroll = { smoothScrollToBottom() },
+                                    onPhaseChange = { isAnswerPhase ->
+                                        if (isAnswerPhase) {
+                                            StreamRenderHelper.transitionToAnswer(vh)
+                                            if (
+                                                vh.thinkingText.visibility == View.VISIBLE ||
+                                                    vh.thinkingContentArea.visibility == View.VISIBLE
+                                            ) {
+                                                vh.thinkingHeader.performClick()
+                                            }
+                                        }
+                                    },
+                                )
+                            }
+
+                            // 更新 contentSb（用于保存）
+                            // 注意：这里我们保存原始内容，解析器会处理显示
+                            contentSb.append(delta)
+
+                            // 同步到悬浮窗
+                            if (FloatingChatService.isRunning()) {
+                                FloatingChatService.getInstance()
+                                    ?.appendExternalContentDelta(delta)
+                            }
+                        }
+                    }
+
                     val result =
-                            AutoGlmClient.sendChatStreamResult(
-                                    apiKey = apiKey,
-                                    baseUrl = resolvedBaseUrl,
-                                    model = resolvedModel,
-                                    messages = chatHistory,
-                                    temperature = if (retryMode) 0.7f else null,
-                                    onReasoningDelta = { delta ->
-                                        // 检查是否需要停止
-                                        if (shouldStopGeneration) {
-                                            return@sendChatStreamResult // 提前退出
-                                        }
-                                        
-                                        if (delta.isNotBlank()) {
-                                            reasoningSb.append(delta)
-                                            runOnUiThread {
-                                                StreamRenderHelper.processReasoningDelta(
-                                                        vh,
-                                                        delta,
-                                                        lifecycleScope,
-                                                ) { smoothScrollToBottom() }
-                                            }
-                                            if (FloatingChatService.isRunning()) {
-                                                FloatingChatService.getInstance()
-                                                        ?.appendExternalReasoningDelta(delta)
-                                            }
-                                        }
-                                    },
-                                    onContentDelta = { delta ->
-                                        // 检查是否需要停止
-                                        if (shouldStopGeneration) {
-                                            return@sendChatStreamResult // 提前退出
-                                        }
-                                        
-                                        if (delta.isNotEmpty()) {
-                                            runOnUiThread {
-                                                StreamRenderHelper.processContentDelta(
-                                                        vh,
-                                                        delta,
-                                                        lifecycleScope,
-                                                        this@MainActivity,
-                                                        onScroll = { smoothScrollToBottom() },
-                                                        onPhaseChange = { isAnswerPhase ->
-                                                            if (isAnswerPhase) {
-                                                                StreamRenderHelper.transitionToAnswer(vh)
-                                                                if (
-                                                                        vh.thinkingText.visibility ==
-                                                                                View.VISIBLE ||
-                                                                                vh.thinkingContentArea
-                                                                                        .visibility ==
-                                                                                        View.VISIBLE
-                                                                ) {
-                                                                    vh.thinkingHeader.performClick()
-                                                                }
-                                                            }
-                                                        },
-                                                )
-                                            }
-
-                                            // 更新 contentSb（用于保存）
-                                            // 注意：这里我们保存原始内容，解析器会处理显示
-                                            contentSb.append(delta)
-
-                                            // 同步到悬浮窗
-                                            if (FloatingChatService.isRunning()) {
-                                                FloatingChatService.getInstance()
-                                                        ?.appendExternalContentDelta(delta)
-                                            }
-                                        }
-                                    },
-                                    shouldStop = { shouldStopGeneration },
+                        if (localModeEnabled) {
+                            LocalMnnInferenceEngine.sendChatStreamResult(
+                                context = this@MainActivity,
+                                messages = chatHistory,
+                                onReasoningDelta = reasoningDeltaHandler,
+                                onContentDelta = contentDeltaHandler,
+                                shouldStop = { shouldStopGeneration },
                             )
+                        } else {
+                            AutoGlmClient.sendChatStreamResult(
+                                apiKey = apiKey,
+                                baseUrl = resolvedBaseUrl,
+                                model = resolvedModel,
+                                messages = chatHistory,
+                                temperature = if (retryMode) 0.7f else null,
+                                onReasoningDelta = reasoningDeltaHandler,
+                                onContentDelta = contentDeltaHandler,
+                                shouldStop = { shouldStopGeneration },
+                            )
+                        }
 
                     if (shouldStopGeneration) {
                         streamOk = true
@@ -4576,28 +4897,42 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        val localModeEnabled = isLocalModelModeEnabled()
         val apiKey = prefs.getString("api_key", "") ?: ""
-        if (apiKey.isBlank()) {
+        if (!localModeEnabled && apiKey.isBlank()) {
+            onDone(text)
+            return
+        }
+        if (localModeEnabled && !localModelReady) {
             onDone(text)
             return
         }
 
         lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                AutoGlmClient.sendChatResult(
-                    apiKey = apiKey,
-                    messages = listOf(
-                        ChatRequestMessage(
-                            role = "system",
-                            content = "你是标点助手，只需要在不改变词序的情况下添加中文标点符号。只输出最终文本，不要解释。"
-                        ),
-                        ChatRequestMessage(
-                            role = "user",
-                            content = "为以下文本添加标点：\n$raw"
-                        )
+            val punctuationMessages =
+                listOf(
+                    ChatRequestMessage(
+                        role = "system",
+                        content = "你是标点助手，只需要在不改变词序的情况下添加中文标点符号。只输出最终文本，不要解释。"
                     ),
-                    temperature = 0.0f
+                    ChatRequestMessage(
+                        role = "user",
+                        content = "为以下文本添加标点：\n$raw"
+                    )
                 )
+            val result = withContext(Dispatchers.IO) {
+                if (localModeEnabled) {
+                    LocalMnnInferenceEngine.sendChatResult(
+                        context = this@MainActivity,
+                        messages = punctuationMessages,
+                    )
+                } else {
+                    AutoGlmClient.sendChatResult(
+                        apiKey = apiKey,
+                        messages = punctuationMessages,
+                        temperature = 0.0f
+                    )
+                }
             }
 
             val formatted = result.getOrNull()?.trim().orEmpty()
@@ -5330,6 +5665,7 @@ class MainActivity : AppCompatActivity() {
         // 清除消息同步监听器，防止内存泄漏
         FloatingChatService.setMessageSyncListener(null)
         unregisterAutomationLogReceiverIfNeeded()
+        unregisterQwenDownloadReceiverIfNeeded()
 
         stopLocalVoiceInput(clearSession = true)
         clearAutomationTerminatePending()

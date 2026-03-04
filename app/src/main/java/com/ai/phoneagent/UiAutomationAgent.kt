@@ -27,6 +27,8 @@ import com.ai.phoneagent.core.templates.PromptTemplates
 import com.ai.phoneagent.core.utils.ActionUtils
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
+import com.ai.phoneagent.net.LocalMnnInferenceEngine
+import com.ai.phoneagent.net.ModelScopeModelDownloader
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -1133,13 +1135,27 @@ class UiAutomationAgent(
     ): kotlin.Result<String> {
         val maxAttempts = (config.maxModelRetries + 1).coerceAtLeast(1)
         var lastErr: Throwable? = null
+        val appPrefs = appContext.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val useLocalModel = appPrefs.getBoolean("api_use_local_model", false)
+
+        if (useLocalModel && !ModelScopeModelDownloader.isQwen35ModelReady(appContext)) {
+            return kotlin.Result.failure(
+                java.io.IOException("本地模型未就绪，请先在主界面下载模型")
+            )
+        }
 
         for (attempt in 0 until maxAttempts) {
             kotlinx.coroutines.currentCoroutineContext().ensureActive()
 
             val result =
                     withContext(Dispatchers.IO) {
-                        AutoGlmClient.sendChatResult(
+                        if (useLocalModel) {
+                            LocalMnnInferenceEngine.sendChatResult(
+                                context = appContext,
+                                messages = messages,
+                            )
+                        } else {
+                            AutoGlmClient.sendChatResult(
                                 apiKey = apiKey,
                                 baseUrl = baseUrl,
                                 messages = messages,
@@ -1148,7 +1164,8 @@ class UiAutomationAgent(
                                 maxTokens = config.maxTokens,
                                 topP = config.topP,
                                 frequencyPenalty = config.frequencyPenalty,
-                        )
+                            )
+                        }
                     }
 
             if (result.isSuccess) return result

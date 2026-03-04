@@ -256,11 +256,18 @@ object AutoGlmClient {
                                                 frequency_penalty = frequencyPenalty,
                                         )
                                 val bodyJson = Gson().toJson(reqObj)
-                                val request =
+                                val requestBuilder =
                                         Request.Builder()
                                                 .url(normalizeBaseUrl(baseUrl) + "chat/completions")
-                                                .addHeader("Authorization", "Bearer $normalizedApiKey")
                                                 .addHeader("Content-Type", "application/json")
+                                if (normalizedApiKey.isNotBlank()) {
+                                        requestBuilder.addHeader(
+                                                "Authorization",
+                                                "Bearer $normalizedApiKey"
+                                        )
+                                }
+                                val request =
+                                        requestBuilder
                                                 .post(
                                                         bodyJson.toRequestBody(
                                                                 "application/json; charset=utf-8".toMediaType()
@@ -405,11 +412,18 @@ object AutoGlmClient {
                                                                 max_tokens = 32,
                                                         )
                                                 )
-                                        val request =
+                                        val requestBuilder =
                                                 Request.Builder()
                                                         .url(normalizeBaseUrl(baseUrl) + "chat/completions")
-                                                        .addHeader("Authorization", "Bearer $normalizedApiKey")
                                                         .addHeader("Content-Type", "application/json")
+                                        if (normalizedApiKey.isNotBlank()) {
+                                                requestBuilder.addHeader(
+                                                        "Authorization",
+                                                        "Bearer $normalizedApiKey"
+                                                )
+                                        }
+                                        val request =
+                                                requestBuilder
                                                         .post(
                                                                 requestBodyJson.toRequestBody(
                                                                         "application/json; charset=utf-8"
@@ -516,7 +530,10 @@ object AutoGlmClient {
                         val svc = if (useFastTimeouts) getFastService(baseUrl) else getService(baseUrl)
                         val res =
                                 svc.chat(
-                                        auth = "Bearer $normalizedApiKey",
+                                        auth =
+                                                normalizedApiKey
+                                                        .takeIf { it.isNotBlank() }
+                                                        ?.let { "Bearer $it" },
                                         request =
                                                 ChatRequest(
                                                         model = resolveModel(model),
@@ -546,7 +563,7 @@ object AutoGlmClient {
 interface AutoGlmService {
         @POST("chat/completions")
         suspend fun chat(
-                @Header("Authorization") auth: String,
+                @Header("Authorization") auth: String?,
                 @Body request: ChatRequest
         ): ChatResponse
 }
