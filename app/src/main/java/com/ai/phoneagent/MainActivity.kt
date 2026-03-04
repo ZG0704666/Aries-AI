@@ -2292,9 +2292,9 @@ class MainActivity : AppCompatActivity() {
         }
         val resolvedModel = model.ifBlank { AutoGlmClient.DEFAULT_MODEL }
         lifecycleScope.launch {
-            val ok =
+            val checkResult =
                     withContext(Dispatchers.IO) {
-                        AutoGlmClient.checkApi(
+                        AutoGlmClient.checkApiDetailed(
                                 apiKey = k,
                                 baseUrl = normalizedBaseUrl,
                                 model = resolvedModel,
@@ -2302,8 +2302,16 @@ class MainActivity : AppCompatActivity() {
                     }
             if (seq != apiCheckSeq) return@launch
 
+            val ok = checkResult.ok
             remoteApiChecking = false
             remoteApiOk = ok
+            if (!ok && force) {
+                Toast.makeText(
+                    this@MainActivity,
+                    formatApiCheckFailureReason(checkResult.statusCode, checkResult.message),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
             apiStatus.text = if (ok) "API 可用" else "API 检查失败"
             prefs.edit()
                     .putString(
@@ -2443,6 +2451,20 @@ class MainActivity : AppCompatActivity() {
         if (scheme == "http" && host !in localHosts) {
             Toast.makeText(this, "当前使用 http:// 地址，API Key 可能明文传输，请确认网络安全", Toast.LENGTH_LONG)
                     .show()
+        }
+    }
+
+    private fun formatApiCheckFailureReason(statusCode: Int?, message: String?): String {
+        val cleanMessage = message?.trim().orEmpty()
+        return when {
+            statusCode != null && cleanMessage.isNotBlank() ->
+                "API 检查失败：HTTP $statusCode，$cleanMessage"
+            statusCode != null ->
+                "API 检查失败：HTTP $statusCode"
+            cleanMessage.isNotBlank() ->
+                "API 检查失败：$cleanMessage"
+            else ->
+                "API 检查失败，请稍后重试"
         }
     }
 
