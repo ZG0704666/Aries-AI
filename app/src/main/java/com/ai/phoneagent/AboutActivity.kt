@@ -274,67 +274,8 @@ class AboutActivity : AppCompatActivity() {
     }
 
     private fun showUserAgreementDialog() {
-        val dialog = Dialog(this)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        val dialogBinding = com.ai.phoneagent.databinding.DialogUserAgreementBinding.inflate(layoutInflater)
-        dialog.setContentView(dialogBinding.root)
-
-        dialog.window?.let { window ->
-            window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
-            window.setDimAmount(0f)
-            window.setFlags(
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            )
-        }
-
-        // 应用自适应高度
-        DialogSizingUtil.applyCompactSizing(
-            context = this,
-            cardView = dialogBinding.cardAgreement,
-            scrollBody = dialogBinding.scrollAgreement,
-            listView = null,
-            hasList = false,
-        )
-
-        val content = getString(R.string.user_agreement_content)
-        dialogBinding.tvAgreementContent.text = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            Html.fromHtml(content, Html.FROM_HTML_MODE_COMPACT)
-        } else {
-            @Suppress("DEPRECATION")
-            Html.fromHtml(content)
-        }
-        dialogBinding.btnAgreementAgree.text = getString(R.string.action_close)
-
-        fun closeDialog() {
-            vibrateLight()
-            dialogBinding.cardAgreement.animate()
-                .translationY(dialogBinding.cardAgreement.height.toFloat() * 1.5f)
-                .alpha(0f)
-                .setDuration(420)
-                .setInterpolator(AccelerateInterpolator(1.2f))
-                .withEndAction { dialog.dismiss() }
-                .start()
-        }
-
-        dialogBinding.btnAgreementAgree.setOnClickListener { closeDialog() }
-        dialogBinding.dialogContainer.setOnClickListener { closeDialog() }
-        dialogBinding.cardAgreement.setOnClickListener { }
-
-        dialog.show()
-
-        // 入场动画
-        dialogBinding.cardAgreement.post {
-            dialogBinding.cardAgreement.translationY = dialogBinding.cardAgreement.height.toFloat() * 1.2f
-            dialogBinding.cardAgreement.alpha = 0f
-            dialogBinding.cardAgreement.animate()
-                .translationY(0f)
-                .alpha(1f)
-                .setDuration(560)
-                .setInterpolator(OvershootInterpolator(1.0f))
-                .start()
-        }
+        startActivity(UserAgreementActivity.createViewIntent(this))
+        overridePendingTransition(R.anim.m3t_slide_in_right, R.anim.m3t_slide_out_left)
     }
 
     private fun showChangelogDialog() {

@@ -116,6 +116,8 @@
     <dimen name="m3t_spacing_lg">16dp</dimen>
     <dimen name="m3t_spacing_xl">20dp</dimen>
     <dimen name="m3t_spacing_xxl">24dp</dimen>
+    <dimen name="m3t_perm_sheet_handle_width">32dp</dimen>
+    <dimen name="m3t_perm_sheet_icon_size">24dp</dimen>
     <dimen name="m3t_stroke_thin">1dp</dimen>
     <dimen name="m3t_user_attachment_chip_size">24dp</dimen>
     <dimen name="m3t_user_attachment_chip_icon_size">14dp</dimen>
