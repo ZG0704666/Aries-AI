@@ -170,4 +170,7 @@
     <string name="perm_sheet_shizuku_success">已通过 Shizuku 完成权限配置</string>
     <string name="user_agreement_desc">阅读并同意后，继续完成首次设置。</string>
     <string name="user_agreement_action_next">下一步</string>
+    <string name="onboarding_welcome_title">欢迎使用 Aries AI</string>
+    <string name="onboarding_welcome_desc">开始前，请先阅读用户协议并完成首次权限设置。</string>
+    <string name="onboarding_welcome_action">继续</string>
 </resources>

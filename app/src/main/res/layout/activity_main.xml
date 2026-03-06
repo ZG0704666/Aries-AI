@@ -87,5 +87,9 @@
         app:headerLayout="@layout/drawer_header"
         app:menu="@menu/drawer_menu" />
 
+    <include
+        layout="@layout/activity_user_agreement_flow"
+        android:visibility="gone" />
+
 </androidx.drawerlayout.widget.DrawerLayout>
 

@@ -213,6 +213,7 @@ class MainActivity : AppCompatActivity() {
     )
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var onboardingOverlay: MainOnboardingOverlay
 
     private val prefs by lazy { getSharedPreferences("app_prefs", MODE_PRIVATE) }
 
@@ -489,6 +490,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
 
         setContentView(binding.root)
+        onboardingOverlay = MainOnboardingOverlay(this)
 
         // 设置附件观察者（使用 ViewModel）
         setupAttachmentObservers()
@@ -496,9 +498,9 @@ class MainActivity : AppCompatActivity() {
         // 设置附件选择器
         setupAriesAttachment()
 
-        checkUserAgreement()
-
         setupEdgeToEdge()
+
+        checkUserAgreement()
 
         setupToolbar()
 
@@ -700,8 +702,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showUserAgreementDialog() {
-        startActivity(UserAgreementActivity.createOnboardingIntent(this))
-        overridePendingTransition(R.anim.m3t_slide_in_right, R.anim.m3t_slide_out_left)
+        onboardingOverlay.showOnboarding()
     }
 
     private fun setupEdgeToEdge() {
@@ -798,11 +799,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun maybeShowPermissionBottomSheet() {
-        if (!prefs.getBoolean("user_agreement_accepted", false)) return
-        if (prefs.getBoolean(permGuideShownPref, false)) return
-        prefs.edit().putBoolean(permGuideShownPref, true).apply()
-        startActivity(PermissionGuideActivity.createIntent(this))
-        overridePendingTransition(R.anim.m3t_slide_in_right, R.anim.m3t_slide_out_left)
+        onboardingOverlay.showPermissionOnlyIfNeeded()
     }
 
     private fun offsetTopBarIcons() {
@@ -856,6 +853,7 @@ class MainActivity : AppCompatActivity() {
         restoreApiKey()
         reconcilePendingQwenDownloads()
         maybeShowPermissionBottomSheet()
+        onboardingOverlay.onResume()
 
         // 设置消息同步监听器
         setupMessageSyncListener()
@@ -1707,6 +1705,10 @@ class MainActivity : AppCompatActivity() {
     ) {
 
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (onboardingOverlay.onRequestPermissionsResult(requestCode, permissions, grantResults)) {
+            return
+        }
 
         if (requestCode == 100 && pendingStartVoice) {
             pendingStartVoice = false

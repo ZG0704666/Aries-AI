@@ -1,4 +1,4 @@
-package com.ai.phoneagent
+﻿package com.ai.phoneagent
 
 import android.Manifest
 import android.content.ComponentName
@@ -8,11 +8,9 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
-import android.os.Bundle
 import android.provider.Settings
 import android.text.Html
 import android.view.View
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -24,14 +22,15 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
+import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.button.MaterialButton
 import rikka.shizuku.Shizuku
 
-class UserAgreementActivity : AppCompatActivity() {
-
+class MainOnboardingOverlay(
+    private val activity: AppCompatActivity,
+) {
     private enum class FlowMode {
         ONBOARDING,
-        VIEW_ONLY,
         PERMISSION_ONLY,
     }
 
@@ -42,118 +41,98 @@ class UserAgreementActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val EXTRA_FLOW = "flow"
-        private const val FLOW_ONBOARDING = "onboarding"
-        private const val FLOW_VIEW_ONLY = "view_only"
-        private const val FLOW_PERMISSION_ONLY = "permission_only"
         private const val REQ_RECORD_AUDIO = 101
         private const val REQ_SHIZUKU_PERMISSION = 2026
-
-        fun createOnboardingIntent(context: Context): Intent =
-            Intent(context, UserAgreementActivity::class.java).putExtra(EXTRA_FLOW, FLOW_ONBOARDING)
-
-        fun createViewIntent(context: Context): Intent =
-            Intent(context, UserAgreementActivity::class.java).putExtra(EXTRA_FLOW, FLOW_VIEW_ONLY)
-
-        fun createPermissionIntent(context: Context): Intent =
-            Intent(context, UserAgreementActivity::class.java).putExtra(EXTRA_FLOW, FLOW_PERMISSION_ONLY)
+        private const val PREFS_NAME = "app_prefs"
+        private const val KEY_USER_AGREEMENT_ACCEPTED = "user_agreement_accepted"
+        private const val KEY_PERMISSION_GUIDE_SHOWN = "perm_guide_shown"
     }
 
-    private lateinit var prefs: android.content.SharedPreferences
-    private lateinit var flowMode: FlowMode
+    private val prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val drawerLayout = activity.findViewById<DrawerLayout>(R.id.drawerLayout)
 
-    private lateinit var hostRoot: View
-    private lateinit var welcomePage: View
-    private lateinit var agreementPage: View
-    private lateinit var permissionPage: View
+    private val hostRoot = activity.findViewById<View>(R.id.onboardingHost)
+    private val welcomePage = activity.findViewById<View>(R.id.pageWelcome)
+    private val agreementPage = activity.findViewById<View>(R.id.pageAgreement)
+    private val permissionPage = activity.findViewById<View>(R.id.pagePermission)
 
-    private lateinit var btnWelcomeNext: MaterialButton
-    private lateinit var btnAgreementAgree: MaterialButton
+    private val btnWelcomeNext = welcomePage.findViewById<MaterialButton>(R.id.btnWelcomeNext)
+    private val btnAgreementAgree = agreementPage.findViewById<MaterialButton>(R.id.btnAgreementAgree)
 
-    private lateinit var tvAccStatus: TextView
-    private lateinit var tvOverlayStatus: TextView
-    private lateinit var tvMicStatus: TextView
-    private lateinit var btnAcc: MaterialButton
-    private lateinit var btnOverlay: MaterialButton
-    private lateinit var btnMic: MaterialButton
-    private lateinit var btnGuide: MaterialButton
-    private lateinit var btnDone: MaterialButton
-    private lateinit var permissionHeader: View
-    private lateinit var permissionActions: View
+    private val permissionHeader = permissionPage.findViewById<View>(R.id.permissionSheetHeader)
+    private val permissionActions = permissionPage.findViewById<View>(R.id.permissionSheetActions)
+    private val tvAccStatus = permissionPage.findViewById<TextView>(R.id.tvPermAccStatus)
+    private val tvOverlayStatus = permissionPage.findViewById<TextView>(R.id.tvPermOverlayStatus)
+    private val tvMicStatus = permissionPage.findViewById<TextView>(R.id.tvPermMicStatus)
+    private val btnAcc = permissionPage.findViewById<MaterialButton>(R.id.btnPermAcc)
+    private val btnOverlay = permissionPage.findViewById<MaterialButton>(R.id.btnPermOverlay)
+    private val btnMic = permissionPage.findViewById<MaterialButton>(R.id.btnPermMic)
+    private val btnGuide = permissionPage.findViewById<MaterialButton>(R.id.btnPermGuide)
+    private val btnDone = permissionPage.findViewById<MaterialButton>(R.id.btnPermDone)
 
+    private var flowMode = FlowMode.ONBOARDING
     private var currentStep: Step? = null
     private var isTransitionRunning = false
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_user_agreement_flow)
-
-        prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-        flowMode =
-            when (intent.getStringExtra(EXTRA_FLOW)) {
-                FLOW_VIEW_ONLY -> FlowMode.VIEW_ONLY
-                FLOW_PERMISSION_ONLY -> FlowMode.PERMISSION_ONLY
-                else -> FlowMode.ONBOARDING
-            }
-
-        configureEdgeToEdge()
-        bindViews()
-        setupAgreementPage()
-        setupPermissionPage()
+    init {
+        configureAgreementPage()
+        configurePermissionPage()
         applyWindowInsets()
+        hostRoot.isVisible = false
         setupBackBehavior()
-
-        val initialStep =
-            when (flowMode) {
-                FlowMode.ONBOARDING -> Step.WELCOME
-                FlowMode.VIEW_ONLY -> Step.AGREEMENT
-                FlowMode.PERMISSION_ONLY -> Step.PERMISSION
-            }
-        showStep(initialStep, forward = true, animate = false)
     }
 
-    override fun onResume() {
-        super.onResume()
-        if (currentStep == Step.PERMISSION) {
+    fun showOnboarding() {
+        if (hostRoot.isVisible && flowMode == FlowMode.ONBOARDING) return
+        flowMode = FlowMode.ONBOARDING
+        btnAgreementAgree.text = activity.getString(R.string.user_agreement_action_next)
+        showOverlay(Step.WELCOME)
+    }
+
+    fun showPermissionOnlyIfNeeded() {
+        if (!prefs.getBoolean(KEY_USER_AGREEMENT_ACCEPTED, false)) return
+        if (prefs.getBoolean(KEY_PERMISSION_GUIDE_SHOWN, false)) return
+        flowMode = FlowMode.PERMISSION_ONLY
+        showOverlay(Step.PERMISSION)
+    }
+
+    fun onResume() {
+        if (hostRoot.isVisible && currentStep == Step.PERMISSION) {
             updatePermissionUi()
         }
     }
 
-    override fun onRequestPermissionsResult(
+    fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
         grantResults: IntArray,
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQ_RECORD_AUDIO) {
-            updatePermissionUi()
-        }
+    ): Boolean {
+        if (requestCode != REQ_RECORD_AUDIO) return false
+        updatePermissionUi()
+        return true
     }
 
-    private fun bindViews() {
-        hostRoot = findViewById(R.id.onboardingHost)
-        welcomePage = findViewById(R.id.pageWelcome)
-        agreementPage = findViewById(R.id.pageAgreement)
-        permissionPage = findViewById(R.id.pagePermission)
+    fun isShowing(): Boolean = hostRoot.isVisible
 
-        btnWelcomeNext = welcomePage.findViewById(R.id.btnWelcomeNext)
-        btnAgreementAgree = agreementPage.findViewById(R.id.btnAgreementAgree)
-
-        permissionHeader = permissionPage.findViewById(R.id.permissionSheetHeader)
-        permissionActions = permissionPage.findViewById(R.id.permissionSheetActions)
-        tvAccStatus = permissionPage.findViewById(R.id.tvPermAccStatus)
-        tvOverlayStatus = permissionPage.findViewById(R.id.tvPermOverlayStatus)
-        tvMicStatus = permissionPage.findViewById(R.id.tvPermMicStatus)
-        btnAcc = permissionPage.findViewById(R.id.btnPermAcc)
-        btnOverlay = permissionPage.findViewById(R.id.btnPermOverlay)
-        btnMic = permissionPage.findViewById(R.id.btnPermMic)
-        btnGuide = permissionPage.findViewById(R.id.btnPermGuide)
-        btnDone = permissionPage.findViewById(R.id.btnPermDone)
+    private fun showOverlay(initialStep: Step) {
+        hostRoot.isVisible = true
+        hostRoot.bringToFront()
+        drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+        applyOverlaySystemBars()
+        showStep(initialStep, forward = true, animate = false)
     }
 
-    private fun setupAgreementPage() {
+    private fun hideOverlay() {
+        hostRoot.isVisible = false
+        isTransitionRunning = false
+        currentStep = null
+        drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
+        restoreMainSystemBars()
+    }
+
+    private fun configureAgreementPage() {
         val contentView = agreementPage.findViewById<TextView>(R.id.tvAgreementContent)
-        val content = getString(R.string.user_agreement_content)
+        val content = activity.getString(R.string.user_agreement_content)
         contentView.text =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 Html.fromHtml(content, Html.FROM_HTML_MODE_COMPACT)
@@ -165,41 +144,35 @@ class UserAgreementActivity : AppCompatActivity() {
         btnWelcomeNext.setOnClickListener {
             showStep(Step.AGREEMENT, forward = true, animate = true)
         }
-        btnAgreementAgree.text =
-            getString(
-                if (flowMode == FlowMode.VIEW_ONLY) {
-                    R.string.action_close
-                } else {
-                    R.string.user_agreement_action_next
-                },
-            )
         btnAgreementAgree.setOnClickListener {
-            if (flowMode == FlowMode.VIEW_ONLY) {
-                finishWithSlideBack()
-                return@setOnClickListener
-            }
-            prefs.edit().putBoolean("user_agreement_accepted", true).apply()
+            prefs.edit().putBoolean(KEY_USER_AGREEMENT_ACCEPTED, true).apply()
             showStep(Step.PERMISSION, forward = true, animate = true)
         }
     }
 
-    private fun setupPermissionPage() {
+    private fun configurePermissionPage() {
         btnAcc.setOnClickListener { openAccessibilitySettings() }
         btnOverlay.setOnClickListener { openOverlaySettings() }
         btnMic.setOnClickListener { requestMicPermission() }
         btnGuide.setOnClickListener { guideAll() }
-        btnDone.setOnClickListener { finishWithSlideBack() }
+        btnDone.setOnClickListener { hideOverlay() }
     }
 
     private fun setupBackBehavior() {
-        onBackPressedDispatcher.addCallback(
-            this,
+        activity.onBackPressedDispatcher.addCallback(
+            activity,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
+                    if (!hostRoot.isVisible) {
+                        isEnabled = false
+                        activity.onBackPressedDispatcher.onBackPressed()
+                        isEnabled = true
+                        return
+                    }
                     if (isTransitionRunning) return
+
                     when (flowMode) {
-                        FlowMode.VIEW_ONLY -> finishWithSlideBack()
-                        FlowMode.PERMISSION_ONLY -> finishWithSlideBack()
+                        FlowMode.PERMISSION_ONLY -> hideOverlay()
                         FlowMode.ONBOARDING -> {
                             when (currentStep) {
                                 Step.PERMISSION -> showStep(Step.AGREEMENT, forward = false, animate = true)
@@ -217,8 +190,7 @@ class UserAgreementActivity : AppCompatActivity() {
         if (currentStep == target || isTransitionRunning) return
 
         val targetView = pageFor(target)
-        val previousStep = currentStep
-        val previousView = previousStep?.let { pageFor(it) }
+        val previousView = currentStep?.let(::pageFor)
 
         if (!animate || previousView == null || hostRoot.width == 0) {
             listOf(welcomePage, agreementPage, permissionPage).forEach { page ->
@@ -265,7 +237,7 @@ class UserAgreementActivity : AppCompatActivity() {
 
     private fun onStepShown(step: Step) {
         if (step == Step.PERMISSION) {
-            prefs.edit().putBoolean("perm_guide_shown", true).apply()
+            prefs.edit().putBoolean(KEY_PERMISSION_GUIDE_SHOWN, true).apply()
             updatePermissionUi()
         }
     }
@@ -277,19 +249,23 @@ class UserAgreementActivity : AppCompatActivity() {
             Step.PERMISSION -> permissionPage
         }
 
-    private fun finishWithSlideBack() {
-        super.finish()
-        overridePendingTransition(R.anim.m3t_slide_in_left, R.anim.m3t_slide_out_right)
+    private fun applyOverlaySystemBars() {
+        val pageColor = ContextCompat.getColor(activity, R.color.m3t_drawer_background)
+        val useLightSystemBarIcons = activity.resources.getBoolean(R.bool.m3t_light_system_bars)
+        activity.window.statusBarColor = pageColor
+        activity.window.navigationBarColor = pageColor
+        activity.window.decorView.setBackgroundColor(Color.TRANSPARENT)
+        WindowCompat.getInsetsController(activity.window, activity.window.decorView)?.let {
+            it.isAppearanceLightStatusBars = useLightSystemBarIcons
+            it.isAppearanceLightNavigationBars = useLightSystemBarIcons
+        }
     }
 
-    private fun configureEdgeToEdge() {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        val pageColor = ContextCompat.getColor(this, R.color.m3t_drawer_background)
-        val useLightSystemBarIcons = resources.getBoolean(R.bool.m3t_light_system_bars)
-        window.statusBarColor = pageColor
-        window.navigationBarColor = pageColor
-        window.decorView.setBackgroundColor(Color.TRANSPARENT)
-        WindowCompat.getInsetsController(window, window.decorView)?.let {
+    private fun restoreMainSystemBars() {
+        val useLightSystemBarIcons = activity.resources.getBoolean(R.bool.m3t_light_system_bars)
+        activity.window.statusBarColor = Color.TRANSPARENT
+        activity.window.navigationBarColor = Color.TRANSPARENT
+        WindowCompat.getInsetsController(activity.window, activity.window.decorView)?.let {
             it.isAppearanceLightStatusBars = useLightSystemBarIcons
             it.isAppearanceLightNavigationBars = useLightSystemBarIcons
         }
@@ -340,20 +316,20 @@ class UserAgreementActivity : AppCompatActivity() {
     }
 
     private fun updatePermissionUi() {
-        val accOk = isAccessibilityEnabled(this)
+        val accOk = isAccessibilityEnabled(activity)
         updatePermissionRow(tvAccStatus, btnAcc, accOk, R.string.perm_sheet_action_enable)
 
-        val overlayOk = hasOverlayPermission(this)
+        val overlayOk = hasOverlayPermission(activity)
         updatePermissionRow(tvOverlayStatus, btnOverlay, overlayOk, R.string.perm_sheet_action_settings)
 
         val micOk =
-            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) ==
                 PackageManager.PERMISSION_GRANTED
         updatePermissionRow(tvMicStatus, btnMic, micOk, R.string.perm_sheet_action_grant)
 
         val allOk = accOk && overlayOk && micOk
         btnGuide.text =
-            getString(
+            activity.getString(
                 if (allOk) {
                     R.string.perm_sheet_primary_action_ready
                 } else {
@@ -370,7 +346,7 @@ class UserAgreementActivity : AppCompatActivity() {
         @StringRes pendingActionText: Int,
     ) {
         statusView.text =
-            getString(
+            activity.getString(
                 if (ready) {
                     R.string.perm_sheet_status_ready
                 } else {
@@ -379,7 +355,7 @@ class UserAgreementActivity : AppCompatActivity() {
             )
         statusView.setTextColor(
             ContextCompat.getColor(
-                this,
+                activity,
                 if (ready) {
                     R.color.blue_glass_primary
                 } else {
@@ -389,7 +365,7 @@ class UserAgreementActivity : AppCompatActivity() {
         )
         actionButton.isEnabled = !ready
         actionButton.text =
-            getString(
+            activity.getString(
                 if (ready) {
                     R.string.perm_sheet_action_ready
                 } else {
@@ -416,12 +392,12 @@ class UserAgreementActivity : AppCompatActivity() {
     }
 
     private fun openAccessibilitySettings() {
-        val componentName = ComponentName(this, PhoneAgentAccessibilityService::class.java)
+        val componentName = ComponentName(activity, PhoneAgentAccessibilityService::class.java)
         val actionAccessibilityDetailsSettings = "android.settings.ACCESSIBILITY_DETAILS_SETTINGS"
         val extraAccessibilityServiceComponentName =
             "android.provider.extra.ACCESSIBILITY_SERVICE_COMPONENT_NAME"
 
-        fun tryStart(intent: Intent): Boolean = runCatching { startActivity(intent) }.isSuccess
+        fun tryStart(intent: Intent): Boolean = runCatching { activity.startActivity(intent) }.isSuccess
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val intentWithComponent =
@@ -444,71 +420,74 @@ class UserAgreementActivity : AppCompatActivity() {
 
     private fun openOverlaySettings() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        startActivity(
+        activity.startActivity(
             Intent(
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:$packageName"),
+                Uri.parse("package:${activity.packageName}"),
             ),
         )
     }
 
     private fun requestMicPermission() {
         val granted =
-            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) ==
                 PackageManager.PERMISSION_GRANTED
         if (granted) {
             updatePermissionUi()
             return
         }
-        requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_RECORD_AUDIO)
+        activity.requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_RECORD_AUDIO)
     }
 
     private fun guideAll() {
-        if (allPermissionsReady(this)) {
-            finishWithSlideBack()
+        if (allPermissionsReady(activity)) {
+            hideOverlay()
             return
         }
 
         if (ShizukuBridge.pingBinder() && !ShizukuBridge.hasPermission()) {
             runCatching { Shizuku.requestPermission(REQ_SHIZUKU_PERMISSION) }
             Toast.makeText(
-                this,
-                getString(R.string.automation_shizuku_permission_requested),
+                activity,
+                activity.getString(R.string.automation_shizuku_permission_requested),
                 Toast.LENGTH_SHORT,
             ).show()
             return
         }
 
         if (ShizukuBridge.isShizukuAvailable()) {
-            val autoGranted = grantPermissionsViaShizuku(this)
+            val autoGranted = grantPermissionsViaShizuku(activity)
             if (autoGranted) {
-                Toast.makeText(this, getString(R.string.perm_sheet_shizuku_success), Toast.LENGTH_SHORT)
-                    .show()
-                finishWithSlideBack()
+                Toast.makeText(
+                    activity,
+                    activity.getString(R.string.perm_sheet_shizuku_success),
+                    Toast.LENGTH_SHORT,
+                ).show()
+                hideOverlay()
                 return
             }
             updatePermissionUi()
         }
 
-        if (!isAccessibilityEnabled(this)) {
+        if (!isAccessibilityEnabled(activity)) {
             openAccessibilitySettings()
             return
         }
 
-        if (!hasOverlayPermission(this)) {
+        if (!hasOverlayPermission(activity)) {
             openOverlaySettings()
             return
         }
 
         if (
-            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
+            ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) !=
                 PackageManager.PERMISSION_GRANTED
         ) {
             requestMicPermission()
             return
         }
 
-        finishWithSlideBack()
+        hideOverlay()
     }
 
     private fun grantPermissionsViaShizuku(context: Context): Boolean {
