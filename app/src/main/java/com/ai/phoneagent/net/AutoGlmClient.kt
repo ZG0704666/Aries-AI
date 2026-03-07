@@ -648,3 +648,5 @@ interface AutoGlmService {
                 @Body request: ChatRequest
         ): ChatResponse
 }
+
+

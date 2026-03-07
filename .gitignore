@@ -46,8 +46,6 @@ release.keystore
 *.apk
 *.aab
 *.aar
-*.aab
-
 
 # Exclude sherpa model binaries (too large for GitHub)
 app/src/main/assets/sherpa-models/*
@@ -76,7 +74,6 @@ docs/frontend-readme.md
 docs/reference-architecture.md
 
 # Local-only temporary files
-.android/
 AGENTS.md
 analytics.settings
 key/key
