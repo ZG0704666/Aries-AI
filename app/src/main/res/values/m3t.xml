@@ -116,7 +116,12 @@
     <dimen name="m3t_spacing_lg">16dp</dimen>
     <dimen name="m3t_spacing_xl">20dp</dimen>
     <dimen name="m3t_spacing_xxl">24dp</dimen>
+    <dimen name="m3t_perm_sheet_handle_width">32dp</dimen>
+    <dimen name="m3t_perm_sheet_icon_size">24dp</dimen>
     <dimen name="m3t_stroke_thin">1dp</dimen>
+    <dimen name="m3t_onboarding_loading_indicator_size">34dp</dimen>
+    <dimen name="m3t_onboarding_loading_container_width">48dp</dimen>
+    <dimen name="m3t_onboarding_loading_container_height">48dp</dimen>
     <dimen name="m3t_user_attachment_chip_size">24dp</dimen>
     <dimen name="m3t_user_attachment_chip_icon_size">14dp</dimen>
     <dimen name="m3t_user_attachment_chip_spacing">4dp</dimen>
@@ -291,6 +296,14 @@
     <style name="Widget.M3t.Button.Text" parent="Widget.MaterialComponents.Button.TextButton">
         <item name="android:textColor">@color/m3t_primary</item>
         <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
+    </style>
+
+    <style name="Widget.M3t.LoadingIndicator.Onboarding" parent="Widget.Material3.LoadingIndicator">
+        <item name="indicatorColor">@color/blue_glass_primary</item>
+        <item name="containerColor">@android:color/transparent</item>
+        <item name="indicatorSize">@dimen/m3t_onboarding_loading_indicator_size</item>
+        <item name="containerWidth">@dimen/m3t_onboarding_loading_container_width</item>
+        <item name="containerHeight">@dimen/m3t_onboarding_loading_container_height</item>
     </style>
 
     <style name="Widget.M3t.Button.Text.Dialog" parent="Widget.AppCompat.Button.ButtonBar.AlertDialog">

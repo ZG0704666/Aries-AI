@@ -104,6 +104,13 @@
                         android:layout_marginTop="@dimen/m3t_spacing_xs"
                         android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
 
+                    <TextView
+                        android:id="@+id/tvPromptVersion"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/m3t_spacing_xs"
+                        android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
+
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

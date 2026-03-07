@@ -3,4 +3,5 @@
     <string name="history_dialog_title">\u5386\u53f2\u5bf9\u8bdd</string>
     <string name="history_empty">\u6682\u65e0\u5386\u53f2\u5bf9\u8bdd</string>
     <string name="history_new_chat">\u65b0\u5bf9\u8bdd</string>
+    <string name="history_current_chat_is_new">\u5f53\u524d\u5df2\u7ecf\u662f\u65b0\u5bf9\u8bdd</string>
 </resources>

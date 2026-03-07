@@ -64,6 +64,8 @@ import androidx.core.graphics.ColorUtils
 import com.ai.phoneagent.helper.StreamRenderHelper
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
+import com.ai.phoneagent.net.LocalMnnInferenceEngine
+import com.ai.phoneagent.net.ModelScopeModelDownloader
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.*
 
@@ -272,17 +274,24 @@ class FloatingChatService : Service() {
             val appPrefs = getAppPrefs()
             val apiKey = appPrefs.getString("api_key", "")?.trim().orEmpty()
             val useThirdParty = appPrefs.getBoolean("api_use_third_party", false)
+            val useLocalModel = appPrefs.getBoolean("api_use_local_model", false)
+            val storedThirdPartyBaseUrl =
+                    appPrefs.getString("api_third_party_base_url", AutoGlmClient.DEFAULT_BASE_URL)
+                            ?.trim()
+                            ?.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
+                            ?: AutoGlmClient.DEFAULT_BASE_URL
             val baseUrl =
-                    if (!useThirdParty) {
+                    if (useLocalModel) {
+                        storedThirdPartyBaseUrl
+                    } else if (!useThirdParty) {
                         AutoGlmClient.DEFAULT_BASE_URL
                     } else {
-                        appPrefs.getString("api_third_party_base_url", AutoGlmClient.DEFAULT_BASE_URL)
-                                ?.trim()
-                                ?.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
-                                ?: AutoGlmClient.DEFAULT_BASE_URL
+                        storedThirdPartyBaseUrl
                     }
             val model =
-                    if (!useThirdParty) {
+                    if (useLocalModel) {
+                        ModelScopeModelDownloader.QWEN35_MODEL_NAME
+                    } else if (!useThirdParty) {
                         AutoGlmClient.DEFAULT_MODEL
                     } else {
                         appPrefs.getString("api_third_party_model", AutoGlmClient.DEFAULT_MODEL)
@@ -1108,7 +1117,13 @@ class FloatingChatService : Service() {
     /** 请求 AI 回复 */
     private fun requestAIResponse(userText: String) {
         val (apiKey, baseUrl, model) = resolveApiConfig()
-        if (apiKey.isBlank()) {
+        val appPrefs = getAppPrefs()
+        val useLocalModel = appPrefs.getBoolean("api_use_local_model", false)
+        if (useLocalModel && !ModelScopeModelDownloader.isQwen35ModelReady(this)) {
+            addMessage("Aries: 本地模型未就绪，请先在主界面下载模型", isUser = false)
+            return
+        }
+        if (!useLocalModel && apiKey.isBlank()) {
             addMessage("Aries: 请在主界面配置 API Key", isUser = false)
             return
         }
@@ -1200,56 +1215,109 @@ class FloatingChatService : Service() {
             var streamOk = false
 
             val result =
-                    AutoGlmClient.sendChatStreamResult(
-                            apiKey = apiKey,
-                            baseUrl = baseUrl,
-                            model = model,
-                            messages = chatHistory,
-                            onReasoningDelta = { delta ->
-                                if (delta.isNotBlank() && vh != null) {
-                                    reasoningSb.append(delta)
-                                    Handler(Looper.getMainLooper()).post {
-                                        StreamRenderHelper.processReasoningDelta(
-                                                vh,
-                                                delta,
-                                                serviceScope
-                                        ) {
-                                            floatingView
-                                                    ?.findViewById<ScrollView>(R.id.scrollArea)
-                                                    ?.fullScroll(View.FOCUS_DOWN)
-                                        }
-                                    }
-                                }
-                            },
-                            onContentDelta = { delta ->
-                                if (delta.isNotEmpty() && vh != null) {
-                                    contentSb.append(delta)
-                                    Handler(Looper.getMainLooper()).post {
-                                        StreamRenderHelper.processContentDelta(
-                                                vh,
-                                                delta,
-                                                serviceScope,
-                                                this@FloatingChatService,
-                                                onScroll = {
-                                                    floatingView
-                                                            ?.findViewById<ScrollView>(
-                                                                    R.id.scrollArea
-                                                            )
-                                                            ?.fullScroll(View.FOCUS_DOWN)
-                                                },
-                                                onPhaseChange = { isAnswerPhase ->
-                                                    if (isAnswerPhase) {
-                                                        StreamRenderHelper.transitionToAnswer(vh)
-                                                        if (vh.thinkingText.visibility == View.VISIBLE || vh.thinkingContentArea.visibility == View.VISIBLE) {
-                                                            vh.thinkingHeader.performClick()
-                                                        }
-                                                    }
-                                                }
-                                        )
+                if (useLocalModel) {
+                    LocalMnnInferenceEngine.sendChatStreamResult(
+                        context = this@FloatingChatService,
+                        messages = chatHistory,
+                        onReasoningDelta = { delta ->
+                            if (delta.isNotBlank() && vh != null) {
+                                reasoningSb.append(delta)
+                                Handler(Looper.getMainLooper()).post {
+                                    StreamRenderHelper.processReasoningDelta(
+                                        vh,
+                                        delta,
+                                        serviceScope
+                                    ) {
+                                        floatingView
+                                            ?.findViewById<ScrollView>(R.id.scrollArea)
+                                            ?.fullScroll(View.FOCUS_DOWN)
                                     }
                                 }
                             }
+                        },
+                        onContentDelta = { delta ->
+                            if (delta.isNotEmpty() && vh != null) {
+                                contentSb.append(delta)
+                                Handler(Looper.getMainLooper()).post {
+                                    StreamRenderHelper.processContentDelta(
+                                        vh,
+                                        delta,
+                                        serviceScope,
+                                        this@FloatingChatService,
+                                        onScroll = {
+                                            floatingView
+                                                ?.findViewById<ScrollView>(R.id.scrollArea)
+                                                ?.fullScroll(View.FOCUS_DOWN)
+                                        },
+                                        onPhaseChange = { isAnswerPhase ->
+                                            if (isAnswerPhase) {
+                                                StreamRenderHelper.transitionToAnswer(vh)
+                                                if (
+                                                    vh.thinkingText.visibility == View.VISIBLE ||
+                                                        vh.thinkingContentArea.visibility == View.VISIBLE
+                                                ) {
+                                                    vh.thinkingHeader.performClick()
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     )
+                } else {
+                    AutoGlmClient.sendChatStreamResult(
+                        apiKey = apiKey,
+                        baseUrl = baseUrl,
+                        model = model,
+                        messages = chatHistory,
+                        onReasoningDelta = { delta ->
+                            if (delta.isNotBlank() && vh != null) {
+                                reasoningSb.append(delta)
+                                Handler(Looper.getMainLooper()).post {
+                                    StreamRenderHelper.processReasoningDelta(
+                                        vh,
+                                        delta,
+                                        serviceScope
+                                    ) {
+                                        floatingView
+                                            ?.findViewById<ScrollView>(R.id.scrollArea)
+                                            ?.fullScroll(View.FOCUS_DOWN)
+                                    }
+                                }
+                            }
+                        },
+                        onContentDelta = { delta ->
+                            if (delta.isNotEmpty() && vh != null) {
+                                contentSb.append(delta)
+                                Handler(Looper.getMainLooper()).post {
+                                    StreamRenderHelper.processContentDelta(
+                                        vh,
+                                        delta,
+                                        serviceScope,
+                                        this@FloatingChatService,
+                                        onScroll = {
+                                            floatingView
+                                                ?.findViewById<ScrollView>(R.id.scrollArea)
+                                                ?.fullScroll(View.FOCUS_DOWN)
+                                        },
+                                        onPhaseChange = { isAnswerPhase ->
+                                            if (isAnswerPhase) {
+                                                StreamRenderHelper.transitionToAnswer(vh)
+                                                if (
+                                                    vh.thinkingText.visibility == View.VISIBLE ||
+                                                        vh.thinkingContentArea.visibility == View.VISIBLE
+                                                ) {
+                                                    vh.thinkingHeader.performClick()
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    )
+                }
 
             streamOk = result.isSuccess
 

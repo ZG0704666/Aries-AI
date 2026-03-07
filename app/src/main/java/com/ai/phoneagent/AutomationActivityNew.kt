@@ -59,6 +59,7 @@ import com.ai.phoneagent.core.tools.AIToolHandler
 import com.ai.phoneagent.core.tools.ToolRegistration
 import com.ai.phoneagent.databinding.ActivityAutomationBinding
 import com.ai.phoneagent.net.AutoGlmClient
+import com.ai.phoneagent.net.ModelScopeModelDownloader
 import com.ai.phoneagent.speech.SherpaSpeechRecognizer
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -142,6 +143,7 @@ class AutomationActivityNew : AppCompatActivity() {
     private val KEY_LAST_RESULT_TIME = "last_result_time"
     private val KEY_LAST_LOG = "last_log"
     private val apiUseThirdPartyPref = "api_use_third_party"
+    private val apiUseLocalModelPref = "api_use_local_model"
     private val apiThirdPartyBaseUrlPref = "api_third_party_base_url"
     private val apiThirdPartyModelPref = "api_third_party_model"
 
@@ -842,9 +844,14 @@ class AutomationActivityNew : AppCompatActivity() {
         }
         val fromHomeDispatch = overlayClickReturnToMain && lastDispatchedTask == task
 
+        val localModelEnabled = isLocalModelEnabled()
         val apiKey = getApiKey()
-        if (apiKey.isBlank()) {
+        if (!localModelEnabled && apiKey.isBlank()) {
             Toast.makeText(this, "请先在侧边栏配置 API Key", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (localModelEnabled && !ModelScopeModelDownloader.isQwen35ModelReady(this)) {
+            Toast.makeText(this, "本地模型未就绪，请先在主界面下载模型", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -853,6 +860,7 @@ class AutomationActivityNew : AppCompatActivity() {
         val useThirdPartyApi =
                 getSharedPreferences("app_prefs", MODE_PRIVATE).getBoolean(apiUseThirdPartyPref, false)
         val useShizukuInteraction = switchShizukuInteraction.isChecked
+        var allowAccessibilityPendingConnection = false
         if (useShizukuInteraction) {
             val beforeState = collectRuntimeConnectionState()
             if (beforeState.shizukuBinderConnected &&
@@ -868,9 +876,28 @@ class AutomationActivityNew : AppCompatActivity() {
                     return
                 }
             }
+        } else if (fromHomeDispatch) {
+            val beforeState = collectRuntimeConnectionState()
+            if (beforeState.shizukuReady && !beforeState.accessibilityEnabled) {
+                val granted = grantAccessibilityViaShizuku()
+                if (granted) {
+                    allowAccessibilityPendingConnection = true
+                    appendLog("主页启动：检测到 Shizuku 已就绪，已自动开启无障碍，等待服务连接…")
+                    refreshStatusAfterOneTapAuthorize()
+                } else {
+                    appendLog("主页启动：Shizuku 自动开启无障碍失败，将按当前连接状态继续校验")
+                }
+            }
         }
         val state = collectRuntimeConnectionState()
-        val effectiveUseShizuku = resolveRuntimeInteractionPreference(useShizukuInteraction, state)
+        var effectiveUseShizuku = resolveRuntimeInteractionPreference(useShizukuInteraction, state)
+        if (effectiveUseShizuku == null &&
+                allowAccessibilityPendingConnection &&
+                !useShizukuInteraction &&
+                state.accessibilityEnabled) {
+            // 主页派发场景下，刚通过 Shizuku 打开无障碍时允许继续启动，后续再等待服务实例接入。
+            effectiveUseShizuku = false
+        }
 
         if (effectiveUseShizuku == null) {
             val msg =
@@ -1376,9 +1403,19 @@ class AutomationActivityNew : AppCompatActivity() {
         return prefs.getString("autoglm_api_key", "") ?: ""
     }
 
+    private fun isLocalModelEnabled(): Boolean {
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        return prefs.getBoolean(apiUseLocalModelPref, false)
+    }
+
     private fun resolveApiBaseUrl(): String {
         val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
         val useThirdParty = prefs.getBoolean(apiUseThirdPartyPref, false)
+        val useLocalModel = prefs.getBoolean(apiUseLocalModelPref, false)
+        if (useLocalModel) {
+            val rawUrl = prefs.getString(apiThirdPartyBaseUrlPref, "")?.trim().orEmpty()
+            return rawUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
+        }
         if (!useThirdParty) return AutoGlmClient.DEFAULT_BASE_URL
         val rawUrl = prefs.getString(apiThirdPartyBaseUrlPref, "")?.trim().orEmpty()
         return rawUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
@@ -1386,7 +1423,9 @@ class AutomationActivityNew : AppCompatActivity() {
 
     private fun resolveAutomationModel(): String {
         val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        val useLocalModel = prefs.getBoolean(apiUseLocalModelPref, false)
         val useThirdParty = prefs.getBoolean(apiUseThirdPartyPref, false)
+        if (useLocalModel) return ModelScopeModelDownloader.QWEN35_MODEL_NAME
         if (!useThirdParty) return AutoGlmClient.PHONE_MODEL
 
         val rawModel = prefs.getString(apiThirdPartyModelPref, "")?.trim().orEmpty()

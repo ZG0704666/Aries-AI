@@ -101,8 +101,6 @@ private object SharedHttpClient {
 /** 简化版 AutoGLM 客户端：用于单轮对话与 API 健康检查。 */
 object AutoGlmClient {
 
-        private const val API_CHECK_EXPECTED_REPLY = "xyla"
-
         private val activeStreamCall = AtomicReference<Call?>(null)
 
         fun cancelActiveStream() {
@@ -125,7 +123,12 @@ object AutoGlmClient {
                         cause
                 )
 
-        // 如需切换到其他网关，可在此修改
+        data class ApiCheckResult(
+                val ok: Boolean,
+                val statusCode: Int? = null,
+                val message: String? = null,
+        )
+
         const val DEFAULT_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/"
         const val DEFAULT_MODEL = "glm-4.6v-flash"
         const val PHONE_MODEL = "autoglm-phone"
@@ -256,11 +259,18 @@ object AutoGlmClient {
                                                 frequency_penalty = frequencyPenalty,
                                         )
                                 val bodyJson = Gson().toJson(reqObj)
-                                val request =
+                                val requestBuilder =
                                         Request.Builder()
                                                 .url(normalizeBaseUrl(baseUrl) + "chat/completions")
-                                                .addHeader("Authorization", "Bearer $normalizedApiKey")
                                                 .addHeader("Content-Type", "application/json")
+                                if (normalizedApiKey.isNotBlank()) {
+                                        requestBuilder.addHeader(
+                                                "Authorization",
+                                                "Bearer $normalizedApiKey"
+                                        )
+                                }
+                                val request =
+                                        requestBuilder
                                                 .post(
                                                         bodyJson.toRequestBody(
                                                                 "application/json; charset=utf-8".toMediaType()
@@ -388,6 +398,20 @@ object AutoGlmClient {
                 model: String = DEFAULT_MODEL,
         ): Boolean =
                 withContext(Dispatchers.IO) {
+                        checkApiDetailed(
+                                        apiKey = apiKey,
+                                        baseUrl = baseUrl,
+                                        model = model,
+                                )
+                                .ok
+                }
+
+        suspend fun checkApiDetailed(
+                apiKey: String,
+                baseUrl: String = DEFAULT_BASE_URL,
+                model: String = DEFAULT_MODEL,
+        ): ApiCheckResult =
+                withContext(Dispatchers.IO) {
                         runCatching {
                                         val normalizedApiKey = normalizeApiKey(apiKey)
                                         val requestBodyJson =
@@ -398,18 +422,25 @@ object AutoGlmClient {
                                                                         listOf(
                                                                                 ChatRequestMessage(
                                                                                         role = "user",
-                                                                                        content = "请仅回复：xyla"
+                                                                                        content = "Reply with OK."
                                                                                 )
                                                                         ),
                                                                 stream = false,
                                                                 max_tokens = 32,
                                                         )
                                                 )
-                                        val request =
+                                        val requestBuilder =
                                                 Request.Builder()
                                                         .url(normalizeBaseUrl(baseUrl) + "chat/completions")
-                                                        .addHeader("Authorization", "Bearer $normalizedApiKey")
                                                         .addHeader("Content-Type", "application/json")
+                                        if (normalizedApiKey.isNotBlank()) {
+                                                requestBuilder.addHeader(
+                                                        "Authorization",
+                                                        "Bearer $normalizedApiKey"
+                                                )
+                                        }
+                                        val request =
+                                                requestBuilder
                                                         .post(
                                                                 requestBodyJson.toRequestBody(
                                                                         "application/json; charset=utf-8"
@@ -419,33 +450,97 @@ object AutoGlmClient {
                                                         .build()
 
                                         SharedHttpClient.fastInstance.newCall(request).execute().use { response ->
-                                                if (!response.isSuccessful) {
-                                                        return@use false
-                                                }
+                                                val code = response.code
                                                 val body = response.body?.string().orEmpty()
-                                                if (body.isBlank()) return@use false
-                                                isApiCheckResponseContainsExpectedReply(body)
+
+                                                if (!response.isSuccessful) {
+                                                        val reason =
+                                                                extractApiErrorMessage(body)
+                                                                        .ifBlank { "HTTP $code" }
+                                                        return@use ApiCheckResult(
+                                                                ok = false,
+                                                                statusCode = code,
+                                                                message = reason
+                                                        )
+                                                }
+
+                                                if (body.isBlank()) {
+                                                        return@use ApiCheckResult(
+                                                                ok = false,
+                                                                statusCode = code,
+                                                                message = "API response body is empty"
+                                                        )
+                                                }
+
+                                                val parsed = parseApiCheckSuccessResponse(body)
+                                                if (parsed != null) {
+                                                        return@use parsed.copy(statusCode = code)
+                                                }
+
+                                                ApiCheckResult(
+                                                        ok = false,
+                                                        statusCode = code,
+                                                        message = "Unexpected API response format"
+                                                )
                                         }
                                 }
-                                .getOrDefault(false)
+                                .getOrElse { e ->
+                                        ApiCheckResult(
+                                                ok = false,
+                                                message =
+                                                        e.message
+                                                                ?.replace('\n', ' ')
+                                                                ?.trim()
+                                                                ?.take(180)
+                                                                .orEmpty()
+                                                                .ifBlank { "Network request failed" }
+                                        )
+                                }
                 }
 
-        private fun isApiCheckResponseContainsExpectedReply(body: String): Boolean {
-                val root = runCatching { JsonParser.parseString(body) }.getOrNull() ?: return false
-                if (!root.isJsonObject) return false
+        private fun parseApiCheckSuccessResponse(body: String): ApiCheckResult? {
+                val root = runCatching { JsonParser.parseString(body) }.getOrNull() ?: return null
+                if (!root.isJsonObject) return null
 
                 val obj = root.asJsonObject
-                if (obj.has("error") && !obj.get("error").isJsonNull) return false
+                if (obj.has("error") && !obj.get("error").isJsonNull) {
+                        val reason = extractApiErrorMessage(body)
+                        return ApiCheckResult(ok = false, message = reason.ifBlank { "API returned an error" })
+                }
 
-                val choices = obj.getAsJsonArray("choices") ?: return false
-                if (choices.size() == 0) return false
+                val choices = obj.getAsJsonArray("choices") ?: return null
+                if (choices.size() == 0) return null
                 val choice0 = choices[0].asJsonObject
-                val message = choice0.getAsJsonObject("message") ?: return false
-                val contentEl = message.get("content") ?: return false
+                val messageObj = choice0.getAsJsonObject("message") ?: return ApiCheckResult(ok = true)
+                val contentEl = messageObj.get("content") ?: return ApiCheckResult(ok = true)
 
-                val contentText = extractMessageContentText(contentEl)
-                if (contentText.isNullOrBlank()) return false
-                return contentText.contains(API_CHECK_EXPECTED_REPLY, ignoreCase = true)
+                // API health check only verifies connectivity and valid completion envelope.
+                if (contentEl.isJsonNull) return ApiCheckResult(ok = true)
+                extractMessageContentText(contentEl)
+                return ApiCheckResult(ok = true)
+        }
+
+        private fun extractApiErrorMessage(body: String): String {
+                val fallback = body.replace('\n', ' ').replace('\r', ' ').trim().take(220)
+                val root = runCatching { JsonParser.parseString(body) }.getOrNull() ?: return fallback
+                if (!root.isJsonObject) return fallback
+                val obj = root.asJsonObject
+                val errorObj = obj.getAsJsonObject("error")
+                val fromError =
+                        errorObj?.get("message")
+                                ?.takeIf { !it.isJsonNull }
+                                ?.let { runCatching { it.asString }.getOrNull() }
+                                ?.trim()
+                                .orEmpty()
+                if (fromError.isNotBlank()) return fromError.take(220)
+
+                val fromMessage =
+                        obj.get("message")
+                                ?.takeIf { !it.isJsonNull }
+                                ?.let { runCatching { it.asString }.getOrNull() }
+                                ?.trim()
+                                .orEmpty()
+                return if (fromMessage.isNotBlank()) fromMessage.take(220) else fallback
         }
 
         private fun extractMessageContentText(contentEl: com.google.gson.JsonElement): String? {
@@ -516,7 +611,10 @@ object AutoGlmClient {
                         val svc = if (useFastTimeouts) getFastService(baseUrl) else getService(baseUrl)
                         val res =
                                 svc.chat(
-                                        auth = "Bearer $normalizedApiKey",
+                                        auth =
+                                                normalizedApiKey
+                                                        .takeIf { it.isNotBlank() }
+                                                        ?.let { "Bearer $it" },
                                         request =
                                                 ChatRequest(
                                                         model = resolveModel(model),
@@ -546,7 +644,7 @@ object AutoGlmClient {
 interface AutoGlmService {
         @POST("chat/completions")
         suspend fun chat(
-                @Header("Authorization") auth: String,
+                @Header("Authorization") auth: String?,
                 @Body request: ChatRequest
         ): ChatResponse
 }

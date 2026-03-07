@@ -1,4 +1,4 @@
-﻿<resources>
+<resources>
     <string name="app_name">Aries AI</string>
     <string name="app_title">Aries AI</string>
     <string name="status_ready">语音模型已就绪</string>
@@ -59,6 +59,7 @@
     <string name="about_back">返回</string>
     <string name="about_title">关于</string>
     <string name="about_version_format">v%1$s</string>
+    <string name="about_prompt_version_format">Prompt 版本：%1$s</string>
     <string name="about_check_updates">检查更新</string>
     <string name="about_checking_updates">检查中...</string>
     <string name="about_changelog">更新日志</string>
@@ -72,6 +73,8 @@
     <string name="about_contact">联系我们：zhangyongqi@njit.edu.cn</string>
     <string name="about_contact_copied">邮箱已复制到剪贴板</string>
     <string name="about_thanks">感谢使用 Aries AI</string>
+    <string name="about_local_model_download_button_shown">本地模型下载按钮已显示</string>
+    <string name="about_local_model_download_button_hidden">本地模型下载按钮已隐藏</string>
     <string name="about_no_changelog">（无更新说明）</string>
     <string name="about_open_release">打开发布页</string>
     <string name="about_release_page">发布页</string>
@@ -105,10 +108,9 @@
     <string name="user_agreement_title">用户协议与隐私政策</string>
     <string name="user_agreement_agree">我已阅读并同意</string>
     <string name="user_agreement_content"><![CDATA[
-        <b>用户协议与隐私政策（法律版）</b><br/><br/>
-        欢迎使用Aries AI软件（以下简称“本项目”）。在使用本项目前，请您仔细阅读并同意以下条款。若您不同意本协议的任何内容，请立即停止使用本项目。<br/><br/>
+        欢迎使用 Aries AI 软件（以下简称“本项目”）。在使用本项目前，请您仔细阅读并同意以下条款。若您不同意本协议的任何内容，请立即停止使用本项目。<br/><br/>
         <b>一、开源协议与授权</b><br/>
-        1. 本项目基于 GNU  Affero 通用公共许可证第三版（AGPL V3）发布，您应遵守该协议的全部条款。<br/>
+        1. 本项目基于GNU Affero 通用公共许可证第三版（AGPL V3）发布，您应遵守该协议的全部条款。<br/>
         2. 您有权在遵守开源协议的前提下，复制、分发、修改和使用本项目，但不得移除或更改原有的版权声明和许可信息。<br/>
         3. 若您将本项目作为网络服务提供，您必须向用户公开完整的源代码，包括您所做的修改。<br/><br/>
         <b>二、无担保与责任限制</b><br/>
@@ -145,4 +147,30 @@
         &nbsp;&nbsp;&nbsp;&nbsp;<b>邮箱：zhangyongqi@njit.edu.cn</b><br/>
         3. 开发者保留对商业合作方式的最终决定权。未经授权的商业使用将视为违约，开发者保留追究法律责任的权利。
     ]]></string>
+    <string name="perm_sheet_title">完成首次设置</string>
+    <string name="perm_sheet_desc">开启以下权限后，语音、悬浮窗和自动化能力才能正常工作。</string>
+    <string name="perm_sheet_shizuku_title">推荐使用 Shizuku 一键配置</string>
+    <string name="perm_sheet_shizuku_desc">如果已连接并授权 Shizuku，Aries AI 可以自动补齐无障碍、悬浮窗和麦克风权限。</string>
+    <string name="perm_sheet_section_title">必要权限</string>
+    <string name="perm_sheet_accessibility_title">无障碍服务</string>
+    <string name="perm_sheet_accessibility_desc">用于执行点击、滑动、返回等自动化操作。</string>
+    <string name="perm_sheet_overlay_title">悬浮窗显示</string>
+    <string name="perm_sheet_overlay_desc">用于显示悬浮入口和后台助手界面。</string>
+    <string name="perm_sheet_microphone_title">麦克风权限</string>
+    <string name="perm_sheet_microphone_desc">用于语音输入和语音识别。</string>
+    <string name="perm_sheet_status_ready">已就绪</string>
+    <string name="perm_sheet_status_pending">待开启</string>
+    <string name="perm_sheet_action_enable">去开启</string>
+    <string name="perm_sheet_action_settings">去设置</string>
+    <string name="perm_sheet_action_grant">授权</string>
+    <string name="perm_sheet_action_ready">已完成</string>
+    <string name="perm_sheet_primary_action">一键完成配置</string>
+    <string name="perm_sheet_primary_action_ready">开始使用</string>
+    <string name="perm_sheet_secondary_action">稍后再说</string>
+    <string name="perm_sheet_shizuku_success">已通过 Shizuku 完成权限配置</string>
+    <string name="user_agreement_desc">阅读并同意后，继续完成首次设置。</string>
+    <string name="user_agreement_action_next">下一步</string>
+    <string name="onboarding_welcome_title">欢迎使用 Aries AI</string>
+    <string name="onboarding_welcome_desc">开始前，请先阅读用户协议并完成首次权限设置。</string>
+    <string name="onboarding_welcome_action">继续</string>
 </resources>

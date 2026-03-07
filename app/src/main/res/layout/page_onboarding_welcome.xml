@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/welcomePageRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/m3t_drawer_background"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/welcomeHeader"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/m3t_spacing_xxl"
+        android:paddingTop="@dimen/m3t_spacing_xxl"
+        android:paddingEnd="@dimen/m3t_spacing_xxl">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="@string/onboarding_welcome_title"
+            android:textAppearance="@style/TextAppearance.M3t.Title.Large" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/m3t_spacing_md"
+            android:gravity="center"
+            android:text="@string/onboarding_welcome_desc"
+            android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
+            android:textColor="@color/blue_glass_text_dim" />
+    </LinearLayout>
+
+    <com.google.android.material.loadingindicator.LoadingIndicator
+        android:id="@+id/welcomeProgress"
+        style="@style/Widget.M3t.LoadingIndicator.Onboarding"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal" />
+
+    <LinearLayout
+        android:id="@+id/welcomeActions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/m3t_drawer_background"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/m3t_spacing_xxl"
+        android:paddingTop="@dimen/m3t_spacing_lg"
+        android:paddingEnd="@dimen/m3t_spacing_xxl"
+        android:paddingBottom="@dimen/m3t_spacing_xl">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnWelcomeNext"
+            style="@style/Widget.M3t.Button.Filled"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/m3t_button_height"
+            android:text="@string/onboarding_welcome_action"
+            android:textAllCaps="false" />
+    </LinearLayout>
+</LinearLayout>

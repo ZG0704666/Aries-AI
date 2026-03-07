@@ -27,6 +27,7 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -50,6 +51,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.ai.phoneagent.core.prompt.MainChatPromptRepository
 import com.ai.phoneagent.databinding.ActivityAboutBinding
 import com.ai.phoneagent.updates.ApkDownloadUtil
 import com.ai.phoneagent.updates.DialogSizingUtil
@@ -73,6 +75,11 @@ class AboutActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAboutBinding
     private val releaseRepo = ReleaseRepository()
     private var isCheckingUpdates = false
+    private val localModelDownloadButtonVisiblePref = "local_model_download_button_visible"
+    private val localModelDownloadToggleTapRequired = 5
+    private val localModelDownloadToggleTapIntervalMs = 1200L
+    private var developerTapCount = 0
+    private var lastDeveloperTapAtMs = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,6 +90,10 @@ class AboutActivity : AppCompatActivity() {
         setupToolbar()
         setupClickListeners()
         binding.tvAppVersion.text = getString(R.string.about_version_format, currentVersionName())
+        binding.tvPromptVersion.text = getString(
+            R.string.about_prompt_version_format,
+            MainChatPromptRepository.getMainChatSystemPromptVersion(this),
+        )
 
         // 入场动画
         binding.root.post {
@@ -232,72 +243,39 @@ class AboutActivity : AppCompatActivity() {
         // 开发者
         binding.itemDeveloper.setOnClickListener {
             vibrateLight()
-            Toast.makeText(this, R.string.about_thanks, Toast.LENGTH_SHORT).show()
+            val now = SystemClock.elapsedRealtime()
+            developerTapCount =
+                if (now - lastDeveloperTapAtMs <= localModelDownloadToggleTapIntervalMs) {
+                    developerTapCount + 1
+                } else {
+                    1
+                }
+            lastDeveloperTapAtMs = now
+
+            if (developerTapCount >= localModelDownloadToggleTapRequired) {
+                val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+                val nextVisible = !prefs.getBoolean(localModelDownloadButtonVisiblePref, false)
+                prefs.edit().putBoolean(localModelDownloadButtonVisiblePref, nextVisible).apply()
+                developerTapCount = 0
+                lastDeveloperTapAtMs = 0L
+                Toast.makeText(
+                    this,
+                    if (nextVisible) {
+                        R.string.about_local_model_download_button_shown
+                    } else {
+                        R.string.about_local_model_download_button_hidden
+                    },
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                Toast.makeText(this, R.string.about_thanks, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
     private fun showUserAgreementDialog() {
-        val dialog = Dialog(this)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        val dialogBinding = com.ai.phoneagent.databinding.DialogUserAgreementBinding.inflate(layoutInflater)
-        dialog.setContentView(dialogBinding.root)
-
-        dialog.window?.let { window ->
-            window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
-            window.setDimAmount(0f)
-            window.setFlags(
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            )
-        }
-
-        // 应用自适应高度
-        DialogSizingUtil.applyCompactSizing(
-            context = this,
-            cardView = dialogBinding.cardAgreement,
-            scrollBody = dialogBinding.scrollAgreement,
-            listView = null,
-            hasList = false,
-        )
-
-        val content = getString(R.string.user_agreement_content)
-        dialogBinding.tvAgreementContent.text = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            Html.fromHtml(content, Html.FROM_HTML_MODE_COMPACT)
-        } else {
-            @Suppress("DEPRECATION")
-            Html.fromHtml(content)
-        }
-        dialogBinding.btnAgreementAgree.text = getString(R.string.action_close)
-
-        fun closeDialog() {
-            vibrateLight()
-            dialogBinding.cardAgreement.animate()
-                .translationY(dialogBinding.cardAgreement.height.toFloat() * 1.5f)
-                .alpha(0f)
-                .setDuration(420)
-                .setInterpolator(AccelerateInterpolator(1.2f))
-                .withEndAction { dialog.dismiss() }
-                .start()
-        }
-
-        dialogBinding.btnAgreementAgree.setOnClickListener { closeDialog() }
-        dialogBinding.dialogContainer.setOnClickListener { closeDialog() }
-        dialogBinding.cardAgreement.setOnClickListener { }
-
-        dialog.show()
-
-        // 入场动画
-        dialogBinding.cardAgreement.post {
-            dialogBinding.cardAgreement.translationY = dialogBinding.cardAgreement.height.toFloat() * 1.2f
-            dialogBinding.cardAgreement.alpha = 0f
-            dialogBinding.cardAgreement.animate()
-                .translationY(0f)
-                .alpha(1f)
-                .setDuration(560)
-                .setInterpolator(OvershootInterpolator(1.0f))
-                .start()
-        }
+        startActivity(UserAgreementActivity.createViewIntent(this))
+        overridePendingTransition(R.anim.m3t_slide_in_right, R.anim.m3t_slide_out_left)
     }
 
     private fun showChangelogDialog() {

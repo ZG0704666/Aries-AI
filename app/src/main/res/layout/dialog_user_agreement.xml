@@ -5,54 +5,97 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <com.google.android.material.card.MaterialCardView
+    <LinearLayout
         android:id="@+id/cardAgreement"
-        style="@style/Widget.M3t.DialogCard"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginHorizontal="@dimen/m3t_dialog_card_margin_h"
-        app:cardBackgroundColor="@color/m3t_dialog_surface">
+        android:layout_height="match_parent"
+        android:background="@color/m3t_drawer_background"
+        android:orientation="vertical">
 
         <LinearLayout
+            android:id="@+id/agreementHeader"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="@dimen/m3t_dialog_padding">
+            android:paddingStart="@dimen/m3t_spacing_xxl"
+            android:paddingTop="@dimen/m3t_spacing_md"
+            android:paddingEnd="@dimen/m3t_spacing_xxl">
 
             <TextView
                 android:id="@+id/tvAgreementTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/m3t_spacing_lg"
+                android:gravity="center"
                 android:text="@string/user_agreement_title"
                 android:textAppearance="@style/TextAppearance.M3t.Title.Large" />
 
-            <ScrollView
-                android:id="@+id/scrollAgreement"
+            <TextView
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/m3t_license_list_height"
-                android:layout_marginTop="@dimen/m3t_spacing_md"
-                android:fillViewport="true"
-                android:overScrollMode="ifContentScrolls">
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/m3t_spacing_sm"
+                android:gravity="center"
+                android:text="@string/user_agreement_desc"
+                android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
+                android:textColor="@color/blue_glass_text_dim" />
+        </LinearLayout>
+
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/scrollAgreement"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:fillViewport="true"
+            android:overScrollMode="ifContentScrolls"
+            android:paddingStart="@dimen/m3t_spacing_xxl"
+            android:paddingTop="@dimen/m3t_spacing_xxl"
+            android:paddingEnd="@dimen/m3t_spacing_xxl"
+            android:paddingBottom="@dimen/m3t_spacing_xxl">
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.M3t.Card.Subtle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/m3t_drawer_section_bg">
 
                 <TextView
                     android:id="@+id/tvAgreementContent"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:lineSpacingExtra="@dimen/m3t_spacing_xs"
+                    android:padding="@dimen/m3t_spacing_xl"
                     android:text="@string/user_agreement_content"
-                    android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
-            </ScrollView>
+                    android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
+                    android:textColor="@color/blue_glass_text" />
+            </com.google.android.material.card.MaterialCardView>
+        </androidx.core.widget.NestedScrollView>
+
+        <com.google.android.material.loadingindicator.LoadingIndicator
+            android:id="@+id/agreementProgress"
+            style="@style/Widget.M3t.LoadingIndicator.Onboarding"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal" />
+
+        <LinearLayout
+            android:id="@+id/agreementActions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/m3t_drawer_background"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/m3t_spacing_xxl"
+            android:paddingTop="@dimen/m3t_spacing_lg"
+            android:paddingEnd="@dimen/m3t_spacing_xxl"
+            android:paddingBottom="@dimen/m3t_spacing_xl">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnAgreementAgree"
-                style="@style/Widget.M3t.Button.CloseAction"
+                style="@style/Widget.M3t.Button.Filled"
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/m3t_button_height"
-                android:layout_marginTop="@dimen/m3t_spacing_lg"
-                android:text="@string/action_close"
+                android:text="@string/user_agreement_action_next"
                 android:textAllCaps="false" />
-
         </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
 </FrameLayout>

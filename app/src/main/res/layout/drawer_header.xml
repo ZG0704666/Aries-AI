@@ -83,51 +83,189 @@
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/apiRemoteConfigContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/m3t_spacing_md"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="vertical">
 
-                <EditText
-                    android:id="@+id/apiInput"
-                    android:layout_width="0dp"
-                    android:layout_height="@dimen/m3t_drawer_api_field_height"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_input_field_drawer"
-                    android:height="@dimen/m3t_drawer_api_field_height"
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="@dimen/m3t_spacing_md"
                     android:gravity="center_vertical"
-                    android:hint="@string/m3t_sidebar_api_hint"
-                    android:includeFontPadding="false"
-                    android:inputType="textNoSuggestions|textVisiblePassword"
-                    android:minHeight="@dimen/m3t_drawer_api_field_height"
-                    android:paddingHorizontal="@dimen/m3t_about_row_text_gap"
-                    android:paddingVertical="@dimen/m3t_size_zero"
-                    android:textColor="@color/m3t_on_surface"
-                    android:textColorHint="@color/m3t_on_surface_variant"
-                    android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
+                    android:orientation="horizontal">
+
+                    <EditText
+                        android:id="@+id/apiInput"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/m3t_drawer_api_field_height"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_input_field_drawer"
+                        android:height="@dimen/m3t_drawer_api_field_height"
+                        android:gravity="center_vertical"
+                        android:hint="@string/m3t_sidebar_api_hint"
+                        android:includeFontPadding="false"
+                        android:inputType="textNoSuggestions|textVisiblePassword"
+                        android:minHeight="@dimen/m3t_drawer_api_field_height"
+                        android:paddingHorizontal="@dimen/m3t_about_row_text_gap"
+                        android:paddingVertical="@dimen/m3t_size_zero"
+                        android:textColor="@color/m3t_on_surface"
+                        android:textColorHint="@color/m3t_on_surface_variant"
+                        android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnPasteApiInput"
+                        style="@style/Widget.M3t.Button.Tonal.Compact"
+                        android:layout_width="wrap_content"
+                        android:layout_height="@dimen/m3t_drawer_api_field_height"
+                        android:layout_marginStart="@dimen/m3t_spacing_sm"
+                        android:minHeight="@dimen/m3t_drawer_api_field_height"
+                        android:text="@string/m3t_sidebar_api_paste" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="@dimen/m3t_history_icon_padding"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="@dimen/m3t_about_row_icon_size"
+                        android:layout_height="@dimen/m3t_about_row_icon_size"
+                        android:src="@drawable/ic_public_24"
+                        app:tint="@color/m3t_on_surface" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/m3t_about_row_text_gap"
+                        android:layout_weight="1"
+                        android:text="@string/m3t_sidebar_third_party_api"
+                        android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/swUseThirdPartyApi"
+                        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="false"
+                        app:useMaterialThemeColors="true" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/apiThirdPartyContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="@dimen/m3t_spacing_md"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/m3t_drawer_label_start"
+                            android:layout_marginBottom="@dimen/m3t_spacing_xs"
+                            android:text="Base URL"
+                            android:textAppearance="@style/TextAppearance.M3t.Body.Small"
+                            android:textColor="@color/m3t_on_surface" />
+
+                        <EditText
+                            android:id="@+id/apiBaseUrlInput"
+                            android:layout_width="match_parent"
+                            android:layout_height="@dimen/m3t_drawer_input_min_height"
+                            android:layout_marginBottom="@dimen/m3t_history_icon_padding"
+                            android:background="@drawable/bg_input_field_drawer"
+                            android:gravity="center_vertical"
+                            android:hint="https://api.example.com/v1"
+                            android:inputType="textUri"
+                            android:paddingHorizontal="@dimen/m3t_about_row_text_gap"
+                            android:textColor="@color/m3t_on_surface"
+                            android:textColorHint="@color/m3t_on_surface_variant"
+                            android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/m3t_drawer_label_start"
+                            android:layout_marginBottom="@dimen/m3t_spacing_xs"
+                            android:text="Model"
+                            android:textAppearance="@style/TextAppearance.M3t.Body.Small"
+                            android:textColor="@color/m3t_on_surface" />
+
+                        <EditText
+                            android:id="@+id/apiModelInput"
+                            android:layout_width="match_parent"
+                            android:layout_height="@dimen/m3t_drawer_input_min_height"
+                            android:background="@drawable/bg_input_field_drawer"
+                            android:gravity="center_vertical"
+                            android:hint="glm-4-flash"
+                            android:inputType="textNoSuggestions"
+                            android:paddingHorizontal="@dimen/m3t_about_row_text_gap"
+                            android:textColor="@color/m3t_on_surface"
+                            android:textColorHint="@color/m3t_on_surface_variant"
+                            android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/btnGetApiKey"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:layout_marginBottom="@dimen/m3t_spacing_lg"
+                    android:background="?attr/selectableItemBackground"
+                    android:paddingVertical="@dimen/m3t_spacing_xs"
+                    android:paddingEnd="@dimen/m3t_spacing_xs"
+                    android:text="@string/m3t_sidebar_get_api_key"
+                    android:textAppearance="@style/TextAppearance.M3t.Body.Small"
+                    android:textColor="@color/m3t_primary"
+                    android:textStyle="bold" />
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnPasteApiInput"
-                    style="@style/Widget.M3t.Button.Tonal.Compact"
-                    android:layout_width="wrap_content"
-                    android:layout_height="@dimen/m3t_drawer_api_field_height"
-                    android:layout_marginStart="@dimen/m3t_spacing_sm"
-                    android:minHeight="@dimen/m3t_drawer_api_field_height"
-                    android:text="@string/m3t_sidebar_api_paste" />
+                    android:id="@+id/btnCheckApi"
+                    style="@style/Widget.M3t.Button.Filled"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/m3t_compact_button_height"
+                    android:text="@string/m3t_sidebar_check_connection"
+                    app:icon="@drawable/ic_check_circle_24"
+                    app:iconGravity="textStart"
+                    app:iconPadding="@dimen/m3t_spacing_sm" />
+
+                <TextView
+                    android:id="@+id/apiStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:paddingTop="@dimen/m3t_history_icon_padding"
+                    android:text="@string/m3t_sidebar_api_not_checked"
+                    android:textAppearance="@style/TextAppearance.M3t.Body.Small"
+                    android:textColor="@color/m3t_on_surface_variant" />
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/localModelSwitchRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/m3t_history_icon_padding"
+                android:layout_marginTop="@dimen/m3t_spacing_sm"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
                 <ImageView
                     android:layout_width="@dimen/m3t_about_row_icon_size"
                     android:layout_height="@dimen/m3t_about_row_icon_size"
-                    android:src="@drawable/ic_public_24"
+                    android:src="@drawable/ic_update"
                     app:tint="@color/m3t_on_surface" />
 
                 <TextView
@@ -135,11 +273,11 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/m3t_about_row_text_gap"
                     android:layout_weight="1"
-                    android:text="@string/m3t_sidebar_third_party_api"
+                    android:text="@string/m3t_sidebar_local_model_mode"
                     android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
 
                 <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/swUseThirdPartyApi"
+                    android:id="@+id/swUseLocalModel"
                     style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -147,107 +285,18 @@
                     app:useMaterialThemeColors="true" />
             </LinearLayout>
 
-            <LinearLayout
-                android:id="@+id/apiThirdPartyContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/m3t_spacing_md"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/m3t_drawer_label_start"
-                        android:layout_marginBottom="@dimen/m3t_spacing_xs"
-                        android:text="Base URL"
-                        android:textAppearance="@style/TextAppearance.M3t.Body.Small"
-                        android:textColor="@color/m3t_on_surface" />
-
-                    <EditText
-                        android:id="@+id/apiBaseUrlInput"
-                        android:layout_width="match_parent"
-                        android:layout_height="@dimen/m3t_drawer_input_min_height"
-                        android:layout_marginBottom="@dimen/m3t_history_icon_padding"
-                        android:background="@drawable/bg_input_field_drawer"
-                        android:gravity="center_vertical"
-                        android:hint="https://api.example.com/v1"
-                        android:inputType="textUri"
-                        android:paddingHorizontal="@dimen/m3t_about_row_text_gap"
-                        android:textColor="@color/m3t_on_surface"
-                        android:textColorHint="@color/m3t_on_surface_variant"
-                        android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/m3t_drawer_label_start"
-                        android:layout_marginBottom="@dimen/m3t_spacing_xs"
-                        android:text="Model"
-                        android:textAppearance="@style/TextAppearance.M3t.Body.Small"
-                        android:textColor="@color/m3t_on_surface" />
-
-                    <EditText
-                        android:id="@+id/apiModelInput"
-                        android:layout_width="match_parent"
-                        android:layout_height="@dimen/m3t_drawer_input_min_height"
-                        android:background="@drawable/bg_input_field_drawer"
-                        android:gravity="center_vertical"
-                        android:hint="glm-4-flash"
-                        android:inputType="textNoSuggestions"
-                        android:paddingHorizontal="@dimen/m3t_about_row_text_gap"
-                        android:textColor="@color/m3t_on_surface"
-                        android:textColorHint="@color/m3t_on_surface_variant"
-                        android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/btnGetApiKey"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginBottom="@dimen/m3t_spacing_lg"
-                android:background="?attr/selectableItemBackground"
-                android:paddingVertical="@dimen/m3t_spacing_xs"
-                android:paddingEnd="@dimen/m3t_spacing_xs"
-                android:text="@string/m3t_sidebar_get_api_key"
-                android:textAppearance="@style/TextAppearance.M3t.Body.Small"
-                android:textColor="@color/m3t_primary"
-                android:textStyle="bold" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCheckApi"
-                style="@style/Widget.M3t.Button.Filled"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/m3t_compact_button_height"
-                android:text="@string/m3t_sidebar_check_connection"
-                app:icon="@drawable/ic_check_circle_24"
-                app:iconGravity="textStart"
-                app:iconPadding="@dimen/m3t_spacing_sm" />
-
-            <TextView
-                android:id="@+id/apiStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:paddingTop="@dimen/m3t_history_icon_padding"
-                android:text="@string/m3t_sidebar_api_not_checked"
-                android:textAppearance="@style/TextAppearance.M3t.Body.Small"
-                android:textColor="@color/m3t_on_surface_variant" />
-
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnDownloadQwenModel"
+        style="@style/Widget.M3t.Button.Filled"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/m3t_compact_button_height"
+        android:layout_marginTop="@dimen/m3t_spacing_md"
+        android:text="@string/m3t_sidebar_qwen_download"
+        app:icon="@drawable/ic_update"
+        app:iconGravity="textStart"
+        app:iconPadding="@dimen/m3t_spacing_sm" />
 
 </LinearLayout>

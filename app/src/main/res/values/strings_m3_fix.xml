@@ -8,6 +8,21 @@
     <string name="m3t_sidebar_get_api_key">获取 API Key ></string>
     <string name="m3t_sidebar_check_connection">验证连接</string>
     <string name="m3t_sidebar_api_not_checked">未检测</string>
+    <string name="m3t_sidebar_local_model_mode">启用本地模型</string>
+    <string name="m3t_sidebar_local_model_switch_to_qwen">已切换为本地模型 Qwen3.5-9B</string>
+    <string name="m3t_sidebar_local_model_not_ready">本地模型未就绪，请先下载</string>
+    <string name="m3t_sidebar_local_model_downloading">本地模型下载中...</string>
+    <string name="m3t_sidebar_local_model_ready">本地模型已就绪</string>
+    <string name="m3t_sidebar_local_model_route_hint">本地模型模式需要配置本地/自建 OpenAI 兼容 Base URL；当前仍是智谱默认地址，请先关闭本地模型后在“第三方 API”中配置。</string>
+    <string name="m3t_sidebar_qwen_download">下载本地模型</string>
+    <string name="m3t_sidebar_qwen_download_ready">本地模型已下载</string>
+    <string name="m3t_sidebar_qwen_download_preparing">准备下载任务...</string>
+    <string name="m3t_sidebar_qwen_download_enqueued">已加入下载队列，正在后台下载</string>
+    <string name="m3t_sidebar_qwen_download_cached">模型文件已存在，无需重复下载</string>
+    <string name="m3t_sidebar_qwen_download_summary_format">已加入下载队列：%1$d 个文件（跳过 %2$d 个），保存到：%3$s</string>
+    <string name="m3t_sidebar_qwen_download_failed_format">Qwen 下载失败：%1$s</string>
+    <string name="m3t_sidebar_qwen_download_complete">Qwen3.5-9B 下载完成，本地模型已就绪</string>
+    <string name="m3t_sidebar_qwen_download_failed_reason_format">Qwen 文件下载失败（reason=%1$d）</string>
 
     <string name="m3t_nav_automation">自动化</string>
     <string name="m3t_nav_about">关于</string>
