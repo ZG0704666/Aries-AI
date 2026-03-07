@@ -74,6 +74,7 @@ docs/frontend-readme.md
 docs/reference-architecture.md
 
 # Local-only temporary files
+.android/
 AGENTS.md
 analytics.settings
 key/key
