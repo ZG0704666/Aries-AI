@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -112,6 +112,7 @@ class AutomationActivityNew : AppCompatActivity() {
     private lateinit var btnStopAgent: MaterialButton
 
     private lateinit var switchShizukuInteraction: MaterialSwitch
+    private lateinit var switchAutoApproveAutomation: MaterialSwitch
 
     // 执行模式相关
     private lateinit var rgExecutionMode: RadioGroup
@@ -285,6 +286,9 @@ class AutomationActivityNew : AppCompatActivity() {
             switchShizukuInteraction =
                     binding.root.findViewById(R.id.switchShizukuInteraction)
                             ?: throw NullPointerException("switchShizukuInteraction not found")
+            switchAutoApproveAutomation =
+                    binding.root.findViewById(R.id.switchAutoApproveAutomation)
+                            ?: throw NullPointerException("switchAutoApproveAutomation not found")
         } catch (e: NullPointerException) {
             Log.e("AutomationActivityNew", "UI组件初始化失败: ${e.message}", e)
             Toast.makeText(this, "应用初始化失败: ${e.message}", Toast.LENGTH_LONG).show()
@@ -332,6 +336,11 @@ class AutomationActivityNew : AppCompatActivity() {
 
         switchShizukuInteraction.isChecked =
                 VirtualDisplayConfig.getUseShizukuInteraction(this@AutomationActivityNew)
+        switchAutoApproveAutomation.isChecked =
+                VirtualDisplayConfig.getAutoApproveAutomation(this@AutomationActivityNew)
+        switchAutoApproveAutomation.setOnCheckedChangeListener { _, checked ->
+            VirtualDisplayConfig.setAutoApproveAutomation(this@AutomationActivityNew, checked)
+        }
         switchShizukuInteraction.setOnCheckedChangeListener { _, checked ->
             VirtualDisplayConfig.setUseShizukuInteraction(this@AutomationActivityNew, checked)
             if (checked) {

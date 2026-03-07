@@ -152,22 +152,36 @@
                 android:text="@string/automation_scene_need_confirm"
                 android:textAppearance="@style/TextAppearance.M3t.Body.Small"
                 android:textColor="@color/m3t_message_action" />
+
+            <ImageButton
+                android:id="@+id/automation_panel_toggle"
+                style="@style/Widget.M3t.IconButton.AutomationToggle"
+                android:layout_marginStart="@dimen/m3t_spacing_xs"
+                android:contentDescription="@string/automation_scene_collapse"
+                android:src="@drawable/ic_minimize_24" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/automation_panel_command"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/m3t_spacing_sm"
-            android:textAppearance="@style/TextAppearance.M3t.Chat.Message"
-            android:textColor="@color/m3t_on_surface" />
-
         <LinearLayout
-            android:id="@+id/automation_log_container"
+            android:id="@+id/automation_panel_content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/m3t_spacing_sm"
-            android:orientation="vertical" />
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/automation_panel_command"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/m3t_spacing_sm"
+                android:textAppearance="@style/TextAppearance.M3t.Chat.Message"
+                android:textColor="@color/m3t_on_surface" />
+
+            <LinearLayout
+                android:id="@+id/automation_log_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/m3t_spacing_sm"
+                android:orientation="vertical" />
+        </LinearLayout>
     </LinearLayout>
 
     <LinearLayout

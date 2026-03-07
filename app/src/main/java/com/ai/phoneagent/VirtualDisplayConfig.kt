@@ -43,6 +43,7 @@ object VirtualDisplayConfig {
     private const val KEY_HEIGHT = "virtual_display_height"
     private const val KEY_USE_VIRTUAL_DISPLAY = "use_virtual_display"
     private const val KEY_USE_SHIZUKU_INTERACTION = "use_shizuku_interaction"
+    private const val KEY_AUTO_APPROVE_AUTOMATION = "auto_approve_automation"
 
     // ════════════════════════════════════════════
     //  16 像素对齐
@@ -146,7 +147,14 @@ object VirtualDisplayConfig {
         prefs(context).edit().putBoolean(KEY_USE_SHIZUKU_INTERACTION, value).apply()
     }
 
-    /** 返回摘要字符串（调试 / 日志用） */
+    fun getAutoApproveAutomation(context: Context): Boolean {
+        return prefs(context).getBoolean(KEY_AUTO_APPROVE_AUTOMATION, false)
+    }
+
+    fun setAutoApproveAutomation(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_AUTO_APPROVE_AUTOMATION, value).apply()
+    }
+
     fun summary(context: Context): String {
         val preset = getResolutionPreset(context)
         val (w, h) = getSize(context)

@@ -192,6 +192,17 @@
                         android:textColor="@color/m3t_on_surface"
                         app:useMaterialThemeColors="true" />
 
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switchAutoApproveAutomation"
+                        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/m3t_spacing_xs"
+                        android:text="@string/automation_auto_approve_label"
+                        android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
+                        android:textColor="@color/m3t_on_surface"
+                        app:useMaterialThemeColors="true" />
+
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

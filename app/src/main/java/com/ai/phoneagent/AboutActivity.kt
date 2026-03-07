@@ -111,11 +111,11 @@ class AboutActivity : AppCompatActivity() {
     }
 
     private fun currentVersionName(): String {
-        val fromBuildConfig = BuildConfig.VERSION_NAME?.trim().orEmpty()
+        val fromBuildConfig = BuildConfig.VERSION_NAME?.trim().orEmpty().removePrefix("v")
         if (fromBuildConfig.isNotBlank()) return fromBuildConfig
 
         return try {
-            packageManager.getPackageInfo(packageName, 0).versionName?.trim().orEmpty()
+            packageManager.getPackageInfo(packageName, 0).versionName?.trim().orEmpty().removePrefix("v")
         } catch (_: Exception) {
             ""
         }

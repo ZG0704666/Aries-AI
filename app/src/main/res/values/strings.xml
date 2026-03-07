@@ -27,6 +27,8 @@
     <string name="automation_scene_running">执行中</string>
     <string name="automation_scene_finished">已结束</string>
     <string name="automation_scene_waiting">等待执行日志...</string>
+    <string name="automation_scene_collapse">收起自动化面板</string>
+    <string name="automation_scene_expand">展开自动化面板</string>
     <string name="automation_toolbar_title">Aries AI 自动化控制台</string>
     <string name="automation_execution_mode_label">执行模式</string>
     <string name="automation_execution_front_mode">前端执行（当前屏幕可见）</string>
@@ -47,6 +49,8 @@
     <string name="automation_recommend_task_default">点击尝试：查看当前电池状态</string>
     <string name="automation_open_accessibility">去开启</string>
     <string name="automation_one_tap_shizuku_authorize">一键 Shizuku 授权</string>
+    <string name="automation_auto_approve_label">自动批准自动化（主页 10 秒）</string>
+    <string name="automation_confirm_countdown">确认（%1$d秒）</string>
     <string name="automation_shizuku_not_connected">未检测到 Shizuku 服务连接</string>
     <string name="automation_shizuku_permission_requested">已发起 Shizuku 授权请求，请在弹窗中确认</string>
     <string name="automation_shizuku_authorize_success">已通过 Shizuku 自动开启无障碍</string>

@@ -349,6 +349,18 @@
         <item name="cornerRadius">@dimen/m3t_radius_lg</item>
     </style>
 
+    <style name="Widget.M3t.IconButton.AutomationToggle" parent="">
+        <item name="android:layout_width">@dimen/m3t_automation_icon_button_size</item>
+        <item name="android:layout_height">@dimen/m3t_automation_icon_button_size</item>
+        <item name="android:minWidth">@dimen/m3t_automation_icon_button_size</item>
+        <item name="android:minHeight">@dimen/m3t_automation_icon_button_size</item>
+        <item name="android:background">@drawable/bg_automation_toggle_button</item>
+        <item name="android:padding">@dimen/m3t_size_zero</item>
+        <item name="android:scaleType">center</item>
+        <item name="android:tint">@color/m3t_on_surface</item>
+        <item name="android:src">@drawable/ic_minimize_24</item>
+    </style>
+
     <style name="Widget.M3t.Button.CloseAction" parent="Widget.MaterialComponents.Button">
         <item name="android:minHeight">@dimen/m3t_button_height</item>
         <item name="cornerRadius">@dimen/m3t_radius_lg</item>

@@ -269,6 +269,8 @@ class MainActivity : AppCompatActivity() {
     private var activeAutomationPanelConfirmTextView: TextView? = null
     private var automationTerminatePendingRef: AutomationMessageRef? = null
     private var automationTerminateFallbackJob: Job? = null
+    private var automationAutoConfirmRef: AutomationMessageRef? = null
+    private var automationAutoConfirmJob: Job? = null
 
     private val automationLogReceiver =
             object : BroadcastReceiver() {
@@ -1242,6 +1244,7 @@ class MainActivity : AppCompatActivity() {
         activeAutomationPanelStatusView = null
         activeAutomationPanelConfirmButton = null
         activeAutomationPanelConfirmTextView = null
+        clearAutomationAutoConfirm()
     }
 
     private fun allocateVoiceSessionId(): Long {
@@ -3410,6 +3413,50 @@ class MainActivity : AppCompatActivity() {
         retryIconView?.alpha = if (isLoading) 0.6f else 1f
     }
 
+    private fun clearAutomationAutoConfirm(messageRef: AutomationMessageRef? = null) {
+        if (messageRef != null) {
+            val resolved = resolveAutomationMessageRef(messageRef) ?: return
+            if (automationAutoConfirmRef != resolved) return
+        }
+        automationAutoConfirmJob?.cancel()
+        automationAutoConfirmJob = null
+        automationAutoConfirmRef = null
+    }
+
+    private fun scheduleAutomationAutoConfirm(
+        button: View?,
+        textView: TextView?,
+        task: String,
+        messageRef: AutomationMessageRef?
+    ) {
+        clearAutomationAutoConfirm(messageRef)
+        if (button == null || textView == null) return
+        if (task.isBlank()) return
+        if (!VirtualDisplayConfig.getAutoApproveAutomation(this)) return
+
+        val resolvedRef = resolveAutomationMessageRef(messageRef) ?: return
+        automationAutoConfirmRef = resolvedRef
+        val currentJob =
+            lifecycleScope.launch {
+                for (secondsRemaining in 10 downTo 1) {
+                    if (automationAutoConfirmRef != resolvedRef) return@launch
+                    if (!button.isAttachedToWindow || !button.isEnabled) return@launch
+                    textView.text = getString(R.string.automation_confirm_countdown, secondsRemaining)
+                    delay(1000L)
+                }
+
+                if (automationAutoConfirmRef != resolvedRef) return@launch
+                if (!button.isAttachedToWindow || !button.isEnabled) return@launch
+                button.performClick()
+            }
+        automationAutoConfirmJob = currentJob
+        currentJob.invokeOnCompletion {
+            if (automationAutoConfirmJob === currentJob) {
+                automationAutoConfirmJob = null
+                automationAutoConfirmRef = null
+            }
+        }
+    }
     private fun bindAutomationConfirmButton(
         button: View?,
         textView: TextView?,
@@ -3423,6 +3470,7 @@ class MainActivity : AppCompatActivity() {
         val iconView = button?.findViewById<ImageView?>(R.id.iv_confirm_icon)
 
         if (isConfirmed) {
+            clearAutomationAutoConfirm(messageRef)
             if (isFinished) {
                 configureAutomationFinishedButton(
                     button = button,
@@ -3443,6 +3491,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (task.isBlank()) {
+            clearAutomationAutoConfirm(messageRef)
             button?.visibility = View.GONE
             button?.isEnabled = false
             textView?.text = getString(R.string.automation_confirm)
@@ -3456,6 +3505,7 @@ class MainActivity : AppCompatActivity() {
         statusView?.text = getString(R.string.automation_scene_need_confirm)
         button?.setOnClickListener {
             if (button.isEnabled.not()) return@setOnClickListener
+            clearAutomationAutoConfirm(messageRef)
             button.isEnabled = false
             button.alpha = 0.7f
             textView?.text = getString(R.string.automation_confirming)
@@ -3494,8 +3544,10 @@ class MainActivity : AppCompatActivity() {
                 button.alpha = 1f
                 textView?.text = getString(R.string.automation_confirm)
                 statusView?.text = getString(R.string.automation_scene_need_confirm)
+                scheduleAutomationAutoConfirm(button, textView, task, messageRef)
             }
         }
+        scheduleAutomationAutoConfirm(button, textView, task, messageRef)
     }
 
     private fun configureAutomationTerminateButton(
@@ -3505,6 +3557,7 @@ class MainActivity : AppCompatActivity() {
         statusView: TextView?,
         messageRef: AutomationMessageRef? = null,
     ) {
+        clearAutomationAutoConfirm(messageRef)
         button?.visibility = View.VISIBLE
         button?.background = ContextCompat.getDrawable(this, R.drawable.bg_action_button_oval_danger)
         textView?.setTextColor(ContextCompat.getColor(this, R.color.m3t_on_error_container))
@@ -3531,29 +3584,32 @@ class MainActivity : AppCompatActivity() {
             button.isEnabled = false
             button.alpha = 0.75f
             automationTerminateFallbackJob?.cancel()
-            val expectedRef = resolveAutomationMessageRef(messageRef)
-            automationTerminateFallbackJob =
-                lifecycleScope.launch {
-                    delay(8000L)
-                    if (expectedRef != null) {
-                        if (!isAutomationTerminatePending(expectedRef)) return@launch
-                        clearAutomationTerminatePending(expectedRef)
-                    } else {
-                        if (automationTerminatePendingRef == null) return@launch
-                        clearAutomationTerminatePending()
+            val resolvedRef = resolveAutomationMessageRef(messageRef)
+            if (resolvedRef != null) {
+                automationTerminateFallbackJob =
+                    lifecycleScope.launch {
+                        delay(12_000L)
+                        if (automationTerminatePendingRef == resolvedRef) {
+                            clearAutomationTerminatePending(resolvedRef)
+                            configureAutomationTerminateButton(
+                                button = button,
+                                textView = textView,
+                                iconView = iconView,
+                                statusView = statusView,
+                                messageRef = resolvedRef,
+                            )
+                            textView?.text = getString(R.string.automation_terminate)
+                            button.alpha = 1f
+                            button.isEnabled = true
+                            statusView?.text = getString(R.string.automation_scene_confirmed)
+                            Toast.makeText(
+                                this@MainActivity,
+                                getString(R.string.automation_terminate_timeout_retry),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
                     }
-                    if (button.isAttachedToWindow) {
-                        button.isEnabled = true
-                        button.alpha = 1f
-                    }
-                    textView?.text = getString(R.string.automation_terminate)
-                    statusView?.text = getString(R.string.automation_scene_confirmed)
-                    Toast.makeText(
-                        this@MainActivity,
-                        getString(R.string.automation_terminate_timeout_retry),
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                }
+            }
         }
     }
 
@@ -3564,6 +3620,7 @@ class MainActivity : AppCompatActivity() {
         statusView: TextView?
     ) {
         clearAutomationTerminatePending()
+        clearAutomationAutoConfirm()
         button?.visibility = View.VISIBLE
         button?.isEnabled = false
         button?.alpha = 1f
@@ -3685,7 +3742,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 timeline.add(
                     AutomationTimelineEntry(
-                        displayText = "执行动作",
+                        displayText = "",
                         action = actionLabel
                     )
                 )
@@ -3722,17 +3779,20 @@ class MainActivity : AppCompatActivity() {
                 orientation = LinearLayout.VERTICAL
             }
 
-            val thoughtView =
-                TextView(this).apply {
-                    text = "• ${entry.displayText}"
-                    setTextAppearance(this@MainActivity, R.style.TextAppearance_M3t_Body_Small)
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface_variant))
-                }
-            val thoughtLp = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            row.addView(thoughtView, thoughtLp)
+            val displayText = entry.displayText.trim()
+            if (displayText.isNotBlank()) {
+                val thoughtView =
+                    TextView(this).apply {
+                        text = "• $displayText"
+                        setTextAppearance(this@MainActivity, R.style.TextAppearance_M3t_Body_Small)
+                        setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface_variant))
+                    }
+                val thoughtLp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                row.addView(thoughtView, thoughtLp)
+            }
 
             val action = entry.action?.trim().orEmpty()
             if (action.isNotBlank()) {
@@ -3742,7 +3802,12 @@ class MainActivity : AppCompatActivity() {
                         LinearLayout.LayoutParams.WRAP_CONTENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
                     ).apply {
-                        topMargin = resources.getDimensionPixelSize(R.dimen.m3t_spacing_xxxs)
+                        topMargin =
+                            if (displayText.isNotBlank()) {
+                                resources.getDimensionPixelSize(R.dimen.m3t_spacing_xxxs)
+                            } else {
+                                0
+                            }
                     }
                 row.addView(chip, chipLp)
             }
@@ -3881,37 +3946,84 @@ class MainActivity : AppCompatActivity() {
             return actionByCurrent.take(10)
         }
 
-        val outputPayload =
-            when {
-                normalized.startsWith("输出：") -> normalized.substringAfter("输出：").trim()
-                normalized.startsWith("修复输出：") -> normalized.substringAfter("修复输出：").trim()
-                else -> ""
-            }
-        if (outputPayload.isBlank()) return null
-
-        val actionFromDo =
-            Regex("""action\s*=\s*"([^"]+)"""")
-                .find(outputPayload)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.trim()
-                ?.takeIf { it.isNotBlank() }
-        if (!actionFromDo.isNullOrBlank()) {
-            return mapAutomationActionLabel(actionFromDo)
-        }
-
-        val actionFromJson =
-            Regex(""""action"\s*:\s*"([^"]+)"""")
-                .find(outputPayload)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.trim()
-                ?.takeIf { it.isNotBlank() }
-        if (!actionFromJson.isNullOrBlank()) {
-            return mapAutomationActionLabel(actionFromJson)
-        }
-
         return null
+    }
+
+    private fun setAutomationPanelCollapsedState(
+        content: View,
+        toggleButton: ImageButton,
+        collapsed: Boolean,
+        animate: Boolean = true
+    ) {
+        val targetRotation = if (collapsed) 180f else 0f
+        val contentOffset = resources.getDimensionPixelSize(R.dimen.m3t_spacing_sm).toFloat()
+
+        content.animate().cancel()
+        toggleButton.animate().cancel()
+        toggleButton.contentDescription =
+            getString(
+                if (collapsed) {
+                    R.string.automation_scene_expand
+                } else {
+                    R.string.automation_scene_collapse
+                }
+            )
+
+        if (!animate || !content.isLaidOut) {
+            content.visibility = if (collapsed) View.GONE else View.VISIBLE
+            content.alpha = 1f
+            content.translationY = 0f
+            content.scaleY = 1f
+            toggleButton.rotation = targetRotation
+            toggleButton.isEnabled = true
+            return
+        }
+
+        toggleButton.isEnabled = false
+        toggleButton.animate()
+            .rotation(targetRotation)
+            .setDuration(220)
+            .setInterpolator(OvershootInterpolator(0.8f))
+            .start()
+
+        if (collapsed) {
+            if (content.visibility != View.VISIBLE) {
+                toggleButton.isEnabled = true
+                return
+            }
+            content.pivotY = 0f
+            content.animate()
+                .alpha(0f)
+                .translationY(-contentOffset)
+                .scaleY(0.96f)
+                .setDuration(180)
+                .setInterpolator(AccelerateInterpolator())
+                .withEndAction {
+                    content.visibility = View.GONE
+                    content.alpha = 1f
+                    content.translationY = 0f
+                    content.scaleY = 1f
+                    toggleButton.isEnabled = true
+                }
+                .start()
+        } else {
+            content.visibility = View.VISIBLE
+            content.alpha = 0f
+            content.translationY = -contentOffset * 0.5f
+            content.scaleY = 0.96f
+            content.pivotY = 0f
+            content.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .scaleY(1f)
+                .setDuration(240)
+                .setInterpolator(DecelerateInterpolator())
+                .withEndAction {
+                    toggleButton.isEnabled = true
+                    smoothScrollToBottom()
+                }
+                .start()
+        }
     }
 
     private fun configureAutomationPanel(
@@ -4096,6 +4208,8 @@ class MainActivity : AppCompatActivity() {
         val tvConfirmText = view.findViewById<TextView?>(R.id.tv_confirm_text)
         val automationPanel = view.findViewById<LinearLayout>(R.id.automation_panel)
         val automationStatus = view.findViewById<TextView>(R.id.automation_panel_status)
+        val automationPanelToggle = view.findViewById<ImageButton>(R.id.automation_panel_toggle)
+        val automationPanelContent = view.findViewById<LinearLayout>(R.id.automation_panel_content)
         val automationCommand = view.findViewById<TextView>(R.id.automation_panel_command)
         val automationLogContainer = view.findViewById<LinearLayout>(R.id.automation_log_container)
         val tvModelName = view.findViewById<TextView>(R.id.tv_model_name)
@@ -4174,6 +4288,19 @@ class MainActivity : AppCompatActivity() {
         if (!automationCommandText.isNullOrBlank()) {
             messageContent.visibility = View.GONE
             automationPanel.visibility = View.VISIBLE
+            setAutomationPanelCollapsedState(
+                content = automationPanelContent,
+                toggleButton = automationPanelToggle,
+                collapsed = false,
+                animate = false
+            )
+            automationPanelToggle.setOnClickListener {
+                setAutomationPanelCollapsedState(
+                    content = automationPanelContent,
+                    toggleButton = automationPanelToggle,
+                    collapsed = automationPanelContent.visibility == View.VISIBLE
+                )
+            }
             configureAutomationPanel(
                 command = automationCommandText,
                 logs = initialAutomationLogs,
@@ -4195,6 +4322,8 @@ class MainActivity : AppCompatActivity() {
         } else {
             messageContent.visibility = View.VISIBLE
             automationPanel.visibility = View.GONE
+            automationPanelToggle.setOnClickListener(null)
+            automationPanelContent.visibility = View.VISIBLE
         }
         
         smoothScrollToBottom()
