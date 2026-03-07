@@ -302,17 +302,20 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/m3t_stroke_thin"
-        android:background="@color/m3t_perm_sheet_separator" />
+    <com.google.android.material.loadingindicator.LoadingIndicator
+        android:id="@+id/permissionProgress"
+        style="@style/Widget.M3t.LoadingIndicator.Onboarding"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal" />
 
     <LinearLayout
         android:id="@+id/permissionSheetActions"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/m3t_drawer_background"
-        android:orientation="vertical"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
         android:paddingStart="@dimen/m3t_spacing_xxl"
         android:paddingTop="@dimen/m3t_spacing_lg"
         android:paddingEnd="@dimen/m3t_spacing_xxl"
@@ -321,17 +324,19 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnPermGuide"
             style="@style/Widget.M3t.Button.Filled"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="@dimen/m3t_button_height"
+            android:layout_weight="1"
             android:text="@string/perm_sheet_primary_action"
             android:textAllCaps="false" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnPermDone"
             style="@style/Widget.M3t.Button.Tonal"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="@dimen/m3t_button_height"
-            android:layout_marginTop="@dimen/m3t_spacing_md"
+            android:layout_marginStart="@dimen/m3t_spacing_md"
+            android:layout_weight="1"
             android:text="@string/perm_sheet_secondary_action"
             android:textAllCaps="false" />
     </LinearLayout>

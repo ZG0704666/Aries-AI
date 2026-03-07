@@ -1,4 +1,4 @@
-﻿package com.ai.phoneagent
+package com.ai.phoneagent
 
 import android.Manifest
 import android.content.ComponentName
@@ -17,6 +17,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -24,6 +25,7 @@ import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.button.MaterialButton
+
 import rikka.shizuku.Shizuku
 
 class MainOnboardingOverlay(
@@ -115,6 +117,7 @@ class MainOnboardingOverlay(
     fun isShowing(): Boolean = hostRoot.isVisible
 
     private fun showOverlay(initialStep: Step) {
+        closeDrawerIfOpen(immediate = true)
         hostRoot.isVisible = true
         hostRoot.bringToFront()
         drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
@@ -127,6 +130,7 @@ class MainOnboardingOverlay(
         isTransitionRunning = false
         currentStep = null
         drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
+        closeDrawerIfOpen(immediate = true)
         restoreMainSystemBars()
     }
 
@@ -163,6 +167,7 @@ class MainOnboardingOverlay(
             activity,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
+                    if (closeDrawerIfOpen()) return
                     if (!hostRoot.isVisible) {
                         isEnabled = false
                         activity.onBackPressedDispatcher.onBackPressed()
@@ -184,6 +189,12 @@ class MainOnboardingOverlay(
                 }
             },
         )
+    }
+
+    private fun closeDrawerIfOpen(immediate: Boolean = false): Boolean {
+        if (!drawerLayout.isDrawerOpen(GravityCompat.START)) return false
+        drawerLayout.closeDrawer(GravityCompat.START, !immediate)
+        return true
     }
 
     private fun showStep(target: Step, forward: Boolean, animate: Boolean) {
@@ -241,7 +252,6 @@ class MainOnboardingOverlay(
             updatePermissionUi()
         }
     }
-
     private fun pageFor(step: Step): View =
         when (step) {
             Step.WELCOME -> welcomePage

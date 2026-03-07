@@ -80,6 +80,9 @@ docs/reference-architecture.md
 AGENTS.md
 analytics.settings
 key/key
+.tmp_material_113/
+.tmp_material_113.zip
+tmp_onboarding_check.png
 
 # Lighthouse reports (local performance profiling artifacts)
 Aries-site/lighthouse-*.report.html

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/welcomePageRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -34,10 +35,12 @@
             android:textColor="@color/blue_glass_text_dim" />
     </LinearLayout>
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/m3t_stroke_thin"
-        android:background="@color/m3t_perm_sheet_separator" />
+    <com.google.android.material.loadingindicator.LoadingIndicator
+        android:id="@+id/welcomeProgress"
+        style="@style/Widget.M3t.LoadingIndicator.Onboarding"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal" />
 
     <LinearLayout
         android:id="@+id/welcomeActions"

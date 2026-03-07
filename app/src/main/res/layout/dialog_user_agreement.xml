@@ -71,10 +71,12 @@
             </com.google.android.material.card.MaterialCardView>
         </androidx.core.widget.NestedScrollView>
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/m3t_stroke_thin"
-            android:background="@color/m3t_perm_sheet_separator" />
+        <com.google.android.material.loadingindicator.LoadingIndicator
+            android:id="@+id/agreementProgress"
+            style="@style/Widget.M3t.LoadingIndicator.Onboarding"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal" />
 
         <LinearLayout
             android:id="@+id/agreementActions"
