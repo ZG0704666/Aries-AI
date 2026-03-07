@@ -20,6 +20,7 @@ object LocalMnnInferenceEngine {
     private const val LOCAL_MAX_DURATION_MS = 75_000L
     private const val LOCAL_MAX_OUTPUT_CHARS = 3600
     private const val LOCAL_MAX_REPEAT_CHUNK_STREAK = 22
+    private const val LOCAL_MAX_IMAGE_BYTES = 8L * 1024L * 1024L
 
     private val initMutex = Mutex()
     private val requestMutex = Mutex()
@@ -253,10 +254,9 @@ object LocalMnnInferenceEngine {
                 copyUriToTempFile(context, Uri.parse(trimmed))?.absolutePath
             }
             trimmed.startsWith("file://", ignoreCase = true) -> {
-                Uri.parse(trimmed).path?.takeIf { File(it).exists() }
+                Uri.parse(trimmed).path?.let(::File)?.takeIf(::isLocalImageFileUsable)?.absolutePath
             }
-            File(trimmed).exists() -> trimmed
-            else -> null
+            else -> File(trimmed).takeIf(::isLocalImageFileUsable)?.absolutePath
         }
     }
 
@@ -265,28 +265,97 @@ object LocalMnnInferenceEngine {
         if (commaIndex <= 0 || commaIndex >= dataUri.lastIndex) return null
 
         val header = dataUri.substring(0, commaIndex)
-        val base64Data = dataUri.substring(commaIndex + 1)
-        val extension = extensionFromDataUriHeader(header)
+        if (!header.contains(";base64", ignoreCase = true)) return null
+        val cleanedBase64 = dataUri.substring(commaIndex + 1).filterNot(Char::isWhitespace)
+        val estimatedBytes = estimateDecodedBase64Bytes(cleanedBase64) ?: return null
+        if (estimatedBytes <= 0L || estimatedBytes > LOCAL_MAX_IMAGE_BYTES) return null
 
+        val extension = extensionFromDataUriHeader(header)
+        val target = createTempImageFile(context, extension)
         return runCatching {
-                val bytes = Base64.decode(base64Data, Base64.DEFAULT)
-                val file = createTempImageFile(context, extension)
-                file.writeBytes(bytes)
-                file
+                val bytes = Base64.decode(cleanedBase64, Base64.DEFAULT)
+                if (bytes.isEmpty() || bytes.size.toLong() > LOCAL_MAX_IMAGE_BYTES) {
+                    deleteQuietly(target)
+                    return null
+                }
+                target.writeBytes(bytes)
+                target
             }
-            .getOrNull()
+            .getOrElse {
+                deleteQuietly(target)
+                null
+            }
     }
 
     private fun copyUriToTempFile(context: Context, uri: Uri): File? {
+        val declaredSize =
+            runCatching {
+                context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+                    descriptor.length.takeIf { it > 0L } ?: descriptor.declaredLength.takeIf { it > 0L } ?: 0L
+                } ?: 0L
+            }.getOrDefault(0L)
+        if (declaredSize > LOCAL_MAX_IMAGE_BYTES) return null
+
+        val extension = extensionFromUri(uri)
+        val target = createTempImageFile(context, extension)
         return runCatching {
-                val extension = extensionFromUri(uri)
-                val target = createTempImageFile(context, extension)
                 context.contentResolver.openInputStream(uri)?.use { input ->
-                    target.outputStream().use { output -> input.copyTo(output) }
-                } ?: return null
+                    if (!copyStreamToFileWithLimit(input, target, LOCAL_MAX_IMAGE_BYTES)) {
+                        deleteQuietly(target)
+                        return null
+                    }
+                } ?: run {
+                    deleteQuietly(target)
+                    return null
+                }
                 target
             }
-            .getOrNull()
+            .getOrElse {
+                deleteQuietly(target)
+                null
+            }
+    }
+
+    private fun isLocalImageFileUsable(file: File): Boolean {
+        return file.exists() && file.isFile && file.length() in 1..LOCAL_MAX_IMAGE_BYTES
+    }
+
+    private fun estimateDecodedBase64Bytes(base64Data: String): Long? {
+        if (base64Data.isEmpty()) return 0L
+        val padding =
+            when {
+                base64Data.endsWith("==") -> 2L
+                base64Data.endsWith("=") -> 1L
+                else -> 0L
+            }
+        val decodedSize = (base64Data.length.toLong() * 3L) / 4L - padding
+        return decodedSize.takeIf { it >= 0L }
+    }
+
+    private fun copyStreamToFileWithLimit(
+        input: java.io.InputStream,
+        target: File,
+        maxBytes: Long,
+    ): Boolean {
+        var totalBytes = 0L
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        target.outputStream().use { output ->
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                totalBytes += read.toLong()
+                if (totalBytes > maxBytes) {
+                    return false
+                }
+                output.write(buffer, 0, read)
+            }
+        }
+        return totalBytes > 0L
+    }
+
+    private fun deleteQuietly(file: File?) {
+        if (file == null) return
+        runCatching { file.delete() }
     }
 
     private fun extensionFromDataUriHeader(header: String): String {

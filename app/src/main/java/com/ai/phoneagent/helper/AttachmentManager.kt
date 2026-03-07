@@ -49,6 +49,7 @@ class AttachmentManager(private val context: Context) {
         private const val MAX_TEXT_ATTACHMENT_CHARS = 120_000
         private const val TEXT_ATTACHMENT_TRUNCATED_SUFFIX = "\n\n[附件内容过长，已截断]"
         private const val MAX_EXTRACTABLE_FILE_BYTES = 20L * 1024L * 1024L
+        private const val MAX_CACHED_IMAGE_BYTES = 8L * 1024L * 1024L
         private const val FILE_TOO_LARGE_TEMPLATE = "[附件过大，未提取正文，大小=%d字节]"
     }
     
@@ -337,18 +338,35 @@ class AttachmentManager(private val context: Context) {
     private suspend fun createTempFileFromUri(uri: Uri, fileName: String): File? = 
         withContext(Dispatchers.IO) {
             try {
+                val declaredSize =
+                    runCatching {
+                        context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+                            descriptor.length.takeIf { it > 0L }
+                                ?: descriptor.declaredLength.takeIf { it > 0L }
+                                ?: 0L
+                        } ?: 0L
+                    }.getOrDefault(0L)
+                if (declaredSize > MAX_CACHED_IMAGE_BYTES) {
+                    return@withContext null
+                }
+
                 val fileExtension = fileName.substringAfterLast('.', "jpg")
                 val tempFile = File.createTempFile("temp_", ".$fileExtension", context.cacheDir)
                 
                 context.contentResolver.openInputStream(uri)?.use { input ->
-                    tempFile.outputStream().use { output ->
-                        input.copyTo(output)
+                    if (!copyStreamToFileWithLimit(input, tempFile, MAX_CACHED_IMAGE_BYTES)) {
+                        tempFile.delete()
+                        return@withContext null
                     }
+                } ?: run {
+                    tempFile.delete()
+                    return@withContext null
                 }
                 
                 if (tempFile.exists() && tempFile.length() > 0) {
                     tempFile
                 } else {
+                    tempFile.delete()
                     null
                 }
             } catch (e: Exception) {
@@ -356,6 +374,22 @@ class AttachmentManager(private val context: Context) {
             }
         }
     
+    private fun copyStreamToFileWithLimit(input: InputStream, target: File, maxBytes: Long): Boolean {
+        var totalBytes = 0L
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        target.outputStream().use { output ->
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                totalBytes += read.toLong()
+                if (totalBytes > maxBytes) {
+                    return false
+                }
+                output.write(buffer, 0, read)
+            }
+        }
+        return totalBytes > 0L
+    }
     /**
      * 从URI获取文件名
      */

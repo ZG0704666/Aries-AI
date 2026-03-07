@@ -1,6 +1,7 @@
 package com.ai.phoneagent.viewmodel
 
 import android.app.Application
+import android.util.Base64OutputStream
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ai.phoneagent.data.AttachmentInfo
@@ -8,7 +9,9 @@ import com.ai.phoneagent.helper.AttachmentManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.InputStream
 
 /**
  * ChatViewModel
@@ -16,6 +19,9 @@ import java.io.File
  * 管理聊天相关的状态，包括附件管理
  */
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
+    private companion object {
+        private const val MAX_BASE64_IMAGE_BYTES = 8L * 1024L * 1024L
+    }
     
     // 附件管理器
     private val attachmentManager = AttachmentManager(application)
@@ -233,20 +239,57 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             val context = getApplication<Application>()
             val inputStream =
                 when {
-                    filePath.startsWith("content://") || filePath.startsWith("file://") -> {
+                    filePath.startsWith("content://") -> {
                         val uri = android.net.Uri.parse(filePath)
+                        context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+                            val declaredLength = descriptor.length.takeIf { it > 0L }
+                                ?: descriptor.declaredLength.takeIf { it > 0L }
+                            if (declaredLength != null && declaredLength > MAX_BASE64_IMAGE_BYTES) {
+                                return null
+                            }
+                        }
                         context.contentResolver.openInputStream(uri)
+                    }
+                    filePath.startsWith("file://") -> {
+                        android.net.Uri.parse(filePath).path
+                            ?.let(::File)
+                            ?.takeIf { it.exists() && it.isFile && it.length() in 1..MAX_BASE64_IMAGE_BYTES }
+                            ?.inputStream()
                     }
                     else -> {
                         val file = File(filePath)
-                        if (file.exists() && file.isFile) file.inputStream() else null
+                        if (file.exists() && file.isFile && file.length() in 1..MAX_BASE64_IMAGE_BYTES) {
+                            file.inputStream()
+                        } else {
+                            null
+                        }
                     }
                 }
-            val bytes = inputStream?.use { it.readBytes() }
-            bytes?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) }
+            inputStream?.use { encodeStreamAsBase64(it, MAX_BASE64_IMAGE_BYTES) }
         } catch (e: Exception) {
             e.printStackTrace()
             null
         }
+    }
+
+    private fun encodeStreamAsBase64(input: InputStream, maxBytes: Long): String? {
+        val rawOutput = ByteArrayOutputStream()
+        Base64OutputStream(rawOutput, android.util.Base64.NO_WRAP).use { base64Output ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            var totalBytes = 0L
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                totalBytes += read.toLong()
+                if (totalBytes > maxBytes) {
+                    return null
+                }
+                base64Output.write(buffer, 0, read)
+            }
+            if (totalBytes <= 0L) {
+                return null
+            }
+        }
+        return rawOutput.toString(Charsets.UTF_8.name())
     }
 }

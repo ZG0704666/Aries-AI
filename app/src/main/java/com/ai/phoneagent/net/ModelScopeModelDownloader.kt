@@ -1,4 +1,4 @@
-﻿package com.ai.phoneagent.net
+package com.ai.phoneagent.net
 
 import android.app.DownloadManager
 import android.content.Context
@@ -51,6 +51,7 @@ object ModelScopeModelDownloader {
 
     private data class RepoFile(
         val path: String,
+        val fileName: String,
         val size: Long,
     )
 
@@ -81,17 +82,9 @@ object ModelScopeModelDownloader {
     fun isQwen35ModelReady(context: Context): Boolean {
         val modelDir = getQwen35ModelDir(context) ?: return false
         if (!modelDir.exists() || !modelDir.isDirectory) return false
-        val requiredNames = requiredFileNamesForCurrentModel()
-
-        val filesInDir =
-            modelDir.walkTopDown()
-                .maxDepth(4)
-                .filter { it.isFile }
-                .associateBy({ it.name }, { it })
-
-        return requiredNames.all { name ->
-            val file = filesInDir[name] ?: return@all false
-            file.length() > 0L
+        return requiredFileNamesForCurrentModel().all { name ->
+            val file = File(modelDir, name)
+            file.exists() && file.isFile && file.length() > 0L
         }
     }
 
@@ -102,20 +95,37 @@ object ModelScopeModelDownloader {
         val files = root.optJSONObject("Data")?.optJSONArray("Files")
         if (files == null || files.length() == 0) return emptyList()
 
-        val selected = mutableListOf<RepoFile>()
+        val selected = linkedMapOf<String, RepoFile>()
         for (i in 0 until files.length()) {
             val item = files.optJSONObject(i) ?: continue
             val path = item.optString("Path", "").trim()
-            if (path.isBlank() || !isRequiredPath(path)) continue
             val size = item.optLong("Size", 0L).coerceAtLeast(0L)
-            selected += RepoFile(path = path, size = size)
+            val repoFile = normalizeRequiredRepoFile(path, size) ?: continue
+            selected.putIfAbsent(repoFile.fileName, repoFile)
         }
-        return selected
+        return selected.values.toList()
     }
 
-    private fun isRequiredPath(path: String): Boolean {
-        val fileName = path.substringAfterLast('/')
-        return fileName in requiredFileNamesForCurrentModel()
+    private fun normalizeRequiredRepoFile(path: String, size: Long): RepoFile? {
+        val segments = safePathSegments(path) ?: return null
+        val fileName = segments.lastOrNull() ?: return null
+        if (fileName !in requiredFileNamesForCurrentModel()) return null
+        return RepoFile(
+            path = segments.joinToString("/"),
+            fileName = fileName,
+            size = size,
+        )
+    }
+
+    private fun safePathSegments(path: String): List<String>? {
+        val normalized = path.replace('\\', '/').trim()
+        if (normalized.isBlank()) return null
+        if (normalized.startsWith('/')) return null
+        if (normalized.contains("://") || normalized.contains(':')) return null
+
+        val segments = normalized.split('/')
+        if (segments.any { it.isBlank() || it == "." || it == ".." }) return null
+        return segments
     }
 
     private fun requiredFileNamesForCurrentModel(): Set<String> {
@@ -136,14 +146,17 @@ object ModelScopeModelDownloader {
                 ?: throw IOException("External download directory unavailable")
 
         val relativeModelDir = "$DOWNLOAD_ROOT_DIR/$modelName"
+        val modelDir = File(externalDownloadDir, relativeModelDir).canonicalFile
         var enqueuedCount = 0
         var skippedCount = 0
         var totalBytes = 0L
         val downloadIds = mutableListOf<Long>()
 
         files.forEach { file ->
-            val relativePath = "$relativeModelDir/${file.path}"
-            val existing = File(externalDownloadDir, relativePath)
+            val existing = File(modelDir, file.fileName).canonicalFile
+            if (!existing.path.startsWith(modelDir.path + File.separator) && existing != modelDir) {
+                throw IOException("Refusing unsafe model destination: ${file.fileName}")
+            }
             if (existing.exists() && file.size > 0L && existing.length() == file.size) {
                 skippedCount++
                 return@forEach
@@ -152,11 +165,12 @@ object ModelScopeModelDownloader {
             val encodedPath = file.path.split('/').joinToString("/") { Uri.encode(it) }
             val fileUrl =
                 "$MODELSCOPE_RESOLVE_BASE/$modelId/resolve/master/$encodedPath?download=true"
+            val destinationPath = "$relativeModelDir/${file.fileName}"
 
             val request =
                 DownloadManager.Request(Uri.parse(fileUrl)).apply {
                     setTitle(modelName)
-                    setDescription(file.path)
+                    setDescription(file.fileName)
                     setNotificationVisibility(
                         DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
                     )
@@ -166,7 +180,7 @@ object ModelScopeModelDownloader {
                     setDestinationInExternalFilesDir(
                         context,
                         Environment.DIRECTORY_DOWNLOADS,
-                        relativePath
+                        destinationPath,
                     )
                 }
 
@@ -180,8 +194,8 @@ object ModelScopeModelDownloader {
             enqueuedCount = enqueuedCount,
             skippedCount = skippedCount,
             totalBytes = totalBytes,
-            targetDir = File(externalDownloadDir, relativeModelDir).absolutePath,
-            downloadIds = downloadIds
+            targetDir = modelDir.absolutePath,
+            downloadIds = downloadIds,
         )
     }
 
