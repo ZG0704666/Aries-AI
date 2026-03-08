@@ -709,9 +709,10 @@ class AutomationActivityNew : AppCompatActivity() {
             btnOpenAccessibilitySettings.visibility = View.VISIBLE
             btnOpenAccessibilitySettings.isEnabled = true
 
-            btnShizukuAuthorize.visibility = View.VISIBLE
+            btnShizukuAuthorize.visibility =
+                    if (state.shizukuBinderConnected) View.VISIBLE else View.GONE
             btnShizukuAuthorize.isEnabled = state.shizukuBinderConnected
-            btnShizukuAuthorize.alpha = if (state.shizukuBinderConnected) 1f else 0.55f
+            btnShizukuAuthorize.alpha = 1f
             syncStartButtonState(canStart)
         } catch (e: Exception) {
             Log.e("AutomationActivityNew", "检查无障碍服务状态失败: ${e.message}", e)
