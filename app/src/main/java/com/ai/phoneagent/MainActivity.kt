@@ -4034,7 +4034,6 @@ class MainActivity : AppCompatActivity() {
                 .setInterpolator(DecelerateInterpolator())
                 .withEndAction {
                     toggleButton.isEnabled = true
-                    smoothScrollToBottom()
                 }
                 .start()
         }

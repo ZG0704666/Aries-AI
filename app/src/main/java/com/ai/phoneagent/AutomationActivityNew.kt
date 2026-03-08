@@ -934,6 +934,7 @@ class AutomationActivityNew : AppCompatActivity() {
         }
 
         tvLog.text = ""
+        autoScrollLogToBottom = false
         val modeText = if (isBackgroundMode) "后台虚拟屏模式" else "前端执行模式"
         appendLog("执行模式：$modeText")
         appendLog("准备开始：baseUrl=$baseUrl, model=$model")
@@ -1451,12 +1452,18 @@ class AutomationActivityNew : AppCompatActivity() {
                 AutomationLogBridge.publish(this@AutomationActivityNew, message)
             }
 
-            if (autoScrollLogToBottom) {
+            if (autoScrollLogToBottom && hasMeaningfulLogOutput()) {
                 // 自动滚动到底部
                 val scrollView = binding.root.findViewById<NestedScrollView>(R.id.scrollLog)
                 scrollView?.post { scrollView.fullScroll(android.view.View.FOCUS_DOWN) }
             }
         }
+    }
+
+    private fun hasMeaningfulLogOutput(): Boolean {
+        val text = tvLog.text?.toString().orEmpty().trim()
+        if (text.isEmpty()) return false
+        return text != getString(R.string.automation_log_default).trim()
     }
 
     private fun scrollLogToTop() {
@@ -1466,8 +1473,12 @@ class AutomationActivityNew : AppCompatActivity() {
 
     private fun setupLogAutoScrollBehavior() {
         val scrollView = binding.root.findViewById<NestedScrollView>(R.id.scrollLog) ?: return
-        autoScrollLogToBottom = false
+        autoScrollLogToBottom = hasMeaningfulLogOutput() && !scrollView.canScrollVertically(1)
         scrollView.setOnScrollChangeListener { v, _, scrollY, _, oldScrollY ->
+            if (!hasMeaningfulLogOutput()) {
+                autoScrollLogToBottom = false
+                return@setOnScrollChangeListener
+            }
             val view = v as NestedScrollView
             val isAtBottom = !view.canScrollVertically(1)
             val isScrollingDown = scrollY > oldScrollY
