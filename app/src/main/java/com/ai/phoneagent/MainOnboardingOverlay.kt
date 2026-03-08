@@ -80,6 +80,10 @@ class MainOnboardingOverlay(
         configureAgreementPage()
         configurePermissionPage()
         applyWindowInsets()
+        hostRoot.setOnClickListener { }
+        hostRoot.isClickable = false
+        hostRoot.isFocusable = false
+        hostRoot.isFocusableInTouchMode = false
         hostRoot.isVisible = false
         setupBackBehavior()
     }
@@ -118,6 +122,9 @@ class MainOnboardingOverlay(
 
     private fun showOverlay(initialStep: Step) {
         closeDrawerIfOpen(immediate = true)
+        hostRoot.isClickable = true
+        hostRoot.isFocusable = true
+        hostRoot.isFocusableInTouchMode = true
         hostRoot.isVisible = true
         hostRoot.bringToFront()
         drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
@@ -126,6 +133,10 @@ class MainOnboardingOverlay(
     }
 
     private fun hideOverlay() {
+        hostRoot.clearFocus()
+        hostRoot.isClickable = false
+        hostRoot.isFocusable = false
+        hostRoot.isFocusableInTouchMode = false
         hostRoot.isVisible = false
         isTransitionRunning = false
         currentStep = null
@@ -553,14 +564,18 @@ class MainOnboardingOverlay(
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
         if (hasOverlayPermission(context)) return true
 
-        val result =
-            runCatching {
-                ShizukuBridge.execResultArgs(
-                    listOf("appops", "set", context.packageName, "SYSTEM_ALERT_WINDOW", "allow"),
-                )
-            }.getOrNull()
+        runCatching {
+            ShizukuBridge.execResultArgs(
+                listOf("appops", "set", context.packageName, "SYSTEM_ALERT_WINDOW", "allow"),
+            )
+        }
+        runCatching {
+            ShizukuBridge.execResultArgs(
+                listOf("appops", "set", context.packageName, "android:system_alert_window", "allow"),
+            )
+        }
 
-        return hasOverlayPermission(context) || (result != null && result.exitCode == 0)
+        return hasOverlayPermission(context)
     }
 
     private fun grantMicrophonePermissionViaShizuku(context: Context): Boolean {

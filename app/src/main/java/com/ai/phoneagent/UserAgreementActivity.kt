@@ -564,14 +564,18 @@ class UserAgreementActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
         if (hasOverlayPermission(context)) return true
 
-        val result =
-            runCatching {
-                ShizukuBridge.execResultArgs(
-                    listOf("appops", "set", context.packageName, "SYSTEM_ALERT_WINDOW", "allow"),
-                )
-            }.getOrNull()
+        runCatching {
+            ShizukuBridge.execResultArgs(
+                listOf("appops", "set", context.packageName, "SYSTEM_ALERT_WINDOW", "allow"),
+            )
+        }
+        runCatching {
+            ShizukuBridge.execResultArgs(
+                listOf("appops", "set", context.packageName, "android:system_alert_window", "allow"),
+            )
+        }
 
-        return hasOverlayPermission(context) || (result != null && result.exitCode == 0)
+        return hasOverlayPermission(context)
     }
 
     private fun grantMicrophonePermissionViaShizuku(context: Context): Boolean {

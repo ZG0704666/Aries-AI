@@ -738,6 +738,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupToolbar() {
         binding.topAppBar.setNavigationOnClickListener {
+            if (onboardingOverlay.isShowing()) return@setNavigationOnClickListener
             vibrateLight()
             hideKeyboard()
             binding.drawerLayout.openDrawer(GravityCompat.START)
@@ -1753,6 +1754,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var isDrawerMoving = false
+    private var pendingDrawerNavigationAction: (() -> Unit)? = null
 
     private fun setupDrawer() {
 
@@ -1969,6 +1971,7 @@ class MainActivity : AppCompatActivity() {
                         binding.contentRoot.setLayerType(View.LAYER_TYPE_NONE, null)
                         drawerView.setLayerType(View.LAYER_TYPE_NONE, null)
                         isHardwareLayerSet = false
+                        runPendingDrawerNavigationAction()
                     }
 
                     override fun onDrawerOpened(drawerView: View) {
@@ -2110,42 +2113,55 @@ class MainActivity : AppCompatActivity() {
             when (item.itemId) {
                 R.id.nav_automation -> {
                     vibrateLight()
-                    val intent = Intent(this, AutomationActivityNew::class.java)
-                    startActivity(intent)
-                    
-                    // 统一使用平滑的缩放渐变过渡，改善“硬切”感
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                        overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, android.R.anim.fade_in, android.R.anim.fade_out)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                    navigateFromDrawer {
+                        val intent = Intent(this, AutomationActivityNew::class.java)
+                        startActivity(intent)
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, android.R.anim.fade_in, android.R.anim.fade_out)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                        }
                     }
-                    
-                    // 延迟关闭 Drawer，确保 Activity 启动动画衔接自然
-                    binding.drawerLayout.postDelayed({
-                        binding.drawerLayout.closeDrawer(GravityCompat.START, false)
-                    }, 350)
                 }
                 R.id.nav_about -> {
                     vibrateLight()
-                    val intent = Intent(this, AboutActivity::class.java)
-                    startActivity(intent)
-                    
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                        overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, android.R.anim.fade_in, android.R.anim.fade_out)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                    navigateFromDrawer {
+                        val intent = Intent(this, AboutActivity::class.java)
+                        startActivity(intent)
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, android.R.anim.fade_in, android.R.anim.fade_out)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+                        }
                     }
-                    
-                    binding.drawerLayout.postDelayed({
-                        binding.drawerLayout.closeDrawer(GravityCompat.START, false)
-                    }, 350)
                 }
             }
 
             true
         }
+    }
+
+    private fun navigateFromDrawer(action: () -> Unit) {
+        if (onboardingOverlay.isShowing()) return
+
+        pendingDrawerNavigationAction = action
+        hideKeyboard()
+
+        if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            binding.drawerLayout.closeDrawer(GravityCompat.START, false)
+        } else {
+            runPendingDrawerNavigationAction()
+        }
+    }
+
+    private fun runPendingDrawerNavigationAction() {
+        val pendingAction = pendingDrawerNavigationAction ?: return
+        pendingDrawerNavigationAction = null
+        binding.drawerLayout.post { pendingAction.invoke() }
     }
 
     private fun restoreApiKey() {
@@ -3884,8 +3900,6 @@ class MainActivity : AppCompatActivity() {
                 ?.getOrNull(1)
                 ?.trim()
         if (!textFromJson.isNullOrBlank()) return textFromJson
-
-        extractDescFromOutputPayload(outputPayload)?.let { return it }
 
         return null
     }
@@ -5742,6 +5756,11 @@ class MainActivity : AppCompatActivity() {
         )
     }
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (onboardingOverlay.isShowing()) {
+            swipeTracking = false
+            return super.dispatchTouchEvent(ev)
+        }
+
         val density = resources.displayMetrics.density
         val touchSlop = 12 * density
         val swipeThreshold = 80 * density
