@@ -77,12 +77,6 @@ import kotlinx.coroutines.withContext
 
 class AboutActivity : AppCompatActivity() {
 
-    companion object {
-        private const val USER_AGREEMENT_ACTIVITY_CLASS = "com.ai.phoneagent.UserAgreementActivity"
-        private const val USER_AGREEMENT_FLOW_EXTRA = "flow"
-        private const val USER_AGREEMENT_FLOW_VIEW_ONLY = "view_only"
-    }
-
     private lateinit var binding: ActivityAboutBinding
     private val releaseRepo = ReleaseRepository()
     private var isCheckingUpdates = false
@@ -287,11 +281,7 @@ class AboutActivity : AppCompatActivity() {
     }
 
     private fun showUserAgreementDialog() {
-        val intent =
-            Intent()
-                .setClassName(this, USER_AGREEMENT_ACTIVITY_CLASS)
-                .putExtra(USER_AGREEMENT_FLOW_EXTRA, USER_AGREEMENT_FLOW_VIEW_ONLY)
-        startActivityWithMaterialForwardTransition(intent)
+        startActivityWithMaterialForwardTransition(UserAgreementActivity.createViewIntent(this))
     }
 
     private fun showChangelogDialog() {

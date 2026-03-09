@@ -115,6 +115,7 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:prompt"))
+    implementation(project(":core:shizuku"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:updates"))
 

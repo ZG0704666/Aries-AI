@@ -17,7 +17,6 @@ object UpdateNotificationUtil {
 
     private const val ABOUT_ACTIVITY_CLASS = "com.ai.phoneagent.AboutActivity"
     private const val CHANNEL_ID = "update_channel"
-    private const val CHANNEL_NAME = "应用更新"
     private const val NOTIFICATION_ID = 3101
 
     fun notifyNewVersion(context: Context, entry: ReleaseEntry): Boolean {
@@ -66,7 +65,12 @@ object UpdateNotificationUtil {
         val existing = manager.getNotificationChannel(CHANNEL_ID)
         if (existing != null) return
 
-        val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW)
+        val channel =
+            NotificationChannel(
+                CHANNEL_ID,
+                context.getString(R.string.update_notification_channel_name),
+                NotificationManager.IMPORTANCE_LOW,
+            )
         channel.enableVibration(false)
         channel.setSound(null, null)
         channel.setShowBadge(true)

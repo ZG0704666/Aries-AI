@@ -1,18 +1,11 @@
 package com.ai.phoneagent
 
-import android.Manifest
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Color
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
 import android.text.Html
 import android.view.View
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
@@ -25,8 +18,6 @@ import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.button.MaterialButton
-
-import rikka.shizuku.Shizuku
 
 class MainOnboardingOverlay(
     private val activity: AppCompatActivity,
@@ -326,26 +317,16 @@ class MainOnboardingOverlay(
         ViewCompat.requestApplyInsets(root)
     }
 
-    private fun hasOverlayPermission(context: Context): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context)
-
-    private fun allPermissionsReady(context: Context): Boolean {
-        val micOk =
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
-        return isAccessibilityEnabled(context) && hasOverlayPermission(context) && micOk
-    }
-
     private fun updatePermissionUi() {
-        val accOk = isAccessibilityEnabled(activity)
+        val accOk = PermissionSetupSupport.isAccessibilityEnabled(activity)
         updatePermissionRow(tvAccStatus, btnAcc, accOk, R.string.perm_sheet_action_enable)
 
-        val overlayOk = hasOverlayPermission(activity)
+        val overlayOk = PermissionSetupSupport.hasOverlayPermission(activity)
         updatePermissionRow(tvOverlayStatus, btnOverlay, overlayOk, R.string.perm_sheet_action_settings)
 
         val micOk =
-            ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(activity, android.Manifest.permission.RECORD_AUDIO) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
         updatePermissionRow(tvMicStatus, btnMic, micOk, R.string.perm_sheet_action_grant)
 
         val allOk = accOk && overlayOk && micOk
@@ -366,247 +347,41 @@ class MainOnboardingOverlay(
         ready: Boolean,
         @StringRes pendingActionText: Int,
     ) {
-        statusView.text =
-            activity.getString(
-                if (ready) {
-                    R.string.perm_sheet_status_ready
-                } else {
-                    R.string.perm_sheet_status_pending
-                },
-            )
-        statusView.setTextColor(
-            ContextCompat.getColor(
-                activity,
-                if (ready) {
-                    R.color.blue_glass_primary
-                } else {
-                    R.color.blue_glass_text_dim
-                },
-            ),
+        PermissionSetupSupport.updatePermissionRow(
+            activity = activity,
+            statusView = statusView,
+            actionButton = actionButton,
+            ready = ready,
+            pendingActionText = pendingActionText,
         )
-        actionButton.isEnabled = !ready
-        actionButton.text =
-            activity.getString(
-                if (ready) {
-                    R.string.perm_sheet_action_ready
-                } else {
-                    pendingActionText
-                },
-            )
-    }
-
-    private fun isAccessibilityEnabled(context: Context): Boolean {
-        val enabled =
-            Settings.Secure.getInt(
-                context.contentResolver,
-                Settings.Secure.ACCESSIBILITY_ENABLED,
-                0,
-            )
-        if (enabled != 1) return false
-        val setting =
-            Settings.Secure.getString(
-                context.contentResolver,
-                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-            ) ?: return false
-        val serviceId = "${context.packageName}/${PhoneAgentAccessibilityService::class.java.name}"
-        return setting.split(':').any { it.equals(serviceId, ignoreCase = true) }
     }
 
     private fun openAccessibilitySettings() {
-        val componentName = ComponentName(activity, PhoneAgentAccessibilityService::class.java)
-        val actionAccessibilityDetailsSettings = "android.settings.ACCESSIBILITY_DETAILS_SETTINGS"
-        val extraAccessibilityServiceComponentName =
-            "android.provider.extra.ACCESSIBILITY_SERVICE_COMPONENT_NAME"
-
-        fun tryStart(intent: Intent): Boolean = runCatching { activity.startActivity(intent) }.isSuccess
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val intentWithComponent =
-                Intent(actionAccessibilityDetailsSettings).apply {
-                    putExtra(Intent.EXTRA_COMPONENT_NAME, componentName)
-                    putExtra(extraAccessibilityServiceComponentName, componentName)
-                }
-            if (tryStart(intentWithComponent)) return
-
-            val intentWithFlattenedName =
-                Intent(actionAccessibilityDetailsSettings).apply {
-                    putExtra(Intent.EXTRA_COMPONENT_NAME, componentName)
-                    putExtra(extraAccessibilityServiceComponentName, componentName.flattenToString())
-                }
-            if (tryStart(intentWithFlattenedName)) return
-        }
-
-        tryStart(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        PermissionSetupSupport.openAccessibilitySettings(activity)
     }
 
     private fun openOverlaySettings() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        activity.startActivity(
-            Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:${activity.packageName}"),
-            ),
-        )
+        PermissionSetupSupport.openOverlaySettings(activity)
     }
 
     private fun requestMicPermission() {
         val granted =
-            ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(activity, android.Manifest.permission.RECORD_AUDIO) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
         if (granted) {
             updatePermissionUi()
             return
         }
-        activity.requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_RECORD_AUDIO)
+        activity.requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), REQ_RECORD_AUDIO)
     }
 
     private fun guideAll() {
-        if (allPermissionsReady(activity)) {
-            hideOverlay()
-            return
-        }
-
-        if (ShizukuBridge.pingBinder() && !ShizukuBridge.hasPermission()) {
-            runCatching { Shizuku.requestPermission(REQ_SHIZUKU_PERMISSION) }
-            Toast.makeText(
-                activity,
-                activity.getString(R.string.automation_shizuku_permission_requested),
-                Toast.LENGTH_SHORT,
-            ).show()
-            return
-        }
-
-        if (ShizukuBridge.isShizukuAvailable()) {
-            val autoGranted = grantPermissionsViaShizuku(activity)
-            if (autoGranted) {
-                Toast.makeText(
-                    activity,
-                    activity.getString(R.string.perm_sheet_shizuku_success),
-                    Toast.LENGTH_SHORT,
-                ).show()
-                hideOverlay()
-                return
-            }
-            updatePermissionUi()
-        }
-
-        if (!isAccessibilityEnabled(activity)) {
-            openAccessibilitySettings()
-            return
-        }
-
-        if (!hasOverlayPermission(activity)) {
-            openOverlaySettings()
-            return
-        }
-
-        if (
-            ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) !=
-                PackageManager.PERMISSION_GRANTED
-        ) {
-            requestMicPermission()
-            return
-        }
-
-        hideOverlay()
-    }
-
-    private fun grantPermissionsViaShizuku(context: Context): Boolean {
-        val accessibilityGranted = grantAccessibilityServiceViaShizuku(context)
-        if (!accessibilityGranted) return false
-
-        val overlayGranted = grantOverlayPermissionViaShizuku(context)
-        if (!overlayGranted) return false
-
-        return grantMicrophonePermissionViaShizuku(context)
-    }
-
-    private fun grantAccessibilityServiceViaShizuku(context: Context): Boolean {
-        if (isAccessibilityEnabled(context)) return true
-
-        val serviceId = "${context.packageName}/${PhoneAgentAccessibilityService::class.java.name}"
-        val existing =
-            Settings.Secure.getString(
-                context.contentResolver,
-                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-            ) ?: ""
-        val serviceSet =
-            existing.split(':')
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-                .toMutableSet()
-
-        if (!serviceSet.any { it.equals(serviceId, ignoreCase = true) }) {
-            serviceSet.add(serviceId)
-        }
-
-        val enableList = serviceSet.joinToString(":")
-        val setServicesResult =
-            runCatching {
-                ShizukuBridge.execResultArgs(
-                    listOf("settings", "put", "secure", "enabled_accessibility_services", enableList),
-                )
-            }.getOrNull()
-        val enableServiceResult =
-            runCatching {
-                ShizukuBridge.execResultArgs(
-                    listOf("settings", "put", "secure", "accessibility_enabled", "1"),
-                )
-            }.getOrNull()
-
-        if (setServicesResult == null || setServicesResult.exitCode != 0) return false
-        if (enableServiceResult == null || enableServiceResult.exitCode != 0) return false
-
-        return isAccessibilityEnabled(context)
-    }
-
-    private fun grantOverlayPermissionViaShizuku(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
-        if (hasOverlayPermission(context)) return true
-
-        runCatching {
-            ShizukuBridge.execResultArgs(
-                listOf("appops", "set", context.packageName, "SYSTEM_ALERT_WINDOW", "allow"),
-            )
-        }
-        runCatching {
-            ShizukuBridge.execResultArgs(
-                listOf("appops", "set", context.packageName, "android:system_alert_window", "allow"),
-            )
-        }
-
-        return hasOverlayPermission(context)
-    }
-
-    private fun grantMicrophonePermissionViaShizuku(context: Context): Boolean {
-        if (
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
-        ) {
-            return true
-        }
-
-        runCatching {
-            ShizukuBridge.execResultArgs(
-                listOf("pm", "grant", context.packageName, Manifest.permission.RECORD_AUDIO),
-            )
-        }
-
-        if (
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
-        ) {
-            return true
-        }
-
-        val fallback =
-            runCatching {
-                ShizukuBridge.execResultArgs(
-                    listOf("appops", "set", context.packageName, "RECORD_AUDIO", "allow"),
-                )
-            }.getOrNull()
-
-        return ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-            PackageManager.PERMISSION_GRANTED || (fallback != null && fallback.exitCode == 0)
+        PermissionSetupSupport.guideAll(
+            activity = activity,
+            requestShizukuPermissionCode = REQ_SHIZUKU_PERMISSION,
+            requestMicPermission = { requestMicPermission() },
+            onReady = { hideOverlay() },
+            onUiRefresh = { updatePermissionUi() },
+        )
     }
 }

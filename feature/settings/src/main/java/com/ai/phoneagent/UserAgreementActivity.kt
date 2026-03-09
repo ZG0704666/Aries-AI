@@ -1,20 +1,10 @@
 package com.ai.phoneagent
 
-import android.Manifest
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Color
-import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.text.Html
 import android.view.View
-import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
@@ -24,9 +14,10 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
+import com.ai.phoneagent.core.designsystem.R as DesignSystemR
+import com.ai.phoneagent.feature.settings.R
 import com.ai.phoneagent.system.applyMaterialCloseTransition
 import com.google.android.material.button.MaterialButton
-import rikka.shizuku.Shizuku
 
 class UserAgreementActivity : AppCompatActivity() {
 
@@ -50,14 +41,17 @@ class UserAgreementActivity : AppCompatActivity() {
         private const val REQ_RECORD_AUDIO = 101
         private const val REQ_SHIZUKU_PERMISSION = 2026
 
-        fun createOnboardingIntent(context: Context): Intent =
-            Intent(context, UserAgreementActivity::class.java).putExtra(EXTRA_FLOW, FLOW_ONBOARDING)
+        fun createOnboardingIntent(context: android.content.Context) =
+            android.content.Intent(context, UserAgreementActivity::class.java)
+                .putExtra(EXTRA_FLOW, FLOW_ONBOARDING)
 
-        fun createViewIntent(context: Context): Intent =
-            Intent(context, UserAgreementActivity::class.java).putExtra(EXTRA_FLOW, FLOW_VIEW_ONLY)
+        fun createViewIntent(context: android.content.Context) =
+            android.content.Intent(context, UserAgreementActivity::class.java)
+                .putExtra(EXTRA_FLOW, FLOW_VIEW_ONLY)
 
-        fun createPermissionIntent(context: Context): Intent =
-            Intent(context, UserAgreementActivity::class.java).putExtra(EXTRA_FLOW, FLOW_PERMISSION_ONLY)
+        fun createPermissionIntent(context: android.content.Context) =
+            android.content.Intent(context, UserAgreementActivity::class.java)
+                .putExtra(EXTRA_FLOW, FLOW_PERMISSION_ONLY)
     }
 
     private lateinit var prefs: android.content.SharedPreferences
@@ -70,7 +64,6 @@ class UserAgreementActivity : AppCompatActivity() {
 
     private lateinit var btnWelcomeNext: MaterialButton
     private lateinit var btnAgreementAgree: MaterialButton
-
     private lateinit var tvAccStatus: TextView
     private lateinit var tvOverlayStatus: TextView
     private lateinit var tvMicStatus: TextView
@@ -156,7 +149,7 @@ class UserAgreementActivity : AppCompatActivity() {
         val contentView = agreementPage.findViewById<TextView>(R.id.tvAgreementContent)
         val content = getString(R.string.user_agreement_content)
         contentView.text =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
                 Html.fromHtml(content, Html.FROM_HTML_MODE_COMPACT)
             } else {
                 @Suppress("DEPRECATION")
@@ -185,8 +178,8 @@ class UserAgreementActivity : AppCompatActivity() {
     }
 
     private fun setupPermissionPage() {
-        btnAcc.setOnClickListener { openAccessibilitySettings() }
-        btnOverlay.setOnClickListener { openOverlaySettings() }
+        btnAcc.setOnClickListener { PermissionSetupSupport.openAccessibilitySettings(this) }
+        btnOverlay.setOnClickListener { PermissionSetupSupport.openOverlaySettings(this) }
         btnMic.setOnClickListener { requestMicPermission() }
         btnGuide.setOnClickListener { guideAll() }
         btnDone.setOnClickListener { finishWithSlideBack() }
@@ -218,9 +211,7 @@ class UserAgreementActivity : AppCompatActivity() {
         if (currentStep == target || isTransitionRunning) return
 
         val targetView = pageFor(target)
-        val previousStep = currentStep
-        val previousView = previousStep?.let { pageFor(it) }
-
+        val previousView = currentStep?.let { pageFor(it) }
         if (!animate || previousView == null || hostRoot.width == 0) {
             listOf(welcomePage, agreementPage, permissionPage).forEach { page ->
                 page.isVisible = page === targetView
@@ -285,8 +276,8 @@ class UserAgreementActivity : AppCompatActivity() {
 
     private fun configureEdgeToEdge() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        val pageColor = ContextCompat.getColor(this, R.color.m3t_drawer_background)
-        val useLightSystemBarIcons = resources.getBoolean(R.bool.m3t_light_system_bars)
+        val pageColor = ContextCompat.getColor(this, DesignSystemR.color.m3t_drawer_background)
+        val useLightSystemBarIcons = resources.getBoolean(DesignSystemR.bool.m3t_light_system_bars)
         window.statusBarColor = pageColor
         window.navigationBarColor = pageColor
         window.decorView.setBackgroundColor(Color.TRANSPARENT)
@@ -330,26 +321,30 @@ class UserAgreementActivity : AppCompatActivity() {
         ViewCompat.requestApplyInsets(root)
     }
 
-    private fun hasOverlayPermission(context: Context): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context)
+    private fun requestMicPermission() {
+        PermissionSetupSupport.requestMicPermission(this, REQ_RECORD_AUDIO) { updatePermissionUi() }
+    }
 
-    private fun allPermissionsReady(context: Context): Boolean {
-        val micOk =
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
-        return isAccessibilityEnabled(context) && hasOverlayPermission(context) && micOk
+    private fun guideAll() {
+        PermissionSetupSupport.guideAll(
+            activity = this,
+            requestShizukuPermissionCode = REQ_SHIZUKU_PERMISSION,
+            requestMicPermission = { requestMicPermission() },
+            onReady = { finishWithSlideBack() },
+            onUiRefresh = { updatePermissionUi() },
+        )
     }
 
     private fun updatePermissionUi() {
-        val accOk = isAccessibilityEnabled(this)
+        val accOk = PermissionSetupSupport.isAccessibilityEnabled(this)
         updatePermissionRow(tvAccStatus, btnAcc, accOk, R.string.perm_sheet_action_enable)
 
-        val overlayOk = hasOverlayPermission(this)
+        val overlayOk = PermissionSetupSupport.hasOverlayPermission(this)
         updatePermissionRow(tvOverlayStatus, btnOverlay, overlayOk, R.string.perm_sheet_action_settings)
 
         val micOk =
-            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
         updatePermissionRow(tvMicStatus, btnMic, micOk, R.string.perm_sheet_action_grant)
 
         val allOk = accOk && overlayOk && micOk
@@ -370,244 +365,12 @@ class UserAgreementActivity : AppCompatActivity() {
         ready: Boolean,
         @StringRes pendingActionText: Int,
     ) {
-        statusView.text =
-            getString(
-                if (ready) {
-                    R.string.perm_sheet_status_ready
-                } else {
-                    R.string.perm_sheet_status_pending
-                },
-            )
-        statusView.setTextColor(
-            ContextCompat.getColor(
-                this,
-                if (ready) {
-                    R.color.blue_glass_primary
-                } else {
-                    R.color.blue_glass_text_dim
-                },
-            ),
+        PermissionSetupSupport.updatePermissionRow(
+            activity = this,
+            statusView = statusView,
+            actionButton = actionButton,
+            ready = ready,
+            pendingActionText = pendingActionText,
         )
-        actionButton.isEnabled = !ready
-        actionButton.text =
-            getString(
-                if (ready) {
-                    R.string.perm_sheet_action_ready
-                } else {
-                    pendingActionText
-                },
-            )
-    }
-
-    private fun isAccessibilityEnabled(context: Context): Boolean {
-        val enabled =
-            Settings.Secure.getInt(
-                context.contentResolver,
-                Settings.Secure.ACCESSIBILITY_ENABLED,
-                0,
-            )
-        if (enabled != 1) return false
-        val setting =
-            Settings.Secure.getString(
-                context.contentResolver,
-                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-            ) ?: return false
-        val serviceId = "${context.packageName}/${PhoneAgentAccessibilityService::class.java.name}"
-        return setting.split(':').any { it.equals(serviceId, ignoreCase = true) }
-    }
-
-    private fun openAccessibilitySettings() {
-        val componentName = ComponentName(this, PhoneAgentAccessibilityService::class.java)
-        val actionAccessibilityDetailsSettings = "android.settings.ACCESSIBILITY_DETAILS_SETTINGS"
-        val extraAccessibilityServiceComponentName =
-            "android.provider.extra.ACCESSIBILITY_SERVICE_COMPONENT_NAME"
-
-        fun tryStart(intent: Intent): Boolean = runCatching { startActivity(intent) }.isSuccess
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val intentWithComponent =
-                Intent(actionAccessibilityDetailsSettings).apply {
-                    putExtra(Intent.EXTRA_COMPONENT_NAME, componentName)
-                    putExtra(extraAccessibilityServiceComponentName, componentName)
-                }
-            if (tryStart(intentWithComponent)) return
-
-            val intentWithFlattenedName =
-                Intent(actionAccessibilityDetailsSettings).apply {
-                    putExtra(Intent.EXTRA_COMPONENT_NAME, componentName)
-                    putExtra(extraAccessibilityServiceComponentName, componentName.flattenToString())
-                }
-            if (tryStart(intentWithFlattenedName)) return
-        }
-
-        tryStart(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-    }
-
-    private fun openOverlaySettings() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        startActivity(
-            Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:$packageName"),
-            ),
-        )
-    }
-
-    private fun requestMicPermission() {
-        val granted =
-            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
-        if (granted) {
-            updatePermissionUi()
-            return
-        }
-        requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_RECORD_AUDIO)
-    }
-
-    private fun guideAll() {
-        if (allPermissionsReady(this)) {
-            finishWithSlideBack()
-            return
-        }
-
-        if (ShizukuBridge.pingBinder() && !ShizukuBridge.hasPermission()) {
-            runCatching { Shizuku.requestPermission(REQ_SHIZUKU_PERMISSION) }
-            Toast.makeText(
-                this,
-                getString(R.string.automation_shizuku_permission_requested),
-                Toast.LENGTH_SHORT,
-            ).show()
-            return
-        }
-
-        if (ShizukuBridge.isShizukuAvailable()) {
-            val autoGranted = grantPermissionsViaShizuku(this)
-            if (autoGranted) {
-                Toast.makeText(this, getString(R.string.perm_sheet_shizuku_success), Toast.LENGTH_SHORT)
-                    .show()
-                finishWithSlideBack()
-                return
-            }
-            updatePermissionUi()
-        }
-
-        if (!isAccessibilityEnabled(this)) {
-            openAccessibilitySettings()
-            return
-        }
-
-        if (!hasOverlayPermission(this)) {
-            openOverlaySettings()
-            return
-        }
-
-        if (
-            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
-                PackageManager.PERMISSION_GRANTED
-        ) {
-            requestMicPermission()
-            return
-        }
-
-        finishWithSlideBack()
-    }
-
-    private fun grantPermissionsViaShizuku(context: Context): Boolean {
-        val accessibilityGranted = grantAccessibilityServiceViaShizuku(context)
-        if (!accessibilityGranted) return false
-
-        val overlayGranted = grantOverlayPermissionViaShizuku(context)
-        if (!overlayGranted) return false
-
-        return grantMicrophonePermissionViaShizuku(context)
-    }
-
-    private fun grantAccessibilityServiceViaShizuku(context: Context): Boolean {
-        if (isAccessibilityEnabled(context)) return true
-
-        val serviceId = "${context.packageName}/${PhoneAgentAccessibilityService::class.java.name}"
-        val existing =
-            Settings.Secure.getString(
-                context.contentResolver,
-                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-            ) ?: ""
-        val serviceSet =
-            existing.split(':')
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-                .toMutableSet()
-
-        if (!serviceSet.any { it.equals(serviceId, ignoreCase = true) }) {
-            serviceSet.add(serviceId)
-        }
-
-        val enableList = serviceSet.joinToString(":")
-        val setServicesResult =
-            runCatching {
-                ShizukuBridge.execResultArgs(
-                    listOf("settings", "put", "secure", "enabled_accessibility_services", enableList),
-                )
-            }.getOrNull()
-        val enableServiceResult =
-            runCatching {
-                ShizukuBridge.execResultArgs(
-                    listOf("settings", "put", "secure", "accessibility_enabled", "1"),
-                )
-            }.getOrNull()
-
-        if (setServicesResult == null || setServicesResult.exitCode != 0) return false
-        if (enableServiceResult == null || enableServiceResult.exitCode != 0) return false
-
-        return isAccessibilityEnabled(context)
-    }
-
-    private fun grantOverlayPermissionViaShizuku(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
-        if (hasOverlayPermission(context)) return true
-
-        runCatching {
-            ShizukuBridge.execResultArgs(
-                listOf("appops", "set", context.packageName, "SYSTEM_ALERT_WINDOW", "allow"),
-            )
-        }
-        runCatching {
-            ShizukuBridge.execResultArgs(
-                listOf("appops", "set", context.packageName, "android:system_alert_window", "allow"),
-            )
-        }
-
-        return hasOverlayPermission(context)
-    }
-
-    private fun grantMicrophonePermissionViaShizuku(context: Context): Boolean {
-        if (
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
-        ) {
-            return true
-        }
-
-        runCatching {
-            ShizukuBridge.execResultArgs(
-                listOf("pm", "grant", context.packageName, Manifest.permission.RECORD_AUDIO),
-            )
-        }
-
-        if (
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
-        ) {
-            return true
-        }
-
-        val fallback =
-            runCatching {
-                ShizukuBridge.execResultArgs(
-                    listOf("appops", "set", context.packageName, "RECORD_AUDIO", "allow"),
-                )
-            }.getOrNull()
-
-        return ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-            PackageManager.PERMISSION_GRANTED || (fallback != null && fallback.exitCode == 0)
     }
 }

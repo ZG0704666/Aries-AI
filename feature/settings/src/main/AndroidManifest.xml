@@ -5,5 +5,13 @@
             android:name="com.ai.phoneagent.AboutActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name="com.ai.phoneagent.UserAgreementActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name="com.ai.phoneagent.PermissionGuideActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
     </application>
 </manifest>

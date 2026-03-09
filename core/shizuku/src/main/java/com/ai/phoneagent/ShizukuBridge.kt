@@ -74,6 +74,16 @@ object ShizukuBridge {
     }
 
     @JvmStatic
+    fun requestPermission(requestCode: Int): Boolean {
+        return try {
+            Shizuku.requestPermission(requestCode)
+            true
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    @JvmStatic
     fun execBytes(command: String): ByteArray {
         val r = execResult(command)
         return if (r.exitCode == 0) r.stdout else ByteArray(0)
