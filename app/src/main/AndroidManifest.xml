@@ -63,6 +63,11 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".DrawerSettingsActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".LaunchProxyActivity"
             android:exported="false"
             android:theme="@style/Theme.TransparentLaunch"
