@@ -2719,13 +2719,22 @@ class MainActivity : AppCompatActivity() {
             binding.messagesContainer.paddingRight,
             extraBottomPadding,
         )
-        binding.scrollArea.post {
-            val distanceToBottom =
-                binding.messagesContainer.bottom - (binding.scrollArea.scrollY + binding.scrollArea.height)
-            if (distanceToBottom <= extraBottomPadding * 2) {
+        if (shouldAutoFollowBottom(extraBottomPadding * 2)) {
+            binding.scrollArea.post {
                 binding.scrollArea.smoothScrollTo(0, binding.messagesContainer.bottom)
             }
         }
+    }
+
+    private fun hasAssistantOutputInActiveConversation(): Boolean {
+        return activeConversation?.messages?.any { !it.isUser && it.content.isNotBlank() } == true
+    }
+
+    private fun shouldAutoFollowBottom(thresholdPx: Int = 0): Boolean {
+        if (!hasAssistantOutputInActiveConversation()) return false
+        val distanceToBottom =
+            binding.messagesContainer.bottom - (binding.scrollArea.scrollY + binding.scrollArea.height)
+        return distanceToBottom <= thresholdPx.coerceAtLeast(0)
     }
 
     private fun hideKeyboard() {
@@ -2761,7 +2770,7 @@ class MainActivity : AppCompatActivity() {
             )
 
             val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            if (imeVisible && !lastImeVisible) {
+            if (imeVisible && !lastImeVisible && shouldAutoFollowBottom(resources.getDimensionPixelSize(R.dimen.m3t_spacing_xxl))) {
                 binding.scrollArea.post {
                     binding.scrollArea.smoothScrollTo(0, binding.messagesContainer.height)
                 }
