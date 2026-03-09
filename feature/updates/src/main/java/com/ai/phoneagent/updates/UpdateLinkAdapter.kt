@@ -6,7 +6,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.ai.phoneagent.R
+import com.ai.phoneagent.feature.updates.R
 
 class UpdateLinkAdapter(
     private val items: List<Pair<String, String>>,

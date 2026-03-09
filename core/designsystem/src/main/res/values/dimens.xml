@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ===========================================
+         Spacing System - 间距系统
+         =========================================== -->
+    <dimen name="spacing_xxs">2dp</dimen>
+    <dimen name="spacing_xs">4dp</dimen>
+    <dimen name="spacing_sm">8dp</dimen>
+    <dimen name="spacing_md">16dp</dimen>
+    <dimen name="spacing_lg">24dp</dimen>
+    <dimen name="spacing_xl">32dp</dimen>
+    <dimen name="spacing_xxl">48dp</dimen>
+
+    <!-- ===========================================
+         Component Dimensions - 组件尺寸
+         =========================================== -->
+    <!-- 页面边距 -->
+    <dimen name="page_padding">16dp</dimen>
+    <dimen name="page_padding_horizontal">16dp</dimen>
+    <dimen name="page_padding_vertical">16dp</dimen>
+
+    <!-- 卡片内边距 -->
+    <dimen name="card_padding">20dp</dimen>
+    <dimen name="card_padding_small">14dp</dimen>
+
+    <!-- 输入框 -->
+    <dimen name="input_height">56dp</dimen>
+    <dimen name="input_min_height">48dp</dimen>
+    <dimen name="input_corner_radius">12dp</dimen>
+
+    <!-- 按钮 -->
+    <dimen name="button_height">48dp</dimen>
+    <dimen name="button_height_large">56dp</dimen>
+    <dimen name="button_height_small">40dp</dimen>
+    <dimen name="button_corner_radius">24dp</dimen>
+    <dimen name="button_icon_size">24dp</dimen>
+
+    <!-- 图标按钮 -->
+    <dimen name="icon_button_size">48dp</dimen>
+    <dimen name="icon_button_size_small">40dp</dimen>
+    <dimen name="icon_button_size_large">56dp</dimen>
+    <dimen name="icon_size_sm">16dp</dimen>
+    <dimen name="icon_size_md">24dp</dimen>
+    <dimen name="icon_size_lg">32dp</dimen>
+    <dimen name="icon_size_xl">48dp</dimen>
+
+    <!-- 底部导航 -->
+    <dimen name="bottom_nav_height">56dp</dimen>
+
+    <!-- 顶部导航栏 -->
+    <dimen name="toolbar_height">56dp</dimen>
+    <dimen name="toolbar_expanded_height">120dp</dimen>
+
+    <!-- ===========================================
+         List Item Dimensions - 列表项尺寸
+         =========================================== -->
+    <dimen name="list_item_height">56dp</dimen>
+    <dimen name="list_item_height_large">72dp</dimen>
+    <dimen name="list_item_padding_horizontal">16dp</dimen>
+    <dimen name="list_item_padding_vertical">12dp</dimen>
+
+    <!-- ===========================================
+         Divider & Border - 分割线和边框
+         =========================================== -->
+    <dimen name="divider_height">1dp</dimen>
+    <dimen name="border_width">1dp</dimen>
+
+    <!-- ===========================================
+         Avatar & Icon - 头像和图标
+         =========================================== -->
+    <dimen name="avatar_size_small">32dp</dimen>
+    <dimen name="avatar_size_medium">48dp</dimen>
+    <dimen name="avatar_size_large">64dp</dimen>
+    <dimen name="avatar_size_xl">80dp</dimen>
+
+    <!-- ===========================================
+         Toast & Snackbars - 提示信息
+         =========================================== -->
+    <dimen name="toast_height">48dp</dimen>
+    <dimen name="snackbar_height">64dp</dimen>
+
+    <!-- ===========================================
+         Dialog & Bottom Sheet - 对话框和底部弹窗
+         =========================================== -->
+    <dimen name="dialog_width">320dp</dimen>
+    <dimen name="dialog_width_max">400dp</dimen>
+    <dimen name="dialog_corner_radius">24dp</dimen>
+    <dimen name="bottom_sheet_corner_radius">24dp</dimen>
+    <dimen name="bottom_sheet_peek_height">200dp</dimen>
+
+    <!-- ===========================================
+         Legacy Dimensions - 旧版保留（向后兼容）
+         =========================================== -->
+    <dimen name="ai_bar_margin_top">6dp</dimen>
+    <dimen name="about_appbar_padding_bottom">6dp</dimen>
+    <dimen name="about_content_padding">10dp</dimen>
+    <dimen name="about_content_padding_top">6dp</dimen>
+    <dimen name="about_card_margin_bottom">10dp</dimen>
+    <dimen name="about_card_inner_padding">14dp</dimen>
+    <dimen name="about_title_text_size">20sp</dimen>
+    <dimen name="about_title_padding_bottom">6dp</dimen>
+    <dimen name="about_icon_size">56dp</dimen>
+    <dimen name="about_icon_margin_top">0dp</dimen>
+    <dimen name="about_app_name_margin_top">8dp</dimen>
+    <dimen name="about_app_name_text_size">18sp</dimen>
+    <dimen name="about_version_margin_top">2dp</dimen>
+    <dimen name="about_version_text_size">11sp</dimen>
+    <dimen name="about_button_margin">10dp</dimen>
+    <dimen name="about_button_min_height">44dp</dimen>
+    <dimen name="about_button_text_size">14sp</dimen>
+    <dimen name="about_item_padding">10dp</dimen>
+    <dimen name="about_item_icon_size">30dp</dimen>
+    <dimen name="about_item_icon_padding">6dp</dimen>
+    <dimen name="about_item_text_margin_start">8dp</dimen>
+    <dimen name="about_item_text_size">14sp</dimen>
+    <dimen name="about_item_arrow_size">22dp</dimen>
+    <dimen name="about_item_subtitle_margin_top">2dp</dimen>
+    <dimen name="about_item_subtitle_text_size">10sp</dimen>
+    <dimen name="about_copyright_margin_top">10dp</dimen>
+    <dimen name="about_copyright_text_size">10sp</dimen>
+    <dimen name="inner_padding">14dp</dimen>
+    <dimen name="inner_padding_small">10dp</dimen>
+    <dimen name="card_corner">20dp</dimen>
+    <dimen name="button_corner">20dp</dimen>
+    <dimen name="app_icon_size">80dp</dimen>
+</resources>

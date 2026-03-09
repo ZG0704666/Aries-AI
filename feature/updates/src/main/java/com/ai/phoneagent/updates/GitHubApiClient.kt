@@ -1,6 +1,6 @@
 package com.ai.phoneagent.updates
 
-import com.ai.phoneagent.BuildConfig
+import com.ai.phoneagent.feature.updates.BuildConfig
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor

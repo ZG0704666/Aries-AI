@@ -9,8 +9,8 @@ import android.net.Uri
 import android.os.Environment
 import android.webkit.CookieManager
 import android.widget.Toast
-import com.ai.phoneagent.BuildConfig
-import com.ai.phoneagent.R
+import com.ai.phoneagent.feature.updates.BuildConfig
+import com.ai.phoneagent.feature.updates.R
 
 object ApkDownloadUtil {
 

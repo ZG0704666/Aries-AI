@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.TypedValue
 import android.view.View
 import android.view.WindowManager
-import com.ai.phoneagent.core.utils.DisplayUtils
 
 object DialogSizingUtil {
 
@@ -14,7 +13,13 @@ object DialogSizingUtil {
     }
 
     // 使用 DisplayUtils.dp 替代私有方法
-    private fun dp(context: Context, dp: Float): Int = DisplayUtils.dp(context, dp.toInt())
+    private fun dp(context: Context, dp: Float): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            dp,
+            context.resources.displayMetrics,
+        ).toInt()
+    }
 
     fun applyCompactSizing(
         context: Context,

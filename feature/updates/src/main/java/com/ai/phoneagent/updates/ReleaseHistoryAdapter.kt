@@ -6,7 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.ai.phoneagent.R
+import com.ai.phoneagent.feature.updates.R
 import com.google.android.material.button.MaterialButton
 
 class ReleaseHistoryAdapter(

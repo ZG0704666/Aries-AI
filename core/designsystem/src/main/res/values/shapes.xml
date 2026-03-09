@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ===========================================
+         Shape System - 统一形状风格
+         =========================================== -->
+
+    <!-- ===========================================
+         Shape Size - 尺寸等级
+         =========================================== -->
+    <dimen name="shape_corner_small">8dp</dimen>
+    <dimen name="shape_corner_medium">12dp</dimen>
+    <dimen name="shape_corner_large">16dp</dimen>
+    <dimen name="shape_corner_xlarge">24dp</dimen>
+    <dimen name="shape_corner_full">999dp</dimen>
+
+    <!-- ===========================================
+         Shape Styles - 形状样式
+         =========================================== -->
+    <!-- 卡片形状 -->
+    <style name="ShapeAppearance.Aries.Card.Large" parent="ShapeAppearance.MaterialComponents.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">24dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Aries.Card.Medium" parent="ShapeAppearance.MaterialComponents.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">16dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Aries.Card.Small" parent="ShapeAppearance.MaterialComponents.SmallComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+
+    <!-- 按钮形状 -->
+    <style name="ShapeAppearance.Aries.Button.Primary" parent="ShapeAppearance.MaterialComponents.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">999dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Aries.Button.Capsule" parent="ShapeAppearance.MaterialComponents.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">999dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Aries.Button.Rounded" parent="ShapeAppearance.MaterialComponents.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+
+    <!-- 输入框形状 -->
+    <style name="ShapeAppearance.Aries.Input.Rounded" parent="ShapeAppearance.MaterialComponents.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+
+    <!-- 对话框形状 -->
+    <style name="ShapeAppearance.Aries.Dialog" parent="ShapeAppearance.MaterialComponents.LargeComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">24dp</item>
+    </style>
+
+    <!-- 底部弹窗形状 -->
+    <style name="ShapeAppearance.Aries.BottomSheet" parent="ShapeAppearance.MaterialComponents.LargeComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">24dp</item>
+        <item name="cornerSizeTopRight">24dp</item>
+        <item name="cornerSizeBottomLeft">0dp</item>
+        <item name="cornerSizeBottomRight">0dp</item>
+    </style>
+
+    <!-- 图标按钮形状 -->
+    <style name="ShapeAppearance.Aries.IconButton.Circle" parent="ShapeAppearance.MaterialComponents.SmallComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">999dp</item>
+    </style>
+</resources>
+

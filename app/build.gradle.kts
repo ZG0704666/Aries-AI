@@ -112,6 +112,9 @@ configurations.all {
 }
 
 dependencies {
+    implementation(project(":core:designsystem"))
+    implementation(project(":feature:updates"))
+
     // Shizuku - 虚拟屏核心依赖
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")

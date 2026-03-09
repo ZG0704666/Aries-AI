@@ -21,3 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Phone Agent"
 include(":app")
+include(":core:designsystem")
+include(":feature:updates")

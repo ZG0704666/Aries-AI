@@ -11,8 +11,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.ai.phoneagent.BuildConfig
-import com.ai.phoneagent.R
+import com.ai.phoneagent.core.designsystem.R as DesignSystemR
+import com.ai.phoneagent.feature.updates.BuildConfig
+import com.ai.phoneagent.feature.updates.R
 import com.ai.phoneagent.system.applyMaterialCloseTransition
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
@@ -100,7 +101,8 @@ class UpdateHistoryActivity : AppCompatActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         WindowCompat.getInsetsController(window, window.decorView)?.let { controller ->
-            val useLightSystemBarIcons = resources.getBoolean(R.bool.m3t_light_system_bars)
+            val useLightSystemBarIcons =
+                resources.getBoolean(DesignSystemR.bool.m3t_light_system_bars)
             controller.isAppearanceLightStatusBars = useLightSystemBarIcons
             controller.isAppearanceLightNavigationBars = useLightSystemBarIcons
         }
@@ -185,7 +187,7 @@ class UpdateHistoryActivity : AppCompatActivity() {
     private fun showDetails(entry: ReleaseEntry) {
         if (isFinishing || isDestroyed) return
         runCatching {
-            MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
+            MaterialAlertDialogBuilder(this, DesignSystemR.style.BlueGlassAlertDialog)
                 .setTitle(entry.versionTag)
                 .setMessage(entry.body.ifBlank { getString(R.string.m3t_updates_no_changelog) })
                 .setPositiveButton(getString(R.string.m3t_updates_open_release)) { _, _ ->
@@ -228,7 +230,7 @@ class UpdateHistoryActivity : AppCompatActivity() {
             }
 
             val names = options.map { it.first }.toTypedArray()
-            MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
+            MaterialAlertDialogBuilder(this, DesignSystemR.style.BlueGlassAlertDialog)
                 .setTitle(getString(R.string.m3t_updates_choose_source))
                 .setItems(names) { _, which ->
                     openReleaseUrlWithFeedback(options[which].second)

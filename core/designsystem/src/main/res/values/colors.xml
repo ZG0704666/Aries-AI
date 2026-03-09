@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ===========================================
+         核心品牌色 (Brand Colors)
+         =========================================== -->
+    <!-- 主色调 - 蓝色玻璃风格 -->
+    <color name="blue_glass_primary">#6BA8FF</color>
+    <color name="blue_glass_primary_variant">#4F8EF5</color>
+    <color name="blue_glass_primary_dark">#3D7DD9</color>
+    <color name="blue_glass_primary_light">#9CC8FF</color>
+
+    <!-- 次要色 -->
+    <color name="teal_accent">#26A69A</color>
+    <color name="purple_accent">#7E57C2</color>
+    <color name="orange_accent">#FF7043</color>
+
+    <!-- 语义状态色 (Semantic Colors) -->
+    <color name="success">#10B981</color>
+    <color name="success_light">#D1FAE5</color>
+    <color name="success_dark">#059669</color>
+
+    <color name="warning">#F59E0B</color>
+    <color name="warning_light">#FEF3C7</color>
+    <color name="warning_dark">#D97706</color>
+
+    <color name="error">#EF4444</color>
+    <color name="error_light">#FEE2E2</color>
+    <color name="error_dark">#DC2626</color>
+
+    <color name="info">#3B82F6</color>
+    <color name="info_light">#DBEAFE</color>
+    <color name="info_dark">#2563EB</color>
+
+    <!-- ===========================================
+         中性色 - 文本与边框 (Neutrals)
+         =========================================== -->
+    <!-- 文本颜色层级 -->
+    <color name="text_primary">#1B2B3D</color>
+    <color name="text_secondary">#64748B</color>
+    <color name="text_tertiary">#94A3B8</color>
+    <color name="text_disabled">#CBD5E1</color>
+    <color name="text_on_primary">#FFFFFF</color>
+
+    <!-- 边框和分割线 -->
+    <color name="border_light">#E2E8F0</color>
+    <color name="border_default">#CBD5E1</color>
+    <color name="border_focus">#6BA8FF</color>
+    <color name="divider">#F1F5F9</color>
+
+    <!-- ===========================================
+         背景色 (Background Colors)
+         =========================================== -->
+    <color name="background">#F8FAFC</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#F1F5F9</color>
+
+    <!-- 浅色玻璃背景 -->
+    <color name="blue_glass_light">#E8F3FF</color>
+    <color name="blue_glass_surface">#CCF5F9FF</color>
+    <color name="blue_glass_stroke">#80A7CFFF</color>
+    <color name="blue_glass_ripple">#336BA8FF</color>
+    <color name="blue_glass_icon">#4A6FAE</color>
+    <color name="blue_glass_text">#1B2B3D</color>
+    <color name="blue_glass_text_dim">#661B2B3D</color>
+
+    <!-- 思考气泡背景 -->
+    <color name="thinking_background">#F5F7FA</color>
+    <color name="user_bubble_background">#6BA8FF</color>
+    <color name="ai_bubble_background">#FFFFFF</color>
+
+    <!-- ===========================================
+         组件专用色 (Component Colors)
+         =========================================== -->
+    <!-- 输入框 -->
+    <color name="input_background">#F8FAFC</color>
+    <color name="input_background_focused">#FFFFFF</color>
+    <color name="input_stroke">#E2E8F0</color>
+    <color name="input_stroke_focused">#6BA8FF</color>
+
+    <!-- 按钮 -->
+    <color name="button_primary">#6BA8FF</color>
+    <color name="button_primary_pressed">#4F8EF5</color>
+    <color name="button_disabled">#CBD5E1</color>
+    <color name="button_text_disabled">#94A3B8</color>
+
+    <!-- 卡片 -->
+    <color name="card_background">#FFFFFF</color>
+    <color name="card_stroke">#E0F2FE</color>
+    <color name="card_shadow">#1A000000</color>
+
+    <!-- 开关和选择器 -->
+    <color name="switch_track_on">#6BA8FF</color>
+    <color name="switch_track_off">#E2E8F0</color>
+
+    <!-- ===========================================
+         基础色 (Base Colors)
+         =========================================== -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="transparent">#00000000</color>
+    <color name="semi_transparent_black">#80000000</color>
+    <color name="semi_transparent_white">#80FFFFFF</color>
+
+    <!-- ===========================================
+         暗色模式颜色 (Dark Mode Colors)
+         =========================================== -->
+    <color name="dark_background">#0F172A</color>
+    <color name="dark_surface">#1E293B</color>
+    <color name="dark_surface_variant">#334155</color>
+    <color name="dark_text_primary">#F1F5F9</color>
+    <color name="dark_text_secondary">#94A3B8</color>
+    <color name="dark_border">#475569</color>
+</resources>
