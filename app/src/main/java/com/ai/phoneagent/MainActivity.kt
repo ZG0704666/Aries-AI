@@ -66,7 +66,6 @@ import android.graphics.RectF
 import android.graphics.SweepGradient
 import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.util.Base64
 import android.util.LruCache
 import android.text.Editable
 import android.text.TextWatcher
@@ -86,6 +85,7 @@ import android.widget.ImageView
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.EditText
+import com.ai.phoneagent.helper.AutomationMessageParser
 import com.ai.phoneagent.helper.StreamRenderHelper
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -1153,45 +1153,23 @@ class MainActivity : AppCompatActivity() {
         if (isUser) {
             return conversation.messages.any { it.isUser && it.content.trim() == incomingRaw }
         }
-
-        val incomingStripped = stripAutomationMarker(incomingRaw).trim()
-        val incomingAnswer = parseStoredAiContent(incomingStripped).second.trim()
-        return conversation.messages.any { msg ->
-            if (msg.isUser) return@any false
-            val existingStripped = stripAutomationMarker(msg.content).trim()
-            if (existingStripped == incomingStripped) return@any true
-
-            val existingAnswer = parseStoredAiContent(existingStripped).second.trim()
-            incomingAnswer.isNotBlank() &&
-                existingAnswer.isNotBlank() &&
-                existingAnswer == incomingAnswer
-        }
+        return AutomationMessageParser.hasEquivalentAssistantMessage(
+            existingAssistantMessages =
+                conversation.messages.filterNot { it.isUser }.map { it.content },
+            incomingRaw = incomingRaw,
+        )
     }
 
     private fun encodeAutomationLogMarker(logLine: String): String {
-        val encoded = Base64.encodeToString(logLine.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-        return "[[AUTO_LOG_B64:$encoded]]"
+        return AutomationMessageParser.encodeAutomationLogMarker(logLine)
     }
 
     private fun decodeAutomationLogMarker(markerPayload: String): String? {
-        return runCatching {
-            val bytes = Base64.decode(markerPayload, Base64.DEFAULT)
-            String(bytes, Charsets.UTF_8).trim()
-        }.getOrNull()?.takeIf { it.isNotBlank() }
+        return AutomationMessageParser.decodeAutomationLogMarker(markerPayload)
     }
 
     private fun extractAutomationLogMarkers(rawMessage: String): Pair<String, List<String>> {
-        val markerRegex =
-            Regex(
-                """\[\[AUTO_LOG_B64:(.*?)]]""",
-                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
-            )
-        val logs =
-            markerRegex.findAll(rawMessage).mapNotNull { match ->
-                decodeAutomationLogMarker(match.groupValues.getOrNull(1)?.trim().orEmpty())
-            }.toList()
-        val cleaned = markerRegex.replace(rawMessage, "").trim()
-        return cleaned to logs
+        return AutomationMessageParser.extractAutomationLogMarkers(rawMessage)
     }
 
     private fun findLatestAutomationPanelMessageIndex(conversation: Conversation): Int {
@@ -1336,15 +1314,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isAutomationTerminalLog(rawLogLine: String): Boolean {
-        val normalized = normalizeAutomationLogLine(rawLogLine)
-        if (normalized.isBlank()) return false
-        return normalized.startsWith("结束：") ||
-            normalized.startsWith("结束:") ||
-            normalized == "已停止" ||
-            normalized == "已请求停止" ||
-            normalized.startsWith("已请求停止") ||
-            normalized.startsWith("异常：") ||
-            normalized.startsWith("异常:")
+        return AutomationMessageParser.isAutomationTerminalLog(rawLogLine)
     }
 
     private data class AutomationReadyState(
@@ -2740,45 +2710,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun extractAutomationInstruction(rawAnswer: String): Pair<String, String?> {
-        val markerRegex =
-                Regex(
-                        """\[\[AUTO_EXECUTE:(.*?)]]""",
-                        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
-                )
-        val match = markerRegex.find(rawAnswer)
-        val instruction = match?.groupValues?.getOrNull(1)?.trim().orEmpty()
-        val cleaned = markerRegex.replace(rawAnswer, "").trim()
-        return cleaned to instruction.ifBlank { null }
+        return AutomationMessageParser.extractAutomationInstruction(rawAnswer)
     }
 
     private fun extractAutomationConfirmInstruction(rawMessage: String): Pair<String, String?> {
-        val markerRegex =
-                Regex(
-                        """\[\[AUTO_CONFIRM:(.*?)]]""",
-                        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
-                )
-        val match = markerRegex.find(rawMessage)
-        val instruction = match?.groupValues?.getOrNull(1)?.trim().orEmpty()
-        val cleaned = markerRegex.replace(rawMessage, "").trim()
-        return cleaned to instruction.ifBlank { null }
+        return AutomationMessageParser.extractAutomationConfirmInstruction(rawMessage)
     }
 
     private fun extractAutomationConfirmedMarker(rawMessage: String): Pair<String, Boolean> {
-        val markerRegex =
-                Regex(
-                        """\[\[AUTO_CONFIRMED]]""",
-                        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
-                )
-        val hasMarker = markerRegex.containsMatchIn(rawMessage)
-        val cleaned = markerRegex.replace(rawMessage, "").trim()
-        return cleaned to hasMarker
+        return AutomationMessageParser.extractAutomationConfirmedMarker(rawMessage)
     }
 
     private fun stripAutomationMarker(rawText: String): String {
-        val withoutExecute = extractAutomationInstruction(rawText).first
-        val withoutConfirm = extractAutomationConfirmInstruction(withoutExecute).first
-        val withoutConfirmed = extractAutomationConfirmedMarker(withoutConfirm).first
-        return extractAutomationLogMarkers(withoutConfirmed).first
+        return AutomationMessageParser.stripAutomationMarker(rawText)
     }
 
     private fun sendMessage(content: Any, resendUser: Boolean = true, retryMode: Boolean = false) {
@@ -3541,8 +3485,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun normalizeAutomationLogLine(rawLine: String): String {
-        val line = rawLine.trim()
-        return line.replace(Regex("""^\[Step\s+\d+]\s*"""), "").trim()
+        return AutomationMessageParser.normalizeAutomationLogLine(rawLine)
     }
 
     private data class AutomationTimelineEntry(
