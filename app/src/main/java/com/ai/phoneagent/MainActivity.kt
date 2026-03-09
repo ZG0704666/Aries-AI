@@ -2713,12 +2713,19 @@ class MainActivity : AppCompatActivity() {
     private fun syncFloatingInputPadding() {
         val extraBottomPadding =
             binding.floatingInputLayer.height + resources.getDimensionPixelSize(R.dimen.m3t_spacing_md)
-        binding.scrollArea.setPadding(
-            binding.scrollArea.paddingLeft,
-            binding.scrollArea.paddingTop,
-            binding.scrollArea.paddingRight,
+        binding.messagesContainer.setPadding(
+            binding.messagesContainer.paddingLeft,
+            binding.messagesContainer.paddingTop,
+            binding.messagesContainer.paddingRight,
             extraBottomPadding,
         )
+        binding.scrollArea.post {
+            val distanceToBottom =
+                binding.messagesContainer.bottom - (binding.scrollArea.scrollY + binding.scrollArea.height)
+            if (distanceToBottom <= extraBottomPadding * 2) {
+                binding.scrollArea.smoothScrollTo(0, binding.messagesContainer.bottom)
+            }
+        }
     }
 
     private fun hideKeyboard() {

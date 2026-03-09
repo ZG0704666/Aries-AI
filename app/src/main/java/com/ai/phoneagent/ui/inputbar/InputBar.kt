@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
@@ -67,7 +68,10 @@ fun InputBar(
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-
+    val radiusLg = dimensionResource(R.dimen.m3t_radius_lg)
+    val inputBarMaxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
+    val inputBarShadow = dimensionResource(R.dimen.m3t_input_bar_shadow)
+    val inputShape = RoundedCornerShape(radiusLg)
     // 状态为 Recording (录音中), Recognizing (识别中) 时显示全屏悬浮层
     val showVoiceOverlay = state is InputState.VoiceRecording || state is InputState.VoiceRecognizing
     val isVoiceMode = state is InputState.VoiceIdle || showVoiceOverlay
@@ -87,11 +91,12 @@ fun InputBar(
             )
         }
 
-        // 底部常驻栏
+        // 仅保留单个悬浮输入框，不再保留外层整条底栏
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = spacingMd, top = 0.dp, end = spacingMd, bottom = spacingXxxs)
+                .padding(bottom = spacingXxxs),
+            contentAlignment = Alignment.BottomCenter
         ) {
             val containerHeight by animateDpAsState(
                 targetValue = if (isVoiceMode) 48.dp else 52.dp,
@@ -104,53 +109,71 @@ fun InputBar(
                 label = "inputBarContainerPadding"
             )
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacingXs)
-                    .height(containerHeight)
-                    .clip(RoundedCornerShape(30.dp))
-                    .background(colorInputField)
-                    .animateContentSize(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
-                    .padding(horizontal = containerHorizontalPadding, vertical = spacingSm),
-                contentAlignment = if (isVoiceMode) Alignment.Center else Alignment.CenterStart
-            ) {
-                if (isVoiceMode) {
-                    // 语音模式：按住说话区域扩展到整个底栏，键盘图标融入按钮内部
-                    VoiceRecordButtonHandler(
-                        onPressStart = onVoiceStart,
-                        onPressEnd = onVoiceEnd,
-                        onCancel = onVoiceCancel,
-                        onOffsetChange = { offsetY, _ ->
-                            val isCancelling = offsetY < -150f
-                            onUpdateCancelState(isCancelling)
-                        }
-                    )
-
-                    Text(
-                        text = "按住说话",
-                        style = TextStyle(
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colorTextMain
-                        )
-                    )
-
-                    IconButton(
-                        onClick = { onModeChange(false) },
-                        modifier = Modifier.align(Alignment.CenterStart).size(32.dp)
+            if (isVoiceMode) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth(0.92f)
+                        .widthIn(max = inputBarMaxWidth)
+                        .height(containerHeight)
+                        .shadow(inputBarShadow, inputShape)
+                        .animateContentSize(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
+                    shape = inputShape,
+                    color = colorInputField
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = containerHorizontalPadding, vertical = spacingSm),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Keyboard,
-                            contentDescription = "切换键盘",
-                            tint = colorTextSecondary,
-                            modifier = Modifier.size(24.dp)
+                        VoiceRecordButtonHandler(
+                            onPressStart = onVoiceStart,
+                            onPressEnd = onVoiceEnd,
+                            onCancel = onVoiceCancel,
+                            onOffsetChange = { offsetY, _ ->
+                                val isCancelling = offsetY < -150f
+                                onUpdateCancelState(isCancelling)
+                            }
                         )
+
+                        Text(
+                            text = "按住说话",
+                            style = TextStyle(
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colorTextMain
+                            )
+                        )
+
+                        IconButton(
+                            onClick = { onModeChange(false) },
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Keyboard,
+                                contentDescription = "切换键盘",
+                                tint = colorTextSecondary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
-                } else {
-                    // 文本模式：输入框扩展为整条底栏，操作图标内嵌到输入框
+                }
+            } else {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth(0.92f)
+                        .widthIn(max = inputBarMaxWidth)
+                        .heightIn(min = containerHeight)
+                        .shadow(inputBarShadow, inputShape),
+                    shape = inputShape,
+                    color = colorInputField
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = spacingSm, vertical = spacingSm),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
