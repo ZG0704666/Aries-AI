@@ -175,7 +175,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.livedata.observeAsState
 import com.ai.phoneagent.data.AttachmentInfo
+import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
+import com.ai.phoneagent.ui.drawer.ConversationDrawer
+import com.ai.phoneagent.ui.drawer.DrawerConversationUiItem
 import com.ai.phoneagent.viewmodel.ChatViewModel
+import com.ai.phoneagent.ui.topbar.MainTopBar
 import java.io.InputStream
 
 class MainActivity : AppCompatActivity() {
@@ -339,6 +343,11 @@ class MainActivity : AppCompatActivity() {
     private val inputBarState = mutableStateOf<InputState>(InputState.Idle)
     private val voiceAmplitudeState = mutableStateOf(0f)
     private val agentModeEnabledState = mutableStateOf(false)
+    private val statusTextState = mutableStateOf("")
+    private val statusVisibleState = mutableStateOf(false)
+    private val drawerSearchQueryState = mutableStateOf("")
+    private val drawerConversationItemsState = mutableStateOf<List<DrawerConversationUiItem>>(emptyList())
+    private val drawerEmptyMessageState = mutableStateOf("")
 
     // Aries附件上传相关 - 简化为只保留 ActivityResultLauncher
     private lateinit var ariesImagePickerLauncher: ActivityResultLauncher<String>
@@ -366,6 +375,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var apiBaseUrlInput: EditText
     private lateinit var apiModelInput: EditText
     private var qwenDownloadButton: MaterialButton? = null
+    private lateinit var drawerPanel: View
     private val pendingQwenDownloadIds = linkedSetOf<Long>()
     private var qwenDownloadReceiverRegistered = false
 
@@ -376,6 +386,9 @@ class MainActivity : AppCompatActivity() {
                     .putString(conversationsKey, json)
                     .putLong(activeConversationIdKey, activeConversation?.id ?: -1L)
                     .apply()
+            if (::drawerPanel.isInitialized) {
+                refreshDrawerConversationItems()
+            }
         } catch (_: Exception) {
         }
     }
@@ -393,6 +406,9 @@ class MainActivity : AppCompatActivity() {
 
             binding.messagesContainer.removeAllViews()
             activeConversation?.let { renderConversation(it) }
+            if (::drawerPanel.isInitialized) {
+                refreshDrawerConversationItems()
+            }
             true
         } catch (_: Exception) {
             false
@@ -500,9 +516,9 @@ class MainActivity : AppCompatActivity() {
 
         checkUserAgreement()
 
-        setupToolbar()
+        setupMainChrome()
 
-        setupDrawer()
+        setupComposeDrawer()
         restorePendingQwenDownloadIds()
         registerQwenDownloadReceiverIfNeeded()
         reconcilePendingQwenDownloads()
@@ -575,6 +591,154 @@ class MainActivity : AppCompatActivity() {
             insets
         }
         ViewCompat.requestApplyInsets(binding.drawerLayout)
+    }
+
+    private fun setupMainChrome() {
+        binding.topBarCompose.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+        binding.topBarCompose.setContent {
+            AriesMaterialTheme {
+                MainTopBar(
+                    statusText = statusTextState.value,
+                    statusVisible = statusVisibleState.value,
+                    onToggleStatus = {
+                        statusVisibleState.value = !statusVisibleState.value
+                    },
+                    onOpenDrawer = {
+                        if (!onboardingOverlay.isShowing()) {
+                            vibrateLight()
+                            hideKeyboard()
+                            binding.drawerLayout.openDrawer(GravityCompat.START)
+                        }
+                    },
+                    onNewChat = {
+                        vibrateLight()
+                        startNewChat(clearUi = true)
+                    },
+                    onOpenHistory = {
+                        vibrateLight()
+                        showHistoryDialog()
+                    },
+                    onOpenFloatingWindow = {
+                        vibrateLight()
+                        enterMiniWindowMode()
+                    },
+                )
+            }
+        }
+    }
+
+    private fun setupComposeDrawer() {
+        drawerPanel = findViewById(R.id.drawerPanel)
+        val drawerComposeView = drawerPanel.findViewById<ComposeView>(R.id.drawerComposeView)
+        apiInput = drawerPanel.findViewById(R.id.apiInput)
+        apiStatus = drawerPanel.findViewById(R.id.apiStatus)
+        apiRemoteConfigContainer = drawerPanel.findViewById(R.id.apiRemoteConfigContainer)
+        apiThirdPartySwitch = drawerPanel.findViewById(R.id.swUseThirdPartyApi)
+        localModelSwitch = drawerPanel.findViewById(R.id.swUseLocalModel)
+        localModelSwitchRow = drawerPanel.findViewById(R.id.localModelSwitchRow)
+        apiThirdPartyContainer = drawerPanel.findViewById(R.id.apiThirdPartyContainer)
+        apiBaseUrlInput = drawerPanel.findViewById(R.id.apiBaseUrlInput)
+        apiModelInput = drawerPanel.findViewById(R.id.apiModelInput)
+        qwenDownloadButton = drawerPanel.findViewById(R.id.btnDownloadQwenModel)
+        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
+
+        drawerComposeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+        drawerComposeView.setContent {
+            AriesMaterialTheme {
+                ConversationDrawer(
+                    searchQuery = drawerSearchQueryState.value,
+                    items = drawerConversationItemsState.value,
+                    emptyMessage = drawerEmptyMessageState.value,
+                    onSearchQueryChange = { query ->
+                        drawerSearchQueryState.value = query
+                        refreshDrawerConversationItems()
+                    },
+                    onConversationClick = { conversationId ->
+                        val target = conversations.firstOrNull { it.id == conversationId }
+                        if (target != null) {
+                            activeConversation = target
+                            renderConversation(target)
+                            persistConversations()
+                            binding.drawerLayout.closeDrawer(GravityCompat.START)
+                        }
+                    },
+                    onSettingsClick = {
+                        vibrateLight()
+                        navigateFromDrawer {
+                            startActivityWithMaterialForwardTransition(
+                                Intent(this@MainActivity, DrawerSettingsActivity::class.java),
+                            )
+                        }
+                    },
+                )
+            }
+        }
+
+        binding.drawerLayout.setScrimColor(ContextCompat.getColor(this, R.color.m3t_drawer_scrim))
+        binding.drawerLayout.setStatusBarBackgroundColor(Color.TRANSPARENT)
+        binding.drawerLayout.setStatusBarBackground(null)
+        binding.drawerLayout.addDrawerListener(
+            object : DrawerLayout.SimpleDrawerListener() {
+                override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
+                    isDrawerMoving = slideOffset > 0f && slideOffset < 1f
+                }
+
+                override fun onDrawerClosed(drawerView: View) {
+                    isDrawerMoving = false
+                    runPendingDrawerNavigationAction()
+                }
+
+                override fun onDrawerOpened(drawerView: View) {
+                    isDrawerMoving = false
+                    hideKeyboard()
+                }
+            },
+        )
+
+        restoreApiKey()
+        refreshDrawerConversationItems()
+    }
+
+    private fun refreshDrawerConversationItems() {
+        val query = drawerSearchQueryState.value.trim()
+        val filtered =
+            conversations
+                .sortedByDescending { it.updatedAt }
+                .filter { conversation ->
+                    if (query.isBlank()) {
+                        true
+                    } else {
+                        val preview = buildDrawerConversationPreview(conversation)
+                        conversation.title.contains(query, ignoreCase = true) ||
+                            preview.contains(query, ignoreCase = true)
+                    }
+                }
+
+        drawerConversationItemsState.value =
+            filtered.map { conversation ->
+                DrawerConversationUiItem.Conversation(
+                    conversationId = conversation.id,
+                    title = conversation.title.ifBlank { getString(R.string.top_bar_new_chat) },
+                    preview = buildDrawerConversationPreview(conversation),
+                    selected = conversation.id == activeConversation?.id,
+                )
+            }
+
+        drawerEmptyMessageState.value =
+            if (query.isBlank()) {
+                getString(R.string.drawer_empty)
+            } else {
+                getString(R.string.drawer_empty_search)
+            }
+    }
+
+    private fun buildDrawerConversationPreview(conversation: Conversation): String {
+        val lastMessage = conversation.messages.lastOrNull() ?: return ""
+        return if (lastMessage.isUser) {
+            lastMessage.content.trim()
+        } else {
+            parseStoredAiContent(lastMessage.content).second.trim()
+        }
     }
 
     private fun setupToolbar() {
@@ -2278,21 +2442,23 @@ class MainActivity : AppCompatActivity() {
                     else -> getString(R.string.m3t_sidebar_local_model_not_ready)
                 }
             binding.statusText.text = localText
+            statusTextState.value = localText
             return
         }
 
         val text =
                 when {
-                    remoteApiChecking && offlineModelReady -> "已配置语音模型 | API 检查中..."
-                    remoteApiChecking -> "检查中..."
-                    remoteApiOk == true && offlineModelReady -> "已连接模型 | 语音模型已就绪"
-                    remoteApiOk == true -> "已连接模型"
-                    remoteApiOk == false && offlineModelReady -> "未连接 | 语音模型已就绪"
-                    remoteApiOk == false -> "未连接"
-                    offlineModelReady -> "语音模型已就绪"
+                    remoteApiChecking && offlineModelReady -> getString(R.string.status_checking_with_voice)
+                    remoteApiChecking -> getString(R.string.status_checking)
+                    remoteApiOk == true && offlineModelReady -> getString(R.string.status_connected_with_voice)
+                    remoteApiOk == true -> getString(R.string.status_connected)
+                    remoteApiOk == false && offlineModelReady -> getString(R.string.status_disconnected_with_voice)
+                    remoteApiOk == false -> getString(R.string.status_disconnected_short)
+                    offlineModelReady -> getString(R.string.status_ready)
                     else -> getString(R.string.status_disconnected)
                 }
         binding.statusText.text = text
+        statusTextState.value = text
     }
 
     private fun maskKey(raw: String): String {
@@ -2535,6 +2701,24 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        binding.floatingInputLayer.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            syncFloatingInputPadding()
+        }
+        binding.floatingInputLayer.post {
+            syncFloatingInputPadding()
+        }
+    }
+
+    private fun syncFloatingInputPadding() {
+        val extraBottomPadding =
+            binding.floatingInputLayer.height + resources.getDimensionPixelSize(R.dimen.m3t_spacing_md)
+        binding.scrollArea.setPadding(
+            binding.scrollArea.paddingLeft,
+            binding.scrollArea.paddingTop,
+            binding.scrollArea.paddingRight,
+            extraBottomPadding,
+        )
     }
 
     private fun hideKeyboard() {
@@ -2543,23 +2727,7 @@ class MainActivity : AppCompatActivity() {
         binding.inputBarCompose.clearFocus()
     }
 
-    private fun elevateAiBar() {
-
-        val aiBar = binding.topAppBar
-
-        aiBar.elevation = 0f
-        aiBar.background = null
-        aiBar.setBackgroundColor(Color.TRANSPARENT)
-        aiBar.stateListAnimator = null
-
-        val params = aiBar.layoutParams as LinearLayout.LayoutParams
-
-        params.topMargin = 0
-        params.marginStart = 0
-        params.marginEnd = 0
-
-        aiBar.layoutParams = params
-    }
+    private fun elevateAiBar() = Unit
 
     private fun setupKeyboardListener() {
 
@@ -2596,7 +2764,7 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        val nav = binding.navigationView
+        val nav = drawerPanel
         val navInitialLeft = nav.paddingLeft
         val navInitialTop = nav.paddingTop
         val navInitialRight = nav.paddingRight
@@ -2748,9 +2916,8 @@ class MainActivity : AppCompatActivity() {
 
         if (!localModeEnabled && apiKey.isBlank()) {
 
-            Toast.makeText(this, "请先在边栏配置 API Key", Toast.LENGTH_SHORT).show()
-
-            binding.drawerLayout.openDrawer(GravityCompat.START)
+            Toast.makeText(this, getString(R.string.settings_api_key_missing_entry), Toast.LENGTH_SHORT).show()
+            startActivityWithMaterialForwardTransition(Intent(this, DrawerSettingsActivity::class.java))
 
             return
         }

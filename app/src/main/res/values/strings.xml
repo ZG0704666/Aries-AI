@@ -3,6 +3,12 @@
     <string name="app_title">Aries AI</string>
     <string name="status_ready">语音模型已就绪</string>
     <string name="status_disconnected">未连接模型</string>
+    <string name="status_connected">已连接模型</string>
+    <string name="status_connected_with_voice">已连接模型 | 语音模型已就绪</string>
+    <string name="status_disconnected_short">未连接</string>
+    <string name="status_disconnected_with_voice">未连接 | 语音模型已就绪</string>
+    <string name="status_checking">检查中...</string>
+    <string name="status_checking_with_voice">已配置语音模型 | API 检查中...</string>
     <string name="input_hint">请输入你的问题…</string>
     <string name="voice_input">语音输入</string>
     <string name="send">发送</string>
@@ -191,6 +197,7 @@
     <string name="settings_clipboard_empty">剪贴板中没有可用内容</string>
     <string name="settings_api_key_pasted">已粘贴 API Key</string>
     <string name="settings_api_key_required">请先输入 API Key</string>
+    <string name="settings_api_key_missing_entry">请先在设置中配置 API Key</string>
     <string name="settings_api_available">API 连接可用</string>
     <string name="settings_api_failed">API 连接失败</string>
     <string name="settings_api_unsafe">当前 API 地址不可用</string>
@@ -205,6 +212,8 @@
     <string name="drawer_search_hint">搜索聊天</string>
     <string name="drawer_section_recent">最近聊天</string>
     <string name="drawer_settings">设置</string>
+    <string name="drawer_empty">暂无聊天记录</string>
+    <string name="drawer_empty_search">没有匹配的聊天</string>
     <string name="drawer_open_navigation">打开导航</string>
     <string name="top_bar_new_chat">新建聊天</string>
     <string name="top_bar_history">打开历史记录</string>
