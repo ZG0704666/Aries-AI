@@ -1,7 +1,7 @@
 package com.ai.phoneagent.core.prompt
 
 import android.content.Context
-import com.ai.phoneagent.updates.VersionComparator
+import com.ai.phoneagent.core.common.VersionComparator
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL

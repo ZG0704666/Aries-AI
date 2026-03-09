@@ -99,12 +99,6 @@
         </activity>
 
         <activity
-            android:name=".AboutActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-        
-        
-        <activity
             android:name=".UserAgreementActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />

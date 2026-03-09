@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Aries AI</string>
+
+    <string name="about_copyright">© 2025-2026 Aries AI. 保留所有权利。</string>
+    <string name="about_back">返回</string>
+    <string name="about_title">关于</string>
+    <string name="about_version_format">v%1$s</string>
+    <string name="about_prompt_version_format">Prompt 版本：%1$s</string>
+    <string name="about_check_updates">检查更新</string>
+    <string name="about_checking_updates">检查中...</string>
+    <string name="about_changelog">更新日志</string>
+    <string name="about_open_source_licenses">开源许可声明</string>
+    <string name="about_website">访问官网</string>
+    <string name="about_website_domain">aries-agent.com</string>
+    <string name="about_website_url">https://aries-agent.com/</string>
+    <string name="about_developer_info">开发者信息</string>
+    <string name="about_developer_name">ZG0704666</string>
+    <string name="about_developer_alias">xuanYu.xyla</string>
+    <string name="about_contact">联系我们：zhangyongqi@njit.edu.cn</string>
+    <string name="about_contact_copied">邮箱已复制到剪贴板</string>
+    <string name="about_thanks">感谢使用 Aries AI</string>
+    <string name="about_local_model_download_button_shown">本地模型下载按钮已显示</string>
+    <string name="about_local_model_download_button_hidden">本地模型下载按钮已隐藏</string>
+    <string name="about_no_release_found">未获取到 Release。</string>
+    <string name="about_up_to_date">已是最新版本</string>
+    <string name="about_current_version_format">当前版本：%1$s</string>
+    <string name="about_check_failed">检查更新失败</string>
+    <string name="about_open_url_failed">无法打开网页</string>
+    <string name="about_link_copied">链接已复制</string>
+
+    <string name="action_ok">确定</string>
+    <string name="action_cancel">取消</string>
+    <string name="user_agreement_title">用户协议与隐私政策</string>
+
+    <string name="m3t_license_title">开源许可声明</string>
+    <string name="m3t_license_format">许可: %1$s</string>
+    <string name="m3t_updates_title">更新日志</string>
+    <string name="m3t_updates_include_prerelease">包含预发布版本</string>
+    <string name="m3t_updates_no_changelog">（无更新说明）</string>
+    <string name="m3t_updates_open_release">打开发布</string>
+    <string name="m3t_updates_choose_source">选择下载源</string>
+    <string name="m3t_updates_found">发现新版本</string>
+    <string name="m3t_updates_repo_subtitle">%1$s/%2$s · %3$s</string>
+    <string name="m3t_updates_view_release">查看发布</string>
+    <string name="m3t_updates_history">更新历史</string>
+    <string name="m3t_updates_close">关闭</string>
+
+    <string name="update_apk_missing_fallback_release">未找到 APK，已为你跳转发布页</string>
+    <string name="update_download_submit_failed">下载未能提交，请稍后重试</string>
+    <string name="update_open_detail_failed">打开更新详情失败，请稍后重试</string>
+</resources>

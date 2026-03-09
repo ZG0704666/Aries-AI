@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/m3t_about_page_bg">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/m3t_toolbar_height"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnBack"
+                android:layout_width="@dimen/m3t_toolbar_nav_size"
+                android:layout_height="@dimen/m3t_toolbar_nav_size"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/about_back"
+                android:padding="@dimen/m3t_spacing_lg"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_arrow_back_24" />
+
+            <TextView
+                android:id="@+id/titleAbout"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="@string/about_title"
+                android:textAppearance="@style/TextAppearance.M3t.Title.Large"
+                android:textColor="@color/m3t_on_surface" />
+
+            <Space
+                android:layout_width="@dimen/m3t_toolbar_nav_size"
+                android:layout_height="@dimen/m3t_toolbar_nav_size" />
+        </LinearLayout>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:paddingBottom="@dimen/m3t_spacing_lg"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:id="@+id/scrollContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:padding="@dimen/m3t_spacing_lg">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardAppInfo"
+                style="@style/Widget.M3t.Card.About"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/m3t_spacing_lg">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical"
+                    android:padding="@dimen/m3t_about_card_padding">
+
+                    <com.google.android.material.card.MaterialCardView
+                        style="@style/Widget.M3t.Card.Subtle"
+                        android:layout_width="@dimen/m3t_about_icon_card_size"
+                        android:layout_height="@dimen/m3t_about_icon_card_size"
+                        app:cardCornerRadius="@dimen/m3t_radius_md"
+                        app:cardBackgroundColor="@color/m3t_surface_container">
+
+                        <ImageView
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:adjustViewBounds="true"
+                            android:contentDescription="@string/app_name"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_launcher_monochrome" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/m3t_spacing_sm"
+                        android:text="@string/app_name"
+                        android:textAppearance="@style/TextAppearance.M3t.Title.Large"
+                        android:textColor="@color/m3t_primary" />
+
+                    <TextView
+                        android:id="@+id/tvAppVersion"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/m3t_spacing_xs"
+                        android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
+
+                    <TextView
+                        android:id="@+id/tvPromptVersion"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/m3t_spacing_xs"
+                        android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardActions"
+                style="@style/Widget.M3t.Card.About"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/m3t_spacing_md">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/m3t_spacing_xs">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCheckUpdate"
+                        style="@style/Widget.M3t.Button.Filled"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/m3t_button_height"
+                        android:layout_margin="@dimen/m3t_spacing_sm"
+                        android:text="@string/about_check_updates"
+                        android:textAllCaps="false"
+                        app:icon="@drawable/ic_update"
+                        app:iconGravity="textStart"
+                        app:iconPadding="@dimen/m3t_spacing_sm" />
+
+                    <LinearLayout
+                        android:id="@+id/itemChangelog"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/m3t_about_item_height"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="@dimen/m3t_about_row_padding_h"
+                        android:paddingEnd="@dimen/m3t_about_row_padding_h">
+
+                        <ImageView
+                            android:layout_width="@dimen/m3t_about_row_icon_size"
+                            android:layout_height="@dimen/m3t_about_row_icon_size"
+                            android:src="@drawable/ic_history_24"
+                            app:tint="@color/m3t_primary" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/m3t_about_row_text_gap"
+                            android:layout_weight="1"
+                            android:text="@string/about_changelog"
+                            android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
+
+                        <ImageView
+                            android:layout_width="@dimen/m3t_about_chevron_size"
+                            android:layout_height="@dimen/m3t_about_chevron_size"
+                            android:src="@drawable/ic_arrow_right"
+                            app:tint="@color/m3t_on_surface_variant" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/m3t_size_zero"
+                        android:layout_marginStart="@dimen/m3t_toolbar_nav_size"
+                        android:background="@android:color/transparent" />
+
+                    <LinearLayout
+                        android:id="@+id/itemUserAgreement"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/m3t_about_item_height"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="@dimen/m3t_about_row_padding_h"
+                        android:paddingEnd="@dimen/m3t_about_row_padding_h">
+
+                        <ImageView
+                            android:layout_width="@dimen/m3t_about_row_icon_size"
+                            android:layout_height="@dimen/m3t_about_row_icon_size"
+                            android:src="@drawable/ic_license"
+                            app:tint="@color/m3t_primary" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/m3t_about_row_text_gap"
+                            android:layout_weight="1"
+                            android:text="@string/user_agreement_title"
+                            android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
+
+                        <ImageView
+                            android:layout_width="@dimen/m3t_about_chevron_size"
+                            android:layout_height="@dimen/m3t_about_chevron_size"
+                            android:src="@drawable/ic_arrow_right"
+                            app:tint="@color/m3t_on_surface_variant" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/m3t_size_zero"
+                        android:layout_marginStart="@dimen/m3t_toolbar_nav_size"
+                        android:background="@android:color/transparent" />
+
+                    <LinearLayout
+                        android:id="@+id/itemLicenses"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/m3t_about_item_height"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="@dimen/m3t_about_row_padding_h"
+                        android:paddingEnd="@dimen/m3t_about_row_padding_h">
+
+                        <ImageView
+                            android:layout_width="@dimen/m3t_about_row_icon_size"
+                            android:layout_height="@dimen/m3t_about_row_icon_size"
+                            android:src="@drawable/ic_license"
+                            app:tint="@color/m3t_primary" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/m3t_about_row_text_gap"
+                            android:layout_weight="1"
+                            android:text="@string/about_open_source_licenses"
+                            android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
+
+                        <ImageView
+                            android:layout_width="@dimen/m3t_about_chevron_size"
+                            android:layout_height="@dimen/m3t_about_chevron_size"
+                            android:src="@drawable/ic_arrow_right"
+                            app:tint="@color/m3t_on_surface_variant" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/m3t_size_zero"
+                        android:layout_marginStart="@dimen/m3t_toolbar_nav_size"
+                        android:background="@android:color/transparent" />
+
+                    <LinearLayout
+                        android:id="@+id/itemWebsite"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/m3t_about_item_height"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="@dimen/m3t_about_row_padding_h"
+                        android:paddingEnd="@dimen/m3t_about_row_padding_h">
+
+                        <ImageView
+                            android:layout_width="@dimen/m3t_about_row_icon_size"
+                            android:layout_height="@dimen/m3t_about_row_icon_size"
+                            android:src="@drawable/ic_public_24"
+                            app:tint="@color/m3t_primary" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/m3t_about_row_text_gap"
+                            android:layout_weight="1"
+                            android:text="@string/about_website"
+                            android:textAppearance="@style/TextAppearance.M3t.Body.Medium" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="@dimen/m3t_spacing_sm"
+                            android:text="@string/about_website_domain"
+                            android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
+
+                        <ImageView
+                            android:layout_width="@dimen/m3t_about_chevron_size"
+                            android:layout_height="@dimen/m3t_about_chevron_size"
+                            android:src="@drawable/ic_arrow_right"
+                            app:tint="@color/m3t_on_surface_variant" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardDeveloper"
+                style="@style/Widget.M3t.Card.About"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/m3t_spacing_md">
+
+                <LinearLayout
+                    android:id="@+id/itemDeveloper"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="@dimen/m3t_spacing_lg">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/about_developer_info"
+                        android:textAllCaps="true"
+                        android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/m3t_spacing_xs"
+                        android:text="@string/about_developer_name"
+                        android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
+                        android:textColor="@color/m3t_primary"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/m3t_spacing_xs"
+                        android:text="@string/about_developer_alias"
+                        android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
+                        android:textColor="@color/m3t_primary"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/itemContact"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/m3t_spacing_sm"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:padding="@dimen/m3t_spacing_xs"
+                        android:text="@string/about_contact"
+                        android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/about_copyright"
+                android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

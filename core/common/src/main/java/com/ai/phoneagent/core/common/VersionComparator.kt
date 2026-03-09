@@ -1,4 +1,4 @@
-package com.ai.phoneagent.updates
+package com.ai.phoneagent.core.common
 
 object VersionComparator {
     private data class ParsedVersion(

@@ -112,7 +112,10 @@ configurations.all {
 }
 
 dependencies {
+    implementation(project(":core:common"))
     implementation(project(":core:designsystem"))
+    implementation(project(":core:prompt"))
+    implementation(project(":feature:settings"))
     implementation(project(":feature:updates"))
 
     // Shizuku - 虚拟屏核心依赖

@@ -51,8 +51,12 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.ai.phoneagent.core.common.VersionComparator
+import com.ai.phoneagent.core.designsystem.R as DesignSystemR
 import com.ai.phoneagent.core.prompt.MainChatPromptRepository
-import com.ai.phoneagent.databinding.ActivityAboutBinding
+import com.ai.phoneagent.feature.settings.R
+import com.ai.phoneagent.feature.settings.databinding.ActivityAboutBinding
+import com.ai.phoneagent.feature.updates.BuildConfig as UpdatesBuildConfig
 import com.ai.phoneagent.system.applyMaterialCloseTransition
 import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
 import com.ai.phoneagent.updates.ApkDownloadUtil
@@ -65,7 +69,6 @@ import com.ai.phoneagent.updates.UpdateConfig
 import com.ai.phoneagent.updates.UpdateLinkAdapter
 import com.ai.phoneagent.updates.UpdateNotificationUtil
 import com.ai.phoneagent.updates.UpdateStore
-import com.ai.phoneagent.updates.VersionComparator
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.switchmaterial.SwitchMaterial
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +76,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class AboutActivity : AppCompatActivity() {
+
+    companion object {
+        private const val USER_AGREEMENT_ACTIVITY_CLASS = "com.ai.phoneagent.UserAgreementActivity"
+        private const val USER_AGREEMENT_FLOW_EXTRA = "flow"
+        private const val USER_AGREEMENT_FLOW_VIEW_ONLY = "view_only"
+    }
 
     private lateinit var binding: ActivityAboutBinding
     private val releaseRepo = ReleaseRepository()
@@ -118,9 +127,6 @@ class AboutActivity : AppCompatActivity() {
     }
 
     private fun currentVersionName(): String {
-        val fromBuildConfig = BuildConfig.VERSION_NAME?.trim().orEmpty().removePrefix("v")
-        if (fromBuildConfig.isNotBlank()) return fromBuildConfig
-
         return try {
             packageManager.getPackageInfo(packageName, 0).versionName?.trim().orEmpty().removePrefix("v")
         } catch (_: Exception) {
@@ -174,7 +180,7 @@ class AboutActivity : AppCompatActivity() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val controller = WindowCompat.getInsetsController(window, binding.root)
-            controller.isAppearanceLightStatusBars = resources.getBoolean(R.bool.m3t_light_system_bars)
+            controller.isAppearanceLightStatusBars = resources.getBoolean(DesignSystemR.bool.m3t_light_system_bars)
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
@@ -189,7 +195,7 @@ class AboutActivity : AppCompatActivity() {
         androidx.core.widget.ImageViewCompat.setImageTintList(
             binding.btnBack,
             android.content.res.ColorStateList.valueOf(
-                androidx.core.content.ContextCompat.getColor(this, R.color.m3t_on_surface_variant)
+                androidx.core.content.ContextCompat.getColor(this, DesignSystemR.color.m3t_on_surface_variant)
             ),
         )
         binding.btnBack.setOnClickListener {
@@ -281,7 +287,11 @@ class AboutActivity : AppCompatActivity() {
     }
 
     private fun showUserAgreementDialog() {
-        startActivityWithMaterialForwardTransition(UserAgreementActivity.createViewIntent(this))
+        val intent =
+            Intent()
+                .setClassName(this, USER_AGREEMENT_ACTIVITY_CLASS)
+                .putExtra(USER_AGREEMENT_FLOW_EXTRA, USER_AGREEMENT_FLOW_VIEW_ONLY)
+        startActivityWithMaterialForwardTransition(intent)
     }
 
     private fun showChangelogDialog() {
@@ -412,7 +422,7 @@ class AboutActivity : AppCompatActivity() {
     private fun showReleaseDetails(entry: ReleaseEntry) {
         if (isFinishing || isDestroyed) return
         runCatching {
-            MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
+            MaterialAlertDialogBuilder(this, DesignSystemR.style.BlueGlassAlertDialog)
                 .setTitle(entry.versionTag)
                 .setMessage(entry.body.ifBlank { getString(R.string.m3t_updates_no_changelog) })
                 .setPositiveButton(R.string.m3t_updates_open_release) { _, _ ->
@@ -553,7 +563,7 @@ class AboutActivity : AppCompatActivity() {
 
     private fun handleDownload(entry: ReleaseEntry) {
         runCatching {
-            if (BuildConfig.GITHUB_TOKEN.isNotBlank()) {
+            if (UpdatesBuildConfig.GITHUB_TOKEN.isNotBlank()) {
                 val submitted = ApkDownloadUtil.enqueueApkDownload(this, entry)
                 if (!submitted) {
                     Toast.makeText(this, R.string.update_download_submit_failed, Toast.LENGTH_SHORT).show()
@@ -580,7 +590,7 @@ class AboutActivity : AppCompatActivity() {
             }
 
             val names = options.map { it.first }.toTypedArray()
-            MaterialAlertDialogBuilder(this, R.style.BlueGlassAlertDialog)
+            MaterialAlertDialogBuilder(this, DesignSystemR.style.BlueGlassAlertDialog)
                 .setTitle(R.string.m3t_updates_choose_source)
                 .setItems(names) { _, which ->
                     openReleaseUrlWithFeedback(options[which].second)
@@ -608,7 +618,7 @@ class AboutActivity : AppCompatActivity() {
                 val latest = result.getOrNull()
                 val error = result.exceptionOrNull()
                 if (error != null) {
-                    MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
+                    MaterialAlertDialogBuilder(this@AboutActivity, DesignSystemR.style.BlueGlassAlertDialog)
                         .setTitle(R.string.about_check_failed)
                         .setMessage(ReleaseUiUtil.formatError(error))
                         .setPositiveButton(R.string.action_ok, null)
@@ -618,7 +628,7 @@ class AboutActivity : AppCompatActivity() {
                 }
 
                 if (latest == null) {
-                    MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
+                    MaterialAlertDialogBuilder(this@AboutActivity, DesignSystemR.style.BlueGlassAlertDialog)
                         .setTitle(R.string.about_check_updates)
                         .setMessage(R.string.about_no_release_found)
                         .setPositiveButton(R.string.action_ok, null)
@@ -631,7 +641,7 @@ class AboutActivity : AppCompatActivity() {
                     UpdateStore.saveLatest(this@AboutActivity, latest)
                     showUpdateLinksDialog(latest)
                 } else {
-                    MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
+                    MaterialAlertDialogBuilder(this@AboutActivity, DesignSystemR.style.BlueGlassAlertDialog)
                         .setTitle(R.string.about_up_to_date)
                         .setMessage(getString(R.string.about_current_version_format, currentVersion))
                         .setPositiveButton(R.string.action_ok, null)
@@ -640,7 +650,7 @@ class AboutActivity : AppCompatActivity() {
                 }
             } catch (e: Throwable) {
                 if (!isFinishing && !isDestroyed) {
-                    MaterialAlertDialogBuilder(this@AboutActivity, R.style.BlueGlassAlertDialog)
+                    MaterialAlertDialogBuilder(this@AboutActivity, DesignSystemR.style.BlueGlassAlertDialog)
                         .setTitle(R.string.about_check_failed)
                         .setMessage(ReleaseUiUtil.formatError(e))
                         .setPositiveButton(R.string.action_ok, null)

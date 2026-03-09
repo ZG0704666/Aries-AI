@@ -114,7 +114,7 @@ import com.ai.phoneagent.updates.UpdateConfig
 import com.ai.phoneagent.updates.UpdateLinkAdapter
 import com.ai.phoneagent.updates.UpdateNotificationUtil
 import com.ai.phoneagent.updates.UpdateStore
-import com.ai.phoneagent.updates.VersionComparator
+import com.ai.phoneagent.core.common.VersionComparator
 import com.ai.phoneagent.updates.DialogSizingUtil
 import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
 import kotlinx.coroutines.Dispatchers
