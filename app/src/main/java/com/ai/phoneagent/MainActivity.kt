@@ -86,6 +86,8 @@ import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.EditText
 import com.ai.phoneagent.helper.AutomationMessageParser
+import com.ai.phoneagent.helper.AutomationTimelineEntry
+import com.ai.phoneagent.helper.AutomationTimelineFormatter
 import com.ai.phoneagent.helper.StreamRenderHelper
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -1232,7 +1234,7 @@ class MainActivity : AppCompatActivity() {
             val timeline =
                 (logContainer.tag as? MutableList<AutomationTimelineEntry>)
                     ?: mutableListOf<AutomationTimelineEntry>().also { logContainer.tag = it }
-            appendAutomationTimelineEntry(timeline, normalized)
+            AutomationTimelineFormatter.appendEntry(timeline, normalized)
             renderAutomationTimelineRows(logContainer, timeline)
         }
         if (isAutomationTerminalLog(normalized)) {
@@ -3488,52 +3490,6 @@ class MainActivity : AppCompatActivity() {
         return AutomationMessageParser.normalizeAutomationLogLine(rawLine)
     }
 
-    private data class AutomationTimelineEntry(
-        var displayText: String,
-        var action: String? = null
-    )
-
-    private fun appendAutomationTimelineEntry(
-        timeline: MutableList<AutomationTimelineEntry>,
-        normalizedLogLine: String
-    ) {
-        val thinkingText = extractAutomationDisplayText(normalizedLogLine)
-        val intentText = extractAutomationIntentTextFromOutput(normalizedLogLine)
-        val actionLabel = extractAutomationActionLabel(normalizedLogLine)
-
-        if (!thinkingText.isNullOrBlank()) {
-            timeline.add(AutomationTimelineEntry(displayText = thinkingText, action = actionLabel))
-            return
-        }
-
-        if (!intentText.isNullOrBlank()) {
-            val lastWithoutAction = timeline.lastOrNull { it.action.isNullOrBlank() }
-            if (lastWithoutAction != null) {
-                lastWithoutAction.displayText = intentText
-                if (!actionLabel.isNullOrBlank()) {
-                    lastWithoutAction.action = actionLabel
-                }
-            } else {
-                timeline.add(AutomationTimelineEntry(displayText = intentText, action = actionLabel))
-            }
-            return
-        }
-
-        if (!actionLabel.isNullOrBlank()) {
-            val lastWithoutAction = timeline.lastOrNull { it.action.isNullOrBlank() }
-            if (lastWithoutAction != null) {
-                lastWithoutAction.action = actionLabel
-            } else {
-                timeline.add(
-                    AutomationTimelineEntry(
-                        displayText = "",
-                        action = actionLabel
-                    )
-                )
-            }
-        }
-    }
-
     private fun renderAutomationTimelineRows(
         container: LinearLayout,
         timeline: List<AutomationTimelineEntry>
@@ -3835,9 +3791,7 @@ class MainActivity : AppCompatActivity() {
                 else -> getString(R.string.automation_scene_not_ready)
             }
 
-        val normalizedLogs = logs.map { normalizeAutomationLogLine(it) }.filter { it.isNotBlank() }
-        val timeline = mutableListOf<AutomationTimelineEntry>()
-        normalizedLogs.forEach { line -> appendAutomationTimelineEntry(timeline, line) }
+        val timeline = AutomationTimelineFormatter.buildTimeline(logs)
         logContainer.tag = timeline
         renderAutomationTimelineRows(logContainer, timeline)
     }
