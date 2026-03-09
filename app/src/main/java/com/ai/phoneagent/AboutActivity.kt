@@ -53,6 +53,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.ai.phoneagent.core.prompt.MainChatPromptRepository
 import com.ai.phoneagent.databinding.ActivityAboutBinding
+import com.ai.phoneagent.system.applyMaterialCloseTransition
+import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
 import com.ai.phoneagent.updates.ApkDownloadUtil
 import com.ai.phoneagent.updates.DialogSizingUtil
 import com.ai.phoneagent.updates.ReleaseEntry
@@ -108,6 +110,11 @@ class AboutActivity : AppCompatActivity() {
             setIntent(intent)
         }
         maybeShowUpdateDialogFromIntent()
+    }
+
+    override fun finish() {
+        super.finish()
+        applyMaterialCloseTransition()
     }
 
     private fun currentVersionName(): String {
@@ -274,8 +281,7 @@ class AboutActivity : AppCompatActivity() {
     }
 
     private fun showUserAgreementDialog() {
-        startActivity(UserAgreementActivity.createViewIntent(this))
-        overridePendingTransition(R.anim.m3t_slide_in_right, R.anim.m3t_slide_out_left)
+        startActivityWithMaterialForwardTransition(UserAgreementActivity.createViewIntent(this))
     }
 
     private fun showChangelogDialog() {

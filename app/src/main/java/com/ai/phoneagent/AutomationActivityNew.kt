@@ -61,6 +61,7 @@ import com.ai.phoneagent.databinding.ActivityAutomationBinding
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ModelScopeModelDownloader
 import com.ai.phoneagent.speech.SherpaSpeechRecognizer
+import com.ai.phoneagent.system.applyMaterialCloseTransition
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import rikka.shizuku.Shizuku
@@ -132,6 +133,7 @@ class AutomationActivityNew : AppCompatActivity() {
     private var accessibilityStatusSyncJob: Job? = null
 
     private var autoScrollLogToBottom: Boolean = true
+    private var launchedKeepMainOnTop: Boolean = false
     private var mirrorLogsToMain: Boolean = false
     private var overlayClickReturnToMain: Boolean = false
     private var lastDispatchedTask: String? = null
@@ -196,16 +198,15 @@ class AutomationActivityNew : AppCompatActivity() {
             }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val keepMainOnTop =
-                intent?.getBooleanExtra(EXTRA_KEEP_MAIN_ON_TOP, false) == true
-        if (keepMainOnTop) {
+        launchedKeepMainOnTop = intent?.getBooleanExtra(EXTRA_KEEP_MAIN_ON_TOP, false) == true
+        if (launchedKeepMainOnTop) {
             setTheme(R.style.Theme_M3t_TransparentLaunch)
         }
         super.onCreate(savedInstanceState)
 
         binding = ActivityAutomationBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        if (keepMainOnTop) {
+        if (launchedKeepMainOnTop) {
             overridePendingTransition(0, 0)
         }
 
@@ -466,6 +467,16 @@ class AutomationActivityNew : AppCompatActivity() {
         }
 
         initSherpaModel()
+    }
+
+    override fun finish() {
+        super.finish()
+        if (launchedKeepMainOnTop) {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+            return
+        }
+        applyMaterialCloseTransition()
     }
 
     override fun onNewIntent(intent: Intent) {

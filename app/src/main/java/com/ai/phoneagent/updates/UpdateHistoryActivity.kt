@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.ai.phoneagent.BuildConfig
 import com.ai.phoneagent.R
+import com.ai.phoneagent.system.applyMaterialCloseTransition
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -39,6 +40,11 @@ class UpdateHistoryActivity : AppCompatActivity() {
     private var includePrerelease: Boolean = false
     private var page: Int = 1
     private var loading: Boolean = false
+
+    override fun finish() {
+        super.finish()
+        applyMaterialCloseTransition()
+    }
 
     private enum class LoadMoreMode {
         LoadMore,

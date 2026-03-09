@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import com.ai.phoneagent.AutomationActivityNew
+import com.ai.phoneagent.system.applyMaterialOpenTransition
+import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
 
 data class AutomationInstructionRequest(
     val instruction: String,
@@ -38,12 +40,20 @@ object ActivityAutomationInstructionGateway : AutomationInstructionGateway {
         }
         return runCatching {
             val intent = buildIntent(context, request.copy(instruction = task))
-            if (context !is Activity) {
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-            if (context is Activity) {
-                context.overridePendingTransition(0, 0)
+            if (request.keepMainOnTop) {
+                if (context !is Activity) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+                if (context is Activity) {
+                    @Suppress("DEPRECATION")
+                    context.overridePendingTransition(0, 0)
+                }
+            } else if (context is Activity) {
+                context.startActivity(intent)
+                context.applyMaterialOpenTransition()
+            } else {
+                context.startActivityWithMaterialForwardTransition(intent)
             }
         }.fold(
             onSuccess = {
@@ -82,11 +92,10 @@ object ActivityAutomationInstructionGateway : AutomationInstructionGateway {
 
     fun buildIntent(context: Context, request: AutomationInstructionRequest): Intent {
         return Intent(context, AutomationActivityNew::class.java).apply {
-            addFlags(
-                Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_NO_ANIMATION
-            )
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            if (request.keepMainOnTop) {
+                addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            }
             putExtra(AutomationActivityNew.EXTRA_AUTOMATION_TASK, request.instruction.trim())
             putExtra(AutomationActivityNew.EXTRA_AUTOMATION_SOURCE, request.source.wireValue)
             putExtra(AutomationActivityNew.EXTRA_AUTOMATION_AUTO_START, request.autoStart)

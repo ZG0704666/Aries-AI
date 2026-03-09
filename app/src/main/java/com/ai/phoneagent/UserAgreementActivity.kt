@@ -24,6 +24,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
+import com.ai.phoneagent.system.applyMaterialCloseTransition
 import com.google.android.material.button.MaterialButton
 import rikka.shizuku.Shizuku
 
@@ -279,7 +280,7 @@ class UserAgreementActivity : AppCompatActivity() {
 
     private fun finishWithSlideBack() {
         super.finish()
-        overridePendingTransition(R.anim.m3t_slide_in_left, R.anim.m3t_slide_out_right)
+        applyMaterialCloseTransition()
     }
 
     private fun configureEdgeToEdge() {

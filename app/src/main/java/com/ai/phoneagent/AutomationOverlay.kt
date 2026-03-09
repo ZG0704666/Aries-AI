@@ -30,6 +30,7 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import com.ai.phoneagent.core.utils.DisplayUtils
+import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
 
 object AutomationOverlay {
 
@@ -122,7 +123,7 @@ object AutomationOverlay {
                         )
                     }
                 }
-            appCtx.startActivity(i)
+            appCtx.startActivityWithMaterialForwardTransition(i)
         }
 
         val overlayW = DisplayUtils.dp(appCtx, 108)

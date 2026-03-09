@@ -116,6 +116,7 @@ import com.ai.phoneagent.updates.UpdateNotificationUtil
 import com.ai.phoneagent.updates.UpdateStore
 import com.ai.phoneagent.updates.VersionComparator
 import com.ai.phoneagent.updates.DialogSizingUtil
+import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -678,7 +679,7 @@ class MainActivity : AppCompatActivity() {
         }
         containerView.findViewById<View>(R.id.btnHistory).setOnClickListener {
             exitDialog()
-            startActivity(Intent(this, AboutActivity::class.java))
+            startActivityWithMaterialForwardTransition(Intent(this, AboutActivity::class.java))
         }
 
         dialog.show()
@@ -2115,28 +2116,14 @@ class MainActivity : AppCompatActivity() {
                     vibrateLight()
                     navigateFromDrawer {
                         val intent = Intent(this, AutomationActivityNew::class.java)
-                        startActivity(intent)
-
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, android.R.anim.fade_in, android.R.anim.fade_out)
-                        } else {
-                            @Suppress("DEPRECATION")
-                            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
-                        }
+                        startActivityWithMaterialForwardTransition(intent)
                     }
                 }
                 R.id.nav_about -> {
                     vibrateLight()
                     navigateFromDrawer {
                         val intent = Intent(this, AboutActivity::class.java)
-                        startActivity(intent)
-
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, android.R.anim.fade_in, android.R.anim.fade_out)
-                        } else {
-                            @Suppress("DEPRECATION")
-                            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
-                        }
+                        startActivityWithMaterialForwardTransition(intent)
                     }
                 }
             }
@@ -3994,10 +3981,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         toggleButton.isEnabled = false
+        toggleButton.animate().cancel()
+        content.animate().cancel()
         toggleButton.animate()
             .rotation(targetRotation)
-            .setDuration(220)
-            .setInterpolator(OvershootInterpolator(0.8f))
+            .setDuration(260)
+            .setInterpolator(OvershootInterpolator(0.45f))
             .start()
 
         if (collapsed) {
@@ -4006,16 +3995,19 @@ class MainActivity : AppCompatActivity() {
                 return
             }
             content.pivotY = 0f
+            content.pivotX = (content.width * 0.5f).coerceAtLeast(0f)
             content.animate()
                 .alpha(0f)
-                .translationY(-contentOffset)
-                .scaleY(0.96f)
-                .setDuration(180)
-                .setInterpolator(AccelerateInterpolator())
+                .translationY(-contentOffset * 0.4f)
+                .scaleX(0.985f)
+                .scaleY(0.985f)
+                .setDuration(240)
+                .setInterpolator(AccelerateInterpolator(1.1f))
                 .withEndAction {
                     content.visibility = View.GONE
                     content.alpha = 1f
                     content.translationY = 0f
+                    content.scaleX = 1f
                     content.scaleY = 1f
                     toggleButton.isEnabled = true
                 }
@@ -4023,15 +4015,18 @@ class MainActivity : AppCompatActivity() {
         } else {
             content.visibility = View.VISIBLE
             content.alpha = 0f
-            content.translationY = -contentOffset * 0.5f
-            content.scaleY = 0.96f
+            content.translationY = -contentOffset * 0.28f
+            content.scaleX = 0.985f
+            content.scaleY = 0.985f
             content.pivotY = 0f
+            content.pivotX = (content.width * 0.5f).coerceAtLeast(0f)
             content.animate()
                 .alpha(1f)
                 .translationY(0f)
+                .scaleX(1f)
                 .scaleY(1f)
-                .setDuration(240)
-                .setInterpolator(DecelerateInterpolator())
+                .setDuration(320)
+                .setInterpolator(DecelerateInterpolator(1.25f))
                 .withEndAction {
                     toggleButton.isEnabled = true
                 }
@@ -4260,20 +4255,43 @@ class MainActivity : AppCompatActivity() {
                     realContent.lines().map { it.trim() }.firstOrNull { it.startsWith("系统未就绪：") }
                 if (!notReadyReason.isNullOrBlank()) add(notReadyReason)
             }
+        val isAutomationCard = !automationCommandText.isNullOrBlank()
         val isAutomationFinished = initialAutomationLogs.any { isAutomationTerminalLog(it) }
         
         // 设置作者名
+        val aiHeaderRow = authorName.parent as? View
+        val automationPanelLayoutParams = automationPanel.layoutParams as? ViewGroup.MarginLayoutParams
+        val automationPanelDefaultTopMargin = resources.getDimensionPixelSize(R.dimen.m3t_spacing_sm)
+        val automationPanelDefaultPadding = resources.getDimensionPixelSize(R.dimen.m3t_spacing_md)
         authorName.text = if (author == "Aries") "Aries AI" else author
-        authorName.visibility = View.VISIBLE
-        
-        // 设置模型名称（显示在作者名右侧）
-        if (!modelName.isNullOrBlank()) {
-            tvModelName.text = modelName
-            tvModelName.visibility = View.VISIBLE
-        } else {
+        if (isAutomationCard) {
+            aiHeaderRow?.visibility = View.GONE
             tvModelName.visibility = View.GONE
+            view.setBackgroundResource(R.drawable.bg_glass_pane)
+            automationPanel.background = null
+            automationPanel.setPadding(0, 0, 0, 0)
+            automationPanelLayoutParams?.topMargin = 0
+            automationPanel.layoutParams = automationPanelLayoutParams
+        } else {
+            aiHeaderRow?.visibility = View.VISIBLE
+            view.setBackgroundResource(R.drawable.bg_glass_pane)
+            automationPanel.setBackgroundResource(R.drawable.bg_rounded_input_light)
+            automationPanel.setPadding(
+                automationPanelDefaultPadding,
+                automationPanelDefaultPadding,
+                automationPanelDefaultPadding,
+                automationPanelDefaultPadding
+            )
+            automationPanelLayoutParams?.topMargin = automationPanelDefaultTopMargin
+            automationPanel.layoutParams = automationPanelLayoutParams
+            authorName.visibility = View.VISIBLE
+            if (!modelName.isNullOrBlank()) {
+                tvModelName.text = modelName
+                tvModelName.visibility = View.VISIBLE
+            } else {
+                tvModelName.visibility = View.GONE
+            }
         }
-        
         // 设置思考部分交互
         if (!thinkContent.isNullOrBlank()) {
             thinkingLayout.visibility = View.VISIBLE
@@ -4298,7 +4316,7 @@ class MainActivity : AppCompatActivity() {
             thinkingLayout.visibility = View.GONE
         }
 
-        if (!automationCommandText.isNullOrBlank()) {
+        if (isAutomationCard) {
             messageContent.visibility = View.GONE
             automationPanel.visibility = View.VISIBLE
             setAutomationPanelCollapsedState(
@@ -4341,7 +4359,7 @@ class MainActivity : AppCompatActivity() {
         
         smoothScrollToBottom()
 
-        if (!animate || !automationCommandText.isNullOrBlank()) {
+        if (!animate || isAutomationCard) {
             if (!thinkContent.isNullOrBlank()) {
                 StreamRenderHelper.applyMarkdownToHistory(thinkingText, thinkContent)
                 if (thinkingText.visibility == View.VISIBLE) {
