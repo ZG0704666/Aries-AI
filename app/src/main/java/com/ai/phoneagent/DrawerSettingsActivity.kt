@@ -1,30 +1,30 @@
 package com.ai.phoneagent
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
-import android.widget.EditText
-import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
-import com.ai.phoneagent.databinding.ActivityDrawerSettingsBinding
+import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ModelScopeModelDownloader
 import com.ai.phoneagent.system.applyMaterialCloseTransition
 import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
-import com.google.android.material.materialswitch.MaterialSwitch
+import com.ai.phoneagent.ui.settings.DrawerSettingsScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class DrawerSettingsActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityDrawerSettingsBinding
     private val prefs by lazy { getSharedPreferences("app_prefs", MODE_PRIVATE) }
 
     private val apiLastCheckKeyPref = "api_last_check_key"
@@ -36,8 +36,6 @@ class DrawerSettingsActivity : AppCompatActivity() {
     private val apiThirdPartyModelPref = "api_third_party_model"
     private val apiUseLocalModelPref = "api_use_local_model"
 
-    private var suppressApiInputWatcher = false
-    private var suppressModelSwitchWatcher = false
     private var remoteApiOk: Boolean? = null
     private var remoteApiChecking: Boolean = false
     private var apiCheckSeq: Int = 0
@@ -45,157 +43,89 @@ class DrawerSettingsActivity : AppCompatActivity() {
     private var qwenDownloadInFlight: Boolean = false
     private var localModelReady: Boolean = false
 
+    private var apiInputText by mutableStateOf("")
+    private var apiInputTag by mutableStateOf("")
+    private var useThirdPartyApi by mutableStateOf(false)
+    private var useLocalModel by mutableStateOf(false)
+    private var apiBaseUrlText by mutableStateOf("")
+    private var apiModelText by mutableStateOf("")
+    private var apiStatusText by mutableStateOf("")
+    private var apiStatusPositive by mutableStateOf(false)
+    private var qwenButtonText by mutableStateOf("")
+    private var qwenButtonEnabled by mutableStateOf(true)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityDrawerSettingsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
+        restoreSettings()
 
-        binding.topAppBar.setNavigationOnClickListener { finishWithTransition() }
-        binding.btnOpenAutomation.setOnClickListener {
-            val intent = Intent(this, AutomationActivityNew::class.java)
-            startActivityWithMaterialForwardTransition(intent)
-        }
-        binding.btnOpenAbout.setOnClickListener {
-            val intent = Intent(this, AboutActivity::class.java)
-            startActivityWithMaterialForwardTransition(intent)
-        }
-        binding.btnGetApiKey.setOnClickListener {
-            runCatching {
-                startActivity(
-                    Intent(
-                        Intent.ACTION_VIEW,
-                        Uri.parse("https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys"),
-                    ),
+        setContent {
+            AriesMaterialTheme {
+                DrawerSettingsScreen(
+                    apiInput = apiInputText,
+                    useThirdPartyApi = useThirdPartyApi,
+                    useLocalModel = useLocalModel,
+                    apiBaseUrl = apiBaseUrlText,
+                    apiModel = apiModelText,
+                    apiStatus = apiStatusText,
+                    apiStatusPositive = apiStatusPositive,
+                    qwenButtonText = qwenButtonText,
+                    qwenButtonEnabled = qwenButtonEnabled,
+                    onBack = { finishWithTransition() },
+                    onApiInputChange = { value ->
+                        apiInputTag = ""
+                        apiInputText = value
+                        if (value.isBlank()) {
+                            onApiConfigChanged(clearApiValue = true)
+                        } else {
+                            onApiConfigChanged(clearApiValue = false)
+                        }
+                    },
+                    onPasteApi = { pasteApiKey() },
+                    onOpenApiKeyPage = { openApiKeyPage() },
+                    onUseThirdPartyChange = { checked ->
+                        useThirdPartyApi = checked
+                        onApiConfigChanged(clearApiValue = false)
+                    },
+                    onApiBaseUrlChange = { value ->
+                        apiBaseUrlText = value
+                        if (useThirdPartyApi) {
+                            onApiConfigChanged(clearApiValue = false)
+                        }
+                    },
+                    onApiModelChange = { value ->
+                        apiModelText = value
+                        if (useThirdPartyApi) {
+                            onApiConfigChanged(clearApiValue = false)
+                        }
+                    },
+                    onUseLocalModelChange = { checked ->
+                        useLocalModel = checked
+                        prefs.edit().putBoolean(apiUseLocalModelPref, checked).apply()
+                        if (checked && !localModelReady) {
+                            Toast.makeText(
+                                this,
+                                R.string.m3t_sidebar_local_model_not_ready,
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                        updateStatusText()
+                    },
+                    onCheckApi = { checkApiConnection() },
+                    onDownloadQwenModel = { enqueueQwenDownloads() },
+                    onOpenAutomation = {
+                        startActivityWithMaterialForwardTransition(
+                            Intent(this, AutomationActivityNew::class.java),
+                        )
+                    },
+                    onOpenAbout = {
+                        startActivityWithMaterialForwardTransition(
+                            Intent(this, AboutActivity::class.java),
+                        )
+                    },
                 )
             }
         }
-        binding.btnPasteApiInput.setOnClickListener {
-            val clipboard =
-                getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-            val pasted =
-                clipboard?.primaryClip
-                    ?.takeIf { it.itemCount > 0 }
-                    ?.getItemAt(0)
-                    ?.coerceToText(this)
-                    ?.toString()
-                    ?.trim()
-                    .orEmpty()
-            if (pasted.isBlank()) {
-                Toast.makeText(this, R.string.settings_clipboard_empty, Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            binding.apiInput.tag = ""
-            binding.apiInput.setText(pasted)
-            binding.apiInput.setSelection(binding.apiInput.text?.length ?: 0)
-            Toast.makeText(this, R.string.settings_api_key_pasted, Toast.LENGTH_SHORT).show()
-        }
-        binding.swUseThirdPartyApi.setOnCheckedChangeListener { _, checked ->
-            if (suppressModelSwitchWatcher) return@setOnCheckedChangeListener
-            binding.apiThirdPartyContainer.visibility =
-                if (checked) android.view.View.VISIBLE else android.view.View.GONE
-            prefs.edit().putBoolean(apiUseThirdPartyPref, checked).apply()
-            onApiConfigChanged(clearApiValue = false)
-        }
-        binding.swUseLocalModel.setOnCheckedChangeListener { _, checked ->
-            if (suppressModelSwitchWatcher) return@setOnCheckedChangeListener
-            prefs.edit().putBoolean(apiUseLocalModelPref, checked).apply()
-            if (checked && !localModelReady) {
-                Toast.makeText(this, R.string.m3t_sidebar_local_model_not_ready, Toast.LENGTH_LONG).show()
-            }
-            updateStatusText()
-        }
-        binding.apiInput.addTextChangedListener(
-            object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                override fun afterTextChanged(s: Editable?) {
-                    if (suppressApiInputWatcher) return
-                    val displayed = s?.toString().orEmpty()
-                    val tagKey = (binding.apiInput.tag as? String).orEmpty()
-                    val savedKey = prefs.getString("api_key", "").orEmpty()
-                    val isMaskedUnchanged = displayed.contains("*") && displayed == maskKey(tagKey)
-                    if (isMaskedUnchanged && tagKey.isNotBlank() && tagKey == savedKey) return
-                    if (displayed.isBlank()) {
-                        onApiConfigChanged(clearApiValue = true)
-                        return
-                    }
-                    onApiConfigChanged(clearApiValue = false)
-                }
-            },
-        )
-        val thirdPartyWatcher =
-            object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                override fun afterTextChanged(s: Editable?) {
-                    if (suppressApiInputWatcher || !binding.swUseThirdPartyApi.isChecked) return
-                    prefs.edit()
-                        .putString(apiThirdPartyBaseUrlPref, binding.apiBaseUrlInput.text?.toString()?.trim().orEmpty())
-                        .putString(apiThirdPartyModelPref, binding.apiModelInput.text?.toString()?.trim().orEmpty())
-                        .apply()
-                    onApiConfigChanged(clearApiValue = false)
-                }
-            }
-        binding.apiBaseUrlInput.addTextChangedListener(thirdPartyWatcher)
-        binding.apiModelInput.addTextChangedListener(thirdPartyWatcher)
-        binding.btnCheckApi.setOnClickListener {
-            val key = resolveApiKeyFromInput()
-            if (key.isBlank()) {
-                Toast.makeText(this, R.string.settings_api_key_required, Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            prefs.edit().putString("api_key", key).apply()
-            binding.apiInput.tag = key
-            suppressApiInputWatcher = true
-            binding.apiInput.setText(maskKey(key))
-            binding.apiInput.setSelection(binding.apiInput.text?.length ?: 0)
-            suppressApiInputWatcher = false
-            val baseUrl = resolveApiBaseUrl()
-            val model = resolveApiModel()
-            startApiCheck(key = key, baseUrl = baseUrl, model = model, force = true)
-        }
-        binding.btnDownloadQwenModel.setOnClickListener {
-            if (qwenDownloadInFlight) return@setOnClickListener
-            qwenDownloadInFlight = true
-            updateQwenDownloadButtonState()
-            lifecycleScope.launch {
-                val result = ModelScopeModelDownloader.enqueueQwen35Downloads(this@DrawerSettingsActivity)
-                qwenDownloadInFlight = false
-                result.onSuccess {
-                    localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this@DrawerSettingsActivity)
-                    updateQwenDownloadButtonState()
-                    val message =
-                        when {
-                            it.enqueuedCount > 0 ->
-                                getString(
-                                    R.string.m3t_sidebar_qwen_download_summary_format,
-                                    it.enqueuedCount,
-                                    it.skippedCount,
-                                    it.targetDir,
-                                )
-                            it.skippedCount > 0 -> getString(R.string.m3t_sidebar_qwen_download_cached)
-                            else -> getString(R.string.m3t_sidebar_qwen_download_enqueued)
-                        }
-                    Toast.makeText(this@DrawerSettingsActivity, message, Toast.LENGTH_LONG).show()
-                    updateStatusText()
-                }.onFailure { err ->
-                    updateQwenDownloadButtonState()
-                    Toast.makeText(
-                        this@DrawerSettingsActivity,
-                        getString(
-                            R.string.m3t_sidebar_qwen_download_failed_format,
-                            err.message?.trim().orEmpty().ifBlank {
-                                getString(R.string.update_download_failed_unknown)
-                            },
-                        ),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                }
-            }
-        }
-
-        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
-        restoreSettings()
     }
 
     override fun onResume() {
@@ -214,37 +144,59 @@ class DrawerSettingsActivity : AppCompatActivity() {
         applyMaterialCloseTransition()
     }
 
+    private fun pasteApiKey() {
+        val clipboard =
+            getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        val pasted =
+            clipboard?.primaryClip
+                ?.takeIf { it.itemCount > 0 }
+                ?.getItemAt(0)
+                ?.coerceToText(this)
+                ?.toString()
+                ?.trim()
+                .orEmpty()
+        if (pasted.isBlank()) {
+            Toast.makeText(this, R.string.settings_clipboard_empty, Toast.LENGTH_SHORT).show()
+            return
+        }
+        apiInputTag = ""
+        apiInputText = pasted
+        Toast.makeText(this, R.string.settings_api_key_pasted, Toast.LENGTH_SHORT).show()
+        onApiConfigChanged(clearApiValue = false)
+    }
+
+    private fun openApiKeyPage() {
+        runCatching {
+            startActivity(
+                Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys"),
+                ),
+            )
+        }
+    }
+
     private fun restoreSettings() {
         val saved = prefs.getString("api_key", "").orEmpty()
-        suppressApiInputWatcher = true
-        suppressModelSwitchWatcher = true
-        binding.apiInput.tag = saved
-        binding.apiInput.setText(maskKey(saved))
-        binding.apiInput.setSelection(binding.apiInput.text?.length ?: 0)
-        binding.swUseThirdPartyApi.isChecked = prefs.getBoolean(apiUseThirdPartyPref, false)
-        binding.swUseLocalModel.isChecked = prefs.getBoolean(apiUseLocalModelPref, false)
-        binding.apiThirdPartyContainer.visibility =
-            if (binding.swUseThirdPartyApi.isChecked) android.view.View.VISIBLE else android.view.View.GONE
-        binding.apiBaseUrlInput.setText(
-            prefs.getString(apiThirdPartyBaseUrlPref, AutoGlmClient.DEFAULT_BASE_URL),
-        )
-        binding.apiModelInput.setText(
-            prefs.getString(apiThirdPartyModelPref, AutoGlmClient.DEFAULT_MODEL),
-        )
-        suppressApiInputWatcher = false
-        suppressModelSwitchWatcher = false
+        apiInputTag = saved
+        apiInputText = maskKey(saved)
+        useThirdPartyApi = prefs.getBoolean(apiUseThirdPartyPref, false)
+        useLocalModel = prefs.getBoolean(apiUseLocalModelPref, false)
+        apiBaseUrlText = prefs.getString(apiThirdPartyBaseUrlPref, AutoGlmClient.DEFAULT_BASE_URL).orEmpty()
+        apiModelText = prefs.getString(apiThirdPartyModelPref, AutoGlmClient.DEFAULT_MODEL).orEmpty()
 
         val lastSig = prefs.getString(apiLastCheckSigPref, "").orEmpty()
-        val currentSig = apiConfigSignature(
-            apiKey = saved,
-            baseUrl = resolveApiBaseUrl(),
-            model = resolveApiModel(),
-        )
+        val currentSig =
+            apiConfigSignature(
+                apiKey = saved,
+                baseUrl = resolveApiBaseUrl(),
+                model = resolveApiModel(),
+            )
         if (saved.isNotBlank() && prefs.contains(apiLastCheckOkPref) && lastSig == currentSig) {
             remoteApiOk = prefs.getBoolean(apiLastCheckOkPref, false)
             remoteApiChecking = false
             lastCheckedApiKey = saved
-            binding.apiStatus.text =
+            apiStatusText =
                 getString(
                     if (remoteApiOk == true) {
                         R.string.settings_api_available
@@ -256,7 +208,7 @@ class DrawerSettingsActivity : AppCompatActivity() {
             remoteApiOk = null
             remoteApiChecking = false
             lastCheckedApiKey = ""
-            binding.apiStatus.text = getString(R.string.m3t_sidebar_api_not_checked)
+            apiStatusText = getString(R.string.m3t_sidebar_api_not_checked)
         }
         updateQwenDownloadButtonState()
         updateStatusText()
@@ -265,23 +217,23 @@ class DrawerSettingsActivity : AppCompatActivity() {
     private fun updateQwenDownloadButtonState() {
         when {
             qwenDownloadInFlight -> {
-                binding.btnDownloadQwenModel.isEnabled = false
-                binding.btnDownloadQwenModel.text = getString(R.string.m3t_sidebar_qwen_download_preparing)
+                qwenButtonEnabled = false
+                qwenButtonText = getString(R.string.m3t_sidebar_qwen_download_preparing)
             }
             localModelReady -> {
-                binding.btnDownloadQwenModel.isEnabled = true
-                binding.btnDownloadQwenModel.text = getString(R.string.m3t_sidebar_qwen_download_ready)
+                qwenButtonEnabled = true
+                qwenButtonText = getString(R.string.m3t_sidebar_qwen_download_ready)
             }
             else -> {
-                binding.btnDownloadQwenModel.isEnabled = true
-                binding.btnDownloadQwenModel.text = getString(R.string.m3t_sidebar_qwen_download)
+                qwenButtonEnabled = true
+                qwenButtonText = getString(R.string.m3t_sidebar_qwen_download)
             }
         }
     }
 
     private fun resolveApiKeyFromInput(): String {
-        val displayed = binding.apiInput.text?.toString().orEmpty()
-        val tagKey = (binding.apiInput.tag as? String).orEmpty().trim()
+        val displayed = apiInputText
+        val tagKey = apiInputTag.trim()
         val savedKey = prefs.getString("api_key", "").orEmpty().trim()
         return when {
             tagKey.isNotBlank() && displayed == maskKey(tagKey) -> tagKey
@@ -292,19 +244,19 @@ class DrawerSettingsActivity : AppCompatActivity() {
     }
 
     private fun resolveApiBaseUrl(): String {
-        if (binding.swUseLocalModel.isChecked) return AutoGlmClient.DEFAULT_BASE_URL
-        if (!binding.swUseThirdPartyApi.isChecked) return AutoGlmClient.DEFAULT_BASE_URL
-        return binding.apiBaseUrlInput.text?.toString()?.trim().orEmpty().ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
+        if (useLocalModel) return AutoGlmClient.DEFAULT_BASE_URL
+        if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_BASE_URL
+        return apiBaseUrlText.trim().ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
     }
 
     private fun resolveApiModel(): String {
-        if (binding.swUseLocalModel.isChecked) return ModelScopeModelDownloader.QWEN35_MODEL_NAME
-        if (!binding.swUseThirdPartyApi.isChecked) return AutoGlmClient.DEFAULT_MODEL
-        return binding.apiModelInput.text?.toString()?.trim().orEmpty().ifBlank { AutoGlmClient.DEFAULT_MODEL }
+        if (useLocalModel) return ModelScopeModelDownloader.QWEN35_MODEL_NAME
+        if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_MODEL
+        return apiModelText.trim().ifBlank { AutoGlmClient.DEFAULT_MODEL }
     }
 
     private fun apiConfigSignature(apiKey: String, baseUrl: String, model: String): String {
-        return "${if (binding.swUseThirdPartyApi.isChecked) "1" else "0"}|${apiKey.trim()}|${baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }}|${model.ifBlank { AutoGlmClient.DEFAULT_MODEL }}"
+        return "${if (useThirdPartyApi) "1" else "0"}|${apiKey.trim()}|${baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }}|${model.ifBlank { AutoGlmClient.DEFAULT_MODEL }}"
     }
 
     private fun onApiConfigChanged(clearApiValue: Boolean) {
@@ -318,23 +270,78 @@ class DrawerSettingsActivity : AppCompatActivity() {
                 .remove(apiLastCheckKeyPref)
                 .remove(apiLastCheckOkPref)
                 .remove(apiLastCheckTimePref)
-                .putBoolean(apiUseThirdPartyPref, binding.swUseThirdPartyApi.isChecked)
-                .putBoolean(apiUseLocalModelPref, binding.swUseLocalModel.isChecked)
-                .putString(apiThirdPartyBaseUrlPref, binding.apiBaseUrlInput.text?.toString()?.trim().orEmpty())
-                .putString(apiThirdPartyModelPref, binding.apiModelInput.text?.toString()?.trim().orEmpty())
+                .putBoolean(apiUseThirdPartyPref, useThirdPartyApi)
+                .putBoolean(apiUseLocalModelPref, useLocalModel)
+                .putString(apiThirdPartyBaseUrlPref, apiBaseUrlText.trim())
+                .putString(apiThirdPartyModelPref, apiModelText.trim())
         if (clearApiValue) {
             editor.remove("api_key")
         }
         editor.apply()
-        binding.apiStatus.text = getString(R.string.m3t_sidebar_api_not_checked)
+        apiStatusText = getString(R.string.m3t_sidebar_api_not_checked)
         updateStatusText()
+    }
+
+    private fun checkApiConnection() {
+        val key = resolveApiKeyFromInput()
+        if (key.isBlank()) {
+            Toast.makeText(this, R.string.settings_api_key_required, Toast.LENGTH_SHORT).show()
+            return
+        }
+        prefs.edit().putString("api_key", key).apply()
+        apiInputTag = key
+        apiInputText = maskKey(key)
+        val baseUrl = resolveApiBaseUrl()
+        val model = resolveApiModel()
+        startApiCheck(key = key, baseUrl = baseUrl, model = model, force = true)
+    }
+
+    private fun enqueueQwenDownloads() {
+        if (qwenDownloadInFlight) return
+        qwenDownloadInFlight = true
+        updateQwenDownloadButtonState()
+        lifecycleScope.launch {
+            val result = ModelScopeModelDownloader.enqueueQwen35Downloads(this@DrawerSettingsActivity)
+            qwenDownloadInFlight = false
+            result.onSuccess {
+                localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this@DrawerSettingsActivity)
+                updateQwenDownloadButtonState()
+                val message =
+                    when {
+                        it.enqueuedCount > 0 ->
+                            getString(
+                                R.string.m3t_sidebar_qwen_download_summary_format,
+                                it.enqueuedCount,
+                                it.skippedCount,
+                                it.targetDir,
+                            )
+                        it.skippedCount > 0 -> getString(R.string.m3t_sidebar_qwen_download_cached)
+                        else -> getString(R.string.m3t_sidebar_qwen_download_enqueued)
+                    }
+                Toast.makeText(this@DrawerSettingsActivity, message, Toast.LENGTH_LONG).show()
+                updateStatusText()
+            }.onFailure { err ->
+                updateQwenDownloadButtonState()
+                Toast.makeText(
+                    this@DrawerSettingsActivity,
+                    getString(
+                        R.string.m3t_sidebar_qwen_download_failed_format,
+                        err.message?.trim().orEmpty().ifBlank {
+                            getString(R.string.update_download_failed_unknown)
+                        },
+                    ),
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
+        }
     }
 
     private fun startApiCheck(key: String, baseUrl: String, model: String, force: Boolean) {
         val normalizedBaseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
         val validationError = validateBaseUrlSecurity(normalizedBaseUrl)
         if (validationError != null) {
-            binding.apiStatus.text = getString(R.string.settings_api_unsafe)
+            apiStatusText = getString(R.string.settings_api_unsafe)
+            apiStatusPositive = false
             Toast.makeText(this, validationError, Toast.LENGTH_LONG).show()
             return
         }
@@ -342,7 +349,7 @@ class DrawerSettingsActivity : AppCompatActivity() {
         remoteApiChecking = true
         remoteApiOk = null
         lastCheckedApiKey = key.trim()
-        binding.apiStatus.text = getString(R.string.settings_api_checking)
+        apiStatusText = getString(R.string.settings_api_checking)
         updateStatusText()
         val seq = ++apiCheckSeq
         lifecycleScope.launch {
@@ -357,7 +364,7 @@ class DrawerSettingsActivity : AppCompatActivity() {
             if (seq != apiCheckSeq) return@launch
             remoteApiChecking = false
             remoteApiOk = result.ok
-            binding.apiStatus.text =
+            apiStatusText =
                 getString(
                     if (result.ok) {
                         R.string.settings_api_available
@@ -384,18 +391,9 @@ class DrawerSettingsActivity : AppCompatActivity() {
     }
 
     private fun updateStatusText() {
-        binding.apiStatus.setTextColor(
-            ContextCompat.getColor(
-                this,
-                if (remoteApiOk == true || binding.swUseLocalModel.isChecked) {
-                    R.color.m3t_primary
-                } else {
-                    R.color.m3t_on_surface_variant
-                },
-            ),
-        )
-        if (binding.swUseLocalModel.isChecked) {
-            binding.apiStatus.text =
+        apiStatusPositive = remoteApiOk == true || useLocalModel
+        if (useLocalModel) {
+            apiStatusText =
                 getString(
                     if (localModelReady) {
                         R.string.m3t_sidebar_local_model_ready
@@ -403,6 +401,8 @@ class DrawerSettingsActivity : AppCompatActivity() {
                         R.string.m3t_sidebar_local_model_not_ready
                     },
                 )
+        } else if (!remoteApiChecking && remoteApiOk == null) {
+            apiStatusText = getString(R.string.m3t_sidebar_api_not_checked)
         }
     }
 
