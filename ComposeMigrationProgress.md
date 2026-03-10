@@ -5,8 +5,8 @@
 
 ## 进度口径
 
-- 可见界面迁移进度：`约 90%`
-- 底层架构彻底迁移进度：`约 72%`
+- 可见界面迁移进度：`约 95%`
+- 底层架构彻底迁移进度：`约 82%`
 
 说明：
 - “可见界面迁移进度”指用户实际看到的页面是否已经切到 Compose Material 3。
@@ -54,17 +54,21 @@
   - 主界面流式 AI 消息已不再依赖 hidden `item_ai_message_complex` 和 `StreamRenderHelper` 作为临时渲染宿主。
   - 主界面发送链的思考增量、回答增量、最终持久化已改成直接由 Compose transcript 状态驱动。
   - 主界面 legacy AI 气泡渲染、旧打字机消息函数、旧“正在思考”占位函数已从 `MainActivity` 清出主工程代码。
+- 本轮继续大幅推进：
+  - 自动化控制面板的任务输入、日志文本、虚拟屏状态文案、推荐任务文案已切到 Compose state 直驱。
+  - 自动化控制面板的复制日志动作不再依赖 hidden `TextView` 长按回调。
+  - 自动化控制面板的开始/暂停/停止按钮状态已开始由 Compose 侧派生，不再完全反向读取 hidden legacy 按钮。
 - 仍存在问题：
   - 自动化运行时状态仍有少量 legacy View 引用字段保留在 `MainActivity.kt` 中。
-  - 自动化控制台页面本身仍有 hidden legacy bridge。
+  - 自动化控制台页面本身仍保留一层 hidden legacy bridge 用于部分权限控件与动画兼容。
   - Compose 侧的复制/重试已经接入，但底层仍通过旧消息存储和旧发送链驱动。
-  - `MainActivity.kt` 仍是 View + Compose 混合状态管理。
+  - `MainActivity.kt` 与 `AutomationActivityNew.kt` 仍是 View + Compose 混合状态管理。
 - 下一步：把消息流、交互按钮、自动化消息卡全部改成纯 Compose。
 
 ## 未完成
 
 - 继续清除 `MainActivity` 中剩余的自动化 legacy 运行时引用。
-- 移除 `AutomationActivityNew` 中隐藏的 legacy 容器依赖。
+- 移除 `AutomationActivityNew` 中剩余的 hidden legacy 控件依赖。
 - 将更多页面状态迁移到 Compose-first 状态模型，而不是继续由 View 驱动。
 - 继续拆分超长页面逻辑，减少 `MainActivity.kt` 和 `AutomationActivityNew.kt` 的职责。
 
@@ -98,7 +102,7 @@
 ## 下一阶段目标
 
 - 继续清理主界面剩余自动化 runtime 的 legacy 引用。
-- 开始收 `AutomationActivityNew` 的 hidden legacy bridge。
+- 继续收 `AutomationActivityNew` 剩余的 hidden legacy bridge。
 - 完成自动化控制台去 legacy bridge。
 
 ## 本轮完成
@@ -111,6 +115,8 @@
 - 主界面用户消息已经完全改由 Compose transcript 可见层承接，不再依赖 hidden legacy 用户气泡。
 - 主界面流式 AI 消息已经完全改由 Compose transcript 状态承接，不再依赖 hidden legacy AI 渲染宿主。
 - `MainActivity.kt` 中旧 AI 气泡渲染、旧打字机消息、旧“正在思考”占位代码已大规模删除。
+- 自动化控制面板的任务输入、日志、虚拟屏状态、推荐任务文案已改为 Compose state 主导。
+- 自动化控制面板的日志复制和按钮状态开始脱离 hidden legacy 控件反向取值。
 - 中文进度文件已切换为强制实时更新模式。
 
-完成以上几项后，主界面内容可视主链已基本完成 Compose 化，接下来重点转向自动化页和剩余 runtime bridge。
+完成以上几项后，主界面和自动化页的可见主链都已接近 Compose 化完成，接下来重点转向彻底删除剩余 hidden bridge。

@@ -54,7 +54,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.NestedScrollView
-import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.lifecycleScope
 import com.ai.phoneagent.core.automation.AutomationInstructionRequest
 import com.ai.phoneagent.core.automation.AutomationLogBridge
@@ -332,7 +331,6 @@ class AutomationActivityNew : AppCompatActivity() {
         }
 
         setupComposeContent()
-        etTask.addTextChangedListener { syncComposeStateFromLegacyViews() }
 
         if (forceTopOnEntry) {
             binding.root.post { scrollLogToTop() }
@@ -370,12 +368,14 @@ class AutomationActivityNew : AppCompatActivity() {
                 }
             }
             updateVirtualDisplayStatus()
-            tvModeDescription.text =
-                    if (isBackgroundMode) {
-                        getString(R.string.automation_mode_description_background)
-                    } else {
-                        getString(R.string.automation_mode_description_front)
-                    }
+            setModeDescriptionText(
+                if (isBackgroundMode) {
+                    getString(R.string.automation_mode_description_background)
+                } else {
+                    getString(R.string.automation_mode_description_front)
+                },
+                mirrorLegacy = true,
+            )
             syncComposeStateFromLegacyViews()
         }
 
@@ -383,12 +383,16 @@ class AutomationActivityNew : AppCompatActivity() {
                 VirtualDisplayConfig.getUseShizukuInteraction(this@AutomationActivityNew)
         switchAutoApproveAutomation.isChecked =
                 VirtualDisplayConfig.getAutoApproveAutomation(this@AutomationActivityNew)
+        composeUseShizukuInteraction = switchShizukuInteraction.isChecked
+        composeAutoApprove = switchAutoApproveAutomation.isChecked
         switchAutoApproveAutomation.setOnCheckedChangeListener { _, checked ->
             VirtualDisplayConfig.setAutoApproveAutomation(this@AutomationActivityNew, checked)
+            composeAutoApprove = checked
             syncComposeStateFromLegacyViews()
         }
         switchShizukuInteraction.setOnCheckedChangeListener { _, checked ->
             VirtualDisplayConfig.setUseShizukuInteraction(this@AutomationActivityNew, checked)
+            composeUseShizukuInteraction = checked
             if (checked) {
                 val state = collectRuntimeConnectionState()
                 if (!state.shizukuBinderConnected) {
@@ -434,8 +438,7 @@ class AutomationActivityNew : AppCompatActivity() {
                             .getOrElse(currentRecommendIndex) {
                                 getString(R.string.automation_recommend_task_default)
                             }
-            etTask.setText(recommendText)
-            syncComposeStateFromLegacyViews()
+            setTaskText(recommendText, mirrorLegacy = true)
             Toast.makeText(this, "已填入推荐任务", Toast.LENGTH_SHORT).show()
         }
 
@@ -612,10 +615,7 @@ class AutomationActivityNew : AppCompatActivity() {
                             }
                         },
                         onTaskChange = { value ->
-                            if (etTask.text?.toString().orEmpty() != value) {
-                                etTask.setText(value)
-                                etTask.setSelection(etTask.text?.length ?: 0)
-                            }
+                            setTaskText(value, mirrorLegacy = true)
                         },
                         onVoiceTask = {
                             vibrateLight()
@@ -627,7 +627,7 @@ class AutomationActivityNew : AppCompatActivity() {
                         },
                         onUseRecommendTask = {
                             vibrateLight()
-                            tvRecommendTask.performClick()
+                            setTaskText(composeRecommendText, mirrorLegacy = true)
                         },
                         onStart = {
                             vibrateLight()
@@ -645,7 +645,7 @@ class AutomationActivityNew : AppCompatActivity() {
                             vibrateLight()
                             stopAgent()
                         },
-                        onCopyLog = { tvLog.performLongClick() },
+                        onCopyLog = { copyComposeLog() },
                 )
             }
         }
@@ -658,45 +658,136 @@ class AutomationActivityNew : AppCompatActivity() {
                 else -> AutomationStatusTone.Inactive
             }
 
-    private fun syncComposeStateFromLegacyViews() {
-        composeTaskText = etTask.text?.toString().orEmpty()
-        composeTaskHint =
-                etTask.hint?.toString().orEmpty().ifBlank { getString(R.string.automation_task_hint) }
-        composeRecommendText =
-                tvRecommendTask.text?.toString().orEmpty().ifBlank {
-                    getString(R.string.automation_recommend_task_default)
-                }
+    private fun setTaskText(value: String, mirrorLegacy: Boolean = false) {
+        composeTaskText = value
+        if (mirrorLegacy && ::etTask.isInitialized) {
+            val current = etTask.text?.toString().orEmpty()
+            if (current != value) {
+                etTask.setText(value)
+                etTask.setSelection(etTask.text?.length ?: 0)
+            }
+        }
+    }
+
+    private fun setTaskHintText(value: String, mirrorLegacy: Boolean = false) {
+        composeTaskHint = value
+        if (mirrorLegacy && ::etTask.isInitialized) {
+            etTask.hint = value
+        }
+    }
+
+    private fun setRecommendText(value: String, mirrorLegacy: Boolean = false) {
+        composeRecommendText = value
+        if (mirrorLegacy && ::tvRecommendTask.isInitialized) {
+            tvRecommendTask.text = value
+        }
+    }
+
+    private fun resetLogText(mirrorLegacy: Boolean = false) {
+        composeLogText = ""
+        if (mirrorLegacy && ::tvLog.isInitialized) {
+            tvLog.text = ""
+        }
+    }
+
+    private fun appendComposeLog(message: String, mirrorLegacy: Boolean = false) {
         composeLogText =
-                tvLog.text?.toString().orEmpty().ifBlank { getString(R.string.automation_log_default) }
-        composeModeDescription =
+            buildString {
+                val existing = composeLogText.trimEnd()
+                if (existing.isNotBlank()) {
+                    append(existing)
+                    append('\n')
+                }
+                append(message)
+            }
+        if (mirrorLegacy && ::tvLog.isInitialized) {
+            tvLog.append("$message\n")
+        }
+    }
+
+    private fun setModeDescriptionText(value: String, mirrorLegacy: Boolean = false) {
+        composeModeDescription = value
+        if (mirrorLegacy && ::tvModeDescription.isInitialized) {
+            tvModeDescription.text = value
+        }
+    }
+
+    private fun setVirtualDisplayStatusText(value: String, mirrorLegacy: Boolean = false) {
+        composeVirtualDisplayStatus = value
+        if (mirrorLegacy && ::tvVirtualDisplayStatus.isInitialized) {
+            tvVirtualDisplayStatus.text = value
+        }
+    }
+
+    private fun setShizukuAuthorizeVisible(visible: Boolean, mirrorLegacy: Boolean = false) {
+        composeShowShizukuAuthorize = visible
+        if (mirrorLegacy && ::btnShizukuAuthorize.isInitialized) {
+            btnShizukuAuthorize.visibility = if (visible) View.VISIBLE else View.GONE
+            btnShizukuAuthorize.isEnabled = visible
+            btnShizukuAuthorize.alpha = 1f
+        }
+    }
+
+    private fun updateComposeControlState(canStart: Boolean) {
+        val running = agentJob != null
+        composeStartButtonText =
+            if (running) {
+                getString(R.string.automation_terminate)
+            } else {
+                getString(R.string.automation_start_now)
+            }
+        composeStartButtonEnabled = if (running) true else canStart
+        composeStartButtonTerminateStyle = running
+        composePauseButtonText =
+            if (paused) {
+                getString(R.string.automation_resume)
+            } else {
+                getString(R.string.automation_pause)
+            }
+        composePauseButtonEnabled = running
+        composeStopButtonEnabled = running
+    }
+
+    private fun copyComposeLog() {
+        val text = composeLogText.trim()
+        if (text.isBlank()) {
+            Toast.makeText(this, "暂无可复制的日志", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("Automation Log", text))
+        if (::tvLog.isInitialized) {
+            tvLog.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            playLogCopyAnim(tvLog)
+        }
+        Toast.makeText(this, "日志已复制", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun syncComposeStateFromLegacyViews() {
+        if (composeTaskText.isBlank() && ::etTask.isInitialized) {
+            composeTaskText = etTask.text?.toString().orEmpty()
+        }
+        if (composeTaskHint.isBlank()) {
+            composeTaskHint = getString(R.string.automation_task_hint)
+        }
+        if (composeRecommendText.isBlank()) {
+            composeRecommendText = getString(R.string.automation_recommend_task_default)
+        }
+        if (composeLogText.isBlank() && ::tvLog.isInitialized) {
+            composeLogText = tvLog.text?.toString().orEmpty()
+        }
+        if (composeModeDescription.isBlank()) {
+            composeModeDescription =
                 if (isBackgroundMode) {
                     getString(R.string.automation_mode_description_background)
                 } else {
                     getString(R.string.automation_mode_description_front)
                 }
-        composeVirtualDisplayStatus =
-                tvVirtualDisplayStatus.text?.toString().orEmpty().ifBlank {
-                    getString(R.string.automation_virtual_display_status_default)
-                }
-        composeUseShizukuInteraction = switchShizukuInteraction.isChecked
-        composeAutoApprove = switchAutoApproveAutomation.isChecked
-        composeShowShizukuAuthorize = btnShizukuAuthorize.visibility == View.VISIBLE
-        composeStartButtonText =
-                if (agentJob != null) {
-                    getString(R.string.automation_terminate)
-                } else {
-                    getString(R.string.automation_start_now)
-                }
-        composeStartButtonEnabled = btnStartAgent.isEnabled
-        composeStartButtonTerminateStyle = agentJob != null
-        composePauseButtonText =
-                if (paused) {
-                    getString(R.string.automation_resume)
-                } else {
-                    getString(R.string.automation_pause)
-                }
-        composePauseButtonEnabled = btnPauseAgent.isEnabled
-        composeStopButtonEnabled = btnStopAgent.isEnabled
+        }
+        if (composeVirtualDisplayStatus.isBlank()) {
+            composeVirtualDisplayStatus = getString(R.string.automation_virtual_display_status_default)
+        }
+        updateComposeControlState(composeCanStart)
     }
 
     private fun updateComposeStatusSnapshot(
@@ -821,8 +912,7 @@ class AutomationActivityNew : AppCompatActivity() {
         overlayClickReturnToMain = mirrorLogsToMain
         lastDispatchedTask = task
 
-        etTask.setText(task)
-        etTask.setSelection(etTask.text?.length ?: 0)
+        setTaskText(task, mirrorLegacy = true)
 
         if (source.isNotBlank()) {
             appendLog("接收任务来源：$source")
@@ -905,13 +995,13 @@ class AutomationActivityNew : AppCompatActivity() {
                 ColorStateList.valueOf(ContextCompat.getColor(this, R.color.m3t_primary))
             btnStartAgent.setTextColor(ContextCompat.getColor(this, R.color.m3t_on_primary))
         }
-        syncComposeStateFromLegacyViews()
+        updateComposeControlState(canStart)
     }
 
     /** 检查无障碍服务状态 */
     private fun checkAccessibilityStatus() {
         try {
-            val useShizukuInteraction = switchShizukuInteraction.isChecked
+            val useShizukuInteraction = composeUseShizukuInteraction
             val state = collectRuntimeConnectionState()
             val canStart = resolveRuntimeInteractionPreference(useShizukuInteraction, state) != null
             composeCanStart = canStart
@@ -953,20 +1043,19 @@ class AutomationActivityNew : AppCompatActivity() {
                         else -> R.drawable.bg_circle_red
                     }
             )
-            etTask?.hint =
-                    if (canStart) {
-                        "在此输入或录入您的任务指令..."
-                    } else {
-                        "请先满足当前模式的连接条件后再开始"
-                    }
+            setTaskHintText(
+                if (canStart) {
+                    "在此输入或录入您的任务指令..."
+                } else {
+                    "请先满足当前模式的连接条件后再开始"
+                },
+                mirrorLegacy = true,
+            )
             etTask?.isEnabled = true
             btnOpenAccessibilitySettings.visibility = View.VISIBLE
             btnOpenAccessibilitySettings.isEnabled = true
 
-            btnShizukuAuthorize.visibility =
-                    if (state.shizukuBinderConnected) View.VISIBLE else View.GONE
-            btnShizukuAuthorize.isEnabled = state.shizukuBinderConnected
-            btnShizukuAuthorize.alpha = 1f
+            setShizukuAuthorizeVisible(state.shizukuBinderConnected, mirrorLegacy = true)
             syncStartButtonState(canStart)
             updateComposeStatusSnapshot(useShizukuInteraction, state, canStart)
             syncComposeStateFromLegacyViews()
@@ -1044,7 +1133,7 @@ class AutomationActivityNew : AppCompatActivity() {
                 checkAccessibilityStatus()
                 val canStart =
                         resolveRuntimeInteractionPreference(
-                                switchShizukuInteraction.isChecked,
+                                composeUseShizukuInteraction,
                                 state
                         ) != null
                 if (canStart) return@launch
@@ -1103,7 +1192,7 @@ class AutomationActivityNew : AppCompatActivity() {
     private fun startAgent() {
         if (agentJob != null) return
 
-        val task = etTask.text?.toString().orEmpty().trim()
+        val task = composeTaskText.trim()
         if (task.isBlank()) {
             Toast.makeText(this, "请输入任务", Toast.LENGTH_SHORT).show()
             return
@@ -1125,7 +1214,7 @@ class AutomationActivityNew : AppCompatActivity() {
         val model = resolveAutomationModel()
         val useThirdPartyApi =
                 getSharedPreferences("app_prefs", MODE_PRIVATE).getBoolean(apiUseThirdPartyPref, false)
-        val useShizukuInteraction = switchShizukuInteraction.isChecked
+        val useShizukuInteraction = composeUseShizukuInteraction
         var allowAccessibilityPendingConnection = false
         if (useShizukuInteraction) {
             val beforeState = collectRuntimeConnectionState()
@@ -1189,8 +1278,7 @@ class AutomationActivityNew : AppCompatActivity() {
             appendLog("Shizuku 未就绪，已自动回退到无障碍执行")
         }
 
-        tvLog.text = ""
-        syncComposeStateFromLegacyViews()
+        resetLogText(mirrorLegacy = true)
         autoScrollLogToBottom = false
         val modeText = if (isBackgroundMode) "后台虚拟屏模式" else "前端执行模式"
         appendLog("执行模式：$modeText")
@@ -1222,6 +1310,7 @@ class AutomationActivityNew : AppCompatActivity() {
         paused = false
         btnPauseAgent.text = getString(R.string.automation_pause)
         btnStopAgent.isEnabled = true
+        updateComposeControlState(canStart = true)
 
         agentJob =
                 lifecycleScope.launch(Dispatchers.Default) {
@@ -1252,7 +1341,7 @@ class AutomationActivityNew : AppCompatActivity() {
                         // 更新虚拟屏状态显示
                         runOnUiThread {
                             if (isBackgroundMode) {
-                                tvVirtualDisplayStatus.text = "虚拟屏状态: 正在创建..."
+                                setVirtualDisplayStatusText("虚拟屏状态: 正在创建...", mirrorLegacy = true)
                             }
                         }
 
@@ -1321,13 +1410,14 @@ class AutomationActivityNew : AppCompatActivity() {
                                                             val displayId =
                                                                     VirtualDisplayController
                                                                             .getDisplayId()
-                                                            tvVirtualDisplayStatus.text =
-                                                                    "虚拟屏状态: 已启动 (displayId=$displayId)"
+                                                            setVirtualDisplayStatusText(
+                                                                "虚拟屏状态: 已启动 (displayId=$displayId)",
+                                                                mirrorLegacy = true,
+                                                            )
                                                         }
                                                         msg.contains("虚拟屏准备失败") ||
                                                                 msg.contains("虚拟屏模式启动失败") -> {
-                                                            tvVirtualDisplayStatus.text =
-                                                                    "虚拟屏状态: 创建失败"
+                                                            setVirtualDisplayStatusText("虚拟屏状态: 创建失败", mirrorLegacy = true)
                                                         }
                                                     }
                                                 }
@@ -1338,7 +1428,7 @@ class AutomationActivityNew : AppCompatActivity() {
                         AutomationOverlay.complete(result.message)
 
                         // 保存运行结果
-                        val logText = withContext(Dispatchers.Main) { tvLog.text?.toString() ?: "" }
+                        val logText = withContext(Dispatchers.Main) { composeLogText }
                         saveRunResult(result.success, result.message, result.steps, logText)
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) {
@@ -1348,7 +1438,7 @@ class AutomationActivityNew : AppCompatActivity() {
                             appendLog("异常：${e.message}")
                             AutomationOverlay.complete(e.message.orEmpty().ifBlank { "执行异常" })
                             // 保存异常结果
-                            val logText = withContext(Dispatchers.Main) { tvLog.text?.toString() ?: "" }
+                            val logText = withContext(Dispatchers.Main) { composeLogText }
                             saveRunResult(false, e.message ?: "执行异常", 0, logText)
                         }
                     } finally {
@@ -1417,6 +1507,7 @@ class AutomationActivityNew : AppCompatActivity() {
         paused = false
         btnPauseAgent.text = getString(R.string.automation_pause)
         btnStopAgent.isEnabled = false
+        updateComposeControlState(canStart = composeCanStart)
         appendLog("已请求停止")
         if (!hadRunning) {
             appendLog("已停止")
@@ -1445,7 +1536,7 @@ class AutomationActivityNew : AppCompatActivity() {
         paused = !paused
         btnPauseAgent.text =
                 if (paused) getString(R.string.automation_resume) else getString(R.string.automation_pause)
-        syncComposeStateFromLegacyViews()
+        updateComposeControlState(canStart = composeCanStart)
         appendLog(if (paused) "已暂停（等待继续）" else "已继续")
         // 同步暂停状态到虚拟屏预览悬浮窗
         VirtualScreenPreviewOverlay.setPausedState(paused)
@@ -1512,14 +1603,13 @@ class AutomationActivityNew : AppCompatActivity() {
 
     private fun startVoiceInputAnimation() {
         voiceInputAnimJob?.cancel()
-        savedTaskText = etTask.text?.toString().orEmpty()
+        savedTaskText = composeTaskText
         voiceInputAnimJob =
                 lifecycleScope.launch {
                     var dotCount = 1
                     while (true) {
                         val dots = ".".repeat(dotCount)
-                        etTask.setText("正在语音输入$dots")
-                        etTask.setSelection(etTask.text?.length ?: 0)
+                        setTaskText("正在语音输入$dots", mirrorLegacy = true)
                         dotCount = if (dotCount >= 3) 1 else dotCount + 1
                         delay(400)
                     }
@@ -1545,7 +1635,7 @@ class AutomationActivityNew : AppCompatActivity() {
         if (isListening) return
 
         voicePrefix =
-                etTask.text?.toString().orEmpty().trim().let { prefix ->
+                composeTaskText.trim().let { prefix ->
                     if (prefix.isBlank()) "" else if (prefix.endsWith(" ")) prefix else "$prefix "
                 }
 
@@ -1557,8 +1647,7 @@ class AutomationActivityNew : AppCompatActivity() {
                         runOnUiThread {
                             stopVoiceInputAnimation()
                             val txt = (voicePrefix + text).trimStart()
-                            etTask.setText(txt)
-                            etTask.setSelection(etTask.text?.length ?: 0)
+                            setTaskText(txt, mirrorLegacy = true)
                         }
                     }
 
@@ -1566,8 +1655,7 @@ class AutomationActivityNew : AppCompatActivity() {
                         runOnUiThread {
                             stopVoiceInputAnimation()
                             val txt = (voicePrefix + text).trimStart()
-                            etTask.setText(txt)
-                            etTask.setSelection(etTask.text?.length ?: 0)
+                            setTaskText(txt, mirrorLegacy = true)
                         }
                     }
 
@@ -1579,8 +1667,7 @@ class AutomationActivityNew : AppCompatActivity() {
                         runOnUiThread {
                             stopVoiceInputAnimation()
                             val txt = (voicePrefix + text).trimStart()
-                            etTask.setText(if (txt.isBlank()) savedTaskText else txt)
-                            etTask.setSelection(etTask.text?.length ?: 0)
+                            setTaskText(if (txt.isBlank()) savedTaskText else txt, mirrorLegacy = true)
                             stopLocalVoiceInput(triggerRecognizerStop = false)
                         }
                     }
@@ -1588,7 +1675,7 @@ class AutomationActivityNew : AppCompatActivity() {
                     override fun onError(exception: Exception) {
                         runOnUiThread {
                             stopVoiceInputAnimation()
-                            etTask.setText(savedTaskText)
+                            setTaskText(savedTaskText, mirrorLegacy = true)
                             Toast.makeText(
                                             this@AutomationActivityNew,
                                             "识别失败: ${exception.message}",
@@ -1602,7 +1689,7 @@ class AutomationActivityNew : AppCompatActivity() {
                     override fun onTimeout() {
                         runOnUiThread {
                             stopVoiceInputAnimation()
-                            etTask.setText(savedTaskText)
+                            setTaskText(savedTaskText, mirrorLegacy = true)
                             Toast.makeText(this@AutomationActivityNew, "语音识别超时", Toast.LENGTH_SHORT)
                                     .show()
                             stopLocalVoiceInput(triggerRecognizerStop = false)
@@ -1619,10 +1706,9 @@ class AutomationActivityNew : AppCompatActivity() {
         val recognizer = sherpaSpeechRecognizer
         stopVoiceInputAnimation()
 
-        val currentText = etTask.text?.toString().orEmpty()
+        val currentText = composeTaskText
         if (currentText.startsWith("正在语音输入")) {
-            etTask.setText(savedTaskText)
-            etTask.setSelection(etTask.text?.length ?: 0)
+            setTaskText(savedTaskText, mirrorLegacy = true)
         }
 
         if (triggerRecognizerStop) {
@@ -1705,45 +1791,26 @@ class AutomationActivityNew : AppCompatActivity() {
     /** 添加日志 */
     private fun appendLog(message: String) {
         runOnUiThread {
-            tvLog.append("$message\n")
-            syncComposeStateFromLegacyViews()
+            appendComposeLog(message, mirrorLegacy = true)
             AutomationOverlay.updateFromLogLine(message)
             if (mirrorLogsToMain) {
                 AutomationLogBridge.publish(this@AutomationActivityNew, message)
-            }
-
-            if (autoScrollLogToBottom && hasMeaningfulLogOutput()) {
-                // 自动滚动到底部
-                val scrollView = binding.root.findViewById<NestedScrollView>(R.id.scrollLog)
-                scrollView?.post { scrollView.fullScroll(android.view.View.FOCUS_DOWN) }
             }
         }
     }
 
     private fun hasMeaningfulLogOutput(): Boolean {
-        val text = tvLog.text?.toString().orEmpty().trim()
+        val text = composeLogText.trim()
         if (text.isEmpty()) return false
         return text != getString(R.string.automation_log_default).trim()
     }
 
     private fun scrollLogToTop() {
-        val scrollView = binding.root.findViewById<NestedScrollView>(R.id.scrollLog)
-        scrollView?.post { scrollView.fullScroll(android.view.View.FOCUS_UP) }
+        autoScrollLogToBottom = false
     }
 
     private fun setupLogAutoScrollBehavior() {
-        val scrollView = binding.root.findViewById<NestedScrollView>(R.id.scrollLog) ?: return
-        autoScrollLogToBottom = hasMeaningfulLogOutput() && !scrollView.canScrollVertically(1)
-        scrollView.setOnScrollChangeListener { v, _, scrollY, _, oldScrollY ->
-            if (!hasMeaningfulLogOutput()) {
-                autoScrollLogToBottom = false
-                return@setOnScrollChangeListener
-            }
-            val view = v as NestedScrollView
-            val isAtBottom = !view.canScrollVertically(1)
-            val isScrollingDown = scrollY > oldScrollY
-            autoScrollLogToBottom = isAtBottom && isScrollingDown
-        }
+        autoScrollLogToBottom = hasMeaningfulLogOutput()
     }
 
     private fun updateVirtualDisplayStatus() {
@@ -1770,33 +1837,20 @@ class AutomationActivityNew : AppCompatActivity() {
                     append(getString(R.string.automation_virtual_display_status_not_started))
                 }
             }
-            tvVirtualDisplayStatus.text = statusText
+            setVirtualDisplayStatusText(statusText, mirrorLegacy = true)
         } catch (e: Exception) {
-            tvVirtualDisplayStatus.text =
-                    getString(
-                            R.string.automation_virtual_display_status_error,
-                            e.message ?: "未知错误"
-                    )
+            setVirtualDisplayStatusText(
+                getString(
+                    R.string.automation_virtual_display_status_error,
+                    e.message ?: "未知错误"
+                ),
+                mirrorLegacy = true,
+            )
         }
-        syncComposeStateFromLegacyViews()
     }
 
     private fun setupLogCopy() {
-        tvLog.isClickable = true
-        tvLog.isLongClickable = true
-        tvLog.setOnLongClickListener {
-            val text = tvLog.text?.toString().orEmpty()
-            if (text.isBlank()) {
-                Toast.makeText(this, "暂无可复制的日志", Toast.LENGTH_SHORT).show()
-                return@setOnLongClickListener true
-            }
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(ClipData.newPlainText("Automation Log", text))
-            tvLog.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-            playLogCopyAnim(tvLog)
-            Toast.makeText(this, "日志已复制（长按可再次复制）", Toast.LENGTH_SHORT).show()
-            true
-        }
+        Unit
     }
 
     private fun playLogCopyAnim(target: TextView) {
@@ -1841,8 +1895,7 @@ class AutomationActivityNew : AppCompatActivity() {
         try {
             // 初始显示第一条
             currentRecommendIndex = 0
-            tvRecommendTask.text = recommendTasks[currentRecommendIndex]
-            syncComposeStateFromLegacyViews()
+            setRecommendText(recommendTasks[currentRecommendIndex], mirrorLegacy = true)
 
             // 启动协程，每4秒切换
             recommendJob?.cancel()
@@ -1868,8 +1921,7 @@ class AutomationActivityNew : AppCompatActivity() {
                                         .withEndAction {
                                             // 再次检查Activity状态
                                             if (!isDestroyed && !isFinishing) {
-                                                tvRecommendTask.text = nextText
-                                                syncComposeStateFromLegacyViews()
+                                                setRecommendText(nextText, mirrorLegacy = true)
                                                 tvRecommendTask
                                                         .animate()
                                                         .alpha(0.65f)
