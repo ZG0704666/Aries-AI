@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -101,15 +101,11 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.appcompat.widget.ActionMenuView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.ItemTouchHelper
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.ai.phoneagent.databinding.ActivityMainBinding
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
 import com.ai.phoneagent.net.LocalMnnInferenceEngine
 import com.ai.phoneagent.net.ModelScopeModelDownloader
-import com.ai.phoneagent.updates.DialogSizingUtil
 import com.ai.phoneagent.updates.UpdateStartupCoordinator
 import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
 import kotlinx.coroutines.Dispatchers
@@ -178,6 +174,8 @@ import com.ai.phoneagent.data.AttachmentInfo
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
 import com.ai.phoneagent.ui.drawer.ConversationDrawer
 import com.ai.phoneagent.ui.drawer.DrawerConversationUiItem
+import com.ai.phoneagent.ui.history.ConversationHistoryDialog
+import com.ai.phoneagent.ui.history.ConversationHistoryItemUi
 import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.ui.topbar.MainTopBar
 import java.io.InputStream
@@ -613,10 +611,6 @@ class MainActivity : AppCompatActivity() {
                     onNewChat = {
                         vibrateLight()
                         startNewChat(clearUi = true)
-                    },
-                    onOpenHistory = {
-                        vibrateLight()
-                        showHistoryDialog()
                     },
                     onOpenFloatingWindow = {
                         vibrateLight()
@@ -5238,10 +5232,76 @@ class MainActivity : AppCompatActivity() {
 
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        val containerView = layoutInflater.inflate(R.layout.dialog_history, null)
-        dialog.setContentView(containerView)
+        val displayedState =
+            mutableStateListOf<ConversationHistoryItemUi>().apply {
+                addAll(
+                    displayed.map { conversation ->
+                        val lastMessage = conversation.messages.lastOrNull()
+                        val previewRaw =
+                            if (lastMessage?.isUser == false) {
+                                parseStoredAiContent(lastMessage.content).second
+                            } else {
+                                lastMessage?.content.orEmpty()
+                            }
+                        ConversationHistoryItemUi(
+                            id = conversation.id,
+                            title =
+                                conversation.title.ifBlank {
+                                    getString(R.string.history_new_chat)
+                                },
+                            preview = previewRaw.replace('\n', ' ').trim(),
+                        )
+                    }
+                )
+            }
 
-        val cardView = containerView.findViewById<View>(R.id.dialogCard)
+        val composeView =
+            ComposeView(this).apply {
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+                setContent {
+                    AriesMaterialTheme {
+                        ConversationHistoryDialog(
+                            items = displayedState,
+                            onDismiss = {
+                                vibrateLight()
+                                dialog.dismiss()
+                            },
+                            onSelect = { conversationId ->
+                                conversations.firstOrNull { it.id == conversationId }?.let { conversation ->
+                                    activeConversation = conversation
+                                    renderConversation(conversation)
+                                    persistConversations()
+                                }
+                                vibrateLight()
+                                dialog.dismiss()
+                            },
+                            onDelete = { conversationId ->
+                                if (conversations.none { it.id == conversationId }) {
+                                    return@ConversationHistoryDialog
+                                }
+                                displayedState.removeAll { it.id == conversationId }
+                                conversations.removeAll { it.id == conversationId }
+                                if (activeConversation?.id == conversationId) {
+                                    activeConversation = null
+                                    startNewChat(clearUi = true)
+                                }
+                                persistConversations()
+                                if (displayedState.isEmpty()) {
+                                    dialog.dismiss()
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+
+        dialog.setContentView(
+            composeView,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
 
         dialog.window?.let { window ->
             window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
@@ -5249,148 +5309,17 @@ class MainActivity : AppCompatActivity() {
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT
             )
-            window.setDimAmount(0f) // 完全丢弃系统暗色遮罩
-            window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
+            window.setDimAmount(0f)
+            window.setFlags(
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            )
             val params = window.attributes
             params.windowAnimations = 0
             window.attributes = params
         }
 
-        val rv = containerView.findViewById<RecyclerView>(R.id.rvHistory)
-        DialogSizingUtil.applyCompactSizing(
-            context = this,
-            cardView = cardView,
-            scrollBody = null,
-            listView = rv,
-            hasList = true,
-        )
-        rv.layoutManager = LinearLayoutManager(this)
-        val adapter =
-            ConversationAdapter(
-                items = displayed,
-                onClick = { conv ->
-                    activeConversation = conv
-                    renderConversation(conv)
-                    persistConversations()
-                },
-                aiPreviewExtractor = { parseStoredAiContent(it).second },
-            )
-        rv.adapter = adapter
-
-        fun exitDialog() {
-            vibrateLight()
-            cardView.animate()
-                .translationY(cardView.height.toFloat() * 1.5f)
-                .alpha(0f)
-                .setDuration(450)
-                .setInterpolator(AccelerateInterpolator(1.2f))
-                .withEndAction { dialog.dismiss() }
-                .start()
-        }
-
-        containerView.findViewById<View>(R.id.btnClose).setOnClickListener { exitDialog() }
-        // 点击卡片外部区域退出
-        containerView.setOnClickListener { exitDialog() }
-        cardView.setOnClickListener { /* 阻止点击穿透到 containerView */ }
-
-        val helper =
-            ItemTouchHelper(
-                object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
-                    override fun onMove(
-                        recyclerView: RecyclerView,
-                        viewHolder: RecyclerView.ViewHolder,
-                        target: RecyclerView.ViewHolder
-                    ): Boolean = false
-
-                    override fun onSwiped(
-                        viewHolder: RecyclerView.ViewHolder,
-                        direction: Int
-                    ) {
-                        val pos = viewHolder.bindingAdapterPosition
-                        if (pos == RecyclerView.NO_POSITION) return
-                        val removed = displayed.removeAt(pos)
-                        conversations.removeAll { it.id == removed.id }
-
-                        if (activeConversation?.id == removed.id) {
-                            activeConversation = null
-                            startNewChat(clearUi = true)
-                        }
-                        adapter.notifyItemRemoved(pos)
-                        persistConversations()
-                    }
-                }
-            )
-        helper.attachToRecyclerView(rv)
-
-        adapter.onItemSelected = { exitDialog() }
-
         dialog.show()
-
-        // 入场动画：纯正扫入，不再受遮罩影响
-        cardView.post {
-            cardView.translationY = -cardView.height.toFloat() * 1.5f
-            cardView.alpha = 0f
-
-            cardView.animate()
-                .translationY(0f)
-                .alpha(1f)
-                .scaleX(1.0f)
-                .scaleY(1.0f)
-                .setDuration(600)
-                .setInterpolator(OvershootInterpolator(1.1f))
-                .start()
-        }
-    }
-
-    private class ConversationAdapter(
-            private val items: List<Conversation>,
-            private val onClick: (Conversation) -> Unit,
-            private val aiPreviewExtractor: (String) -> String,
-    ) : RecyclerView.Adapter<ConversationAdapter.VH>() {
-
-        var onItemSelected: (() -> Unit)? = null
-
-        class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            val title: TextView = itemView.findViewById(R.id.tvTitle)
-            val subtitle: TextView = itemView.findViewById(R.id.tvSubtitle)
-        }
-
-        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): VH {
-            val v =
-                    android.view.LayoutInflater.from(parent.context)
-                            .inflate(R.layout.item_conversation, parent, false)
-            return VH(v)
-        }
-
-        override fun onBindViewHolder(holder: VH, position: Int) {
-            val c = items[position]
-            holder.title.text =
-                if (c.title.isBlank()) {
-                    holder.itemView.context.getString(R.string.history_new_chat)
-                } else {
-                    c.title
-                }
-            val lastMessage = c.messages.lastOrNull()
-            val previewRaw =
-                if (lastMessage?.isUser == false) {
-                    aiPreviewExtractor(lastMessage.content)
-                } else {
-                    lastMessage?.content.orEmpty()
-                }
-            val preview = previewRaw.replace('\n', ' ').trim()
-            if (preview.isBlank()) {
-                holder.subtitle.visibility = View.GONE
-            } else {
-                holder.subtitle.visibility = View.VISIBLE
-                holder.subtitle.text = preview
-            }
-            holder.itemView.setOnClickListener {
-                onClick(c)
-                onItemSelected?.invoke()
-            }
-        }
-
-        override fun getItemCount(): Int = items.size
     }
 
     private fun attachAnimatedRing(target: View, strokeDp: Float) {

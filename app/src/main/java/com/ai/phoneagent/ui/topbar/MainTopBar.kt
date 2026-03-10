@@ -38,7 +38,6 @@ fun MainTopBar(
     onToggleStatus: () -> Unit,
     onOpenDrawer: () -> Unit,
     onNewChat: () -> Unit,
-    onOpenHistory: () -> Unit,
     onOpenFloatingWindow: () -> Unit,
 ) {
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
@@ -82,12 +81,6 @@ fun MainTopBar(
                         Icon(
                             painter = painterResource(R.drawable.ic_new_chat_24),
                             contentDescription = stringResource(R.string.top_bar_new_chat),
-                        )
-                    }
-                    IconButton(onClick = onOpenHistory) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_history_24),
-                            contentDescription = stringResource(R.string.top_bar_history),
                         )
                     }
                     IconButton(onClick = onOpenFloatingWindow) {

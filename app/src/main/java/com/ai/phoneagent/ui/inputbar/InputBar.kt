@@ -20,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
@@ -70,7 +69,6 @@ fun InputBar(
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val radiusLg = dimensionResource(R.dimen.m3t_radius_lg)
     val inputBarMaxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
-    val inputBarShadow = dimensionResource(R.dimen.m3t_input_bar_shadow)
     val inputShape = RoundedCornerShape(radiusLg)
     // 状态为 Recording (录音中), Recognizing (识别中) 时显示全屏悬浮层
     val showVoiceOverlay = state is InputState.VoiceRecording || state is InputState.VoiceRecognizing
@@ -115,7 +113,6 @@ fun InputBar(
                         .fillMaxWidth(0.92f)
                         .widthIn(max = inputBarMaxWidth)
                         .height(containerHeight)
-                        .shadow(inputBarShadow, inputShape)
                         .animateContentSize(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
                     shape = inputShape,
                     color = colorInputField
@@ -165,8 +162,7 @@ fun InputBar(
                     modifier = Modifier
                         .fillMaxWidth(0.92f)
                         .widthIn(max = inputBarMaxWidth)
-                        .heightIn(min = containerHeight)
-                        .shadow(inputBarShadow, inputShape),
+                        .heightIn(min = containerHeight),
                     shape = inputShape,
                     color = colorInputField
                 ) {

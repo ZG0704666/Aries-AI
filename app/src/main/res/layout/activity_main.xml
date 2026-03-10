@@ -58,7 +58,7 @@
                     android:clipToPadding="false"
                     android:gravity="center_horizontal|bottom"
                     android:orientation="vertical"
-                    android:paddingBottom="@dimen/m3t_spacing_sm">
+                    android:paddingBottom="@dimen/m3t_spacing_xxxs">
 
                     <androidx.compose.ui.platform.ComposeView
                         android:id="@+id/inputBarCompose"
@@ -70,7 +70,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
-                        android:layout_marginTop="@dimen/m3t_spacing_xs"
+                        android:layout_marginTop="@dimen/m3t_spacing_xxxs"
                         android:text="@string/ai_generated_notice"
                         android:textAppearance="@style/TextAppearance.M3t.Label.Small"
                         android:textColor="@color/m3t_on_surface_variant" />
