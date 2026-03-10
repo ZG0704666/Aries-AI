@@ -33,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -327,7 +328,19 @@ private fun ThinkingSection(
     val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
     var expanded by rememberSaveable(item.id) {
-        mutableStateOf(thinkingExpandedByDefault)
+        mutableStateOf(item.isStreaming || thinkingExpandedByDefault)
+    }
+    var wasStreaming by rememberSaveable(item.id) {
+        mutableStateOf(item.isStreaming)
+    }
+
+    LaunchedEffect(item.id, item.isStreaming) {
+        if (item.isStreaming && !wasStreaming) {
+            expanded = true
+        } else if (!item.isStreaming && wasStreaming) {
+            expanded = false
+        }
+        wasStreaming = item.isStreaming
     }
 
     val thinkingLabel =
@@ -342,21 +355,35 @@ private fun ThinkingSection(
             stringResource(R.string.message_thinking_label)
         }
 
+    val cardModifier =
+        if (expanded) {
+            Modifier
+                .fillMaxWidth()
+                .widthIn(max = thinkingCardWidth)
+        } else {
+            Modifier.widthIn(max = thinkingCardWidth)
+        }
+    val contentModifier =
+        if (expanded) {
+            Modifier.fillMaxWidth()
+        } else {
+            Modifier.wrapContentWidth()
+        }
+
     Surface(
-        modifier = Modifier.widthIn(max = thinkingCardWidth),
+        modifier = cardModifier,
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.secondaryContainer,
         tonalElevation = 1.dp,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
+            modifier = contentModifier
                 .animateContentSize()
                 .padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
             verticalArrangement = Arrangement.spacedBy(spacingXs + spacingSm),
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = contentModifier,
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacingSm),
             ) {
@@ -365,7 +392,7 @@ private fun ThinkingSection(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Lightbulb,
+                        painter = androidx.compose.ui.res.painterResource(R.drawable.ic_cognition_24),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(actionIconSize),
@@ -373,7 +400,7 @@ private fun ThinkingSection(
                 }
                 Text(
                     text = thinkingLabel,
-                    modifier = Modifier.weight(1f),
+                    modifier = if (expanded) Modifier.weight(1f) else Modifier,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                     fontWeight = FontWeight.Medium,
@@ -408,7 +435,7 @@ private fun ThinkingSection(
                         text = thinking,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.widthIn(max = thinkingCardWidth - spacingMd - spacingMd),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
