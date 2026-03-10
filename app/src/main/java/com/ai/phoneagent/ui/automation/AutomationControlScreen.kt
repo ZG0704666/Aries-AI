@@ -1,5 +1,10 @@
 package com.ai.phoneagent.ui.automation
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,8 +46,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -66,6 +73,7 @@ fun AutomationControlScreen(
     virtualDisplayStatus: String,
     useShizukuInteraction: Boolean,
     autoApprove: Boolean,
+    isListening: Boolean,
     taskText: String,
     taskHint: String,
     recommendText: String,
@@ -96,7 +104,29 @@ fun AutomationControlScreen(
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val cardPadding = dimensionResource(R.dimen.m3t_about_row_text_gap)
+    val voiceTransition = rememberInfiniteTransition(label = "automationVoice")
+    val voiceScale by
+        voiceTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = if (isListening) 1.12f else 1f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation = tween(durationMillis = 520),
+                    repeatMode = RepeatMode.Reverse,
+                ),
+            label = "automationVoiceScale",
+        )
+    val voiceAlpha by
+        voiceTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = if (isListening) 0.72f else 1f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation = tween(durationMillis = 520),
+                    repeatMode = RepeatMode.Reverse,
+                ),
+            label = "automationVoiceAlpha",
+        )
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -260,7 +290,15 @@ fun AutomationControlScreen(
                         maxLines = 6,
                         placeholder = { Text(taskHint) },
                         trailingIcon = {
-                            IconButton(onClick = onVoiceTask) {
+                            IconButton(
+                                onClick = onVoiceTask,
+                                modifier =
+                                    Modifier.graphicsLayer {
+                                        scaleX = if (isListening) voiceScale else 1f
+                                        scaleY = if (isListening) voiceScale else 1f
+                                        alpha = if (isListening) voiceAlpha else 1f
+                                    },
+                            ) {
                                 Icon(Icons.Outlined.KeyboardVoice, contentDescription = null)
                             }
                         },
