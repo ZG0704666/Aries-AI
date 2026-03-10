@@ -2,11 +2,18 @@ package com.ai.phoneagent.ui.messages
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -16,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
@@ -23,7 +31,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Button
@@ -37,15 +44,21 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ai.phoneagent.R
 
@@ -323,7 +336,6 @@ private fun ThinkingSection(
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val thinkingCardWidth = dimensionResource(R.dimen.m3t_message_thinking_card_max_width)
     val thinkingIconBox = dimensionResource(R.dimen.m3t_message_thinking_icon_box_size)
     val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
@@ -355,90 +367,195 @@ private fun ThinkingSection(
             stringResource(R.string.message_thinking_label)
         }
 
-    val cardModifier =
-        if (expanded) {
-            Modifier
-                .fillMaxWidth()
-                .widthIn(max = thinkingCardWidth)
-        } else {
-            Modifier.widthIn(max = thinkingCardWidth)
-        }
-    val contentModifier =
-        if (expanded) {
-            Modifier.fillMaxWidth()
-        } else {
-            Modifier.wrapContentWidth()
-        }
+    val arrowRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        label = "thinkingArrowRotation",
+    )
+    var bodyVisible by rememberSaveable(item.id) {
+        mutableStateOf(expanded)
+    }
 
-    Surface(
-        modifier = cardModifier,
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        tonalElevation = 1.dp,
+    LaunchedEffect(item.id, expanded) {
+        if (expanded) {
+            kotlinx.coroutines.delay(70)
+            bodyVisible = true
+        } else {
+            bodyVisible = false
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(
-            modifier = contentModifier
-                .animateContentSize()
-                .padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
-            verticalArrangement = Arrangement.spacedBy(spacingXs + spacingSm),
-        ) {
-            Row(
-                modifier = contentModifier,
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacingSm),
-            ) {
-                Box(
-                    modifier = Modifier.size(thinkingIconBox),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = androidx.compose.ui.res.painterResource(R.drawable.ic_cognition_24),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.size(actionIconSize),
-                    )
-                }
-                Text(
-                    text = thinkingLabel,
-                    modifier = if (expanded) Modifier.weight(1f) else Modifier,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    fontWeight = FontWeight.Medium,
-                )
-                IconButton(
-                    modifier = Modifier.size(actionButtonSize),
-                    onClick = {
-                        expanded = !expanded
-                    },
-                ) {
-                    Icon(
-                        imageVector =
-                            if (expanded) {
-                                Icons.Outlined.KeyboardArrowUp
-                            } else {
-                                Icons.Outlined.KeyboardArrowDown
-                            },
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.size(actionIconSize),
-                    )
-                }
+        val density = LocalDensity.current
+        var collapsedWidthPx by rememberSaveable(item.id, thinkingLabel) { mutableStateOf(0) }
+        val expandedWidth = maxWidth
+        val collapsedWidth =
+            if (collapsedWidthPx > 0) {
+                with(density) { collapsedWidthPx.toDp() }
+            } else {
+                Dp.Unspecified
+            }
+        val targetWidth = if (expanded) expandedWidth else collapsedWidth
+        val animatedWidth by animateDpAsState(
+            targetValue = if (targetWidth != Dp.Unspecified) targetWidth else expandedWidth,
+            animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
+            label = "thinkingCardWidth",
+        )
+
+        ThinkingCollapsedMeasure(
+            thinkingLabel = thinkingLabel,
+            thinkingIconBox = thinkingIconBox,
+            actionButtonSize = actionButtonSize,
+            actionIconSize = actionIconSize,
+            spacingSm = spacingSm,
+            spacingMd = spacingMd,
+            spacingXs = spacingXs,
+            onMeasured = { measuredWidth -> collapsedWidthPx = measuredWidth },
+        )
+
+        val surfaceModifier =
+            if (collapsedWidth == Dp.Unspecified && !expanded) {
+                Modifier.wrapContentWidth()
+            } else {
+                Modifier.width(animatedWidth)
             }
 
-            AnimatedVisibility(
-                visible = expanded,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut(),
+        Surface(
+            modifier =
+                surfaceModifier,
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            tonalElevation = 1.dp,
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(
+                            animationSpec = spring(dampingRatio = 0.9f, stiffness = 500f),
+                        )
+                        .padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
+                verticalArrangement = Arrangement.spacedBy(spacingXs + spacingSm),
             ) {
-                SelectionContainer {
-                    Text(
-                        text = thinking,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                ThinkingHeaderRow(
+                    thinkingLabel = thinkingLabel,
+                    thinkingIconBox = thinkingIconBox,
+                    actionButtonSize = actionButtonSize,
+                    actionIconSize = actionIconSize,
+                    spacingSm = spacingSm,
+                    arrowRotation = arrowRotation,
+                    onToggle = { expanded = !expanded },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                AnimatedVisibility(
+                    visible = bodyVisible,
+                    enter = fadeIn(animationSpec = tween(180)) + expandVertically(animationSpec = tween(240, easing = FastOutSlowInEasing)),
+                    exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(animationSpec = tween(200, easing = FastOutSlowInEasing)),
+                ) {
+                    SelectionContainer {
+                        Text(
+                            text = thinking,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ThinkingCollapsedMeasure(
+    thinkingLabel: String,
+    thinkingIconBox: Dp,
+    actionButtonSize: Dp,
+    actionIconSize: Dp,
+    spacingSm: Dp,
+    spacingMd: Dp,
+    spacingXs: Dp,
+    onMeasured: (Int) -> Unit,
+) {
+    Surface(
+        modifier =
+            Modifier
+                .wrapContentWidth()
+                .graphicsLayer { alpha = 0f }
+                .onSizeChanged { onMeasured(it.width) },
+        shape = MaterialTheme.shapes.extraLarge,
+        color = Color.Transparent,
+        tonalElevation = 0.dp,
+    ) {
+        ThinkingHeaderRow(
+            thinkingLabel = thinkingLabel,
+            thinkingIconBox = thinkingIconBox,
+            actionButtonSize = actionButtonSize,
+            actionIconSize = actionIconSize,
+            spacingSm = spacingSm,
+            arrowRotation = 0f,
+            onToggle = {},
+            expandLabel = false,
+            modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
+        )
+    }
+}
+
+@Composable
+private fun ThinkingHeaderRow(
+    thinkingLabel: String,
+    thinkingIconBox: Dp,
+    actionButtonSize: Dp,
+    actionIconSize: Dp,
+    spacingSm: Dp,
+    arrowRotation: Float,
+    onToggle: () -> Unit,
+    expandLabel: Boolean = true,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacingSm),
+    ) {
+        Box(
+            modifier = Modifier.size(thinkingIconBox),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_cognition_24),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(actionIconSize),
+            )
+        }
+        Text(
+            text = thinkingLabel,
+            modifier = if (expandLabel) Modifier.weight(1f) else Modifier,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        IconButton(
+            modifier = Modifier.size(actionButtonSize),
+            onClick = onToggle,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.KeyboardArrowDown,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier =
+                    Modifier
+                        .size(actionIconSize)
+                        .graphicsLayer {
+                            rotationZ = arrowRotation
+                        },
+            )
         }
     }
 }
