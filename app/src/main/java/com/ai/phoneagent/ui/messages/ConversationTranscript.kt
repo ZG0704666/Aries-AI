@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,11 +34,16 @@ data class TranscriptMessageUi(
     val isUser: Boolean,
     val attachments: List<String>,
     val isAutomation: Boolean,
+    val copyText: String,
+    val retryText: String?,
+    val isStreaming: Boolean = false,
 )
 
 @Composable
 fun ConversationTranscript(
     items: List<TranscriptMessageUi>,
+    onCopyMessage: (TranscriptMessageUi) -> Unit,
+    onRetryMessage: (TranscriptMessageUi) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
@@ -64,14 +70,22 @@ fun ConversationTranscript(
         }
 
         items.forEach { item ->
-            TranscriptMessageCard(item = item)
+            TranscriptMessageCard(
+                item = item,
+                onCopyMessage = onCopyMessage,
+                onRetryMessage = onRetryMessage,
+            )
         }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TranscriptMessageCard(item: TranscriptMessageUi) {
+private fun TranscriptMessageCard(
+    item: TranscriptMessageUi,
+    onCopyMessage: (TranscriptMessageUi) -> Unit,
+    onRetryMessage: (TranscriptMessageUi) -> Unit,
+) {
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
@@ -102,7 +116,12 @@ private fun TranscriptMessageCard(item: TranscriptMessageUi) {
                 if (!item.isUser) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = item.author,
+                            text =
+                                if (item.isStreaming) {
+                                    "${item.author} · ${stringResource(R.string.message_streaming_label)}"
+                                } else {
+                                    item.author
+                                },
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold,
@@ -182,6 +201,26 @@ private fun TranscriptMessageCard(item: TranscriptMessageUi) {
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
                                 )
+                            }
+                        }
+                    }
+                }
+
+                if (!item.isUser && !item.isStreaming && (item.copyText.isNotBlank() || !item.retryText.isNullOrBlank())) {
+                    Spacer(modifier = Modifier.height(spacingXs))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (item.copyText.isNotBlank()) {
+                            TextButton(onClick = { onCopyMessage(item) }) {
+                                Text(text = stringResource(R.string.common_copy))
+                            }
+                        }
+                        if (!item.retryText.isNullOrBlank() && !item.isAutomation) {
+                            TextButton(onClick = { onRetryMessage(item) }) {
+                                Text(text = stringResource(R.string.retry))
                             }
                         }
                     }

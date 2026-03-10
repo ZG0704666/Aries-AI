@@ -349,6 +349,8 @@ class MainActivity : AppCompatActivity() {
     private val drawerConversationItemsState = mutableStateOf<List<DrawerConversationUiItem>>(emptyList())
     private val drawerEmptyMessageState = mutableStateOf("")
     private val transcriptItemsState = mutableStateOf<List<TranscriptMessageUi>>(emptyList())
+    private val streamingTranscriptItemState = mutableStateOf<TranscriptMessageUi?>(null)
+    private val streamingTranscriptConversationIdState = mutableStateOf<Long?>(null)
 
     // Aries附件上传相关 - 简化为只保留 ActivityResultLauncher
     private lateinit var ariesImagePickerLauncher: ActivityResultLauncher<String>
@@ -629,7 +631,24 @@ class MainActivity : AppCompatActivity() {
         binding.messagesCompose.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
         binding.messagesCompose.setContent {
             AriesMaterialTheme {
-                ConversationTranscript(items = transcriptItemsState.value)
+                ConversationTranscript(
+                    items =
+                        buildList {
+                            addAll(transcriptItemsState.value)
+                            if (streamingTranscriptConversationIdState.value == activeConversation?.id) {
+                                streamingTranscriptItemState.value?.let { add(it) }
+                            }
+                        },
+                    onCopyMessage = { item -> copyTranscriptMessage(item.copyText) },
+                    onRetryMessage = { item ->
+                        val retryText = item.retryText.orEmpty()
+                        if (retryText.isBlank()) {
+                            Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
+                        } else {
+                            retryMessage(retryText)
+                        }
+                    },
+                )
             }
         }
         syncMessageTranscript()
@@ -647,6 +666,47 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
                 .orEmpty()
+    }
+
+    private fun updateStreamingTranscript(
+        retryText: String?,
+        thinking: String,
+        answer: String,
+    ) {
+        streamingTranscriptConversationIdState.value = activeConversation?.id
+        streamingTranscriptItemState.value =
+            TranscriptMessageUi(
+                id = "streaming-assistant",
+                author = "Aries AI",
+                body =
+                    answer.ifBlank {
+                        if (thinking.isBlank()) getString(R.string.message_streaming_placeholder) else ""
+                    },
+                thinking = thinking.ifBlank { null },
+                isUser = false,
+                attachments = emptyList(),
+                isAutomation = false,
+                copyText = answer,
+                retryText = retryText,
+                isStreaming = true,
+            )
+    }
+
+    private fun clearStreamingTranscript() {
+        streamingTranscriptConversationIdState.value = null
+        streamingTranscriptItemState.value = null
+    }
+
+    private fun updateStreamingTranscriptFromBuffers(
+        retryText: String?,
+        reasoning: CharSequence,
+        answer: CharSequence,
+    ) {
+        updateStreamingTranscript(
+            retryText = retryText,
+            thinking = reasoning.toString(),
+            answer = answer.toString(),
+        )
     }
 
     private fun buildTranscriptMessageUi(
@@ -668,6 +728,8 @@ class MainActivity : AppCompatActivity() {
                             attachment.fileName.ifBlank { File(attachment.filePath).name.ifBlank { attachment.filePath } }
                         },
                 isAutomation = false,
+                copyText = "",
+                retryText = null,
             )
         }
 
@@ -698,7 +760,29 @@ class MainActivity : AppCompatActivity() {
             isUser = false,
             attachments = emptyList(),
             isAutomation = isAutomationMessage,
+            copyText = displayBody,
+            retryText = findRetryTextForAssistantMessage(index),
         )
+    }
+
+    private fun findRetryTextForAssistantMessage(messageIndex: Int): String? {
+        val conversation = activeConversation ?: return null
+        if (messageIndex !in conversation.messages.indices) return null
+        for (index in (messageIndex - 1) downTo 0) {
+            val candidate = conversation.messages[index]
+            if (candidate.isUser && candidate.content.isNotBlank()) {
+                return candidate.content
+            }
+        }
+        return conversation.messages.findLast { it.isUser && it.content.isNotBlank() }?.content
+    }
+
+    private fun copyTranscriptMessage(text: String) {
+        if (text.isBlank()) return
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val clip = android.content.ClipData.newPlainText("AI Reply", text)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(this, "已复制内容", Toast.LENGTH_SHORT).show()
     }
 
     private fun setupComposeDrawer() {
@@ -1007,6 +1091,7 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     binding.messagesContainer.removeAllViews()
                     clearAutomationPanelRuntimeRefs()
+                    clearStreamingTranscript()
                     syncMessageTranscript()
                 }
             }
@@ -2889,6 +2974,7 @@ class MainActivity : AppCompatActivity() {
         val c = Conversation(id = now, title = "", messages = mutableListOf(), updatedAt = now)
         conversations.add(0, c)
         activeConversation = c
+        clearStreamingTranscript()
         syncMessageTranscript(c)
         
         if (clearUi) {
@@ -3148,6 +3234,13 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 smoothScrollToBottom()
+                runOnUiThread {
+                    updateStreamingTranscript(
+                        retryText = baseUserText,
+                        thinking = "",
+                        answer = "",
+                    )
+                }
 
                 // 临时变量用于构建完整内容以方便保存
                 val reasoningSb = StringBuilder()
@@ -3195,6 +3288,13 @@ class MainActivity : AppCompatActivity() {
                         reasoningSb.clear()
                         contentSb.clear()
                         runOnUiThread { StreamRenderHelper.initThinkingState(vh) }
+                        runOnUiThread {
+                            updateStreamingTranscript(
+                                retryText = baseUserText,
+                                thinking = "",
+                                answer = "",
+                            )
+                        }
                         if (FloatingChatService.isRunning()) {
                             FloatingChatService.getInstance()?.resetExternalStreamAiReply()
                         }
@@ -3211,6 +3311,11 @@ class MainActivity : AppCompatActivity() {
                                     delta,
                                     lifecycleScope,
                                 ) { smoothScrollToBottom() }
+                                updateStreamingTranscriptFromBuffers(
+                                    retryText = baseUserText,
+                                    reasoning = reasoningSb,
+                                    answer = contentSb,
+                                )
                             }
                             if (FloatingChatService.isRunning()) {
                                 FloatingChatService.getInstance()
@@ -3241,6 +3346,11 @@ class MainActivity : AppCompatActivity() {
                                             }
                                         }
                                     },
+                                )
+                                updateStreamingTranscriptFromBuffers(
+                                    retryText = baseUserText,
+                                    reasoning = reasoningSb,
+                                    answer = contentSb,
                                 )
                             }
 
@@ -3367,6 +3477,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 )
                 cc.updatedAt = System.currentTimeMillis()
+                clearStreamingTranscript()
                 syncMessageTranscript(cc)
                 persistConversations()
 
@@ -3416,6 +3527,7 @@ class MainActivity : AppCompatActivity() {
             } finally {
                 isRequestInFlight = false
                 inputBarState.value = InputState.Idle
+                clearStreamingTranscript()
             }
         }
     }

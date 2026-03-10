@@ -37,6 +37,8 @@
     <string name="automation_scene_collapse">收起自动化面板</string>
     <string name="automation_scene_expand">展开自动化面板</string>
     <string name="message_thinking_label">思考</string>
+    <string name="message_streaming_label">生成中</string>
+    <string name="message_streaming_placeholder">正在思考...</string>
     <string name="transcript_empty_hint">开始一段新对话</string>
     <string name="automation_toolbar_title">Aries AI 自动化控制台</string>
     <string name="automation_execution_mode_label">执行模式</string>
