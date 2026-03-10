@@ -36,6 +36,7 @@
     <string name="automation_scene_waiting">等待执行日志...</string>
     <string name="automation_scene_collapse">收起自动化面板</string>
     <string name="automation_scene_expand">展开自动化面板</string>
+    <string name="message_user_label">你</string>
     <string name="message_thinking_label">思考</string>
     <string name="message_streaming_label">生成中</string>
     <string name="message_streaming_placeholder">正在思考...</string>
@@ -253,4 +254,6 @@
     <string name="top_bar_new_chat">新建聊天</string>
     <string name="top_bar_history">打开历史记录</string>
     <string name="top_bar_floating_window">打开悬浮窗</string>
+    <string name="message_thinking_duration_format">思考了 %1$.1f 秒</string>
+    <string name="message_thinking_in_progress">思考中</string>
 </resources>

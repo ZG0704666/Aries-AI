@@ -170,6 +170,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.livedata.observeAsState
 import com.ai.phoneagent.data.AttachmentInfo
+import com.ai.phoneagent.data.local.ConversationRecord
+import com.ai.phoneagent.data.local.ConversationStorageRepository
+import com.ai.phoneagent.data.local.StoredAttachmentRecord
+import com.ai.phoneagent.data.local.StoredMessageRecord
+import com.ai.phoneagent.data.preferences.MainUiPreferencesRepository
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
 import com.ai.phoneagent.ui.drawer.ConversationDrawer
 import com.ai.phoneagent.ui.drawer.DrawerConversationUiItem
@@ -181,6 +186,7 @@ import com.ai.phoneagent.ui.messages.TranscriptMessageUi
 import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.ui.topbar.MainTopBar
 import java.io.InputStream
+import kotlinx.coroutines.runBlocking
 
 class MainActivity : AppCompatActivity() {
     
@@ -207,6 +213,60 @@ class MainActivity : AppCompatActivity() {
             var updatedAt: Long,
     )
 
+    private fun Conversation.toStorageRecord(): ConversationRecord {
+        return ConversationRecord(
+            id = id,
+            title = title,
+            updatedAt = updatedAt,
+            messages =
+                messages.map { message ->
+                    StoredMessageRecord(
+                        author = message.author,
+                        content = message.content,
+                        isUser = message.isUser,
+                        thinkingDurationMs = message.thinkingDurationMs,
+                        attachments =
+                            message.attachments.orEmpty().map { attachment ->
+                                StoredAttachmentRecord(
+                                    filePath = attachment.filePath,
+                                    fileName = attachment.fileName,
+                                    mimeType = attachment.mimeType,
+                                    fileSize = attachment.fileSize,
+                                    content = attachment.content,
+                                )
+                            },
+                    )
+                },
+        )
+    }
+
+    private fun ConversationRecord.toConversation(): Conversation {
+        return Conversation(
+            id = id,
+            title = title,
+            updatedAt = updatedAt,
+            messages =
+                messages.map { message ->
+                    UiMessage(
+                        author = message.author,
+                        content = message.content,
+                        isUser = message.isUser,
+                        thinkingDurationMs = message.thinkingDurationMs,
+                        attachments =
+                            message.attachments.map { attachment ->
+                                AttachmentInfo(
+                                    filePath = attachment.filePath,
+                                    fileName = attachment.fileName,
+                                    mimeType = attachment.mimeType,
+                                    fileSize = attachment.fileSize,
+                                    content = attachment.content,
+                                )
+                            }.takeIf { it.isNotEmpty() },
+                    )
+                }.toMutableList(),
+        )
+    }
+
     private data class AutomationMessageRef(
             val conversationId: Long,
             val messageIndex: Int,
@@ -216,6 +276,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var onboardingOverlay: MainOnboardingOverlay
 
     private val prefs by lazy { getSharedPreferences("app_prefs", MODE_PRIVATE) }
+    private val uiPreferencesRepository by lazy { MainUiPreferencesRepository(applicationContext) }
+    private val conversationStorageRepository by lazy { ConversationStorageRepository(applicationContext) }
 
     private val conversations = mutableListOf<Conversation>()
 
@@ -330,14 +392,13 @@ class MainActivity : AppCompatActivity() {
     private val localModelDownloadButtonVisiblePref = "local_model_download_button_visible"
     private val qwenPendingDownloadIdsPref = "qwen_pending_download_ids"
 
-    private val permGuideShownPref = "perm_guide_shown"
-
     private val inputTextState = mutableStateOf("")
     private val inputBarState = mutableStateOf<InputState>(InputState.Idle)
     private val voiceAmplitudeState = mutableStateOf(0f)
     private val agentModeEnabledState = mutableStateOf(false)
     private val statusTextState = mutableStateOf("")
     private val statusVisibleState = mutableStateOf(false)
+    private val thinkingExpandedByDefaultState = mutableStateOf(false)
     private val drawerSearchQueryState = mutableStateOf("")
     private val drawerConversationItemsState = mutableStateOf<List<DrawerConversationUiItem>>(emptyList())
     private val drawerEmptyMessageState = mutableStateOf("")
@@ -366,28 +427,39 @@ class MainActivity : AppCompatActivity() {
     private var qwenDownloadReceiverRegistered = false
 
     private fun persistConversations() {
-        try {
-            val json = com.google.gson.Gson().toJson(conversations)
-            prefs.edit()
-                    .putString(conversationsKey, json)
-                    .putLong(activeConversationIdKey, activeConversation?.id ?: -1L)
-                    .apply()
-            if (::drawerPanel.isInitialized) {
-                refreshDrawerConversationItems()
+        val snapshot = conversations.map { it.toStorageRecord() }
+        val activeConversationId = activeConversation?.id
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                conversationStorageRepository.persistConversations(snapshot)
+                uiPreferencesRepository.setActiveConversationId(activeConversationId)
             }
-        } catch (_: Exception) {
+        }
+        if (::drawerPanel.isInitialized) {
+            refreshDrawerConversationItems()
         }
     }
 
     private fun tryRestoreConversations(): Boolean {
-        val json = prefs.getString(conversationsKey, null) ?: return false
+        val stored =
+            runCatching {
+                runBlocking(Dispatchers.IO) { conversationStorageRepository.loadConversations() }
+            }.getOrNull().orEmpty()
+        val restoredConversations =
+            if (stored.isNotEmpty()) {
+                stored.map { it.toConversation() }
+            } else {
+                tryRestoreLegacyConversations()
+            }
+        if (restoredConversations.isEmpty()) return false
         return try {
-            val type = object : com.google.gson.reflect.TypeToken<List<Conversation>>() {}.type
-            val list: List<Conversation> = com.google.gson.Gson().fromJson(json, type) ?: emptyList()
             conversations.clear()
-            conversations.addAll(list.toMutableList())
+            conversations.addAll(restoredConversations)
 
-            val activeId = prefs.getLong(activeConversationIdKey, -1L)
+            val activeId =
+                runCatching {
+                    runBlocking(Dispatchers.IO) { uiPreferencesRepository.getActiveConversationId() }
+                }.getOrNull() ?: -1L
             activeConversation = conversations.firstOrNull { it.id == activeId } ?: conversations.firstOrNull()
 
             activeConversation?.let { renderConversation(it) }
@@ -398,6 +470,23 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {
             false
         }
+    }
+
+    private fun tryRestoreLegacyConversations(): MutableList<Conversation> {
+        val json = prefs.getString(conversationsKey, null) ?: return mutableListOf()
+        return runCatching {
+            val type = object : com.google.gson.reflect.TypeToken<List<Conversation>>() {}.type
+            val list: List<Conversation> = com.google.gson.Gson().fromJson(json, type) ?: emptyList()
+            val activeId = prefs.getLong(activeConversationIdKey, -1L)
+            lifecycleScope.launch(Dispatchers.IO) {
+                runCatching {
+                    conversationStorageRepository.persistConversations(list.map { it.toStorageRecord() })
+                    uiPreferencesRepository.setActiveConversationId(activeId)
+                    prefs.edit().remove(conversationsKey).remove(activeConversationIdKey).apply()
+                }
+            }
+            list.toMutableList()
+        }.getOrDefault(mutableListOf())
     }
 
     /**
@@ -449,6 +538,7 @@ class MainActivity : AppCompatActivity() {
         registerQwenDownloadReceiverIfNeeded()
         reconcilePendingQwenDownloads()
 
+        observeUiPreferences()
         setupMessageTranscript()
         setupInputBar()
         registerAutomationLogReceiverIfNeeded()
@@ -571,10 +661,24 @@ class MainActivity : AppCompatActivity() {
                         }
                     },
                     onAutomationAction = { item -> handleTranscriptAutomationAction(item) },
+                    thinkingExpandedByDefault = thinkingExpandedByDefaultState.value,
+                    onThinkingExpandedByDefaultChange = { expanded ->
+                        lifecycleScope.launch {
+                            uiPreferencesRepository.setThinkingExpandedByDefault(expanded)
+                        }
+                    },
                 )
             }
         }
         syncMessageTranscript()
+    }
+
+    private fun observeUiPreferences() {
+        lifecycleScope.launch {
+            uiPreferencesRepository.thinkingExpandedByDefaultFlow.collect { expanded ->
+                thinkingExpandedByDefaultState.value = expanded
+            }
+        }
     }
 
     private fun syncMessageTranscript(conversation: Conversation? = activeConversation) {
@@ -608,6 +712,7 @@ class MainActivity : AppCompatActivity() {
                         if (thinking.isBlank()) getString(R.string.message_streaming_placeholder) else ""
                     },
                 thinking = thinking.ifBlank { null },
+                thinkingDurationMs = null,
                 isUser = false,
                 attachments = emptyList(),
                 isAutomation = false,
@@ -647,6 +752,7 @@ class MainActivity : AppCompatActivity() {
                 author = message.author,
                 body = message.content.trim(),
                 thinking = null,
+                thinkingDurationMs = null,
                 isUser = true,
                 attachments =
                     message.attachments
@@ -704,9 +810,10 @@ class MainActivity : AppCompatActivity() {
             conversationId = conversationId,
             messageIndex = index,
             id = "$conversationId-ai-$index",
-            author = message.author.ifBlank { "Aries AI" },
+            author = "Aries AI",
             body = displayBody,
             thinking = thinking,
+            thinkingDurationMs = message.thinkingDurationMs,
             isUser = false,
             attachments = emptyList(),
             isAutomation = isAutomationMessage,

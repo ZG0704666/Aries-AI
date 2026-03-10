@@ -43,6 +43,10 @@
 
     <color name="m3t_message_ai_bg">#E5EFFF</color>
     <color name="m3t_message_user_bg">#D8E7FF</color>
+    <color name="m3t_message_ai_border">#C3D4EA</color>
+    <color name="m3t_message_user_border">#91B2DC</color>
+    <color name="m3t_message_meta_bg">#F1F6FF</color>
+    <color name="m3t_message_meta_text">#435E7D</color>
     <color name="m3t_message_action">#203D5E</color>
     <color name="m3t_message_action_stroke">#2A000000</color>
 

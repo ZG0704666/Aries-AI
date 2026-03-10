@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    kotlin("kapt")
 }
 
 val githubToken: String by lazy {
@@ -178,6 +180,11 @@ dependencies {
     // ViewModel 和 LiveData
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.7")
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.kotlinx.serialization.json)
+    kapt(libs.androidx.room.compiler)
     
     // PDF 处理
     implementation("com.itextpdf:itext7-core:7.2.5")
