@@ -662,11 +662,6 @@ class MainActivity : AppCompatActivity() {
                     },
                     onAutomationAction = { item -> handleTranscriptAutomationAction(item) },
                     thinkingExpandedByDefault = thinkingExpandedByDefaultState.value,
-                    onThinkingExpandedByDefaultChange = { expanded ->
-                        lifecycleScope.launch {
-                            uiPreferencesRepository.setThinkingExpandedByDefault(expanded)
-                        }
-                    },
                 )
             }
         }

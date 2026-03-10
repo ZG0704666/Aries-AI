@@ -1,4 +1,4 @@
-﻿package com.ai.phoneagent.ui.inputbar
+package com.ai.phoneagent.ui.inputbar
 
 import com.ai.phoneagent.R
 import androidx.compose.animation.*

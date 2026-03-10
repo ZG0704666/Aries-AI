@@ -1,5 +1,10 @@
 package com.ai.phoneagent.ui.messages
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -39,6 +45,7 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.ai.phoneagent.R
 
 data class TranscriptMessageUi(
@@ -75,7 +82,6 @@ fun ConversationTranscript(
     onRetryMessage: (TranscriptMessageUi) -> Unit,
     onAutomationAction: (TranscriptMessageUi) -> Unit,
     thinkingExpandedByDefault: Boolean,
-    onThinkingExpandedByDefaultChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
@@ -91,14 +97,29 @@ fun ConversationTranscript(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp,
             ) {
-                Text(
-                    text = stringResource(R.string.transcript_empty_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(spacingMd),
-                )
+                Column(
+                    modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingMd + spacingSm),
+                    verticalArrangement = Arrangement.spacedBy(spacingSm),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Lightbulb,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = stringResource(R.string.transcript_empty_hint),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = stringResource(R.string.input_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             return@Column
         }
@@ -110,7 +131,6 @@ fun ConversationTranscript(
                 AssistantMessageBlock(
                     item = item,
                     thinkingExpandedByDefault = thinkingExpandedByDefault,
-                    onThinkingExpandedByDefaultChange = onThinkingExpandedByDefaultChange,
                     onCopyMessage = onCopyMessage,
                     onRetryMessage = onRetryMessage,
                     onAutomationAction = onAutomationAction,
@@ -136,7 +156,8 @@ private fun UserMessageBubble(item: TranscriptMessageUi) {
         Surface(
             modifier = Modifier.widthIn(max = bubbleMaxWidth),
             shape = MaterialTheme.shapes.extraLarge,
-            color = colorResource(R.color.m3t_message_user_bg),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            tonalElevation = 1.dp,
         ) {
             SelectionContainer {
                 Text(
@@ -149,7 +170,7 @@ private fun UserMessageBubble(item: TranscriptMessageUi) {
         }
 
         if (item.attachments.isNotEmpty()) {
-            FlowRow(
+                    FlowRow(
                 modifier = Modifier.widthIn(max = bubbleMaxWidth),
                 horizontalArrangement = Arrangement.spacedBy(spacingXs),
                 verticalArrangement = Arrangement.spacedBy(spacingXs),
@@ -157,12 +178,13 @@ private fun UserMessageBubble(item: TranscriptMessageUi) {
                 item.attachments.forEach { attachmentName ->
                     Surface(
                         shape = CircleShape,
-                        color = colorResource(R.color.m3t_message_meta_bg),
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 1.dp,
                     ) {
                         Text(
                             text = attachmentName,
                             style = MaterialTheme.typography.labelMedium,
-                            color = colorResource(R.color.m3t_message_meta_text),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
@@ -178,12 +200,13 @@ private fun UserMessageBubble(item: TranscriptMessageUi) {
 private fun AssistantMessageBlock(
     item: TranscriptMessageUi,
     thinkingExpandedByDefault: Boolean,
-    onThinkingExpandedByDefaultChange: (Boolean) -> Unit,
     onCopyMessage: (TranscriptMessageUi) -> Unit,
     onRetryMessage: (TranscriptMessageUi) -> Unit,
     onAutomationAction: (TranscriptMessageUi) -> Unit,
 ) {
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val maxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
     val actionGap = dimensionResource(R.dimen.m3t_message_action_gap)
     val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
@@ -192,20 +215,38 @@ private fun AssistantMessageBlock(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .widthIn(max = maxWidth),
+            .widthIn(max = maxWidth)
+            .animateContentSize(),
         verticalArrangement = Arrangement.spacedBy(spacingSm),
     ) {
-        Text(
-            text = item.author,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacingSm),
+        ) {
+            Text(
+                text = item.author,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (item.isStreaming) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                ) {
+                    Text(
+                        text = stringResource(R.string.message_streaming_label),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
+                    )
+                }
+            }
+        }
 
         ThinkingSection(
             item = item,
             thinkingExpandedByDefault = thinkingExpandedByDefault,
-            onThinkingExpandedByDefaultChange = onThinkingExpandedByDefaultChange,
         )
 
         if (item.automation != null) {
@@ -215,12 +256,19 @@ private fun AssistantMessageBlock(
                 onAutomationAction = onAutomationAction,
             )
         } else if (item.body.isNotBlank()) {
-            SelectionContainer {
-                Text(
-                    text = item.body,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = if (item.isStreaming) 2.dp else 1.dp,
+            ) {
+                SelectionContainer {
+                    Text(
+                        text = item.body,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingMd),
+                    )
+                }
             }
         }
 
@@ -233,27 +281,27 @@ private fun AssistantMessageBlock(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (item.copyText.isNotBlank()) {
-                    IconButton(
+                    MessageActionButton(
                         onClick = { onCopyMessage(item) },
-                        modifier = Modifier.size(actionButtonSize),
+                        buttonSize = actionButtonSize,
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.ContentCopy,
                             contentDescription = stringResource(R.string.common_copy),
-                            tint = colorResource(R.color.m3t_message_meta_text),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(actionIconSize),
                         )
                     }
                 }
                 if (!item.retryText.isNullOrBlank()) {
-                    IconButton(
+                    MessageActionButton(
                         onClick = { onRetryMessage(item) },
-                        modifier = Modifier.size(actionButtonSize),
+                        buttonSize = actionButtonSize,
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Refresh,
                             contentDescription = stringResource(R.string.retry),
-                            tint = colorResource(R.color.m3t_message_meta_text),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(actionIconSize),
                         )
                     }
@@ -267,7 +315,6 @@ private fun AssistantMessageBlock(
 private fun ThinkingSection(
     item: TranscriptMessageUi,
     thinkingExpandedByDefault: Boolean,
-    onThinkingExpandedByDefaultChange: (Boolean) -> Unit,
 ) {
     val thinking = item.thinking?.trim().orEmpty()
     if (thinking.isEmpty()) return
@@ -279,7 +326,7 @@ private fun ThinkingSection(
     val thinkingIconBox = dimensionResource(R.dimen.m3t_message_thinking_icon_box_size)
     val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
-    var expanded by rememberSaveable(item.id, thinkingExpandedByDefault) {
+    var expanded by rememberSaveable(item.id) {
         mutableStateOf(thinkingExpandedByDefault)
     }
 
@@ -298,11 +345,13 @@ private fun ThinkingSection(
     Surface(
         modifier = Modifier.widthIn(max = thinkingCardWidth),
         shape = MaterialTheme.shapes.extraLarge,
-        color = colorResource(R.color.m3t_thinking_bg),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        tonalElevation = 1.dp,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .animateContentSize()
                 .padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
             verticalArrangement = Arrangement.spacedBy(spacingXs + spacingSm),
         ) {
@@ -318,7 +367,7 @@ private fun ThinkingSection(
                     Icon(
                         imageVector = Icons.Outlined.Lightbulb,
                         contentDescription = null,
-                        tint = colorResource(R.color.m3t_thinking_text),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(actionIconSize),
                     )
                 }
@@ -326,14 +375,13 @@ private fun ThinkingSection(
                     text = thinkingLabel,
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = colorResource(R.color.m3t_thinking_text),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
                     fontWeight = FontWeight.Medium,
                 )
                 IconButton(
                     modifier = Modifier.size(actionButtonSize),
                     onClick = {
                         expanded = !expanded
-                        onThinkingExpandedByDefaultChange(expanded)
                     },
                 ) {
                     Icon(
@@ -344,18 +392,22 @@ private fun ThinkingSection(
                                 Icons.Outlined.KeyboardArrowDown
                             },
                         contentDescription = null,
-                        tint = colorResource(R.color.m3t_thinking_text),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(actionIconSize),
                     )
                 }
             }
 
-            if (expanded) {
+            AnimatedVisibility(
+                visible = expanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut(),
+            ) {
                 SelectionContainer {
                     Text(
                         text = thinking,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = colorResource(R.color.m3t_thinking_text),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.widthIn(max = thinkingCardWidth - spacingMd - spacingMd),
                     )
                 }
@@ -377,7 +429,8 @@ private fun AutomationMessageCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        color = colorResource(R.color.m3t_message_meta_bg),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp,
     ) {
         Column(
             modifier = Modifier
@@ -388,7 +441,7 @@ private fun AutomationMessageCard(
             Text(
                 text = automation.status,
                 style = MaterialTheme.typography.labelMedium,
-                color = colorResource(R.color.m3t_message_meta_text),
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Medium,
             )
             Text(
@@ -404,12 +457,12 @@ private fun AutomationMessageCard(
                     automation.logs.forEach { logLine ->
                         Surface(
                             shape = MaterialTheme.shapes.medium,
-                            color = colorResource(R.color.m3t_thinking_bg).copy(alpha = 0.72f),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
                         ) {
                             Text(
                                 text = logLine,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = colorResource(R.color.m3t_thinking_text),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
                             )
                         }
@@ -436,5 +489,25 @@ private fun AutomationMessageCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MessageActionButton(
+    onClick: () -> Unit,
+    buttonSize: androidx.compose.ui.unit.Dp,
+    content: @Composable () -> Unit,
+) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+        modifier = Modifier.wrapContentWidth(),
+    ) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.size(buttonSize),
+            content = { content() },
+        )
     }
 }
