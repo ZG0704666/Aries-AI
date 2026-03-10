@@ -259,12 +259,6 @@ class MainActivity : AppCompatActivity() {
     private var pendingEnterMiniWindowAfterNotifPerm: Boolean = false
     private var pendingAutomationLogUiRefresh: Boolean = false
     private var automationLogReceiverRegistered: Boolean = false
-    private var activeAutomationPanelConversationId: Long = -1L
-    private var activeAutomationPanelMessageIndex: Int = -1
-    private var activeAutomationPanelLogContainer: LinearLayout? = null
-    private var activeAutomationPanelStatusView: TextView? = null
-    private var activeAutomationPanelConfirmButton: View? = null
-    private var activeAutomationPanelConfirmTextView: TextView? = null
     private var automationTerminatePendingRef: AutomationMessageRef? = null
     private var automationTerminateFallbackJob: Job? = null
     private var automationAutoConfirmRef: AutomationMessageRef? = null
@@ -358,25 +352,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ariesCameraLauncher: ActivityResultLauncher<Uri>
     private var tempCameraUri: Uri? = null
     
-    // 附件预览状态（由 ViewModel 管理，UI 层仅负责显示）
-    private var attachmentPreviewView: View? = null
     private val attachmentThumbnailCache = LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(64)
 
-    @Volatile private var suppressApiInputWatcher: Boolean = false
-    @Volatile private var suppressModelSwitchWatcher: Boolean = false
     @Volatile private var apiNeedsRecheckToastShown: Boolean = false
     @Volatile private var qwenDownloadInFlight: Boolean = false
     @Volatile private var localModelReady: Boolean = false
-    private lateinit var apiInput: EditText
-    private lateinit var apiStatus: TextView
-    private lateinit var apiThirdPartySwitch: MaterialSwitch
-    private lateinit var localModelSwitch: MaterialSwitch
-    private lateinit var localModelSwitchRow: View
-    private lateinit var apiRemoteConfigContainer: View
-    private lateinit var apiThirdPartyContainer: View
-    private lateinit var apiBaseUrlInput: EditText
-    private lateinit var apiModelInput: EditText
-    private var qwenDownloadButton: MaterialButton? = null
+    private var useThirdPartyApi: Boolean = false
+    private var useLocalModel: Boolean = false
+    private var apiBaseUrl: String = AutoGlmClient.DEFAULT_BASE_URL
+    private var apiModel: String = AutoGlmClient.DEFAULT_MODEL
     private lateinit var drawerPanel: View
     private val pendingQwenDownloadIds = linkedSetOf<Long>()
     private var qwenDownloadReceiverRegistered = false
@@ -406,7 +390,6 @@ class MainActivity : AppCompatActivity() {
             val activeId = prefs.getLong(activeConversationIdKey, -1L)
             activeConversation = conversations.firstOrNull { it.id == activeId } ?: conversations.firstOrNull()
 
-            binding.messagesContainer.removeAllViews()
             activeConversation?.let { renderConversation(it) }
             if (::drawerPanel.isInitialized) {
                 refreshDrawerConversationItems()
@@ -440,65 +423,6 @@ class MainActivity : AppCompatActivity() {
         // }
     }
     
-    /**
-     * TODO: 显示附件预览（由 ViewModel 状态驱动）
-     */
-    private fun showAttachmentPreview(attachment: Any) {
-        // TODO: 实现附件预览
-        // 移除旧的预览视图
-        // hideAttachmentPreview()
-        
-        // val previewView = layoutInflater.inflate(
-        //     R.layout.aries_selected_file_preview,
-        //     binding.messagesContainer,
-        //     false
-        // )
-        
-        // previewView.findViewById<ImageView>(R.id.ariesSelectedFileIcon).apply {
-        //     val iconRes = when (attachment.attachmentType) {
-        //         AriesAttachmentType.IMAGE -> R.drawable.ic_aries_image
-        //         AriesAttachmentType.PDF -> R.drawable.ic_aries_pdf
-        //         AriesAttachmentType.DOCUMENT -> R.drawable.ic_aries_document
-        //         else -> R.drawable.ic_aries_file
-        //     }
-        //     setImageResource(iconRes)
-        // }
-        
-        // previewView.findViewById<TextView>(R.id.ariesSelectedFileName).text = attachment.fileName
-        // previewView.findViewById<TextView>(R.id.ariesSelectedFileSize).text = 
-        //     formatFileSize(attachment.fileSize)
-        
-        // previewView.findViewById<ImageButton>(R.id.ariesBtnRemoveFile).setOnClickListener {
-        //     chatViewModel.clearAttachment()
-        // }
-        
-        // previewView.visibility = View.VISIBLE
-        // attachmentPreviewView = previewView
-        
-        // binding.messagesContainer.addView(previewView, 0)
-        
-        // binding.scrollArea.post {
-        //     binding.scrollArea.smoothScrollTo(0, 0)
-        // }
-    }
-    
-    /**
-     * 隐藏附件预览
-     */
-    private fun hideAttachmentPreview() {
-        attachmentPreviewView?.let { view ->
-            view.animate()
-                .alpha(0f)
-                .translationY(-20f)
-                .setDuration(200)
-                .withEndAction {
-                    binding.messagesContainer.removeView(view)
-                    attachmentPreviewView = null
-                }
-                .start()
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
 
         super.onCreate(savedInstanceState)
@@ -579,7 +503,6 @@ class MainActivity : AppCompatActivity() {
             it.isAppearanceLightNavigationBars = useLightSystemBarIcons
         }
         binding.drawerLayout.fitsSystemWindows = false
-        binding.navigationView.fitsSystemWindows = false
         binding.contentRoot.fitsSystemWindows = false
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.drawerLayout) { _, insets ->
@@ -937,16 +860,6 @@ class MainActivity : AppCompatActivity() {
     private fun setupComposeDrawer() {
         drawerPanel = findViewById(R.id.drawerPanel)
         val drawerComposeView = drawerPanel.findViewById<ComposeView>(R.id.drawerComposeView)
-        apiInput = drawerPanel.findViewById(R.id.apiInput)
-        apiStatus = drawerPanel.findViewById(R.id.apiStatus)
-        apiRemoteConfigContainer = drawerPanel.findViewById(R.id.apiRemoteConfigContainer)
-        apiThirdPartySwitch = drawerPanel.findViewById(R.id.swUseThirdPartyApi)
-        localModelSwitch = drawerPanel.findViewById(R.id.swUseLocalModel)
-        localModelSwitchRow = drawerPanel.findViewById(R.id.localModelSwitchRow)
-        apiThirdPartyContainer = drawerPanel.findViewById(R.id.apiThirdPartyContainer)
-        apiBaseUrlInput = drawerPanel.findViewById(R.id.apiBaseUrlInput)
-        apiModelInput = drawerPanel.findViewById(R.id.apiModelInput)
-        qwenDownloadButton = drawerPanel.findViewById(R.id.btnDownloadQwenModel)
         localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
 
         drawerComposeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
@@ -1048,115 +961,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupToolbar() {
-        binding.topAppBar.setNavigationOnClickListener {
-            if (onboardingOverlay.isShowing()) return@setNavigationOnClickListener
-            vibrateLight()
-            hideKeyboard()
-            binding.drawerLayout.openDrawer(GravityCompat.START)
-        }
-
-        // 统一优化工具栏按钮的点击视觉：去掉默认灰色背景阴影，改为缩放缩放+透明度脉冲
-        binding.topAppBar.post {
-            for (i in 0 until binding.topAppBar.childCount) {
-                val child = binding.topAppBar.getChildAt(i)
-                if (child is ActionMenuView) {
-                    for (j in 0 until child.childCount) {
-                        val menuChild = child.getChildAt(j)
-                        menuChild.background = null // 去除默认背景
-                        menuChild.isClickable = true
-                    }
-                } else if (child is ImageButton) {
-                    child.background = null // 去除默认背景
-                }
-            }
-        }
-
-        binding.topAppBar.setOnMenuItemClickListener { item ->
-            vibrateLight()
-            // 通用图标动画
-            findViewById<View>(item.itemId)?.let { view ->
-                view.animate()
-                    .scaleX(0.8f)
-                    .scaleY(0.8f)
-                    .alpha(0.6f)
-                    .setDuration(120)
-                    .withEndAction {
-                        view.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(150).start()
-                    }
-                    .start()
-            }
-
-            when (item.itemId) {
-                R.id.action_new_chat -> {
-                    // 如果当前已经是空的新对话，则提示并跳过
-                    if (activeConversation?.messages?.isEmpty() == true) {
-                        Toast.makeText(this, "您已处于新对话中！", Toast.LENGTH_SHORT).show()
-                        return@setOnMenuItemClickListener true
-                    }
-
-                    startNewChat(clearUi = true)
-                    true
-                }
-                R.id.action_history -> {
-                    showHistoryDialog()
-                    true
-                }
-                R.id.action_floating_window -> {
-                    enterMiniWindowMode()
-                    true
-                }
-                else -> false
-            }
-        }
-
-        offsetTopBarIcons()
-    }
-
     private fun maybeShowPermissionBottomSheet() {
         onboardingOverlay.showPermissionOnlyIfNeeded()
-    }
-
-    private fun offsetTopBarIcons() {
-        binding.topAppBar.post {
-            val toolbar = binding.topAppBar
-            val toolbarTitle = toolbar.title?.toString().orEmpty()
-
-            var titleView: TextView? = null
-            for (i in 0 until toolbar.childCount) {
-                val child = toolbar.getChildAt(i)
-                if (child is TextView && child.text?.toString() == toolbarTitle) {
-                    titleView = child
-                    break
-                }
-            }
-            if (titleView == null) {
-                for (i in 0 until toolbar.childCount) {
-                    val child = toolbar.getChildAt(i)
-                    if (child is TextView && child.text?.isNotBlank() == true) {
-                        titleView = child
-                        break
-                    }
-                }
-            }
-
-            val title = titleView ?: return@post
-            val titleCenterY = title.top + title.height / 2f
-
-            for (i in 0 until toolbar.childCount) {
-                val child = toolbar.getChildAt(i)
-                if (child is ActionMenuView) {
-                    for (j in 0 until child.childCount) {
-                        val menuChild = child.getChildAt(j)
-                        val menuCenterY = menuChild.top + menuChild.height / 2f
-                        menuChild.translationY = titleCenterY - menuCenterY
-                    }
-                } else if (child is ImageButton) {
-                    val navCenterY = child.top + child.height / 2f
-                    child.translationY = titleCenterY - navCenterY
-                }
-            }
-        }
     }
 
     override fun onResume() {
@@ -1229,8 +1035,7 @@ class MainActivity : AppCompatActivity() {
             
             override fun onMessagesCleared() {
                 runOnUiThread {
-                    binding.messagesContainer.removeAllViews()
-                    clearAutomationPanelRuntimeRefs()
+                    resetAutomationPanelRuntimeState()
                     clearStreamingTranscript()
                     syncMessageTranscript()
                 }
@@ -1440,54 +1245,19 @@ class MainActivity : AppCompatActivity() {
     private fun refreshLocalModelReadyState() {
         localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
         updateLocalModelSwitchAvailabilityUi()
-        updateQwenDownloadButtonState()
         updateStatusText()
     }
 
     private fun updateLocalModelSwitchAvailabilityUi() {
-        if (!::localModelSwitchRow.isInitialized || !::localModelSwitch.isInitialized) return
-
-        if (localModelReady) {
-            localModelSwitchRow.visibility = View.VISIBLE
-            return
-        }
-
-        localModelSwitchRow.visibility = View.GONE
-
-        val prefEnabled = prefs.getBoolean(apiUseLocalModelPref, false)
-        val switchEnabled = localModelSwitch.isChecked
-        if (prefEnabled || switchEnabled) {
-            suppressModelSwitchWatcher = true
-            localModelSwitch.isChecked = false
-            suppressModelSwitchWatcher = false
+        if (!localModelReady) {
+            val prefEnabled = prefs.getBoolean(apiUseLocalModelPref, false)
+            if (prefEnabled || useLocalModel) {
+                useLocalModel = false
             prefs.edit().putBoolean(apiUseLocalModelPref, false).apply()
             applyLocalModelUiState(false)
             onApiConfigPotentiallyChanged(showNeedsCheckMessage = false)
-        } else {
-            applyLocalModelUiState(false)
-        }
-    }
-
-    private fun updateQwenDownloadButtonState() {
-        val button = qwenDownloadButton ?: return
-        val shouldShow = prefs.getBoolean(localModelDownloadButtonVisiblePref, false)
-        if (!shouldShow) {
-            button.visibility = View.GONE
-            return
-        }
-        button.visibility = View.VISIBLE
-        when {
-            qwenDownloadInFlight -> {
-                button.isEnabled = false
-                button.text = getString(R.string.m3t_sidebar_qwen_download_preparing)
-            }
-            localModelReady -> {
-                button.isEnabled = true
-                button.text = getString(R.string.m3t_sidebar_qwen_download_ready)
-            }
-            else -> {
-                button.isEnabled = true
-                button.text = getString(R.string.m3t_sidebar_qwen_download)
+            } else {
+                applyLocalModelUiState(false)
             }
         }
     }
@@ -1539,17 +1309,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyLocalModelUiState(enabled: Boolean) {
-        apiRemoteConfigContainer.visibility = if (enabled) View.GONE else View.VISIBLE
+        useLocalModel = enabled
         updateStatusText()
     }
 
-    private fun clearAutomationPanelRuntimeRefs() {
-        activeAutomationPanelConversationId = -1L
-        activeAutomationPanelMessageIndex = -1
-        activeAutomationPanelLogContainer = null
-        activeAutomationPanelStatusView = null
-        activeAutomationPanelConfirmButton = null
-        activeAutomationPanelConfirmTextView = null
+    private fun resetAutomationPanelRuntimeState() {
+        clearAutomationTerminatePending()
         clearAutomationAutoConfirm()
     }
 
@@ -1575,14 +1340,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun resolveAutomationMessageRef(messageRef: AutomationMessageRef?): AutomationMessageRef? {
-        if (messageRef != null) return messageRef
-        val cid = activeAutomationPanelConversationId
-        val idx = activeAutomationPanelMessageIndex
-        return if (cid > 0L && idx >= 0) {
-            AutomationMessageRef(cid, idx)
-        } else {
-            null
-        }
+        return messageRef
     }
 
     private fun isAutomationTerminatePending(messageRef: AutomationMessageRef?): Boolean {
@@ -1686,37 +1444,6 @@ class MainActivity : AppCompatActivity() {
         syncMessageTranscript(conversation)
         persistConversations()
         return true
-    }
-
-    private fun appendAutomationLogToPanelUi(logLine: String) {
-        val normalized = normalizeAutomationLogLine(logLine)
-        val logContainer = activeAutomationPanelLogContainer
-        if (logContainer != null) {
-            @Suppress("UNCHECKED_CAST")
-            val timeline =
-                (logContainer.tag as? MutableList<AutomationTimelineEntry>)
-                    ?: mutableListOf<AutomationTimelineEntry>().also { logContainer.tag = it }
-            AutomationTimelineFormatter.appendEntry(timeline, normalized)
-            renderAutomationTimelineRows(logContainer, timeline)
-        }
-        if (isAutomationTerminalLog(normalized)) {
-            val statusView = activeAutomationPanelStatusView
-            val button = activeAutomationPanelConfirmButton
-            val textView = activeAutomationPanelConfirmTextView
-            val iconView = button?.findViewById<ImageView?>(R.id.iv_confirm_icon)
-            configureAutomationFinishedButton(
-                button = button,
-                textView = textView,
-                iconView = iconView,
-                statusView = statusView
-            )
-        } else {
-            val statusView = activeAutomationPanelStatusView
-            val finishedText = getString(R.string.automation_scene_finished)
-            if (statusView?.text?.toString() != finishedText) {
-                statusView?.text = getString(R.string.automation_scene_running)
-            }
-        }
     }
 
     private fun appendAutomationLogAsAiMessage(rawLogLine: String) {
@@ -2025,7 +1752,9 @@ class MainActivity : AppCompatActivity() {
     private var isDrawerMoving = false
     private var pendingDrawerNavigationAction: (() -> Unit)? = null
 
-    private fun setupDrawer() {
+    private fun setupDrawer() = Unit
+
+    /*
 
         val header = binding.navigationView.getHeaderView(0)
 
@@ -2399,6 +2128,7 @@ class MainActivity : AppCompatActivity() {
             true
         }
     }
+    */
 
     private fun navigateFromDrawer(action: () -> Unit) {
         if (onboardingOverlay.isShowing()) return
@@ -2422,27 +2152,22 @@ class MainActivity : AppCompatActivity() {
     private fun restoreApiKey() {
 
         val saved = prefs.getString("api_key", "") ?: ""
+        useThirdPartyApi = prefs.getBoolean(apiUseThirdPartyPref, false)
+        useLocalModel = prefs.getBoolean(apiUseLocalModelPref, false)
+        apiBaseUrl =
+            prefs.getString(apiThirdPartyBaseUrlPref, AutoGlmClient.DEFAULT_BASE_URL)
+                .orEmpty()
+                .ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
+        apiModel =
+            prefs.getString(apiThirdPartyModelPref, AutoGlmClient.DEFAULT_MODEL)
+                .orEmpty()
+                .ifBlank { AutoGlmClient.DEFAULT_MODEL }
 
-        apiInput.tag = saved
-        suppressApiInputWatcher = true
-        suppressModelSwitchWatcher = true
-        apiInput.setText(maskKey(saved))
-        apiInput.setSelection(apiInput.text?.length ?: 0)
-        val useThirdParty = prefs.getBoolean(apiUseThirdPartyPref, false)
-        val useLocalModel = prefs.getBoolean(apiUseLocalModelPref, false)
-        apiThirdPartySwitch.isChecked = useThirdParty
-        localModelSwitch.isChecked = useLocalModel
-        apiThirdPartyContainer.visibility =
-                if (apiThirdPartySwitch.isChecked) View.VISIBLE else View.GONE
-        apiBaseUrlInput.setText(
-                prefs.getString(apiThirdPartyBaseUrlPref, AutoGlmClient.DEFAULT_BASE_URL)
-        )
-        apiModelInput.setText(
-                prefs.getString(apiThirdPartyModelPref, AutoGlmClient.DEFAULT_MODEL)
-        )
+        if (useLocalModel && !localModelReady) {
+            useLocalModel = false
+            prefs.edit().putBoolean(apiUseLocalModelPref, false).apply()
+        }
         applyLocalModelUiState(useLocalModel)
-        suppressApiInputWatcher = false
-        suppressModelSwitchWatcher = false
 
         if (saved.isBlank()) {
             onApiConfigChanged(clearApiValue = true, showNeedsCheckMessage = false)
@@ -2460,7 +2185,6 @@ class MainActivity : AppCompatActivity() {
             remoteApiOk = ok
             remoteApiChecking = false
             lastCheckedApiKey = saved
-            apiStatus.text = if (ok) "API 可用" else "API 检查失败"
             updateStatusText()
             return
         }
@@ -2468,7 +2192,6 @@ class MainActivity : AppCompatActivity() {
         lastCheckedApiKey = saved
         remoteApiOk = null
         remoteApiChecking = false
-        apiStatus.text = "未检查"
         updateStatusText()
     }
 
@@ -2476,7 +2199,7 @@ class MainActivity : AppCompatActivity() {
             key: String,
             baseUrl: String = AutoGlmClient.DEFAULT_BASE_URL,
             model: String = AutoGlmClient.DEFAULT_MODEL,
-            useThirdParty: Boolean = apiThirdPartySwitch.isChecked,
+            useThirdParty: Boolean = useThirdPartyApi,
             force: Boolean,
     ) {
         val k = key.trim()
@@ -2487,14 +2210,10 @@ class MainActivity : AppCompatActivity() {
             if (lastCheckedApiKey == k && remoteApiOk != null) return
         }
 
-        val header = binding.navigationView.getHeaderView(0)
-        val apiStatus = header.findViewById<TextView>(R.id.apiStatus)
-
         remoteApiChecking = true
         remoteApiOk = null
         lastCheckedApiKey = k
 
-        apiStatus.text = "检查中..."
         updateStatusText()
 
         val seq = ++apiCheckSeq
@@ -2503,7 +2222,6 @@ class MainActivity : AppCompatActivity() {
         if (baseUrlSecurityError != null) {
             remoteApiChecking = false
             remoteApiOk = false
-            apiStatus.text = "API 地址不安全"
             updateStatusText()
             if (force) {
                 Toast.makeText(this, baseUrlSecurityError, Toast.LENGTH_LONG).show()
@@ -2535,7 +2253,6 @@ class MainActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
             }
-            apiStatus.text = if (ok) "API 可用" else "API 检查失败"
             prefs.edit()
                     .putString(
                             apiLastCheckSigPref,
@@ -2566,7 +2283,6 @@ class MainActivity : AppCompatActivity() {
                     .remove(apiLastCheckOkPref)
                     .remove(apiLastCheckTimePref)
                     .apply()
-            apiStatus.text = "未检查"
             updateStatusText()
             return
         }
@@ -2583,7 +2299,6 @@ class MainActivity : AppCompatActivity() {
                     .remove(apiLastCheckOkPref)
                     .remove(apiLastCheckTimePref)
                     .apply()
-            apiStatus.text = "未检查"
             updateStatusText()
             return
         }
@@ -2593,7 +2308,7 @@ class MainActivity : AppCompatActivity() {
                         apiKey = currentKey,
                         baseUrl = resolveApiBaseUrl(),
                         model = resolveApiModel(),
-                        useThirdParty = apiThirdPartySwitch.isChecked,
+                        useThirdParty = useThirdPartyApi,
                 )
         val lastSig = prefs.getString(apiLastCheckSigPref, "").orEmpty()
         val hasLast = prefs.contains(apiLastCheckOkPref)
@@ -2602,7 +2317,6 @@ class MainActivity : AppCompatActivity() {
             remoteApiOk = ok
             remoteApiChecking = false
             lastCheckedApiKey = currentKey
-            apiStatus.text = if (ok) "API 可用" else "API 检查失败"
             updateStatusText()
             return
         }
@@ -2611,7 +2325,6 @@ class MainActivity : AppCompatActivity() {
         remoteApiOk = null
         remoteApiChecking = false
         lastCheckedApiKey = ""
-        apiStatus.text = "请检查API配置"
         updateStatusText()
 
         if (showNeedsCheckMessage && !apiNeedsRecheckToastShown) {
@@ -2625,7 +2338,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isLocalModelModeEnabled(): Boolean {
-        return ::localModelSwitch.isInitialized && localModelSwitch.isChecked
+        return useLocalModel
     }
 
     private fun normalizeBaseUrlInput(rawUrl: String): String? {
@@ -2648,8 +2361,8 @@ class MainActivity : AppCompatActivity() {
             return normalizeBaseUrlInput(storedThirdPartyBaseUrl)
                 ?: AutoGlmClient.DEFAULT_BASE_URL
         }
-        if (!apiThirdPartySwitch.isChecked) return AutoGlmClient.DEFAULT_BASE_URL
-        val rawUrl = apiBaseUrlInput.text?.toString().orEmpty()
+        if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_BASE_URL
+        val rawUrl = apiBaseUrl
         return normalizeBaseUrlInput(rawUrl) ?: AutoGlmClient.DEFAULT_BASE_URL
     }
 
@@ -2695,15 +2408,15 @@ class MainActivity : AppCompatActivity() {
         if (isLocalModelModeEnabled()) {
             return ModelScopeModelDownloader.QWEN35_MODEL_NAME
         }
-        if (!apiThirdPartySwitch.isChecked) return AutoGlmClient.DEFAULT_MODEL
-        return apiModelInput.text?.toString()?.trim().orEmpty().ifBlank { AutoGlmClient.DEFAULT_MODEL }
+        if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_MODEL
+        return apiModel.trim().ifBlank { AutoGlmClient.DEFAULT_MODEL }
     }
 
     private fun apiConfigSignature(
             apiKey: String,
             baseUrl: String,
             model: String,
-            useThirdParty: Boolean = apiThirdPartySwitch.isChecked,
+            useThirdParty: Boolean = useThirdPartyApi,
     ): String {
         val normalizedBaseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
         val normalizedModel = model.ifBlank { AutoGlmClient.DEFAULT_MODEL }
@@ -2711,22 +2424,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun resolveApiKeyFromInput(): String {
-        val displayed = apiInput.text?.toString().orEmpty()
-        val tagKey = (apiInput.tag as? String).orEmpty().trim()
-        val savedKey = prefs.getString("api_key", "").orEmpty().trim()
-
-        val resolved =
-                when {
-                    tagKey.isNotBlank() && displayed == maskKey(tagKey) -> tagKey
-                    savedKey.isNotBlank() && displayed == maskKey(savedKey) -> savedKey
-                    displayed.contains("*") && savedKey.isNotBlank() -> savedKey
-                    else -> displayed
-                }
-        return resolved.trim()
+        return prefs.getString("api_key", "").orEmpty().trim()
     }
 
     private fun updateStatusText() {
-        val localModeEnabled = ::localModelSwitch.isInitialized && localModelSwitch.isChecked
+        val localModeEnabled = useLocalModel
         if (localModeEnabled) {
             val localText =
                 when {
@@ -2735,7 +2437,6 @@ class MainActivity : AppCompatActivity() {
                     localModelReady -> getString(R.string.m3t_sidebar_local_model_ready)
                     else -> getString(R.string.m3t_sidebar_local_model_not_ready)
                 }
-            binding.statusText.text = localText
             statusTextState.value = localText
             return
         }
@@ -2751,7 +2452,6 @@ class MainActivity : AppCompatActivity() {
                     offlineModelReady -> getString(R.string.status_ready)
                     else -> getString(R.string.status_disconnected)
                 }
-        binding.statusText.text = text
         statusTextState.value = text
     }
 
@@ -3119,8 +2819,7 @@ class MainActivity : AppCompatActivity() {
                 .setDuration(400)      // 稍微加快，更显果断
                 .setInterpolator(AccelerateInterpolator(1.8f)) // 纯加速，无回弹
                 .withEndAction {
-                    binding.messagesContainer.removeAllViews()
-                    clearAutomationPanelRuntimeRefs()
+                    resetAutomationPanelRuntimeState()
                     
                     // 状态瞬间回位
                     binding.messagesContentHost.translationY = 0f
@@ -3153,8 +2852,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderConversation(conversation: Conversation) {
-        binding.messagesContainer.removeAllViews()
-        clearAutomationPanelRuntimeRefs()
+        resetAutomationPanelRuntimeState()
         syncMessageTranscript(conversation)
         binding.messagesContentHost.post {
             binding.scrollArea.smoothScrollTo(
@@ -3587,220 +3285,6 @@ class MainActivity : AppCompatActivity() {
         syncTranscriptForAutomationMessage(resolvedRef)
     }
 
-    private fun scheduleAutomationAutoConfirm(
-        button: View?,
-        textView: TextView?,
-        task: String,
-        messageRef: AutomationMessageRef?
-    ) {
-        clearAutomationAutoConfirm(messageRef)
-        if (button == null || textView == null) return
-        if (task.isBlank()) return
-        if (!VirtualDisplayConfig.getAutoApproveAutomation(this)) return
-
-        val resolvedRef = resolveAutomationMessageRef(messageRef) ?: return
-        automationAutoConfirmRef = resolvedRef
-        val currentJob =
-            lifecycleScope.launch {
-                for (secondsRemaining in 10 downTo 1) {
-                    if (automationAutoConfirmRef != resolvedRef) return@launch
-                    if (!button.isAttachedToWindow || !button.isEnabled) return@launch
-                    automationCountdownSeconds[resolvedRef] = secondsRemaining
-                    textView.text = getString(R.string.automation_confirm_countdown, secondsRemaining)
-                    syncTranscriptForAutomationMessage(resolvedRef)
-                    delay(1000L)
-                }
-
-                if (automationAutoConfirmRef != resolvedRef) return@launch
-                if (!button.isAttachedToWindow || !button.isEnabled) return@launch
-                button.performClick()
-            }
-        automationAutoConfirmJob = currentJob
-        currentJob.invokeOnCompletion {
-            if (automationAutoConfirmJob === currentJob) {
-                automationCountdownSeconds.remove(resolvedRef)
-                automationAutoConfirmJob = null
-                automationAutoConfirmRef = null
-                syncTranscriptForAutomationMessage(resolvedRef)
-            }
-        }
-    }
-    private fun bindAutomationConfirmButton(
-        button: View?,
-        textView: TextView?,
-        instruction: String?,
-        messageRef: AutomationMessageRef?,
-        isConfirmed: Boolean,
-        isFinished: Boolean
-    ) {
-        val statusView = findAutomationPanelStatusView(button)
-        val task = instruction?.trim().orEmpty()
-        val iconView = button?.findViewById<ImageView?>(R.id.iv_confirm_icon)
-
-        if (isConfirmed) {
-            clearAutomationAutoConfirm(messageRef)
-            if (isFinished) {
-                configureAutomationFinishedButton(
-                    button = button,
-                    textView = textView,
-                    iconView = iconView,
-                    statusView = statusView
-                )
-            } else {
-                configureAutomationTerminateButton(
-                    button = button,
-                    textView = textView,
-                    iconView = iconView,
-                    statusView = statusView,
-                    messageRef = messageRef,
-                )
-            }
-            return
-        }
-
-        if (task.isBlank()) {
-            clearAutomationAutoConfirm(messageRef)
-            button?.visibility = View.GONE
-            button?.isEnabled = false
-            textView?.text = getString(R.string.automation_confirm)
-            return
-        }
-
-        button?.visibility = View.VISIBLE
-        button?.isEnabled = true
-        button?.alpha = 1f
-        textView?.text = getString(R.string.automation_confirm)
-        statusView?.text = getString(R.string.automation_scene_need_confirm)
-        button?.setOnClickListener {
-            if (button.isEnabled.not()) return@setOnClickListener
-            clearAutomationAutoConfirm(messageRef)
-            button.isEnabled = false
-            button.alpha = 0.7f
-            textView?.text = getString(R.string.automation_confirming)
-
-            val readyState = resolveAutomationReadyState()
-            if (!readyState.ready) {
-                button.isEnabled = true
-                button.alpha = 1f
-                textView?.text = getString(R.string.automation_not_ready_short)
-                statusView?.text = getString(R.string.automation_scene_not_ready)
-                Toast.makeText(
-                    this@MainActivity,
-                    resolveAutomationNotReadyToast(readyState.reason),
-                    Toast.LENGTH_LONG
-                ).show()
-                return@setOnClickListener
-            }
-
-            val dispatchResult =
-                ActivityAutomationInstructionGateway.dispatchFromAdvancedAi(
-                    context = this@MainActivity,
-                    instruction = task
-                )
-
-            if (dispatchResult.success) {
-                markAutomationCommandConfirmed(task, messageRef)
-                configureAutomationTerminateButton(
-                    button = button,
-                    textView = textView,
-                    iconView = iconView,
-                    statusView = statusView,
-                    messageRef = messageRef,
-                )
-            } else {
-                button.isEnabled = true
-                button.alpha = 1f
-                textView?.text = getString(R.string.automation_confirm)
-                statusView?.text = getString(R.string.automation_scene_need_confirm)
-                scheduleAutomationAutoConfirm(button, textView, task, messageRef)
-            }
-        }
-        scheduleAutomationAutoConfirm(button, textView, task, messageRef)
-    }
-
-    private fun configureAutomationTerminateButton(
-        button: View?,
-        textView: TextView?,
-        iconView: ImageView?,
-        statusView: TextView?,
-        messageRef: AutomationMessageRef? = null,
-    ) {
-        clearAutomationAutoConfirm(messageRef)
-        button?.visibility = View.VISIBLE
-        button?.background = ContextCompat.getDrawable(this, R.drawable.bg_action_button_oval_danger)
-        textView?.setTextColor(ContextCompat.getColor(this, R.color.m3t_on_error_container))
-        iconView?.setImageResource(R.drawable.ic_stop_24)
-        iconView?.setColorFilter(ContextCompat.getColor(this, R.color.m3t_on_error_container))
-
-        if (isAutomationTerminatePending(messageRef)) {
-            textView?.text = getString(R.string.automation_terminating)
-            statusView?.text = getString(R.string.automation_scene_stop_requested)
-            button?.isEnabled = false
-            button?.alpha = 0.75f
-            return
-        }
-
-        button?.isEnabled = true
-        button?.alpha = 1f
-        textView?.text = getString(R.string.automation_terminate)
-        statusView?.text = getString(R.string.automation_scene_confirmed)
-        button?.setOnClickListener {
-            requestAutomationStopFromHome()
-            markAutomationTerminatePending(messageRef)
-            textView?.text = getString(R.string.automation_terminating)
-            statusView?.text = getString(R.string.automation_scene_stop_requested)
-            button.isEnabled = false
-            button.alpha = 0.75f
-            automationTerminateFallbackJob?.cancel()
-            val resolvedRef = resolveAutomationMessageRef(messageRef)
-            if (resolvedRef != null) {
-                automationTerminateFallbackJob =
-                    lifecycleScope.launch {
-                        delay(12_000L)
-                        if (automationTerminatePendingRef == resolvedRef) {
-                            clearAutomationTerminatePending(resolvedRef)
-                            configureAutomationTerminateButton(
-                                button = button,
-                                textView = textView,
-                                iconView = iconView,
-                                statusView = statusView,
-                                messageRef = resolvedRef,
-                            )
-                            textView?.text = getString(R.string.automation_terminate)
-                            button.alpha = 1f
-                            button.isEnabled = true
-                            statusView?.text = getString(R.string.automation_scene_confirmed)
-                            Toast.makeText(
-                                this@MainActivity,
-                                getString(R.string.automation_terminate_timeout_retry),
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        }
-                    }
-            }
-        }
-    }
-
-    private fun configureAutomationFinishedButton(
-        button: View?,
-        textView: TextView?,
-        iconView: ImageView?,
-        statusView: TextView?
-    ) {
-        clearAutomationTerminatePending()
-        clearAutomationAutoConfirm()
-        button?.visibility = View.VISIBLE
-        button?.isEnabled = false
-        button?.alpha = 1f
-        button?.background = ContextCompat.getDrawable(this, R.drawable.bg_action_button_oval)
-        textView?.setTextColor(ContextCompat.getColor(this, R.color.m3t_message_action))
-        iconView?.setColorFilter(ContextCompat.getColor(this, R.color.m3t_message_action))
-        statusView?.text = getString(R.string.automation_scene_finished)
-        textView?.text = getString(R.string.automation_confirmed)
-        iconView?.setImageResource(R.drawable.ic_check_circle_24)
-        button?.setOnClickListener(null)
-    }
-
     private fun requestAutomationStopFromHome() {
         runCatching {
             sendBroadcast(
@@ -3845,16 +3329,6 @@ class MainActivity : AppCompatActivity() {
         persistConversations()
     }
 
-    private fun findAutomationPanelStatusView(anchor: View?): TextView? {
-        var cursor: View? = anchor
-        while (cursor != null) {
-            val found = cursor.findViewById<TextView?>(R.id.automation_panel_status)
-            if (found != null) return found
-            cursor = cursor.parent as? View
-        }
-        return null
-    }
-
     private fun extractAutomationCommand(message: String): String? {
         val normalized = message.replace("\r\n", "\n").trim()
         if (!normalized.contains("待转交自动化命令：")) return null
@@ -3870,312 +3344,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun normalizeAutomationLogLine(rawLine: String): String {
         return AutomationMessageParser.normalizeAutomationLogLine(rawLine)
-    }
-
-    private fun renderAutomationTimelineRows(
-        container: LinearLayout,
-        timeline: List<AutomationTimelineEntry>
-    ) {
-        container.removeAllViews()
-
-        if (timeline.isEmpty()) {
-            val waitingView =
-                TextView(this).apply {
-                    text = getString(R.string.automation_scene_waiting)
-                    setTextAppearance(this@MainActivity, R.style.TextAppearance_M3t_Body_Small)
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface_variant))
-                }
-            container.addView(
-                waitingView,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-            )
-            return
-        }
-
-        val rowSpacing = resources.getDimensionPixelSize(R.dimen.m3t_spacing_xs)
-        timeline.forEachIndexed { index, entry ->
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-            }
-
-            val displayText = entry.displayText.trim()
-            if (displayText.isNotBlank()) {
-                val thoughtView =
-                    TextView(this).apply {
-                        text = "• $displayText"
-                        setTextAppearance(this@MainActivity, R.style.TextAppearance_M3t_Body_Small)
-                        setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface_variant))
-                    }
-                val thoughtLp = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                row.addView(thoughtView, thoughtLp)
-            }
-
-            val action = entry.action?.trim().orEmpty()
-            if (action.isNotBlank()) {
-                val chip = createAutomationInlineChip(action)
-                val chipLp =
-                    LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        topMargin =
-                            if (displayText.isNotBlank()) {
-                                resources.getDimensionPixelSize(R.dimen.m3t_spacing_xxxs)
-                            } else {
-                                0
-                            }
-                    }
-                row.addView(chip, chipLp)
-            }
-
-            val rowLp =
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    if (index > 0) topMargin = rowSpacing
-                }
-            container.addView(row, rowLp)
-        }
-    }
-
-    private fun createAutomationInlineChip(label: String): TextView {
-        return TextView(this).apply {
-            text = label
-            setTextAppearance(this@MainActivity, R.style.TextAppearance_M3t_Body_Small)
-            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_message_action))
-            val padH = resources.getDimensionPixelSize(R.dimen.m3t_spacing_sm)
-            val padV = resources.getDimensionPixelSize(R.dimen.m3t_spacing_xs)
-            setPadding(padH, padV, padH, padV)
-            background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_action_button_oval)
-        }
-    }
-
-    private fun extractAutomationDisplayText(logLine: String): String? {
-        val normalized = normalizeAutomationLogLine(logLine)
-        val thought =
-            when {
-                normalized.startsWith("思考：") -> normalized.substringAfter("思考：").trim()
-                normalized.startsWith("修复思考：") -> normalized.substringAfter("修复思考：").trim()
-                else -> ""
-            }
-        if (thought.isNotBlank()) return thought
-        return null
-    }
-
-    private fun extractAutomationIntentTextFromOutput(logLine: String): String? {
-        val normalized = normalizeAutomationLogLine(logLine)
-        val outputPayload =
-            when {
-                normalized.startsWith("输出：") -> normalized.substringAfter("输出：").trim()
-                normalized.startsWith("修复输出：") -> normalized.substringAfter("修复输出：").trim()
-                else -> ""
-            }
-        if (outputPayload.isBlank()) return null
-
-        val actionFromDo =
-            Regex("""action\s*=\s*"([^"]+)"""", RegexOption.IGNORE_CASE)
-                .find(outputPayload)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.trim()
-                ?.lowercase()
-                .orEmpty()
-        if (actionFromDo in setOf("type", "input", "text", "type_name")) {
-            return null
-        }
-
-        val textFromDo =
-            Regex("""text\s*=\s*"([^"]+)"""", RegexOption.IGNORE_CASE)
-                .find(outputPayload)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.trim()
-        if (!textFromDo.isNullOrBlank()) return textFromDo
-
-        val textFromJson =
-            Regex(""""text"\s*:\s*"([^"]+)"""", RegexOption.IGNORE_CASE)
-                .find(outputPayload)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.trim()
-        if (!textFromJson.isNullOrBlank()) return textFromJson
-
-        return null
-    }
-
-    private fun extractDescFromOutputPayload(payload: String): String? {
-        val clean = payload.trim()
-        if (clean.isBlank()) return null
-
-        // 1) JSON/对象形式："desc":"..."
-        Regex(""""desc"\s*:\s*"([^"]+)"""")
-            .find(clean)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?.let { return it }
-
-        // 2) do(..., desc="...")
-        Regex("""desc\s*=\s*"([^"]+)"""")
-            .find(clean)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?.let { return it }
-
-        // 3) 文本形式：desc: ...
-        Regex("""\bdesc\b\s*[:=]\s*(.+)$""", RegexOption.IGNORE_CASE)
-            .find(clean)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?.let { return it }
-
-        return null
-    }
-
-    private fun mapAutomationActionLabel(rawAction: String): String {
-        return when (rawAction.trim().lowercase()) {
-            "tap", "click" -> "点击"
-            "type", "input" -> "输入"
-            "swipe" -> "滑动"
-            "launch", "open", "startapp" -> "启动"
-            "back" -> "返回"
-            "wait" -> "等待"
-            "longpress" -> "长按"
-            "scroll" -> "滚动"
-            "home" -> "回桌面"
-            else -> rawAction.trim().ifBlank { "执行" }.take(10)
-        }
-    }
-
-    private fun extractAutomationActionLabel(logLine: String): String? {
-        val normalized = normalizeAutomationLogLine(logLine)
-        val actionByCurrent = normalized.substringAfter("当前动作：", "").trim()
-        if (actionByCurrent.isNotBlank() && actionByCurrent != normalized) {
-            return actionByCurrent.take(10)
-        }
-
-        return null
-    }
-
-    private fun setAutomationPanelCollapsedState(
-        content: View,
-        toggleButton: ImageButton,
-        collapsed: Boolean,
-        animate: Boolean = true
-    ) {
-        val targetRotation = if (collapsed) 180f else 0f
-        val contentOffset = resources.getDimensionPixelSize(R.dimen.m3t_spacing_sm).toFloat()
-
-        content.animate().cancel()
-        toggleButton.animate().cancel()
-        toggleButton.contentDescription =
-            getString(
-                if (collapsed) {
-                    R.string.automation_scene_expand
-                } else {
-                    R.string.automation_scene_collapse
-                }
-            )
-
-        if (!animate || !content.isLaidOut) {
-            content.visibility = if (collapsed) View.GONE else View.VISIBLE
-            content.alpha = 1f
-            content.translationY = 0f
-            content.scaleY = 1f
-            toggleButton.rotation = targetRotation
-            toggleButton.isEnabled = true
-            return
-        }
-
-        toggleButton.isEnabled = false
-        toggleButton.animate().cancel()
-        content.animate().cancel()
-        toggleButton.animate()
-            .rotation(targetRotation)
-            .setDuration(260)
-            .setInterpolator(OvershootInterpolator(0.45f))
-            .start()
-
-        if (collapsed) {
-            if (content.visibility != View.VISIBLE) {
-                toggleButton.isEnabled = true
-                return
-            }
-            content.pivotY = 0f
-            content.pivotX = (content.width * 0.5f).coerceAtLeast(0f)
-            content.animate()
-                .alpha(0f)
-                .translationY(-contentOffset * 0.4f)
-                .scaleX(0.985f)
-                .scaleY(0.985f)
-                .setDuration(240)
-                .setInterpolator(AccelerateInterpolator(1.1f))
-                .withEndAction {
-                    content.visibility = View.GONE
-                    content.alpha = 1f
-                    content.translationY = 0f
-                    content.scaleX = 1f
-                    content.scaleY = 1f
-                    toggleButton.isEnabled = true
-                }
-                .start()
-        } else {
-            content.visibility = View.VISIBLE
-            content.alpha = 0f
-            content.translationY = -contentOffset * 0.28f
-            content.scaleX = 0.985f
-            content.scaleY = 0.985f
-            content.pivotY = 0f
-            content.pivotX = (content.width * 0.5f).coerceAtLeast(0f)
-            content.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .scaleX(1f)
-                .scaleY(1f)
-                .setDuration(320)
-                .setInterpolator(DecelerateInterpolator(1.25f))
-                .withEndAction {
-                    toggleButton.isEnabled = true
-                }
-                .start()
-        }
-    }
-
-    private fun configureAutomationPanel(
-        command: String,
-        logs: List<String>,
-        hasConfirm: Boolean,
-        hasConfirmed: Boolean,
-        statusView: TextView,
-        commandView: TextView,
-        logContainer: LinearLayout
-    ) {
-        commandView.text = command
-        val hasTerminalLog = logs.any { isAutomationTerminalLog(it) }
-        statusView.text =
-            when {
-                hasConfirm -> getString(R.string.automation_scene_need_confirm)
-                hasTerminalLog -> getString(R.string.automation_scene_finished)
-                logs.isNotEmpty() -> getString(R.string.automation_scene_running)
-                hasConfirmed -> getString(R.string.automation_scene_confirmed)
-                else -> getString(R.string.automation_scene_not_ready)
-            }
-
-        val timeline = AutomationTimelineFormatter.buildTimeline(logs)
-        logContainer.tag = timeline
-        renderAutomationTimelineRows(logContainer, timeline)
     }
 
     /**
