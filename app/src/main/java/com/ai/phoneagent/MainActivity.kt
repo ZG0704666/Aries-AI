@@ -1223,17 +1223,8 @@ class MainActivity : AppCompatActivity() {
                     if (!exists) {
                         c.messages.add(UiMessage(author = author, content = content, isUser = isUser))
                         c.updatedAt = System.currentTimeMillis()
-                        if (isUser) {
-                            appendComplexUserMessage(author, content, animate = false)
-                        } else {
-                            appendComplexAiMessage(
-                                author,
-                                content,
-                                animate = false,
-                                timeCostMs = 0,
-                                messageIndexInConversation = c.messages.lastIndex
-                            )
-                        }
+                        syncMessageTranscript(c)
+                        smoothScrollToBottom()
                         persistConversations()
                     }
                 }
@@ -1684,14 +1675,7 @@ class MainActivity : AppCompatActivity() {
             lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) &&
                 activeConversation?.id == conversation.id
 
-        if (canRenderNow &&
-            activeAutomationPanelConversationId == conversation.id &&
-            activeAutomationPanelMessageIndex == targetIndex
-        ) {
-            appendAutomationLogToPanelUi(logLine)
-        } else if (canRenderNow) {
-            renderConversation(conversation)
-        } else {
+        if (!canRenderNow) {
             pendingAutomationLogUiRefresh = true
         }
         if (isAutomationTerminalLog(normalizedLogLine)) {
@@ -1766,13 +1750,8 @@ class MainActivity : AppCompatActivity() {
                 lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) &&
                         activeConversation?.id == c.id
         if (canRenderNow) {
-            appendComplexAiMessage(
-                "Aries AI",
-                messageContent,
-                animate = false,
-                timeCostMs = 0,
-                messageIndexInConversation = c.messages.lastIndex
-            )
+            syncMessageTranscript(c)
+            smoothScrollToBottom()
         } else {
             pendingAutomationLogUiRefresh = true
         }
@@ -3180,36 +3159,8 @@ class MainActivity : AppCompatActivity() {
         binding.messagesContainer.removeAllViews()
         clearAutomationPanelRuntimeRefs()
         syncMessageTranscript(conversation)
-        var lastUserContent: String? = null
-        val currentModel = resolveApiModel() // 获取当前模型配置
-        for ((index, m) in conversation.messages.withIndex()) {
-            // 历史消息全部使用新的复杂气泡（如果是AI），确保视觉风格统一
-            if (!m.isUser) {
-                // 无论是包含 leshoot 还是普通消息，都使用 appendComplexAiMessage
-                // 使用 animate = false 立即显示
-                appendComplexAiMessage(
-                    m.author,
-                    m.content,
-                    animate = false,
-                    timeCostMs = m.thinkingDurationMs ?: 0L,
-                    retryUserText = lastUserContent,
-                    messageIndexInConversation = index,
-                    modelName = currentModel
-                )
-            } else {
-                lastUserContent = m.content
-                appendComplexUserMessage(
-                    m.author,
-                    m.content,
-                    animate = false,
-                    attachments = m.attachments.orEmpty()
-                )
-            }
-        }
-        
-        // 渲染完后滚动到底部
         binding.messagesContentHost.post {
-            (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
+            binding.scrollArea.smoothScrollTo(
                 0,
                 binding.messagesContentHost.height
             )
@@ -3322,13 +3273,7 @@ class MainActivity : AppCompatActivity() {
                 c.updatedAt = System.currentTimeMillis()
                 syncMessageTranscript(c)
                 persistConversations()
-
-                appendComplexUserMessage(
-                    "我",
-                    messageContentStr,
-                    animate = true,
-                    attachments = userAttachments
-                )
+                smoothScrollToBottom()
                 
                 // 同步消息到悬浮窗（如果运行中）
                 if (FloatingChatService.isRunning()) {
@@ -3356,10 +3301,9 @@ class MainActivity : AppCompatActivity() {
                 val aiView =
                         layoutInflater.inflate(
                                 R.layout.item_ai_message_complex,
-                                binding.messagesContainer,
+                                null,
                                 false,
                         )
-                binding.messagesContainer.addView(aiView)
                 val vh = StreamRenderHelper.bindViews(aiView)
                 StreamRenderHelper.initThinkingState(vh)
                 val tvModelName = aiView.findViewById<TextView>(R.id.tv_model_name)
@@ -3667,18 +3611,6 @@ class MainActivity : AppCompatActivity() {
                     cc.updatedAt = System.currentTimeMillis()
                     syncMessageTranscript(cc)
                     persistConversations()
-
-                    runOnUiThread {
-                        appendComplexAiMessage(
-                            "Aries AI",
-                            commandMessage,
-                            animate = true,
-                            timeCostMs = 0,
-                            automationInstructionForConfirm = if (readyState.ready) automationInstruction else null,
-                            messageIndexInConversation = cc.messages.lastIndex,
-                            modelName = resolvedModel
-                        )
-                    }
                 }
             } finally {
                 isRequestInFlight = false
@@ -4812,268 +4744,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 用户消息复杂气泡：淡水蓝背景，右侧对齐，并与底部输入栏左右边界保持一致。
-     */
-    private fun resolveAttachmentIcon(attachment: AttachmentInfo): ImageVector =
-        when {
-            attachment.fileName.startsWith("camera_") -> Icons.Default.PhotoCamera
-            isImageAttachment(attachment) -> Icons.Default.Image
-            attachment.filePath.startsWith("screen_") -> Icons.Default.ScreenshotMonitor
-            attachment.mimeType.startsWith("audio/") -> Icons.Default.AudioFile
-            attachment.mimeType.startsWith("video/") -> Icons.Default.VideoLibrary
-            else -> Icons.Default.Description
-        }
-
-    private fun isImageAttachment(attachment: AttachmentInfo): Boolean {
-        if (attachment.mimeType.startsWith("image/", ignoreCase = true)) return true
-        val extension =
-            attachment.fileName.substringAfterLast('.', "").ifBlank {
-                attachment.filePath.substringAfterLast('.', "")
-            }.lowercase()
-        return extension in setOf("jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp")
-    }
-
-    private fun openAttachmentInputStream(filePath: String): InputStream? {
-        return runCatching {
-            when {
-                filePath.startsWith("content://") || filePath.startsWith("file://") -> {
-                    contentResolver.openInputStream(Uri.parse(filePath))
-                }
-                else -> {
-                    val file = File(filePath)
-                    if (file.exists() && file.isFile) file.inputStream() else null
-                }
-            }
-        }.getOrNull()
-    }
-
-    private fun calculateInSampleSize(options: BitmapFactory.Options, reqSizePx: Int): Int {
-        val outHeight = options.outHeight
-        val outWidth = options.outWidth
-        var inSampleSize = 1
-        if (outHeight > reqSizePx || outWidth > reqSizePx) {
-            var halfHeight = outHeight / 2
-            var halfWidth = outWidth / 2
-            while ((halfHeight / inSampleSize) >= reqSizePx && (halfWidth / inSampleSize) >= reqSizePx) {
-                inSampleSize *= 2
-            }
-        }
-        return inSampleSize.coerceAtLeast(1)
-    }
-
-    private fun decodeAttachmentThumbnail(filePath: String, reqSizePx: Int): Bitmap? {
-        val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        openAttachmentInputStream(filePath)?.use { input ->
-            BitmapFactory.decodeStream(input, null, boundsOptions)
-        } ?: return null
-
-        if (boundsOptions.outWidth <= 0 || boundsOptions.outHeight <= 0) return null
-
-        val decodeOptions =
-            BitmapFactory.Options().apply {
-                inSampleSize = calculateInSampleSize(boundsOptions, reqSizePx)
-                inPreferredConfig = Bitmap.Config.RGB_565
-            }
-        return openAttachmentInputStream(filePath)?.use { input ->
-            BitmapFactory.decodeStream(input, null, decodeOptions)
-        }
-    }
-
-    private fun bindUserAttachmentIcons(composeView: ComposeView, attachments: List<AttachmentInfo>) {
-        if (attachments.isEmpty()) {
-            composeView.visibility = View.GONE
-            composeView.setContent {}
-            return
-        }
-
-        composeView.visibility = View.VISIBLE
-        composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-        composeView.setContent {
-            val density = LocalDensity.current
-            val itemBg = colorResource(id = R.color.m3t_attachment_preview_card_bg)
-            val iconBg = colorResource(id = R.color.m3t_attachment_option_bg)
-            val iconTint = colorResource(id = R.color.m3t_attachment_option_icon)
-            val textColor = colorResource(id = R.color.m3t_attachment_preview_name)
-
-            val itemSpacing = dimensionResource(id = R.dimen.m3t_user_attachment_chip_spacing)
-            val itemRadius = dimensionResource(id = R.dimen.m3t_user_attachment_chip_radius)
-            val itemPaddingH = dimensionResource(id = R.dimen.m3t_spacing_sm)
-            val itemPaddingV = dimensionResource(id = R.dimen.m3t_spacing_xs)
-            val thumbSize = dimensionResource(id = R.dimen.m3t_user_attachment_thumb_size)
-            val iconBoxSize = dimensionResource(id = R.dimen.m3t_user_attachment_chip_size)
-            val iconSize = dimensionResource(id = R.dimen.m3t_user_attachment_chip_icon_size)
-            val titleMaxWidth = dimensionResource(id = R.dimen.m3t_user_attachment_name_max_width)
-
-            Column(verticalArrangement = Arrangement.spacedBy(itemSpacing)) {
-                attachments.forEach { attachment ->
-                    val isImage = isImageAttachment(attachment)
-                    val previewSizePx = with(density) { thumbSize.roundToPx() }.coerceAtLeast(1)
-                    val previewBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
-                        initialValue = null,
-                        key1 = attachment.filePath,
-                        key2 = previewSizePx,
-                        key3 = isImage
-                    ) {
-                        if (!isImage) {
-                            value = null
-                            return@produceState
-                        }
-
-                        val cacheKey = "${attachment.filePath}#$previewSizePx"
-                        val cachedBitmap = attachmentThumbnailCache.get(cacheKey)
-                        if (cachedBitmap != null) {
-                            value = cachedBitmap
-                            return@produceState
-                        }
-
-                        val decodedBitmap =
-                            withContext(Dispatchers.IO) {
-                                decodeAttachmentThumbnail(attachment.filePath, previewSizePx)?.asImageBitmap()
-                            }
-                        if (decodedBitmap != null) {
-                            attachmentThumbnailCache.put(cacheKey, decodedBitmap)
-                        }
-                        value = decodedBitmap
-                    }
-                    val shouldRenderImageStyle = isImage || previewBitmap != null
-
-                    Row(
-                        modifier =
-                            Modifier
-                                .clip(RoundedCornerShape(itemRadius))
-                                .background(itemBg)
-                                .padding(horizontal = itemPaddingH, vertical = itemPaddingV),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(itemSpacing)
-                    ) {
-                        if (shouldRenderImageStyle) {
-                            if (previewBitmap != null) {
-                                Image(
-                                    bitmap = previewBitmap!!,
-                                    contentDescription = attachment.fileName,
-                                    contentScale = ContentScale.Crop,
-                                    modifier =
-                                        Modifier
-                                            .size(thumbSize)
-                                            .clip(RoundedCornerShape(itemRadius))
-                                )
-                            } else {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .size(thumbSize)
-                                            .clip(RoundedCornerShape(itemRadius))
-                                            .background(iconBg),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = resolveAttachmentIcon(attachment),
-                                        contentDescription = attachment.fileName,
-                                        tint = iconTint,
-                                        modifier = Modifier.size(iconSize)
-                                    )
-                                }
-                            }
-                        } else {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(iconBoxSize)
-                                        .clip(RoundedCornerShape(itemRadius))
-                                        .background(iconBg),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = resolveAttachmentIcon(attachment),
-                                    contentDescription = attachment.fileName,
-                                    tint = iconTint,
-                                    modifier = Modifier.size(iconSize)
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = attachment.fileName.ifBlank { if (isImage) "图片" else "文件" },
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = textColor,
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.widthIn(max = titleMaxWidth)
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    private fun appendComplexUserMessage(
-        author: String,
-        content: String,
-        animate: Boolean,
-        attachments: List<AttachmentInfo> = emptyList()
-    ) {
-        val bubble = layoutInflater.inflate(R.layout.item_user_message_complex, binding.messagesContainer, false)
-        val tv = bubble.findViewById<TextView>(R.id.message_content)
-        val authorTv = bubble.findViewById<TextView>(R.id.user_author_name)
-        val attachmentIconsView = bubble.findViewById<ComposeView>(R.id.user_attachment_icons)
-        authorTv.text = author
-        authorTv.visibility = View.GONE
-        bindUserAttachmentIcons(attachmentIconsView, attachments)
-        tv.visibility = if (content.isBlank()) View.GONE else View.VISIBLE
-
-        val density = resources.displayMetrics.density
-        fun dp(v: Int): Int = (v * density).toInt()
-
-        // 用 row 容器把气泡贴到右侧（row 宽度 match_parent）
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.END
-        }
-
-        row.addView(
-            bubble,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                // 左侧留出空间制造“对话层次”，右侧贴边由 row + ScrollView padding 保证
-                setMargins(dp(48), dp(8), 0, dp(8))
-            }
-        )
-
-        binding.messagesContainer.addView(
-            row,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        )
-        syncMessageTranscript()
-
-        smoothScrollToBottom()
-
-        if (!animate || content.isBlank()) {
-            tv.text = content
-            return
-        }
-
-        lifecycleScope.launch {
-            val sb = StringBuilder()
-            val chunkSize = 2
-            var idx = 0
-            while (idx < content.length) {
-                val end = minOf(idx + chunkSize, content.length)
-                sb.append(content.substring(idx, end))
-                tv.text = sb.toString()
-                idx = end
-                smoothScrollToBottom()
-                delay(10)
-            }
-            tv.text = content
-        }
-    }
-    
     /**
      * 【优化】使用StringBuilder批量更新方式显示消息
     * 参考groupBy 算法，每次收到一点就拼接，然后刷新整个文本
