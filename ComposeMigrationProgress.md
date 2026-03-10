@@ -6,7 +6,7 @@
 ## 进度口径
 
 - 可见界面迁移进度：`100%`
-- 底层架构彻底迁移进度：`约 86%`
+- 底层架构彻底迁移进度：`约 91%`
 
 说明：
 - “可见界面迁移进度”指用户实际看到和操作到的页面，是否已经切到 Compose Material 3。
@@ -27,6 +27,7 @@
 - 自动化控制面板的语音输入按钮动画已改为 Compose 可见层驱动，不再依赖 hidden legacy View 动画。
 - 自动化控制面板的推荐任务轮播文本已改为 Compose 状态驱动。
 - 自动化控制面板的日志复制反馈已脱离 hidden `TextView` 动画。
+- 自动化控制面板的宿主布局已收敛为单一 `ComposeView`，hidden legacy 布局已不再参与页面运行。
 
 ## 本轮完成
 
@@ -35,6 +36,8 @@
 - 删除了自动化页遗留的 hidden 推荐任务点击入口和 hidden 语音按钮点击入口。
 - 删除了自动化页的 hidden 麦克风脉冲动画实现，改成 Compose 可见按钮动画。
 - 删除了自动化页已经失效的 `syncComposeStateFromLegacyViews()` / `setupLogCopy()` / `playLogCopyAnim()` 路径。
+- 删除了自动化页整块 hidden `legacyAutomationContent` 宿主，`activity_automation.xml` 现在只保留 Compose 宿主。
+- 自动化页的日志、任务输入、模式说明、虚拟屏状态、按钮状态已不再镜像回 hidden View。
 - 将进度口径正式推进到“可见界面迁移 100%”。
 
 ## 当前状态
@@ -48,7 +51,15 @@
 ### 自动化页
 
 - 用户可见界面与可见交互已全部由 Compose Material 3 承接。
-- hidden legacy 布局仍存在，但当前主要用于兼容底层运行时字段和个别系统能力桥接，不再作为可见交互入口。
+- 页面宿主已经是纯 Compose，不再保留 hidden legacy 布局作为运行时桥接。
+
+### 当前主要剩余债
+
+- `MainActivity.kt` 仍保留一条较长的 legacy 运行时链：
+  - hidden `topAppBar` / `NavigationView`
+  - hidden `messagesContainer`
+  - 自动化面板 runtime 引用与部分旧消息同步逻辑
+- 这些部分已经不在可见主路径上，但仍影响“底层彻底迁移”口径。
 
 ## 未完成
 
@@ -59,8 +70,7 @@
 
 ## 下一阶段目标
 
-- 优先收掉自动化页剩余的 hidden legacy bridge。
-- 继续清理主界面中只用于兼容旧运行时的遗留宿主。
+- 优先收掉主界面中只用于兼容旧运行时的遗留宿主。
 - 把“可见界面已完成迁移”推进到“底层架构也基本完成迁移”。
 
 ## 实时更新规则

@@ -18,7 +18,6 @@
 package com.ai.phoneagent
 
 import android.Manifest
-import android.content.res.ColorStateList
 import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -34,10 +33,6 @@ import android.os.VibratorManager
 import android.provider.Settings
 import android.util.Log
 import android.view.HapticFeedbackConstants
-import android.view.View
-import android.widget.EditText
-import android.widget.RadioGroup
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -46,9 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.ai.phoneagent.core.automation.AutomationInstructionRequest
 import com.ai.phoneagent.core.automation.AutomationLogBridge
@@ -64,8 +57,6 @@ import com.ai.phoneagent.system.applyMaterialCloseTransition
 import com.ai.phoneagent.ui.automation.AutomationControlScreen
 import com.ai.phoneagent.ui.automation.AutomationStatusTone
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.materialswitch.MaterialSwitch
 import rikka.shizuku.Shizuku
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
@@ -102,24 +93,6 @@ class AutomationActivityNew : AppCompatActivity() {
 
     @Volatile private var paused: Boolean = false
 
-    private lateinit var tvAccStatus: TextView
-    private lateinit var statusIndicator: View
-    private lateinit var tvLog: TextView
-    private lateinit var etTask: EditText
-    private lateinit var btnOpenAccessibilitySettings: MaterialButton
-    private lateinit var btnShizukuAuthorize: MaterialButton
-    private lateinit var btnRefreshAccessibility: View
-    private lateinit var btnStartAgent: MaterialButton
-    private lateinit var btnPauseAgent: MaterialButton
-    private lateinit var btnStopAgent: MaterialButton
-
-    private lateinit var switchShizukuInteraction: MaterialSwitch
-    private lateinit var switchAutoApproveAutomation: MaterialSwitch
-
-    // 执行模式相关
-    private lateinit var rgExecutionMode: RadioGroup
-    private lateinit var tvModeDescription: TextView
-    private lateinit var tvVirtualDisplayStatus: TextView
     private var isBackgroundMode: Boolean = false // true = 后台虚拟屏模式, false = 前端执行模式
 
     private var sherpaSpeechRecognizer: SherpaSpeechRecognizer? = null
@@ -156,7 +129,6 @@ class AutomationActivityNew : AppCompatActivity() {
     private var composePauseButtonEnabled by mutableStateOf(false)
     private var composeStopButtonEnabled by mutableStateOf(false)
     private var composeIsListening by mutableStateOf(false)
-    private var suppressLegacySyncCallbacks = false
 
     // 运行结果保存相关
     private val PREFS_NAME = "automation_results"
@@ -227,7 +199,6 @@ class AutomationActivityNew : AppCompatActivity() {
 
         binding = ActivityAutomationBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        binding.legacyAutomationContent.visibility = View.GONE
         if (launchedKeepMainOnTop) {
             overridePendingTransition(0, 0)
         }
@@ -242,81 +213,6 @@ class AutomationActivityNew : AppCompatActivity() {
                     resources.getBoolean(R.bool.m3t_light_system_bars)
         }
 
-        val initialTop = binding.legacyAutomationContent.paddingTop
-        val initialBottom = binding.legacyAutomationContent.paddingBottom
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
-            val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
-            val bottomInset = if (ime.bottom > sys.bottom) ime.bottom else sys.bottom
-
-            // 将 top inset 应用到 AppBar
-            binding.appBar.setPadding(0, sys.top, 0, 0)
-
-            binding.legacyAutomationContent.setPadding(
-                    binding.legacyAutomationContent.paddingLeft,
-                    initialTop,
-                    binding.legacyAutomationContent.paddingRight,
-                    initialBottom + bottomInset
-            )
-            insets
-        }
-        ViewCompat.requestApplyInsets(binding.root)
-
-        // 绑定UI组件 - 带null检查和异常处理
-        try {
-            tvAccStatus =
-                    binding.root.findViewById(R.id.tvAccStatus)
-                            ?: throw NullPointerException("tvAccStatus not found")
-            statusIndicator =
-                    binding.root.findViewById(R.id.statusIndicator)
-                            ?: throw NullPointerException("statusIndicator not found")
-            tvLog =
-                    binding.root.findViewById(R.id.tvLog)
-                            ?: throw NullPointerException("tvLog not found")
-            etTask =
-                    binding.root.findViewById(R.id.etTask)
-                            ?: throw NullPointerException("etTask not found")
-            btnOpenAccessibilitySettings =
-                    binding.root.findViewById(R.id.btnOpenAccessibilitySettings)
-                            ?: throw NullPointerException("btnOpenAccessibilitySettings not found")
-            btnShizukuAuthorize =
-                    binding.root.findViewById(R.id.btnShizukuAuthorize)
-                            ?: throw NullPointerException("btnShizukuAuthorize not found")
-            btnRefreshAccessibility =
-                    binding.root.findViewById(R.id.btnRefreshAccessibility)
-                            ?: throw NullPointerException("btnRefreshAccessibility not found")
-            btnStartAgent =
-                    binding.root.findViewById(R.id.btnStartAgent)
-                            ?: throw NullPointerException("btnStartAgent not found")
-            btnPauseAgent =
-                    binding.root.findViewById(R.id.btnPauseAgent)
-                            ?: throw NullPointerException("btnPauseAgent not found")
-            btnStopAgent =
-                    binding.root.findViewById(R.id.btnStopAgent)
-                            ?: throw NullPointerException("btnStopAgent not found")
-        // 执行模式选择
-            rgExecutionMode =
-                    binding.root.findViewById(R.id.rgExecutionMode)
-                            ?: throw NullPointerException("rgExecutionMode not found")
-            tvModeDescription =
-                    binding.root.findViewById(R.id.tvModeDescription)
-                            ?: throw NullPointerException("tvModeDescription not found")
-            tvVirtualDisplayStatus =
-                    binding.root.findViewById(R.id.tvVirtualDisplayStatus)
-                            ?: throw NullPointerException("tvVirtualDisplayStatus not found")
-            switchShizukuInteraction =
-                    binding.root.findViewById(R.id.switchShizukuInteraction)
-                            ?: throw NullPointerException("switchShizukuInteraction not found")
-            switchAutoApproveAutomation =
-                    binding.root.findViewById(R.id.switchAutoApproveAutomation)
-                            ?: throw NullPointerException("switchAutoApproveAutomation not found")
-        } catch (e: NullPointerException) {
-            Log.e("AutomationActivityNew", "UI组件初始化失败: ${e.message}", e)
-            Toast.makeText(this, "应用初始化失败: ${e.message}", Toast.LENGTH_LONG).show()
-            finish()
-            return
-        }
-
         setupComposeContent()
 
         if (forceTopOnEntry) {
@@ -328,81 +224,19 @@ class AutomationActivityNew : AppCompatActivity() {
         // 初始化虚拟屏状态显示
         // 恢复上次保存的执行模式
         val savedUseVd = VirtualDisplayConfig.getUseVirtualDisplay(this)
-        setExecutionMode(backgroundMode = savedUseVd, mirrorLegacy = true)
-
-        rgExecutionMode.setOnCheckedChangeListener { _, checkedId ->
-            if (suppressLegacySyncCallbacks) return@setOnCheckedChangeListener
-            setExecutionMode(checkedId == R.id.rbBackgroundMode)
-        }
-
-        switchAutoApproveAutomation.setOnCheckedChangeListener { _, checked ->
-            if (suppressLegacySyncCallbacks) return@setOnCheckedChangeListener
-            setAutoApprove(checked)
-        }
-        switchShizukuInteraction.setOnCheckedChangeListener { _, checked ->
-            if (suppressLegacySyncCallbacks) return@setOnCheckedChangeListener
-            setUseShizukuInteraction(checked)
-        }
+        setExecutionMode(backgroundMode = savedUseVd)
         setUseShizukuInteraction(
                 checked = VirtualDisplayConfig.getUseShizukuInteraction(this),
-                mirrorLegacy = true,
                 userInitiated = false,
         )
-        setAutoApprove(
-                checked = VirtualDisplayConfig.getAutoApproveAutomation(this),
-                mirrorLegacy = true,
-        )
+        setAutoApprove(checked = VirtualDisplayConfig.getAutoApproveAutomation(this))
 
         // 初始化工具系统
         initializeToolSystem()
 
-        // 设置按钮事件
-        binding.topAppBar.setNavigationOnClickListener {
-            vibrateLight()
-            finish()
-        }
-
-        btnOpenAccessibilitySettings.setOnClickListener {
-            vibrateLight()
-            openAccessibilitySettings()
-        }
-
-        btnShizukuAuthorize.setOnClickListener {
-            vibrateLight()
-            handleShizukuAuthorizeClick()
-        }
-
-        btnRefreshAccessibility.setOnClickListener {
-            vibrateLight()
-            checkAccessibilityStatus()
-        }
-
-        btnStartAgent.setOnClickListener {
-            vibrateLight()
-            if (agentJob != null) {
-                stopAgent()
-            } else {
-                startAgent()
-            }
-        }
-
-        btnPauseAgent.setOnClickListener {
-            vibrateLight()
-            togglePause()
-        }
-
-        btnStopAgent.setOnClickListener {
-            vibrateLight()
-            stopAgent()
-        }
-
         // 启动推荐语句滚动
         startRecommendTaskRotation()
-
-        btnPauseAgent.isEnabled = false
-        btnStopAgent.isEnabled = false
-        btnStopAgent.visibility = View.VISIBLE
-        syncStartButtonState(canStart = false)
+        updateComposeControlState(canStart = false)
 
         // 初始检查
         checkAccessibilityStatus()
@@ -499,16 +333,16 @@ class AutomationActivityNew : AppCompatActivity() {
                             checkAccessibilityStatus()
                         },
                         onExecutionModeChange = { backgroundMode ->
-                            setExecutionMode(backgroundMode, mirrorLegacy = true)
+                            setExecutionMode(backgroundMode)
                         },
                         onShizukuModeChange = { checked ->
-                            setUseShizukuInteraction(checked, mirrorLegacy = true)
+                            setUseShizukuInteraction(checked)
                         },
                         onAutoApproveChange = { checked ->
-                            setAutoApprove(checked, mirrorLegacy = true)
+                            setAutoApprove(checked)
                         },
                         onTaskChange = { value ->
-                            setTaskText(value, mirrorLegacy = true)
+                            setTaskText(value)
                         },
                         onVoiceTask = {
                             vibrateLight()
@@ -520,7 +354,7 @@ class AutomationActivityNew : AppCompatActivity() {
                         },
                         onUseRecommendTask = {
                             vibrateLight()
-                            setTaskText(composeRecommendText, mirrorLegacy = true)
+                            setTaskText(composeRecommendText)
                         },
                         onStart = {
                             vibrateLight()
@@ -551,36 +385,23 @@ class AutomationActivityNew : AppCompatActivity() {
                 else -> AutomationStatusTone.Inactive
             }
 
-    private fun setTaskText(value: String, mirrorLegacy: Boolean = false) {
+    private fun setTaskText(value: String) {
         composeTaskText = value
-        if (mirrorLegacy && ::etTask.isInitialized) {
-            val current = etTask.text?.toString().orEmpty()
-            if (current != value) {
-                etTask.setText(value)
-                etTask.setSelection(etTask.text?.length ?: 0)
-            }
-        }
     }
 
-    private fun setTaskHintText(value: String, mirrorLegacy: Boolean = false) {
+    private fun setTaskHintText(value: String) {
         composeTaskHint = value
-        if (mirrorLegacy && ::etTask.isInitialized) {
-            etTask.hint = value
-        }
     }
 
     private fun setRecommendText(value: String) {
         composeRecommendText = value
     }
 
-    private fun resetLogText(mirrorLegacy: Boolean = false) {
+    private fun resetLogText() {
         composeLogText = ""
-        if (mirrorLegacy && ::tvLog.isInitialized) {
-            tvLog.text = ""
-        }
     }
 
-    private fun appendComposeLog(message: String, mirrorLegacy: Boolean = false) {
+    private fun appendComposeLog(message: String) {
         composeLogText =
             buildString {
                 val existing = composeLogText.trimEnd()
@@ -590,32 +411,18 @@ class AutomationActivityNew : AppCompatActivity() {
                 }
                 append(message)
             }
-        if (mirrorLegacy && ::tvLog.isInitialized) {
-            tvLog.append("$message\n")
-        }
     }
 
-    private fun setModeDescriptionText(value: String, mirrorLegacy: Boolean = false) {
+    private fun setModeDescriptionText(value: String) {
         composeModeDescription = value
-        if (mirrorLegacy && ::tvModeDescription.isInitialized) {
-            tvModeDescription.text = value
-        }
     }
 
-    private fun setVirtualDisplayStatusText(value: String, mirrorLegacy: Boolean = false) {
+    private fun setVirtualDisplayStatusText(value: String) {
         composeVirtualDisplayStatus = value
-        if (mirrorLegacy && ::tvVirtualDisplayStatus.isInitialized) {
-            tvVirtualDisplayStatus.text = value
-        }
     }
 
-    private fun setShizukuAuthorizeVisible(visible: Boolean, mirrorLegacy: Boolean = false) {
+    private fun setShizukuAuthorizeVisible(visible: Boolean) {
         composeShowShizukuAuthorize = visible
-        if (mirrorLegacy && ::btnShizukuAuthorize.isInitialized) {
-            btnShizukuAuthorize.visibility = if (visible) View.VISIBLE else View.GONE
-            btnShizukuAuthorize.isEnabled = visible
-            btnShizukuAuthorize.alpha = 1f
-        }
     }
 
     private fun updateComposeControlState(canStart: Boolean) {
@@ -650,17 +457,7 @@ class AutomationActivityNew : AppCompatActivity() {
         Toast.makeText(this, "日志已复制", Toast.LENGTH_SHORT).show()
     }
 
-    private inline fun withSuppressedLegacySync(block: () -> Unit) {
-        val previous = suppressLegacySyncCallbacks
-        suppressLegacySyncCallbacks = true
-        try {
-            block()
-        } finally {
-            suppressLegacySyncCallbacks = previous
-        }
-    }
-
-    private fun setExecutionMode(backgroundMode: Boolean, mirrorLegacy: Boolean = false) {
+    private fun setExecutionMode(backgroundMode: Boolean) {
         isBackgroundMode = backgroundMode
         VirtualDisplayController.setShouldUseVirtualDisplay(backgroundMode)
         VirtualDisplayConfig.setUseVirtualDisplay(this, backgroundMode)
@@ -670,45 +467,21 @@ class AutomationActivityNew : AppCompatActivity() {
                 } else {
                     getString(R.string.automation_mode_description_front)
                 },
-                mirrorLegacy = true,
         )
-        if (mirrorLegacy && ::rgExecutionMode.isInitialized) {
-            val targetId = if (backgroundMode) R.id.rbBackgroundMode else R.id.rbFrontMode
-            if (rgExecutionMode.checkedRadioButtonId != targetId) {
-                withSuppressedLegacySync {
-                    rgExecutionMode.check(targetId)
-                }
-            }
-        }
         updateVirtualDisplayStatus()
     }
 
-    private fun setAutoApprove(checked: Boolean, mirrorLegacy: Boolean = false) {
+    private fun setAutoApprove(checked: Boolean) {
         composeAutoApprove = checked
         VirtualDisplayConfig.setAutoApproveAutomation(this, checked)
-        if (mirrorLegacy && ::switchAutoApproveAutomation.isInitialized) {
-            if (switchAutoApproveAutomation.isChecked != checked) {
-                withSuppressedLegacySync {
-                    switchAutoApproveAutomation.isChecked = checked
-                }
-            }
-        }
     }
 
     private fun setUseShizukuInteraction(
             checked: Boolean,
-            mirrorLegacy: Boolean = false,
             userInitiated: Boolean = true,
     ) {
         composeUseShizukuInteraction = checked
         VirtualDisplayConfig.setUseShizukuInteraction(this, checked)
-        if (mirrorLegacy && ::switchShizukuInteraction.isInitialized) {
-            if (switchShizukuInteraction.isChecked != checked) {
-                withSuppressedLegacySync {
-                    switchShizukuInteraction.isChecked = checked
-                }
-            }
-        }
         if (checked && userInitiated) {
             val state = collectRuntimeConnectionState()
             if (!state.shizukuBinderConnected) {
@@ -861,7 +634,7 @@ class AutomationActivityNew : AppCompatActivity() {
         overlayClickReturnToMain = mirrorLogsToMain
         lastDispatchedTask = task
 
-        setTaskText(task, mirrorLegacy = true)
+        setTaskText(task)
 
         if (source.isNotBlank()) {
             appendLog("接收任务来源：$source")
@@ -920,33 +693,6 @@ class AutomationActivityNew : AppCompatActivity() {
         }
     }
 
-    private fun syncStartButtonState(canStart: Boolean) {
-        if (!::btnStartAgent.isInitialized) return
-        val running = agentJob != null
-        if (::btnStopAgent.isInitialized) {
-            btnStopAgent.visibility = View.VISIBLE
-            btnStopAgent.isEnabled = running
-        }
-        if (running) {
-            btnStartAgent.isEnabled = true
-            btnStartAgent.text = getString(R.string.automation_terminate)
-            btnStartAgent.icon = ContextCompat.getDrawable(this, R.drawable.ic_stop_24)
-            btnStartAgent.iconTint =
-                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.m3t_on_error))
-            btnStartAgent.backgroundTintList =
-                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.m3t_error))
-            btnStartAgent.setTextColor(ContextCompat.getColor(this, R.color.m3t_on_error))
-        } else {
-            btnStartAgent.isEnabled = canStart
-            btnStartAgent.text = getString(R.string.automation_start_now)
-            btnStartAgent.icon = null
-            btnStartAgent.backgroundTintList =
-                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.m3t_primary))
-            btnStartAgent.setTextColor(ContextCompat.getColor(this, R.color.m3t_on_primary))
-        }
-        updateComposeControlState(canStart)
-    }
-
     /** 检查无障碍服务状态 */
     private fun checkAccessibilityStatus() {
         try {
@@ -983,29 +729,15 @@ class AutomationActivityNew : AppCompatActivity() {
                     }
             val modeLine = if (useShizukuInteraction) "当前交互：Shizuku 模式" else "当前交互：无障碍模式"
 
-            tvAccStatus?.text = "$summary\n$modeLine\n$accLine | $shizukuLine"
-            statusIndicator?.setBackgroundResource(
-                    when {
-                        canStart -> R.drawable.bg_circle_green
-                        state.accessibilityConnected || state.shizukuReady ->
-                                R.drawable.bg_circle_yellow
-                        else -> R.drawable.bg_circle_red
-                    }
-            )
             setTaskHintText(
                 if (canStart) {
                     "在此输入或录入您的任务指令..."
                 } else {
                     "请先满足当前模式的连接条件后再开始"
-                },
-                mirrorLegacy = true,
+                }
             )
-            etTask?.isEnabled = true
-            btnOpenAccessibilitySettings.visibility = View.VISIBLE
-            btnOpenAccessibilitySettings.isEnabled = true
-
-            setShizukuAuthorizeVisible(state.shizukuBinderConnected, mirrorLegacy = true)
-            syncStartButtonState(canStart)
+            setShizukuAuthorizeVisible(state.shizukuBinderConnected)
+            updateComposeControlState(canStart)
             updateComposeStatusSnapshot(useShizukuInteraction, state, canStart)
         } catch (e: Exception) {
             Log.e("AutomationActivityNew", "检查无障碍服务状态失败: ${e.message}", e)
@@ -1226,7 +958,7 @@ class AutomationActivityNew : AppCompatActivity() {
             appendLog("Shizuku 未就绪，已自动回退到无障碍执行")
         }
 
-        resetLogText(mirrorLegacy = true)
+        resetLogText()
         autoScrollLogToBottom = false
         val modeText = if (isBackgroundMode) "后台虚拟屏模式" else "前端执行模式"
         appendLog("执行模式：$modeText")
@@ -1252,12 +984,8 @@ class AutomationActivityNew : AppCompatActivity() {
             Toast.makeText(this, "如需显示进度悬浮窗，请授予悬浮窗权限", Toast.LENGTH_SHORT).show()
         }
 
-        syncStartButtonState(canStart = true)
         lastDispatchedTask = null
-        btnPauseAgent.isEnabled = true
         paused = false
-        btnPauseAgent.text = getString(R.string.automation_pause)
-        btnStopAgent.isEnabled = true
         updateComposeControlState(canStart = true)
 
         agentJob =
@@ -1289,7 +1017,7 @@ class AutomationActivityNew : AppCompatActivity() {
                         // 更新虚拟屏状态显示
                         runOnUiThread {
                             if (isBackgroundMode) {
-                                setVirtualDisplayStatusText("虚拟屏状态: 正在创建...", mirrorLegacy = true)
+                                setVirtualDisplayStatusText("虚拟屏状态: 正在创建...")
                             }
                         }
 
@@ -1360,12 +1088,11 @@ class AutomationActivityNew : AppCompatActivity() {
                                                                             .getDisplayId()
                                                             setVirtualDisplayStatusText(
                                                                 "虚拟屏状态: 已启动 (displayId=$displayId)",
-                                                                mirrorLegacy = true,
                                                             )
                                                         }
                                                         msg.contains("虚拟屏准备失败") ||
                                                                 msg.contains("虚拟屏模式启动失败") -> {
-                                                            setVirtualDisplayStatusText("虚拟屏状态: 创建失败", mirrorLegacy = true)
+                                                            setVirtualDisplayStatusText("虚拟屏状态: 创建失败")
                                                         }
                                                     }
                                                 }
@@ -1396,10 +1123,7 @@ class AutomationActivityNew : AppCompatActivity() {
                         virtualDisplayStatusJob?.cancel()
                         virtualDisplayStatusJob = null
                         runOnUiThread {
-                            btnPauseAgent.isEnabled = false
                             paused = false
-                            btnPauseAgent.text = getString(R.string.automation_pause)
-                            btnStopAgent.isEnabled = false
                             if (isBackgroundMode) {
                                 updateVirtualDisplayStatus()
                             }
@@ -1451,10 +1175,7 @@ class AutomationActivityNew : AppCompatActivity() {
             job.cancel()
         }
         agentJob = null
-        btnPauseAgent.isEnabled = false
         paused = false
-        btnPauseAgent.text = getString(R.string.automation_pause)
-        btnStopAgent.isEnabled = false
         updateComposeControlState(canStart = composeCanStart)
         appendLog("已请求停止")
         if (!hadRunning) {
@@ -1482,8 +1203,6 @@ class AutomationActivityNew : AppCompatActivity() {
     private fun togglePause() {
         if (agentJob == null) return
         paused = !paused
-        btnPauseAgent.text =
-                if (paused) getString(R.string.automation_resume) else getString(R.string.automation_pause)
         updateComposeControlState(canStart = composeCanStart)
         appendLog(if (paused) "已暂停（等待继续）" else "已继续")
         // 同步暂停状态到虚拟屏预览悬浮窗
@@ -1558,7 +1277,7 @@ class AutomationActivityNew : AppCompatActivity() {
                     var dotCount = 1
                     while (true) {
                         val dots = ".".repeat(dotCount)
-                        setTaskText("正在语音输入$dots", mirrorLegacy = true)
+                        setTaskText("正在语音输入$dots")
                         dotCount = if (dotCount >= 3) 1 else dotCount + 1
                         delay(400)
                     }
@@ -1597,7 +1316,7 @@ class AutomationActivityNew : AppCompatActivity() {
                         runOnUiThread {
                             stopVoiceInputAnimation()
                             val txt = (voicePrefix + text).trimStart()
-                            setTaskText(txt, mirrorLegacy = true)
+                            setTaskText(txt)
                         }
                     }
 
@@ -1605,7 +1324,7 @@ class AutomationActivityNew : AppCompatActivity() {
                         runOnUiThread {
                             stopVoiceInputAnimation()
                             val txt = (voicePrefix + text).trimStart()
-                            setTaskText(txt, mirrorLegacy = true)
+                            setTaskText(txt)
                         }
                     }
 
@@ -1617,7 +1336,7 @@ class AutomationActivityNew : AppCompatActivity() {
                         runOnUiThread {
                             stopVoiceInputAnimation()
                             val txt = (voicePrefix + text).trimStart()
-                            setTaskText(if (txt.isBlank()) savedTaskText else txt, mirrorLegacy = true)
+                            setTaskText(if (txt.isBlank()) savedTaskText else txt)
                             stopLocalVoiceInput(triggerRecognizerStop = false)
                         }
                     }
@@ -1625,7 +1344,7 @@ class AutomationActivityNew : AppCompatActivity() {
                     override fun onError(exception: Exception) {
                         runOnUiThread {
                             stopVoiceInputAnimation()
-                            setTaskText(savedTaskText, mirrorLegacy = true)
+                            setTaskText(savedTaskText)
                             Toast.makeText(
                                             this@AutomationActivityNew,
                                             "识别失败: ${exception.message}",
@@ -1639,7 +1358,7 @@ class AutomationActivityNew : AppCompatActivity() {
                     override fun onTimeout() {
                         runOnUiThread {
                             stopVoiceInputAnimation()
-                            setTaskText(savedTaskText, mirrorLegacy = true)
+                            setTaskText(savedTaskText)
                             Toast.makeText(this@AutomationActivityNew, "语音识别超时", Toast.LENGTH_SHORT)
                                     .show()
                             stopLocalVoiceInput(triggerRecognizerStop = false)
@@ -1657,7 +1376,7 @@ class AutomationActivityNew : AppCompatActivity() {
 
         val currentText = composeTaskText
         if (currentText.startsWith("正在语音输入")) {
-            setTaskText(savedTaskText, mirrorLegacy = true)
+            setTaskText(savedTaskText)
         }
 
         if (triggerRecognizerStop) {
@@ -1714,7 +1433,7 @@ class AutomationActivityNew : AppCompatActivity() {
     /** 添加日志 */
     private fun appendLog(message: String) {
         runOnUiThread {
-            appendComposeLog(message, mirrorLegacy = true)
+            appendComposeLog(message)
             AutomationOverlay.updateFromLogLine(message)
             if (mirrorLogsToMain) {
                 AutomationLogBridge.publish(this@AutomationActivityNew, message)
@@ -1737,8 +1456,6 @@ class AutomationActivityNew : AppCompatActivity() {
     }
 
     private fun updateVirtualDisplayStatus() {
-        if (!::tvVirtualDisplayStatus.isInitialized) return
-
         try {
             val isStarted = VirtualDisplayController.isVirtualDisplayStarted()
             val displayId = VirtualDisplayController.getDisplayId()
@@ -1760,14 +1477,13 @@ class AutomationActivityNew : AppCompatActivity() {
                     append(getString(R.string.automation_virtual_display_status_not_started))
                 }
             }
-            setVirtualDisplayStatusText(statusText, mirrorLegacy = true)
+            setVirtualDisplayStatusText(statusText)
         } catch (e: Exception) {
             setVirtualDisplayStatusText(
                 getString(
                     R.string.automation_virtual_display_status_error,
                     e.message ?: "未知错误"
-                ),
-                mirrorLegacy = true,
+                )
             )
         }
     }
