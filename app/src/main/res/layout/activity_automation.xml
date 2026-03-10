@@ -1,401 +1,176 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/m3t_automation_page_bg">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/appBar"
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/automationComposeView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
-        app:layout_constraintTop_toTopOf="parent">
+        android:layout_height="match_parent" />
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/topAppBar"
-            style="@style/Widget.M3t.Toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@drawable/ic_arrow_back_24"
-            app:navigationIconTint="@color/m3t_on_surface_variant"
-            app:title="@string/automation_toolbar_title"
-            app:titleCentered="true"
-            app:titleTextColor="@color/m3t_on_surface" />
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/scrollLog"
+    <LinearLayout
+        android:id="@+id/legacyAutomationContent"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:fillViewport="true"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/appBar">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:visibility="gone">
 
-        <LinearLayout
+        <com.google.android.material.appbar.AppBarLayout
+            android:id="@+id/appBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="@dimen/m3t_spacing_lg"
-            android:paddingVertical="@dimen/m3t_spacing_lg">
+            android:background="@android:color/transparent">
 
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardStatus"
-                style="@style/Widget.M3t.Card.Automation"
+            <com.google.android.material.appbar.MaterialToolbar
+                android:id="@+id/topAppBar"
+                style="@style/Widget.M3t.Toolbar"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/m3t_spacing_lg">
+                android:layout_height="?attr/actionBarSize"
+                app:navigationIcon="@drawable/ic_arrow_back_24"
+                app:title="@string/automation_toolbar_title" />
+        </com.google.android.material.appbar.AppBarLayout>
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:padding="@dimen/m3t_about_row_text_gap">
-
-                    <View
-                        android:id="@+id/statusIndicator"
-                        android:layout_width="@dimen/m3t_automation_status_dot"
-                        android:layout_height="@dimen/m3t_automation_status_dot"
-                        android:background="@drawable/bg_circle_red" />
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/m3t_spacing_lg"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:letterSpacing="0.1"
-                            android:text="@string/automation_status_label"
-                            android:textAllCaps="true"
-                            android:textAppearance="@style/TextAppearance.M3t.Label.Small" />
-
-                        <TextView
-                            android:id="@+id/tvAccStatus"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="@dimen/m3t_spacing_xxxs"
-                            android:text="@string/automation_accessibility_status_default"
-                            android:textAppearance="@style/TextAppearance.M3t.Title.Medium" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnOpenAccessibilitySettings"
-                            style="@style/Widget.M3t.Button.Text"
-                            android:layout_width="wrap_content"
-                            android:layout_height="@dimen/m3t_compact_button_height"
-                            android:text="@string/automation_open_accessibility" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnShizukuAuthorize"
-                            style="@style/Widget.M3t.Button.Text"
-                            android:layout_width="wrap_content"
-                            android:layout_height="@dimen/m3t_compact_button_height"
-                            android:text="@string/automation_one_tap_shizuku_authorize" />
-                    </LinearLayout>
-                    <ImageButton
-                        android:id="@+id/btnRefreshAccessibility"
-                        android:layout_width="@dimen/m3t_automation_icon_button_size"
-                        android:layout_height="@dimen/m3t_automation_icon_button_size"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:src="@drawable/ic_refresh_24"
-                        app:tint="@color/m3t_on_surface_variant" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardExecutionMode"
-                style="@style/Widget.M3t.Card.Automation"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/m3t_spacing_lg">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/m3t_about_row_text_gap">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:letterSpacing="0.1"
-                        android:text="@string/automation_execution_mode_label"
-                        android:textAllCaps="true"
-                        android:textAppearance="@style/TextAppearance.M3t.Label.Small" />
-
-                    <RadioGroup
-                        android:id="@+id/rgExecutionMode"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/m3t_spacing_sm"
-                        android:orientation="vertical">
-
-                        <RadioButton
-                            android:id="@+id/rbFrontMode"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:checked="true"
-                            android:padding="@dimen/m3t_spacing_sm"
-                            android:text="@string/automation_execution_front_mode"
-                            android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
-                            android:textColor="@color/m3t_on_surface" />
-
-                        <RadioButton
-                            android:id="@+id/rbBackgroundMode"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:padding="@dimen/m3t_spacing_sm"
-                            android:text="@string/automation_execution_background_mode"
-                            android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
-                            android:textColor="@color/m3t_on_surface" />
-
-                    </RadioGroup>
-
-                    <TextView
-                        android:id="@+id/tvModeDescription"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/m3t_spacing_xs"
-                        android:text="@string/automation_mode_description_front"
-                        android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
-
-                    <TextView
-                        android:id="@+id/tvVirtualDisplayStatus"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/m3t_spacing_sm"
-                        android:background="@drawable/bg_rounded_input_light"
-                        android:fontFamily="monospace"
-                        android:padding="@dimen/m3t_spacing_sm"
-                        android:text="@string/automation_virtual_display_status_default"
-                        android:textAppearance="@style/TextAppearance.M3t.Body.Small" />
-
-                    <com.google.android.material.materialswitch.MaterialSwitch
-                        android:id="@+id/switchShizukuInteraction"
-                        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/m3t_spacing_sm"
-                        android:paddingTop="@dimen/m3t_spacing_xs"
-                        android:text="@string/automation_shizuku_mode_label"
-                        android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
-                        android:textColor="@color/m3t_on_surface"
-                        app:useMaterialThemeColors="true" />
-
-                    <com.google.android.material.materialswitch.MaterialSwitch
-                        android:id="@+id/switchAutoApproveAutomation"
-                        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/m3t_spacing_xs"
-                        android:text="@string/automation_auto_approve_label"
-                        android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
-                        android:textColor="@color/m3t_on_surface"
-                        app:useMaterialThemeColors="true" />
-
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardTask"
-                style="@style/Widget.M3t.Card.Automation"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/m3t_spacing_lg">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/m3t_about_row_text_gap">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:letterSpacing="0.1"
-                        android:text="@string/automation_task_confirm_label"
-                        android:textAllCaps="true"
-                        android:textAppearance="@style/TextAppearance.M3t.Label.Small" />
-
-                    <RelativeLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/m3t_spacing_sm"
-                        android:background="@drawable/bg_rounded_input_light"
-                        android:padding="@dimen/m3t_spacing_xs">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etTask"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_toStartOf="@id/btnVoiceTask"
-                            android:background="@null"
-                            android:gravity="top"
-                            android:hint="@string/automation_task_hint"
-                            android:inputType="textMultiLine"
-                            android:maxLines="6"
-                            android:minLines="3"
-                            android:padding="@dimen/m3t_spacing_md"
-                            android:textAppearance="@style/TextAppearance.M3t.Chat.Message"
-                            android:textColor="@color/m3t_on_surface"
-                            android:textColorHint="@color/m3t_on_surface_variant" />
-
-                        <com.google.android.material.card.MaterialCardView
-                            android:id="@+id/btnVoiceTask"
-                            android:layout_width="@dimen/m3t_automation_voice_button_size"
-                            android:layout_height="@dimen/m3t_automation_voice_button_size"
-                            android:layout_alignParentEnd="true"
-                            android:layout_centerVertical="true"
-                            android:layout_margin="@dimen/m3t_spacing_xs"
-                            app:cardBackgroundColor="@color/m3t_primary"
-                            app:cardCornerRadius="@dimen/m3t_automation_voice_button_radius"
-                            app:cardElevation="0dp"
-                            app:strokeWidth="0dp">
-
-                            <ImageView
-                                android:layout_width="@dimen/m3t_automation_voice_icon_size"
-                                android:layout_height="@dimen/m3t_automation_voice_icon_size"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_mic_24"
-                                app:tint="@color/m3t_on_primary" />
-                        </com.google.android.material.card.MaterialCardView>
-                    </RelativeLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/m3t_spacing_sm"
-                        android:background="@drawable/bg_recommend_gradient"
-                        android:padding="@dimen/m3t_stroke_thin">
-
-                        <TextView
-                            android:id="@+id/tvRecommendTask"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:background="@drawable/bg_recommend_inner"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:padding="@dimen/m3t_spacing_sm"
-                            android:text="@string/automation_recommend_task_default"
-                            android:textAppearance="@style/TextAppearance.M3t.Body.Small"
-                            android:textColor="@color/m3t_primary"
-                            android:textStyle="italic" />
-                    </LinearLayout>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/scrollLog"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fillViewport="true">
 
             <LinearLayout
-                android:id="@+id/layoutControls"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/m3t_spacing_lg"
-                android:gravity="center"
-                android:orientation="horizontal">
+                android:orientation="vertical"
+                android:padding="@dimen/m3t_spacing_lg">
+
+                <View
+                    android:id="@+id/statusIndicator"
+                    android:layout_width="@dimen/m3t_automation_status_dot"
+                    android:layout_height="@dimen/m3t_automation_status_dot"
+                    android:background="@drawable/bg_circle_red" />
+
+                <TextView
+                    android:id="@+id/tvAccStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/automation_accessibility_status_default" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnOpenAccessibilitySettings"
+                    style="@style/Widget.M3t.Button.Text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/automation_open_accessibility" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnShizukuAuthorize"
+                    style="@style/Widget.M3t.Button.Text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/automation_one_tap_shizuku_authorize" />
+
+                <ImageButton
+                    android:id="@+id/btnRefreshAccessibility"
+                    android:layout_width="@dimen/m3t_automation_icon_button_size"
+                    android:layout_height="@dimen/m3t_automation_icon_button_size"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_refresh_24"
+                    app:tint="@color/m3t_on_surface_variant" />
+
+                <RadioGroup
+                    android:id="@+id/rgExecutionMode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <RadioButton
+                        android:id="@+id/rbFrontMode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/automation_execution_front_mode" />
+
+                    <RadioButton
+                        android:id="@+id/rbBackgroundMode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/automation_execution_background_mode" />
+                </RadioGroup>
+
+                <TextView
+                    android:id="@+id/tvModeDescription"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/automation_mode_description_front" />
+
+                <TextView
+                    android:id="@+id/tvVirtualDisplayStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/automation_virtual_display_status_default" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switchShizukuInteraction"
+                    style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/automation_shizuku_mode_label" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switchAutoApproveAutomation"
+                    style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/automation_auto_approve_label" />
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etTask"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/automation_task_hint"
+                    android:inputType="textMultiLine"
+                    android:maxLines="6"
+                    android:minLines="3" />
+
+                <FrameLayout
+                    android:id="@+id/btnVoiceTask"
+                    android:layout_width="@dimen/m3t_automation_voice_button_size"
+                    android:layout_height="@dimen/m3t_automation_voice_button_size" />
+
+                <TextView
+                    android:id="@+id/tvRecommendTask"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/automation_recommend_task_default" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnPauseAgent"
                     style="@style/Widget.M3t.Button.Outlined"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="@dimen/m3t_button_height"
-                    android:layout_marginEnd="@dimen/m3t_spacing_sm"
-                    android:layout_weight="1"
-                    android:text="@string/automation_pause"
-                    app:icon="@drawable/ic_pause_24"
-                    app:iconGravity="textStart"
-                    app:iconTint="@color/m3t_primary" />
+                    android:text="@string/automation_pause" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnStartAgent"
                     style="@style/Widget.M3t.Button.Filled"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="@dimen/m3t_button_height"
-                    android:layout_weight="1.2"
-                    android:text="@string/automation_start_now"
-                    android:textStyle="bold" />
+                    android:text="@string/automation_start_now" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnStopAgent"
                     style="@style/Widget.M3t.Button.Outlined"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="@dimen/m3t_button_height"
-                    android:layout_marginStart="@dimen/m3t_spacing_sm"
-                    android:layout_weight="1"
-                    android:text="@string/automation_stop"
-                    android:textColor="@color/m3t_error"
-                    app:icon="@drawable/ic_stop_24"
-                    app:iconGravity="textStart"
-                    app:iconTint="@color/m3t_error"
-                    app:strokeColor="@color/m3t_outline_variant" />
-            </LinearLayout>
+                    android:text="@string/automation_stop" />
 
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardLog"
-                style="@style/Widget.M3t.Card.Automation"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/m3t_spacing_lg"
-                app:cardBackgroundColor="@color/m3t_automation_card_bg"
-                app:strokeWidth="0dp">
-
-                <LinearLayout
+                <TextView
+                    android:id="@+id/tvLog"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/m3t_about_row_text_gap">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/m3t_spacing_md"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <View
-                            android:layout_width="@dimen/m3t_automation_log_dot"
-                            android:layout_height="@dimen/m3t_automation_log_dot"
-                            android:background="@drawable/bg_circle_green" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="@dimen/m3t_history_icon_padding"
-                            android:fontFamily="monospace"
-                            android:text="@string/automation_log_system_label"
-                            android:textAppearance="@style/TextAppearance.M3t.Label.Small"
-                            android:textColor="@color/m3t_primary" />
-
-                        <View
-                            android:layout_width="0dp"
-                            android:layout_height="@dimen/m3t_stroke_thin"
-                            android:layout_marginStart="@dimen/m3t_spacing_md"
-                            android:layout_weight="1"
-                            android:background="@color/m3t_outline_variant" />
-                    </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/tvLog"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="monospace"
-                        android:lineSpacingExtra="@dimen/m3t_automation_log_line_spacing"
-                        android:text="@string/automation_log_default"
-                        android:textAppearance="@style/TextAppearance.M3t.Body.Small"
-                        android:textColor="@color/m3t_on_surface" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+                    android:text="@string/automation_log_default" />
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+    </LinearLayout>
+</FrameLayout>

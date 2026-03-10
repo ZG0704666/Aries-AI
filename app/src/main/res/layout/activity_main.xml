@@ -42,11 +42,23 @@
                     android:paddingTop="@dimen/m3t_spacing_xxxs"
                     android:paddingBottom="@dimen/m3t_spacing_xxxs">
 
-                    <LinearLayout
-                        android:id="@+id/messagesContainer"
+                    <FrameLayout
+                        android:id="@+id/messagesContentHost"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical" />
+                        android:layout_height="wrap_content">
+
+                        <androidx.compose.ui.platform.ComposeView
+                            android:id="@+id/messagesCompose"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content" />
+
+                        <LinearLayout
+                            android:id="@+id/messagesContainer"
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:orientation="vertical"
+                            android:visibility="gone" />
+                    </FrameLayout>
                 </ScrollView>
 
                 <LinearLayout

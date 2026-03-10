@@ -9,6 +9,7 @@
     <string name="status_disconnected_with_voice">未连接 | 语音模型已就绪</string>
     <string name="status_checking">检查中...</string>
     <string name="status_checking_with_voice">已配置语音模型 | API 检查中...</string>
+    <string name="common_copy">复制</string>
     <string name="input_hint">请输入你的问题…</string>
     <string name="voice_input">语音输入</string>
     <string name="send">发送</string>
@@ -35,15 +36,26 @@
     <string name="automation_scene_waiting">等待执行日志...</string>
     <string name="automation_scene_collapse">收起自动化面板</string>
     <string name="automation_scene_expand">展开自动化面板</string>
+    <string name="message_thinking_label">思考</string>
+    <string name="transcript_empty_hint">开始一段新对话</string>
     <string name="automation_toolbar_title">Aries AI 自动化控制台</string>
     <string name="automation_execution_mode_label">执行模式</string>
     <string name="automation_execution_front_mode">前端执行（当前屏幕可见）</string>
     <string name="automation_mode_description_front">在前台屏幕执行自动化任务，您可以看到操作过程</string>
     <string name="automation_virtual_display_status_default">虚拟屏状态：未初始化</string>
+    <string name="automation_virtual_display_status_creating">虚拟屏状态：正在创建...</string>
+    <string name="automation_virtual_display_status_running">虚拟屏状态：已启动（displayId=%1$s）</string>
+    <string name="automation_virtual_display_status_failed">虚拟屏状态：创建失败</string>
+    <string name="automation_virtual_display_status_preparing">虚拟屏：准备中...</string>
+    <string name="automation_virtual_display_status_not_started">虚拟屏：未启动</string>
+    <string name="automation_virtual_display_status_running_detail">虚拟屏：运行中 | ID=%1$s | %2$s</string>
+    <string name="automation_virtual_display_status_error">虚拟屏：错误 - %1$s</string>
     <string name="automation_shizuku_mode_label">Shizuku 模式</string>
     <string name="automation_task_confirm_label">任务指令确认</string>
     <string name="automation_task_hint">在此输入或录入您的任务指令...</string>
+    <string name="automation_task_hint_not_ready">请先满足当前模式的连接条件后再开始</string>
     <string name="automation_pause">暂停</string>
+    <string name="automation_resume">继续</string>
     <string name="automation_stop">停止</string>
     <string name="automation_log_system_label">运行日志系统</string>
     <string name="automation_log_default">系统已就绪，等待指令输入...</string>
@@ -52,6 +64,7 @@
     <string name="automation_status_label">系统状态</string>
     <string name="automation_accessibility_status_default">无障碍服务：未启用</string>
     <string name="automation_execution_background_mode">后台执行（虚拟屏隔离）</string>
+    <string name="automation_mode_description_background">在后台虚拟屏执行自动化任务，不影响前台操作</string>
     <string name="automation_recommend_task_default">点击尝试：查看当前电池状态</string>
     <string name="automation_open_accessibility">去开启</string>
     <string name="automation_one_tap_shizuku_authorize">一键 Shizuku 授权</string>
@@ -61,6 +74,26 @@
     <string name="automation_shizuku_permission_requested">已发起 Shizuku 授权请求，请在弹窗中确认</string>
     <string name="automation_shizuku_authorize_success">已通过 Shizuku 自动开启无障碍</string>
     <string name="automation_shizuku_authorize_failed">Shizuku 自动开启无障碍失败，请手动开启</string>
+    <string name="automation_status_accessibility_connected">无障碍：已连接</string>
+    <string name="automation_status_accessibility_enabled_waiting">无障碍：已开启（等待连接）</string>
+    <string name="automation_status_accessibility_disabled">无障碍：未开启</string>
+    <string name="automation_status_shizuku_ready">Shizuku：已连接并授权</string>
+    <string name="automation_status_shizuku_waiting_permission">Shizuku：已连接（待授权）</string>
+    <string name="automation_status_shizuku_disconnected">Shizuku：未连接</string>
+    <string name="automation_status_summary_ready">已就绪：可开始执行</string>
+    <string name="automation_status_summary_need_shizuku_connection">未就绪：Shizuku 未连接</string>
+    <string name="automation_status_summary_need_shizuku_permission">未就绪：Shizuku 未授权</string>
+    <string name="automation_status_summary_need_accessibility_enabled">未就绪：无障碍未开启</string>
+    <string name="automation_status_summary_need_accessibility_connection">未就绪：无障碍连接中</string>
+    <string name="automation_status_summary_shizuku_detected">未就绪：仅检测到 Shizuku，请开启 Shizuku 模式</string>
+    <string name="automation_status_summary_need_accessibility_generic">未就绪：无障碍未连接</string>
+    <string name="automation_status_mode_shizuku">当前交互：Shizuku 模式</string>
+    <string name="automation_status_mode_accessibility">当前交互：无障碍模式</string>
+    <string-array name="automation_recommend_tasks">
+        <item>打开大众点评帮我预订一个明天中午 1 点的附近火锅店，2 个人</item>
+        <item>打开 12306 订一张明天南京到北京的票，选择最便宜的</item>
+        <item>打开航旅纵横订一张明天从南京飞往成都的机票</item>
+    </string-array>
 
     <string name="accessibility_service_label">Aries AI 自动化</string>
     <string name="accessibility_service_desc">用于执行点击/滑动/返回等自动化动作（需要在系统无障碍中手动开启）</string>

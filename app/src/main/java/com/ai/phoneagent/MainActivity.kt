@@ -176,6 +176,8 @@ import com.ai.phoneagent.ui.drawer.ConversationDrawer
 import com.ai.phoneagent.ui.drawer.DrawerConversationUiItem
 import com.ai.phoneagent.ui.history.ConversationHistoryDialog
 import com.ai.phoneagent.ui.history.ConversationHistoryItemUi
+import com.ai.phoneagent.ui.messages.ConversationTranscript
+import com.ai.phoneagent.ui.messages.TranscriptMessageUi
 import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.ui.topbar.MainTopBar
 import java.io.InputStream
@@ -346,6 +348,7 @@ class MainActivity : AppCompatActivity() {
     private val drawerSearchQueryState = mutableStateOf("")
     private val drawerConversationItemsState = mutableStateOf<List<DrawerConversationUiItem>>(emptyList())
     private val drawerEmptyMessageState = mutableStateOf("")
+    private val transcriptItemsState = mutableStateOf<List<TranscriptMessageUi>>(emptyList())
 
     // Aries附件上传相关 - 简化为只保留 ActivityResultLauncher
     private lateinit var ariesImagePickerLauncher: ActivityResultLauncher<String>
@@ -521,6 +524,7 @@ class MainActivity : AppCompatActivity() {
         registerQwenDownloadReceiverIfNeeded()
         reconcilePendingQwenDownloads()
 
+        setupMessageTranscript()
         setupInputBar()
         registerAutomationLogReceiverIfNeeded()
 
@@ -619,6 +623,82 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         }
+    }
+
+    private fun setupMessageTranscript() {
+        binding.messagesCompose.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+        binding.messagesCompose.setContent {
+            AriesMaterialTheme {
+                ConversationTranscript(items = transcriptItemsState.value)
+            }
+        }
+        syncMessageTranscript()
+    }
+
+    private fun syncMessageTranscript(conversation: Conversation? = activeConversation) {
+        transcriptItemsState.value =
+            conversation
+                ?.messages
+                ?.mapIndexed { index, message ->
+                    buildTranscriptMessageUi(
+                        conversationId = conversation.id,
+                        index = index,
+                        message = message,
+                    )
+                }
+                .orEmpty()
+    }
+
+    private fun buildTranscriptMessageUi(
+        conversationId: Long,
+        index: Int,
+        message: UiMessage,
+    ): TranscriptMessageUi {
+        if (message.isUser) {
+            return TranscriptMessageUi(
+                id = "$conversationId-user-$index",
+                author = message.author,
+                body = message.content.trim(),
+                thinking = null,
+                isUser = true,
+                attachments =
+                    message.attachments
+                        .orEmpty()
+                        .map { attachment ->
+                            attachment.fileName.ifBlank { File(attachment.filePath).name.ifBlank { attachment.filePath } }
+                        },
+                isAutomation = false,
+            )
+        }
+
+        val (withoutConfirmMarker, _) = extractAutomationConfirmInstruction(message.content)
+        val (withoutConfirmedMarker, _) = extractAutomationConfirmedMarker(withoutConfirmMarker)
+        val (withoutLogMarkers, _) = extractAutomationLogMarkers(withoutConfirmedMarker)
+        val (thinking, answerRaw) = parseStoredAiContent(withoutLogMarkers)
+        val cleanedAnswer = answerRaw.trim().ifBlank { stripAutomationMarker(withoutLogMarkers).trim() }
+        val isAutomationMessage =
+            cleanedAnswer.startsWith("【自动化】") || extractAutomationCommand(cleanedAnswer) != null
+        val displayBody =
+            cleanedAnswer
+                .removePrefix("【自动化】")
+                .trim()
+                .ifBlank {
+                    if (isAutomationMessage) {
+                        getString(R.string.automation_scene_waiting)
+                    } else {
+                        cleanedAnswer
+                    }
+                }
+
+        return TranscriptMessageUi(
+            id = "$conversationId-ai-$index",
+            author = message.author.ifBlank { "Aries AI" },
+            body = displayBody,
+            thinking = thinking,
+            isUser = false,
+            attachments = emptyList(),
+            isAutomation = isAutomationMessage,
+        )
     }
 
     private fun setupComposeDrawer() {
@@ -927,6 +1007,7 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     binding.messagesContainer.removeAllViews()
                     clearAutomationPanelRuntimeRefs()
+                    syncMessageTranscript()
                 }
             }
         })
@@ -972,7 +1053,7 @@ class MainActivity : AppCompatActivity() {
         currentIntent.removeExtra(EXTRA_SCROLL_TO_BOTTOM)
         currentIntent.removeExtra(EXTRA_SHOW_AUTOMATION_STOP)
 
-        binding.messagesContainer.post {
+        binding.messagesContentHost.post {
             revealActionAreasForMessages()
             smoothScrollToBottom()
         }
@@ -1380,6 +1461,7 @@ class MainActivity : AppCompatActivity() {
                 )
             )
         }
+        syncMessageTranscript(conversation)
         persistConversations()
         return true
     }
@@ -1453,6 +1535,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             pendingAutomationLogUiRefresh = true
         }
+        syncMessageTranscript(c)
         persistConversations()
     }
 
@@ -2707,15 +2790,15 @@ class MainActivity : AppCompatActivity() {
     private fun syncFloatingInputPadding() {
         val extraBottomPadding =
             binding.floatingInputLayer.height + resources.getDimensionPixelSize(R.dimen.m3t_spacing_md)
-        binding.messagesContainer.setPadding(
-            binding.messagesContainer.paddingLeft,
-            binding.messagesContainer.paddingTop,
-            binding.messagesContainer.paddingRight,
+        binding.messagesContentHost.setPadding(
+            binding.messagesContentHost.paddingLeft,
+            binding.messagesContentHost.paddingTop,
+            binding.messagesContentHost.paddingRight,
             extraBottomPadding,
         )
         if (shouldAutoFollowBottom(extraBottomPadding * 2)) {
             binding.scrollArea.post {
-                binding.scrollArea.smoothScrollTo(0, binding.messagesContainer.bottom)
+                binding.scrollArea.smoothScrollTo(0, binding.messagesContentHost.bottom)
             }
         }
     }
@@ -2727,7 +2810,7 @@ class MainActivity : AppCompatActivity() {
     private fun shouldAutoFollowBottom(thresholdPx: Int = 0): Boolean {
         if (!hasAssistantOutputInActiveConversation()) return false
         val distanceToBottom =
-            binding.messagesContainer.bottom - (binding.scrollArea.scrollY + binding.scrollArea.height)
+            binding.messagesContentHost.bottom - (binding.scrollArea.scrollY + binding.scrollArea.height)
         return distanceToBottom <= thresholdPx.coerceAtLeast(0)
     }
 
@@ -2766,7 +2849,7 @@ class MainActivity : AppCompatActivity() {
             val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
             if (imeVisible && !lastImeVisible && shouldAutoFollowBottom(resources.getDimensionPixelSize(R.dimen.m3t_spacing_xxl))) {
                 binding.scrollArea.post {
-                    binding.scrollArea.smoothScrollTo(0, binding.messagesContainer.height)
+                    binding.scrollArea.smoothScrollTo(0, binding.messagesContentHost.height)
                 }
             }
             lastImeVisible = imeVisible
@@ -2806,10 +2889,11 @@ class MainActivity : AppCompatActivity() {
         val c = Conversation(id = now, title = "", messages = mutableListOf(), updatedAt = now)
         conversations.add(0, c)
         activeConversation = c
+        syncMessageTranscript(c)
         
         if (clearUi) {
             // 逐步缩小收敛一气呵成向上收缩：不再只是平移，而是带有一种“消失”的速度感
-            binding.messagesContainer.animate()
+            binding.messagesContentHost.animate()
                 .translationY(-1000f) // 冲刺距离加大，一气呵成
                 .scaleX(0.6f)         // 收缩更明显
                 .scaleY(0.6f)
@@ -2821,12 +2905,12 @@ class MainActivity : AppCompatActivity() {
                     clearAutomationPanelRuntimeRefs()
                     
                     // 状态瞬间回位
-                    binding.messagesContainer.translationY = 0f
-                    binding.messagesContainer.scaleX = 1f
-                    binding.messagesContainer.scaleY = 1f
+                    binding.messagesContentHost.translationY = 0f
+                    binding.messagesContentHost.scaleX = 1f
+                    binding.messagesContentHost.scaleY = 1f
                     
                     // 新对话界面原地极其自然地透出来
-                    binding.messagesContainer.animate()
+                    binding.messagesContentHost.animate()
                         .alpha(1.0f)
                         .setDuration(500)
                         .setInterpolator(DecelerateInterpolator())
@@ -2853,6 +2937,7 @@ class MainActivity : AppCompatActivity() {
     private fun renderConversation(conversation: Conversation) {
         binding.messagesContainer.removeAllViews()
         clearAutomationPanelRuntimeRefs()
+        syncMessageTranscript(conversation)
         var lastUserContent: String? = null
         val currentModel = resolveApiModel() // 获取当前模型配置
         for ((index, m) in conversation.messages.withIndex()) {
@@ -2881,10 +2966,10 @@ class MainActivity : AppCompatActivity() {
         }
         
         // 渲染完后滚动到底部
-        binding.messagesContainer.post {
+        binding.messagesContentHost.post {
             (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
                 0,
-                binding.messagesContainer.height
+                binding.messagesContentHost.height
             )
         }
     }
@@ -2993,6 +3078,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 )
                 c.updatedAt = System.currentTimeMillis()
+                syncMessageTranscript(c)
                 persistConversations()
 
                 appendComplexUserMessage(
@@ -3281,6 +3367,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 )
                 cc.updatedAt = System.currentTimeMillis()
+                syncMessageTranscript(cc)
                 persistConversations()
 
                 if (!automationInstruction.isNullOrBlank()) {
@@ -3311,6 +3398,7 @@ class MainActivity : AppCompatActivity() {
                         )
                     )
                     cc.updatedAt = System.currentTimeMillis()
+                    syncMessageTranscript(cc)
                     persistConversations()
 
                     runOnUiThread {
@@ -3637,6 +3725,7 @@ class MainActivity : AppCompatActivity() {
 
         targetConversation.messages[targetIndex] = origin.copy(content = updated)
         targetConversation.updatedAt = System.currentTimeMillis()
+        syncMessageTranscript(targetConversation)
         persistConversations()
     }
 
@@ -4117,6 +4206,7 @@ class MainActivity : AppCompatActivity() {
         // 1. Inflate 复杂布局
         val view = layoutInflater.inflate(R.layout.item_ai_message_complex, binding.messagesContainer, false)
         binding.messagesContainer.addView(view)
+        syncMessageTranscript()
         
         val thinkingLayout = view.findViewById<LinearLayout>(R.id.thinking_layout)
         val thinkingHeader = view.findViewById<LinearLayout>(R.id.thinking_header)
@@ -4412,10 +4502,10 @@ class MainActivity : AppCompatActivity() {
      * 丝滑滚动到底部
      */
     private fun smoothScrollToBottom() {
-        binding.messagesContainer.post {
+        binding.messagesContentHost.post {
             val scrollView = binding.messagesContainer.parent as? android.widget.ScrollView ?: return@post
             // 检查是否需要滚动：如果已经在底部附近，则跟随滚动
-            val viewHeight = binding.messagesContainer.height
+            val viewHeight = binding.messagesContentHost.height
             val scrollViewHeight = scrollView.height
             val scrollY = scrollView.scrollY
             
@@ -4681,6 +4771,7 @@ class MainActivity : AppCompatActivity() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         )
+        syncMessageTranscript()
 
         smoothScrollToBottom()
 
@@ -4738,10 +4829,10 @@ class MainActivity : AppCompatActivity() {
 
         binding.messagesContainer.addView(tv, lp)
 
-        binding.messagesContainer.post {
+        binding.messagesContentHost.post {
             (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
                     0,
-                    binding.messagesContainer.height
+                    binding.messagesContentHost.height
             )
         }
 
@@ -4774,10 +4865,10 @@ class MainActivity : AppCompatActivity() {
             }
             
             // 最终滚动到底部
-            binding.messagesContainer.post {
+            binding.messagesContentHost.post {
                 (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
                         0,
-                        binding.messagesContainer.height
+                        binding.messagesContentHost.height
                 )
             }
         }
@@ -4805,10 +4896,10 @@ class MainActivity : AppCompatActivity() {
                             gravity = if (isUser) Gravity.END else Gravity.START
                         }
         binding.messagesContainer.addView(tv, lp)
-        binding.messagesContainer.post {
+        binding.messagesContentHost.post {
             (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
                     0,
-                    binding.messagesContainer.height
+                    binding.messagesContentHost.height
             )
         }
     }
@@ -4848,10 +4939,10 @@ class MainActivity : AppCompatActivity() {
 
         binding.messagesContainer.addView(tv, lp)
 
-        binding.messagesContainer.post {
+        binding.messagesContentHost.post {
             (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
                     0,
-                    binding.messagesContainer.height
+                    binding.messagesContentHost.height
             )
         }
 
@@ -4905,10 +4996,10 @@ class MainActivity : AppCompatActivity() {
                 delay(400)
             }
         }
-        binding.messagesContainer.post {
+        binding.messagesContentHost.post {
             (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
                     0,
-                    binding.messagesContainer.height
+                    binding.messagesContentHost.height
             )
         }
     }
