@@ -177,6 +177,7 @@ import com.ai.phoneagent.ui.drawer.DrawerConversationUiItem
 import com.ai.phoneagent.ui.history.ConversationHistoryDialog
 import com.ai.phoneagent.ui.history.ConversationHistoryItemUi
 import com.ai.phoneagent.ui.messages.ConversationTranscript
+import com.ai.phoneagent.ui.messages.TranscriptAutomationUi
 import com.ai.phoneagent.ui.messages.TranscriptMessageUi
 import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.ui.topbar.MainTopBar
@@ -271,6 +272,7 @@ class MainActivity : AppCompatActivity() {
     private var automationTerminateFallbackJob: Job? = null
     private var automationAutoConfirmRef: AutomationMessageRef? = null
     private var automationAutoConfirmJob: Job? = null
+    private val automationCountdownSeconds = mutableMapOf<AutomationMessageRef, Int>()
 
     private val automationLogReceiver =
             object : BroadcastReceiver() {
@@ -648,6 +650,7 @@ class MainActivity : AppCompatActivity() {
                             retryMessage(retryText)
                         }
                     },
+                    onAutomationAction = { item -> handleTranscriptAutomationAction(item) },
                 )
             }
         }
@@ -676,6 +679,8 @@ class MainActivity : AppCompatActivity() {
         streamingTranscriptConversationIdState.value = activeConversation?.id
         streamingTranscriptItemState.value =
             TranscriptMessageUi(
+                conversationId = activeConversation?.id ?: -1L,
+                messageIndex = -1,
                 id = "streaming-assistant",
                 author = "Aries AI",
                 body =
@@ -716,6 +721,8 @@ class MainActivity : AppCompatActivity() {
     ): TranscriptMessageUi {
         if (message.isUser) {
             return TranscriptMessageUi(
+                conversationId = conversationId,
+                messageIndex = index,
                 id = "$conversationId-user-$index",
                 author = message.author,
                 body = message.content.trim(),
@@ -733,13 +740,34 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        val (withoutConfirmMarker, _) = extractAutomationConfirmInstruction(message.content)
-        val (withoutConfirmedMarker, _) = extractAutomationConfirmedMarker(withoutConfirmMarker)
-        val (withoutLogMarkers, _) = extractAutomationLogMarkers(withoutConfirmedMarker)
-        val (thinking, answerRaw) = parseStoredAiContent(withoutLogMarkers)
-        val cleanedAnswer = answerRaw.trim().ifBlank { stripAutomationMarker(withoutLogMarkers).trim() }
+        val messageRef = AutomationMessageRef(conversationId = conversationId, messageIndex = index)
+        val (contentWithoutLogMarkers, embeddedAutomationLogs) = extractAutomationLogMarkers(message.content)
+        val (contentWithoutConfirmedMarker, hasConfirmedMarker) =
+            extractAutomationConfirmedMarker(contentWithoutLogMarkers)
+        val (contentWithoutConfirmMarker, confirmInstruction) =
+            extractAutomationConfirmInstruction(contentWithoutConfirmedMarker)
+        val (thinking, answerRaw) = parseStoredAiContent(contentWithoutConfirmMarker)
+        val cleanedAnswer = answerRaw.trim().ifBlank { stripAutomationMarker(contentWithoutConfirmMarker).trim() }
         val isAutomationMessage =
             cleanedAnswer.startsWith("【自动化】") || extractAutomationCommand(cleanedAnswer) != null
+        val automationCommandText = extractAutomationCommand(cleanedAnswer) ?: confirmInstruction
+        val automationLogs =
+            buildList {
+                addAll(embeddedAutomationLogs)
+                cleanedAnswer
+                    .lines()
+                    .map { it.trim() }
+                    .firstOrNull { it.startsWith("系统未就绪：") }
+                    ?.let { add(it) }
+            }
+        val automationUi =
+            buildTranscriptAutomationUi(
+                messageRef = messageRef,
+                command = automationCommandText,
+                logs = automationLogs,
+                hasConfirm = !confirmInstruction.isNullOrBlank(),
+                hasConfirmed = hasConfirmedMarker,
+            )
         val displayBody =
             cleanedAnswer
                 .removePrefix("【自动化】")
@@ -753,6 +781,8 @@ class MainActivity : AppCompatActivity() {
                 }
 
         return TranscriptMessageUi(
+            conversationId = conversationId,
+            messageIndex = index,
             id = "$conversationId-ai-$index",
             author = message.author.ifBlank { "Aries AI" },
             body = displayBody,
@@ -760,9 +790,131 @@ class MainActivity : AppCompatActivity() {
             isUser = false,
             attachments = emptyList(),
             isAutomation = isAutomationMessage,
+            automation = automationUi,
             copyText = displayBody,
             retryText = findRetryTextForAssistantMessage(index),
         )
+    }
+
+    private fun buildTranscriptAutomationUi(
+        messageRef: AutomationMessageRef,
+        command: String?,
+        logs: List<String>,
+        hasConfirm: Boolean,
+        hasConfirmed: Boolean,
+    ): TranscriptAutomationUi? {
+        if (command.isNullOrBlank()) return null
+
+        val hasTerminalLog = logs.any { isAutomationTerminalLog(it) }
+        val isTerminatePending = isAutomationTerminatePending(messageRef)
+        val status =
+            when {
+                isTerminatePending -> getString(R.string.automation_scene_stop_requested)
+                hasConfirm -> getString(R.string.automation_scene_need_confirm)
+                hasTerminalLog -> getString(R.string.automation_scene_finished)
+                logs.isNotEmpty() -> getString(R.string.automation_scene_running)
+                hasConfirmed -> getString(R.string.automation_scene_confirmed)
+                else -> getString(R.string.automation_scene_not_ready)
+            }
+
+        val countdownSeconds = automationCountdownSeconds[messageRef]
+        val actionLabel: String?
+        val actionEnabled: Boolean
+        val isDestructive: Boolean
+        val confirmInstruction: String?
+
+        when {
+            hasConfirmed && hasTerminalLog -> {
+                actionLabel = getString(R.string.automation_confirmed)
+                actionEnabled = false
+                isDestructive = false
+                confirmInstruction = null
+            }
+            hasConfirmed -> {
+                actionLabel =
+                    if (isTerminatePending) {
+                        getString(R.string.automation_terminating)
+                    } else {
+                        getString(R.string.automation_terminate)
+                    }
+                actionEnabled = !isTerminatePending
+                isDestructive = true
+                confirmInstruction = null
+            }
+            hasConfirm -> {
+                actionLabel =
+                    if (countdownSeconds != null) {
+                        getString(R.string.automation_confirm_countdown, countdownSeconds)
+                    } else {
+                        getString(R.string.automation_confirm)
+                    }
+                actionEnabled = true
+                isDestructive = false
+                confirmInstruction = command
+            }
+            else -> {
+                actionLabel = null
+                actionEnabled = false
+                isDestructive = false
+                confirmInstruction = null
+            }
+        }
+
+        return TranscriptAutomationUi(
+            command = command,
+            status = status,
+            logs = logs,
+            actionLabel = actionLabel,
+            actionEnabled = actionEnabled,
+            isDestructive = isDestructive,
+            confirmInstruction = confirmInstruction,
+        )
+    }
+
+    private fun syncTranscriptForAutomationMessage(messageRef: AutomationMessageRef?) {
+        val ref = messageRef ?: return
+        if (activeConversation?.id == ref.conversationId) {
+            syncMessageTranscript(activeConversation)
+        }
+    }
+
+    private fun handleTranscriptAutomationAction(item: TranscriptMessageUi) {
+        val automation = item.automation ?: return
+        if (!item.isAutomation || !automation.actionEnabled) return
+
+        val messageRef = AutomationMessageRef(item.conversationId, item.messageIndex)
+        if (!automation.confirmInstruction.isNullOrBlank()) {
+            clearAutomationAutoConfirm(messageRef)
+            val readyState = resolveAutomationReadyState()
+            if (!readyState.ready) {
+                Toast.makeText(
+                    this,
+                    resolveAutomationNotReadyToast(readyState.reason),
+                    Toast.LENGTH_LONG,
+                ).show()
+                return
+            }
+
+            val dispatchResult =
+                ActivityAutomationInstructionGateway.dispatchFromAdvancedAi(
+                    context = this,
+                    instruction = automation.confirmInstruction,
+                )
+            if (dispatchResult.success) {
+                markAutomationCommandConfirmed(automation.confirmInstruction, messageRef)
+            } else {
+                Toast.makeText(
+                    this,
+                    getString(R.string.automation_dispatch_failed, dispatchResult.message),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+            return
+        }
+
+        requestAutomationStopFromHome()
+        markAutomationTerminatePending(messageRef)
+        syncTranscriptForAutomationMessage(messageRef)
     }
 
     private fun findRetryTextForAssistantMessage(messageIndex: Int): String? {
@@ -1452,13 +1604,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun markAutomationTerminatePending(messageRef: AutomationMessageRef?) {
         automationTerminatePendingRef = resolveAutomationMessageRef(messageRef)
+        syncTranscriptForAutomationMessage(automationTerminatePendingRef)
     }
 
     private fun clearAutomationTerminatePending(messageRef: AutomationMessageRef? = null) {
         if (messageRef == null) {
+            val previousRef = automationTerminatePendingRef
             automationTerminatePendingRef = null
             automationTerminateFallbackJob?.cancel()
             automationTerminateFallbackJob = null
+            syncTranscriptForAutomationMessage(previousRef)
             return
         }
         val resolved = resolveAutomationMessageRef(messageRef) ?: return
@@ -1466,6 +1621,7 @@ class MainActivity : AppCompatActivity() {
             automationTerminatePendingRef = null
             automationTerminateFallbackJob?.cancel()
             automationTerminateFallbackJob = null
+            syncTranscriptForAutomationMessage(resolved)
         }
     }
 
@@ -3578,13 +3734,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun clearAutomationAutoConfirm(messageRef: AutomationMessageRef? = null) {
+        var resolvedRef: AutomationMessageRef? = null
         if (messageRef != null) {
             val resolved = resolveAutomationMessageRef(messageRef) ?: return
             if (automationAutoConfirmRef != resolved) return
+            resolvedRef = resolved
+        } else {
+            resolvedRef = automationAutoConfirmRef
         }
         automationAutoConfirmJob?.cancel()
         automationAutoConfirmJob = null
+        resolvedRef?.let { automationCountdownSeconds.remove(it) }
         automationAutoConfirmRef = null
+        syncTranscriptForAutomationMessage(resolvedRef)
     }
 
     private fun scheduleAutomationAutoConfirm(
@@ -3605,7 +3767,9 @@ class MainActivity : AppCompatActivity() {
                 for (secondsRemaining in 10 downTo 1) {
                     if (automationAutoConfirmRef != resolvedRef) return@launch
                     if (!button.isAttachedToWindow || !button.isEnabled) return@launch
+                    automationCountdownSeconds[resolvedRef] = secondsRemaining
                     textView.text = getString(R.string.automation_confirm_countdown, secondsRemaining)
+                    syncTranscriptForAutomationMessage(resolvedRef)
                     delay(1000L)
                 }
 
@@ -3616,8 +3780,10 @@ class MainActivity : AppCompatActivity() {
         automationAutoConfirmJob = currentJob
         currentJob.invokeOnCompletion {
             if (automationAutoConfirmJob === currentJob) {
+                automationCountdownSeconds.remove(resolvedRef)
                 automationAutoConfirmJob = null
                 automationAutoConfirmRef = null
+                syncTranscriptForAutomationMessage(resolvedRef)
             }
         }
     }
