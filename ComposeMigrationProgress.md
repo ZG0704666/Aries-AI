@@ -5,8 +5,8 @@
 
 ## 进度口径
 
-- 可见界面迁移进度：`约 70%`
-- 底层架构彻底迁移进度：`约 50%`
+- 可见界面迁移进度：`约 90%`
+- 底层架构彻底迁移进度：`约 72%`
 
 说明：
 - “可见界面迁移进度”指用户实际看到的页面是否已经切到 Compose Material 3。
@@ -50,19 +50,20 @@
   - 用户消息已不再写入 hidden legacy `messagesContainer`。
   - 会话切换时的历史用户消息也不再重建 legacy 用户气泡。
   - 旧的用户消息复杂气泡渲染方法已从 `MainActivity` 主路径移除。
+- 本轮大幅推进：
+  - 主界面流式 AI 消息已不再依赖 hidden `item_ai_message_complex` 和 `StreamRenderHelper` 作为临时渲染宿主。
+  - 主界面发送链的思考增量、回答增量、最终持久化已改成直接由 Compose transcript 状态驱动。
+  - 主界面 legacy AI 气泡渲染、旧打字机消息函数、旧“正在思考”占位函数已从 `MainActivity` 清出主工程代码。
 - 仍存在问题：
-  - 底层流式生成过程仍依赖旧渲染链做兼容。
-  - 自动化卡片交互仍有 legacy 兼容逻辑。
+  - 自动化运行时状态仍有少量 legacy View 引用字段保留在 `MainActivity.kt` 中。
+  - 自动化控制台页面本身仍有 hidden legacy bridge。
   - Compose 侧的复制/重试已经接入，但底层仍通过旧消息存储和旧发送链驱动。
   - `MainActivity.kt` 仍是 View + Compose 混合状态管理。
 - 下一步：把消息流、交互按钮、自动化消息卡全部改成纯 Compose。
 
 ## 未完成
 
-- 主界面流式消息渲染迁移为纯 Compose。
-- 主界面 AI 消息操作区迁移为纯 Compose。
-- 主界面自动化消息卡交互迁移为纯 Compose。
-- 移除 `MainActivity` 中隐藏的 legacy 消息容器依赖。
+- 继续清除 `MainActivity` 中剩余的自动化 legacy 运行时引用。
 - 移除 `AutomationActivityNew` 中隐藏的 legacy 容器依赖。
 - 将更多页面状态迁移到 Compose-first 状态模型，而不是继续由 View 驱动。
 - 继续拆分超长页面逻辑，减少 `MainActivity.kt` 和 `AutomationActivityNew.kt` 的职责。
@@ -73,7 +74,7 @@
 
 - 目标：让聊天主链路完全脱离旧 XML 消息渲染。
 - 判断标准：
-  - 新消息生成时不再依赖 `appendComplexAiMessage`
+  - 新消息生成时不再依赖 legacy 消息视图宿主
   - 重试、复制、自动化确认都走 Compose
   - 旧 `messagesContainer` 可删除
 
@@ -96,8 +97,8 @@
 
 ## 下一阶段目标
 
-- 继续清理主界面消息流底层 legacy 渲染依赖。
-- 继续完成主界面消息操作区底层 Compose 化。
+- 继续清理主界面剩余自动化 runtime 的 legacy 引用。
+- 开始收 `AutomationActivityNew` 的 hidden legacy bridge。
 - 完成自动化控制台去 legacy bridge。
 
 ## 本轮完成
@@ -108,6 +109,8 @@
 - 主界面自动化消息卡已迁到 Compose 可见层，并接入确认/终止按钮。
 - 自动化倒计时与终止中的状态已开始从 legacy 运行时同步到 Compose transcript。
 - 主界面用户消息已经完全改由 Compose transcript 可见层承接，不再依赖 hidden legacy 用户气泡。
+- 主界面流式 AI 消息已经完全改由 Compose transcript 状态承接，不再依赖 hidden legacy AI 渲染宿主。
+- `MainActivity.kt` 中旧 AI 气泡渲染、旧打字机消息、旧“正在思考”占位代码已大规模删除。
 - 中文进度文件已切换为强制实时更新模式。
 
-完成以上几项后，主界面可见消息区已基本完成 Compose 化，接下来重点转向去除隐藏 legacy 容器和状态桥接。
+完成以上几项后，主界面内容可视主链已基本完成 Compose 化，接下来重点转向自动化页和剩余 runtime bridge。

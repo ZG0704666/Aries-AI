@@ -88,7 +88,6 @@ import android.widget.EditText
 import com.ai.phoneagent.helper.AutomationMessageParser
 import com.ai.phoneagent.helper.AutomationTimelineEntry
 import com.ai.phoneagent.helper.AutomationTimelineFormatter
-import com.ai.phoneagent.helper.StreamRenderHelper
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -232,8 +231,6 @@ class MainActivity : AppCompatActivity() {
 
     private var micAnimator: ObjectAnimator? = null
 
-    private var thinkingView: View? = null
-    private var thinkingTextView: TextView? = null
 
     // 防止并发请求导致重试时更容易出现空回复/失败提示
     private var isRequestInFlight: Boolean = false
@@ -3297,42 +3294,6 @@ class MainActivity : AppCompatActivity() {
             try {
                 val startTime = System.currentTimeMillis()
 
-                // 使用 StreamRenderHelper 绑定视图
-                val aiView =
-                        layoutInflater.inflate(
-                                R.layout.item_ai_message_complex,
-                                null,
-                                false,
-                        )
-                val vh = StreamRenderHelper.bindViews(aiView)
-                StreamRenderHelper.initThinkingState(vh)
-                val tvModelName = aiView.findViewById<TextView>(R.id.tv_model_name)
-                if (resolvedModel.isNotBlank()) {
-                    tvModelName.text = resolvedModel
-                    tvModelName.visibility = View.VISIBLE
-                } else {
-                    tvModelName.visibility = View.GONE
-                }
-
-                // 按钮事件绑定
-                val retryPrompt = textForTitle
-                vh.retryButton?.setOnClickListener {
-                    setRetryButtonLoadingState(vh.retryButton, isLoading = true)
-                    val started = retryMessage(retryPrompt)
-                    if (!started) {
-                        setRetryButtonLoadingState(vh.retryButton, isLoading = false)
-                    }
-                }
-
-                vh.copyButton?.setOnClickListener {
-                    val cm =
-                            getSystemService(android.content.Context.CLIPBOARD_SERVICE) as
-                                    android.content.ClipboardManager
-                    val clip = android.content.ClipData.newPlainText("AI Reply", vh.messageContent.text)
-                    cm.setPrimaryClip(clip)
-                    Toast.makeText(this@MainActivity, "已复制内容", Toast.LENGTH_SHORT).show()
-                }
-
                 smoothScrollToBottom()
                 runOnUiThread {
                     updateStreamingTranscript(
@@ -3384,10 +3345,8 @@ class MainActivity : AppCompatActivity() {
 
                 for (attempt in 1..maxAttempts) {
                     if (attempt > 1) {
-                        // 重试前清理界面
                         reasoningSb.clear()
                         contentSb.clear()
-                        runOnUiThread { StreamRenderHelper.initThinkingState(vh) }
                         runOnUiThread {
                             updateStreamingTranscript(
                                 retryText = baseUserText,
@@ -3406,16 +3365,12 @@ class MainActivity : AppCompatActivity() {
                         } else if (delta.isNotBlank()) {
                             reasoningSb.append(delta)
                             runOnUiThread {
-                                StreamRenderHelper.processReasoningDelta(
-                                    vh,
-                                    delta,
-                                    lifecycleScope,
-                                ) { smoothScrollToBottom() }
                                 updateStreamingTranscriptFromBuffers(
                                     retryText = baseUserText,
                                     reasoning = reasoningSb,
                                     answer = contentSb,
                                 )
+                                smoothScrollToBottom()
                             }
                             if (FloatingChatService.isRunning()) {
                                 FloatingChatService.getInstance()
@@ -3428,35 +3383,15 @@ class MainActivity : AppCompatActivity() {
                         if (shouldStopGeneration) {
                             // stop requested; ignore incoming delta
                         } else if (delta.isNotEmpty()) {
+                            contentSb.append(delta)
                             runOnUiThread {
-                                StreamRenderHelper.processContentDelta(
-                                    vh,
-                                    delta,
-                                    lifecycleScope,
-                                    this@MainActivity,
-                                    onScroll = { smoothScrollToBottom() },
-                                    onPhaseChange = { isAnswerPhase ->
-                                        if (isAnswerPhase) {
-                                            StreamRenderHelper.transitionToAnswer(vh)
-                                            if (
-                                                vh.thinkingText.visibility == View.VISIBLE ||
-                                                    vh.thinkingContentArea.visibility == View.VISIBLE
-                                            ) {
-                                                vh.thinkingHeader.performClick()
-                                            }
-                                        }
-                                    },
-                                )
                                 updateStreamingTranscriptFromBuffers(
                                     retryText = baseUserText,
                                     reasoning = reasoningSb,
                                     answer = contentSb,
                                 )
+                                smoothScrollToBottom()
                             }
-
-                            // 更新 contentSb（用于保存）
-                            // 注意：这里我们保存原始内容，解析器会处理显示
-                            contentSb.append(delta)
 
                             // 同步到悬浮窗
                             if (FloatingChatService.isRunning()) {
@@ -3514,49 +3449,20 @@ class MainActivity : AppCompatActivity() {
                             "请求失败: $err"
                         }
 
-                // 显示完成状态
-                runOnUiThread {
-                    StreamRenderHelper.markCompleted(vh, timeCost)
-                    if (
-                            vh.thinkingText.visibility == View.VISIBLE ||
-                                    vh.thinkingContentArea.visibility == View.VISIBLE
-                    ) {
-                        vh.thinkingHeader.performClick()
-                    }
-                    if (!streamOk || shouldStopGeneration) {
-                        // 如果失败或被停止，直接显示消息
-                        vh.messageContent.text = finalContent
-                    }
-                }
-
                 if (floatingStreamStarted && FloatingChatService.isRunning()) {
                     FloatingChatService.getInstance()
                             ?.finishExternalStreamAiReply(timeCost.toInt(), finalContent)
                 }
 
-                // 保存到历史 - 使用解析后的内容
-                val thinkingContent = StreamRenderHelper.getThinkingText(vh)
-                val renderedAnswerRaw = StreamRenderHelper.getAnswerText(vh).trim()
-                val parsedFinalAnswer = parseStoredAiContent(finalContent).second.trim()
-                val fallbackAnswerRaw =
-                    parsedFinalAnswer.ifBlank { stripAutomationMarker(finalContent).trim() }
+                val parsedPersisted = parseStoredAiContent(finalContent)
+                val thinkingContent =
+                    reasoningSb.toString().trim().ifBlank { parsedPersisted.first.orEmpty().trim() }
                 val answerContentRaw =
-                    if (renderedAnswerRaw.isNotBlank()) renderedAnswerRaw else fallbackAnswerRaw
-                if (renderedAnswerRaw.isBlank() && answerContentRaw.isNotBlank() && streamOk && !shouldStopGeneration) {
-                    runOnUiThread {
-                        StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, answerContentRaw)
-                    }
-                }
+                    parsedPersisted.second.trim().ifBlank { stripAutomationMarker(finalContent).trim() }
                 val (answerContent, markerInAnswer) =
                         extractAutomationInstruction(answerContentRaw)
                 val automationInstruction =
                         markerInAnswer ?: extractAutomationInstruction(finalContent).second
-
-                if (answerContent != answerContentRaw) {
-                    runOnUiThread {
-                        StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, answerContent)
-                    }
-                }
 
                 val persistContent =
                         if (thinkingContent.isNotEmpty()) {
@@ -4400,331 +4306,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 解析并显示复杂的 AI 消息（包含思考过程）
-     * 支持淡蓝色液态玻璃框、思考过程折叠、打字机动画、丝滑滚动
-     */
-    private fun appendComplexAiMessage(
-        author: String,
-        fullContent: String,
-        animate: Boolean,
-        timeCostMs: Long,
-        retryUserText: String? = null,
-        automationInstructionForConfirm: String? = null,
-        messageIndexInConversation: Int? = null,
-        modelName: String? = null
-    ) {
-        // 1. Inflate 复杂布局
-        val view = layoutInflater.inflate(R.layout.item_ai_message_complex, binding.messagesContainer, false)
-        binding.messagesContainer.addView(view)
-        syncMessageTranscript()
-        
-        val thinkingLayout = view.findViewById<LinearLayout>(R.id.thinking_layout)
-        val thinkingHeader = view.findViewById<LinearLayout>(R.id.thinking_header)
-        val thinkingText = view.findViewById<TextView>(R.id.thinking_text)
-        val thinkingIndicator = view.findViewById<TextView>(R.id.thinking_indicator_text)
-        val messageContent = view.findViewById<TextView>(R.id.message_content)
-        val authorName = view.findViewById<TextView>(R.id.ai_author_name)
-        val btnConfirm = view.findViewById<View?>(R.id.btn_confirm)
-        val tvConfirmText = view.findViewById<TextView?>(R.id.tv_confirm_text)
-        val automationPanel = view.findViewById<LinearLayout>(R.id.automation_panel)
-        val automationStatus = view.findViewById<TextView>(R.id.automation_panel_status)
-        val automationPanelToggle = view.findViewById<ImageButton>(R.id.automation_panel_toggle)
-        val automationPanelContent = view.findViewById<LinearLayout>(R.id.automation_panel_content)
-        val automationCommand = view.findViewById<TextView>(R.id.automation_panel_command)
-        val automationLogContainer = view.findViewById<LinearLayout>(R.id.automation_log_container)
-        val tvModelName = view.findViewById<TextView>(R.id.tv_model_name)
-
-        // 解析内容（兼容旧格式，避免展示旧分隔符）
-        val (contentWithoutLogMarkers, embeddedAutomationLogs) = extractAutomationLogMarkers(fullContent)
-        val (contentWithoutConfirmedMarker, hasConfirmedMarker) =
-            extractAutomationConfirmedMarker(contentWithoutLogMarkers)
-        val (contentWithoutConfirmMarker, confirmInstructionFromMessage) =
-            extractAutomationConfirmInstruction(contentWithoutConfirmedMarker)
-        val confirmInstruction =
-            if (hasConfirmedMarker) null else (automationInstructionForConfirm ?: confirmInstructionFromMessage)
-        val (storedThinking, storedAnswer) = parseStoredAiContent(contentWithoutConfirmMarker)
-        val thinkContent = storedThinking?.trim()
-        val realContent = storedAnswer.trim()
-        val automationCommandText = extractAutomationCommand(realContent) ?: confirmInstruction
-        val messageRef =
-            if (messageIndexInConversation != null && messageIndexInConversation >= 0) {
-                val cid = activeConversation?.id ?: -1L
-                if (cid > 0L) {
-                    AutomationMessageRef(
-                        conversationId = cid,
-                        messageIndex = messageIndexInConversation
-                    )
-                } else {
-                    null
-                }
-            } else {
-                null
-            }
-        val initialAutomationLogs =
-            buildList {
-                addAll(embeddedAutomationLogs)
-                val notReadyReason =
-                    realContent.lines().map { it.trim() }.firstOrNull { it.startsWith("系统未就绪：") }
-                if (!notReadyReason.isNullOrBlank()) add(notReadyReason)
-            }
-        val isAutomationCard = !automationCommandText.isNullOrBlank()
-        val isAutomationFinished = initialAutomationLogs.any { isAutomationTerminalLog(it) }
-        
-        // 设置作者名
-        val aiHeaderRow = authorName.parent as? View
-        val automationPanelLayoutParams = automationPanel.layoutParams as? ViewGroup.MarginLayoutParams
-        val automationPanelDefaultTopMargin = resources.getDimensionPixelSize(R.dimen.m3t_spacing_sm)
-        val automationPanelDefaultPadding = resources.getDimensionPixelSize(R.dimen.m3t_spacing_md)
-        authorName.text = if (author == "Aries") "Aries AI" else author
-        if (isAutomationCard) {
-            aiHeaderRow?.visibility = View.GONE
-            tvModelName.visibility = View.GONE
-            view.setBackgroundResource(R.drawable.bg_glass_pane)
-            automationPanel.background = null
-            automationPanel.setPadding(0, 0, 0, 0)
-            automationPanelLayoutParams?.topMargin = 0
-            automationPanel.layoutParams = automationPanelLayoutParams
-        } else {
-            aiHeaderRow?.visibility = View.VISIBLE
-            view.setBackgroundResource(R.drawable.bg_glass_pane)
-            automationPanel.setBackgroundResource(R.drawable.bg_rounded_input_light)
-            automationPanel.setPadding(
-                automationPanelDefaultPadding,
-                automationPanelDefaultPadding,
-                automationPanelDefaultPadding,
-                automationPanelDefaultPadding
-            )
-            automationPanelLayoutParams?.topMargin = automationPanelDefaultTopMargin
-            automationPanel.layoutParams = automationPanelLayoutParams
-            authorName.visibility = View.VISIBLE
-            if (!modelName.isNullOrBlank()) {
-                tvModelName.text = modelName
-                tvModelName.visibility = View.VISIBLE
-            } else {
-                tvModelName.visibility = View.GONE
-            }
-        }
-        // 设置思考部分交互
-        if (!thinkContent.isNullOrBlank()) {
-            thinkingLayout.visibility = View.VISIBLE
-            val seconds = (timeCostMs / 1000).coerceAtLeast(1)
-            val headerTitle = thinkingHeader.getChildAt(0) as TextView
-            headerTitle.text = "已思考 (用时 ${seconds} 秒)"
-            
-            var isExpanded = true
-            thinkingHeader.setOnClickListener {
-                isExpanded = !isExpanded
-                if (isExpanded) {
-                    thinkingText.visibility = View.VISIBLE
-                    thinkingIndicator.text = " ⌄" // Down arrow (expanded)
-                    (view.findViewById<View>(R.id.thinking_content_area)).visibility = View.VISIBLE
-                } else {
-                    thinkingText.visibility = View.GONE
-                    thinkingIndicator.text = " ›" // Right arrow (collapsed)
-                    (view.findViewById<View>(R.id.thinking_content_area)).visibility = View.GONE
-                }
-            }
-        } else {
-            thinkingLayout.visibility = View.GONE
-        }
-
-        if (isAutomationCard) {
-            messageContent.visibility = View.GONE
-            automationPanel.visibility = View.VISIBLE
-            setAutomationPanelCollapsedState(
-                content = automationPanelContent,
-                toggleButton = automationPanelToggle,
-                collapsed = false,
-                animate = false
-            )
-            automationPanelToggle.setOnClickListener {
-                setAutomationPanelCollapsedState(
-                    content = automationPanelContent,
-                    toggleButton = automationPanelToggle,
-                    collapsed = automationPanelContent.visibility == View.VISIBLE
-                )
-            }
-            configureAutomationPanel(
-                command = automationCommandText,
-                logs = initialAutomationLogs,
-                hasConfirm = !confirmInstruction.isNullOrBlank(),
-                hasConfirmed = hasConfirmedMarker,
-                statusView = automationStatus,
-                commandView = automationCommand,
-                logContainer = automationLogContainer
-            )
-            val conversationId = activeConversation?.id ?: -1L
-            if (conversationId > 0L && messageIndexInConversation != null && messageIndexInConversation >= 0) {
-                activeAutomationPanelConversationId = conversationId
-                activeAutomationPanelMessageIndex = messageIndexInConversation
-                activeAutomationPanelLogContainer = automationLogContainer
-                activeAutomationPanelStatusView = automationStatus
-                activeAutomationPanelConfirmButton = btnConfirm
-                activeAutomationPanelConfirmTextView = tvConfirmText
-            }
-        } else {
-            messageContent.visibility = View.VISIBLE
-            automationPanel.visibility = View.GONE
-            automationPanelToggle.setOnClickListener(null)
-            automationPanelContent.visibility = View.VISIBLE
-        }
-        
-        smoothScrollToBottom()
-
-        if (!animate || isAutomationCard) {
-            if (!thinkContent.isNullOrBlank()) {
-                StreamRenderHelper.applyMarkdownToHistory(thinkingText, thinkContent)
-                if (thinkingText.visibility == View.VISIBLE) {
-                    thinkingHeader.performClick()
-                }
-            }
-            if (messageContent.visibility == View.VISIBLE) {
-                StreamRenderHelper.applyMarkdownToHistory(messageContent, realContent)
-            }
-            view.findViewById<View>(R.id.action_area).visibility = View.VISIBLE
-
-            val btnCopy = view.findViewById<View>(R.id.btn_copy)
-            btnCopy.setOnClickListener {
-                val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                // 复制时是否包含思考过程？Aries AI 默认只复制正文
-                val clip = android.content.ClipData.newPlainText("AI Reply", realContent)
-                cm.setPrimaryClip(clip)
-                Toast.makeText(this@MainActivity, "已复制内容", Toast.LENGTH_SHORT).show()
-            }
-
-            val btnRetry = view.findViewById<View>(R.id.btn_retry)
-            btnRetry.setOnClickListener {
-                val retryText = retryUserText ?: activeConversation?.messages?.findLast { it.isUser }?.content
-                if (!retryText.isNullOrBlank()) {
-                    setRetryButtonLoadingState(btnRetry, isLoading = true)
-                    val started = retryMessage(retryText)
-                    if (!started) {
-                        setRetryButtonLoadingState(btnRetry, isLoading = false)
-                    }
-                } else {
-                    Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
-                }
-            }
-            bindAutomationConfirmButton(
-                button = btnConfirm,
-                textView = tvConfirmText,
-                instruction = confirmInstruction,
-                messageRef = messageRef,
-                isConfirmed = hasConfirmedMarker,
-                isFinished = isAutomationFinished
-            )
-            return
-        }
-        
-        // 动画显示逻辑
-        lifecycleScope.launch {
-            // 1. 如果有思考内容，先播放思考打字机
-            if (!thinkContent.isNullOrBlank()) {
-                val sb = StringBuilder()
-                val chunkSize = 5
-                var index = 0
-                while (index < thinkContent.length) {
-                    val end = minOf(index + chunkSize, thinkContent.length)
-                    sb.append(thinkContent.substring(index, end))
-                    thinkingText.text = sb.toString()
-                    index = end
-                    
-                    smoothScrollToBottom()
-                    delay(10) // 思考过程刷快一点
-                }
-                thinkingText.text = thinkContent // 确保完整
-                delay(200) // 思考完停顿一下
-                if (thinkingText.visibility == View.VISIBLE) {
-                    thinkingHeader.performClick()
-                }
-            }
-            
-            // 2. 播放正文打字机
-            val sb = StringBuilder()
-            val chunkSize = 2 // 正文稍微慢一点，更像打字
-            var index = 0
-            while (index < realContent.length) {
-                val end = minOf(index + chunkSize, realContent.length)
-                val chunk = realContent.substring(index, end)
-                sb.append(chunk)
-                messageContent.text = sb.toString()
-                index = end
-                
-                smoothScrollToBottom()
-                
-                // 根据标点调整节奏
-                val lastChar = chunk.lastOrNull() ?: ' '
-                val d = when (lastChar) {
-                    '。', '！', '？', '\n' -> 50L
-                    '，', '；' -> 30L
-                    else -> 10L // 默认很快，丝滑
-                }
-                delay(d)
-            }
-            messageContent.text = realContent
-            
-            // 动画结束后显示底部操作栏（分割线+复制/重试）
-            val actionArea = view.findViewById<View>(R.id.action_area)
-            actionArea.visibility = View.VISIBLE
-            smoothScrollToBottom()
-        }
-        
-        // 绑定复制和重试按钮事件
-        val btnCopy = view.findViewById<View>(R.id.btn_copy)
-        btnCopy.setOnClickListener {
-            val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            // 复制时是否包含思考过程？Aries AI 默认只复制正文
-            val clip = android.content.ClipData.newPlainText("AI Reply", realContent)
-            cm.setPrimaryClip(clip)
-            Toast.makeText(this@MainActivity, "已复制内容", Toast.LENGTH_SHORT).show()
-        }
-
-        val btnRetry = view.findViewById<View>(R.id.btn_retry)
-        btnRetry.setOnClickListener {
-            // 重试逻辑：获取上一条用户消息，重新发送
-            val retryText = retryUserText ?: activeConversation?.messages?.findLast { it.isUser }?.content
-            if (!retryText.isNullOrBlank()) {
-                setRetryButtonLoadingState(btnRetry, isLoading = true)
-                val started = retryMessage(retryText)
-                if (!started) {
-                    setRetryButtonLoadingState(btnRetry, isLoading = false)
-                }
-            } else {
-                Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
-            }
-        }
-        bindAutomationConfirmButton(
-            button = btnConfirm,
-            textView = tvConfirmText,
-            instruction = confirmInstruction,
-            messageRef = messageRef,
-            isConfirmed = hasConfirmedMarker,
-            isFinished = isAutomationFinished
-        )
-        
-        if (!animate) {
-            // 如果非动画模式（如历史记录），直接显示操作栏
-            view.findViewById<View>(R.id.action_area).visibility = View.VISIBLE
-        }
-    }
-    
-    /**
      * 丝滑滚动到底部
      */
     private fun smoothScrollToBottom() {
         binding.messagesContentHost.post {
-            val scrollView = binding.messagesContainer.parent as? android.widget.ScrollView ?: return@post
-            // 检查是否需要滚动：如果已经在底部附近，则跟随滚动
-            val viewHeight = binding.messagesContentHost.height
-            val scrollViewHeight = scrollView.height
-            val scrollY = scrollView.scrollY
-            
-            // 容差值，判定是否在底部
-            val isAtBottom = (viewHeight - (scrollY + scrollViewHeight)) < 300 
-            
-            // 强制滚动，或者仅当用户没往回滚时滚动？
-            // 用户要求“同步下移”，通常是强制跟随。
-            scrollView.smoothScrollTo(0, viewHeight)
+            binding.scrollArea.smoothScrollTo(0, binding.messagesContentHost.height)
         }
     }
 
@@ -4733,230 +4319,7 @@ class MainActivity : AppCompatActivity() {
      * 某些情况下（如动画被打断或 Activity 复用）action_area 可能保持 GONE 状态。
      */
     private fun revealActionAreasForMessages() {
-        val container = binding.messagesContainer
-        for (i in 0 until container.childCount) {
-            val child = container.getChildAt(i)
-            val actionArea = child.findViewById<View?>(R.id.action_area)
-            // thinking 占位或非标准布局可能没有 action_area，这里仅对存在的进行显隐修正
-            if (actionArea != null && actionArea.visibility != View.VISIBLE) {
-                actionArea.visibility = View.VISIBLE
-            }
-        }
-    }
-
-    /**
-     * 【优化】使用StringBuilder批量更新方式显示消息
-    * 参考groupBy 算法，每次收到一点就拼接，然后刷新整个文本
-     */
-    private fun appendMessageBatch(
-            author: String,
-            content: String,
-            isUser: Boolean,
-    ) {
-        val tv =
-                TextView(this).apply {
-                    text = "$author："
-                    setPadding(20, 12, 20, 12)
-                    background =
-                            ContextCompat.getDrawable(
-                                    this@MainActivity,
-                                    if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
-                            )
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface))
-                }
-
-        val lp =
-                LinearLayout.LayoutParams(
-                                LinearLayout.LayoutParams.WRAP_CONTENT,
-                                LinearLayout.LayoutParams.WRAP_CONTENT
-                        )
-                        .apply {
-                            setMargins(12, 8, 12, 8)
-                            gravity = if (isUser) Gravity.END else Gravity.START
-                        }
-
-        binding.messagesContainer.addView(tv, lp)
-
-        binding.messagesContentHost.post {
-            (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
-                    0,
-                    binding.messagesContentHost.height
-            )
-        }
-
-        // 使用StringBuilder批量构建文本，分块更新UI
-        lifecycleScope.launch {
-            val sb = StringBuilder("$author：")
-            val chunkSize = 5 // 每5个字符批量更新一次
-            var charIndex = 0
-            
-            while (charIndex < content.length) {
-                // 计算本次要添加的字符数
-                val endIndex = minOf(charIndex + chunkSize, content.length)
-                val chunk = content.substring(charIndex, endIndex)
-                sb.append(chunk)
-                
-                // 刷新整个文本到界面
-                tv.text = sb.toString()
-                
-                charIndex = endIndex
-                
-                // 根据标点符号调整延迟，让显示更自然
-                val lastChar = chunk.lastOrNull() ?: ' '
-                val delayMs = when (lastChar) {
-                    '。', '！', '？', '.', '!', '?', ';', '：', ':' -> 80L
-                    '，', '、', '；', ',', ';', '：', ':' -> 50L
-                    '\n' -> 60L
-                    else -> 25L
-                }
-                delay(delayMs)
-            }
-            
-            // 最终滚动到底部
-            binding.messagesContentHost.post {
-                (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
-                        0,
-                        binding.messagesContentHost.height
-                )
-            }
-        }
-    }
-
-    private fun appendMessageInstant(author: String, content: String, isUser: Boolean) {
-        val tv =
-                TextView(this).apply {
-                    text = "$author：$content"
-                    setPadding(20, 12, 20, 12)
-                    background =
-                            ContextCompat.getDrawable(
-                                    this@MainActivity,
-                                    if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
-                            )
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface))
-                }
-        val lp =
-                LinearLayout.LayoutParams(
-                                LinearLayout.LayoutParams.WRAP_CONTENT,
-                                LinearLayout.LayoutParams.WRAP_CONTENT
-                        )
-                        .apply {
-                            setMargins(12, 8, 12, 8)
-                            gravity = if (isUser) Gravity.END else Gravity.START
-                        }
-        binding.messagesContainer.addView(tv, lp)
-        binding.messagesContentHost.post {
-            (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
-                    0,
-                    binding.messagesContentHost.height
-            )
-        }
-    }
-
-    private fun appendMessageTyping(
-            author: String,
-            content: String,
-            isUser: Boolean,
-            natural: Boolean = false
-    ) {
-
-        val tv =
-                TextView(this).apply {
-                    text = "$author："
-
-                    setPadding(20, 12, 20, 12)
-
-                    background =
-                            ContextCompat.getDrawable(
-                                    this@MainActivity,
-                                    if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
-                            )
-
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface))
-                }
-
-        val lp =
-                LinearLayout.LayoutParams(
-                                LinearLayout.LayoutParams.WRAP_CONTENT,
-                                LinearLayout.LayoutParams.WRAP_CONTENT
-                        )
-                        .apply {
-                            setMargins(12, 8, 12, 8)
-
-                            gravity = if (isUser) Gravity.END else Gravity.START
-                        }
-
-        binding.messagesContainer.addView(tv, lp)
-
-        binding.messagesContentHost.post {
-            (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
-                    0,
-                    binding.messagesContentHost.height
-            )
-        }
-
-        lifecycleScope.launch {
-            for (i in 1..content.length) {
-
-                tv.text = "$author：${content.take(i)}"
-
-                val ch = content[i - 1]
-                val d =
-                        if (natural) {
-                            when (ch) {
-                                '。', '，', '、', '！', '？', '；', '.', ',', '!', '?', ';', '：', ':' ->
-                                        130L
-                                ' ' -> 30L
-                                else -> 28L
-                            }
-                        } else 12L
-                delay(d)
-            }
-        }
-    }
-
-    private fun showThinking() {
-        removeThinking()
-
-        val view = layoutInflater.inflate(R.layout.item_ai_message_complex, binding.messagesContainer, false)
-        val authorName = view.findViewById<TextView>(R.id.ai_author_name)
-        val messageContent = view.findViewById<TextView>(R.id.message_content)
-        val thinkingLayout = view.findViewById<View>(R.id.thinking_layout)
-        val actionArea = view.findViewById<View>(R.id.action_area)
-
-        authorName.text = "Aries AI"
-        authorName.visibility = View.VISIBLE
-        thinkingLayout.visibility = View.GONE
-        actionArea.visibility = View.GONE
-
-        messageContent.text = "正在思考"
-        messageContent.setTextColor(ContextCompat.getColor(this, R.color.m3t_thinking_text))
-
-        binding.messagesContainer.addView(view)
-        thinkingView = view
-        thinkingTextView = messageContent
-
-        lifecycleScope.launch {
-            var n = 0
-            while (thinkingView === view) {
-                val dots = ".".repeat(n % 4)
-                thinkingTextView?.text = "正在思考$dots"
-                n++
-                delay(400)
-            }
-        }
-        binding.messagesContentHost.post {
-            (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
-                    0,
-                    binding.messagesContentHost.height
-            )
-        }
-    }
-
-    private fun removeThinking() {
-        val v = thinkingView ?: return
-        binding.messagesContainer.removeView(v)
-        thinkingView = null
-        thinkingTextView = null
+        Unit
     }
 
     private fun initSherpaModel() {
