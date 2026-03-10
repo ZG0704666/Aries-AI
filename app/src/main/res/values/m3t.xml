@@ -173,6 +173,12 @@
     <dimen name="m3t_drawer_conversation_item_padding_v">14dp</dimen>
     <dimen name="m3t_drawer_conversation_radius">20dp</dimen>
     <dimen name="m3t_input_bar_max_width">560dp</dimen>
+    <dimen name="m3t_message_user_bubble_max_width">392dp</dimen>
+    <dimen name="m3t_message_thinking_card_max_width">328dp</dimen>
+    <dimen name="m3t_message_action_button_size">34dp</dimen>
+    <dimen name="m3t_message_action_icon_size">19dp</dimen>
+    <dimen name="m3t_message_action_gap">2dp</dimen>
+    <dimen name="m3t_message_thinking_icon_box_size">20dp</dimen>
     <dimen name="m3t_input_bar_shadow">10dp</dimen>
     <dimen name="m3t_update_history_list_height">320dp</dimen>
     <dimen name="m3t_update_links_body_height">120dp</dimen>

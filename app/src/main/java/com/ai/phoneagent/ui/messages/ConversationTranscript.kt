@@ -126,7 +126,7 @@ private fun UserMessageBubble(item: TranscriptMessageUi) {
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val maxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
+    val bubbleMaxWidth = dimensionResource(R.dimen.m3t_message_user_bubble_max_width)
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -134,14 +134,14 @@ private fun UserMessageBubble(item: TranscriptMessageUi) {
         verticalArrangement = Arrangement.spacedBy(spacingSm),
     ) {
         Surface(
-            modifier = Modifier.widthIn(max = maxWidth),
+            modifier = Modifier.widthIn(max = bubbleMaxWidth),
             shape = MaterialTheme.shapes.extraLarge,
             color = colorResource(R.color.m3t_message_user_bg),
         ) {
             SelectionContainer {
                 Text(
                     text = item.body,
-                    modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingSm),
+                    modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
@@ -150,7 +150,7 @@ private fun UserMessageBubble(item: TranscriptMessageUi) {
 
         if (item.attachments.isNotEmpty()) {
             FlowRow(
-                modifier = Modifier.widthIn(max = maxWidth),
+                modifier = Modifier.widthIn(max = bubbleMaxWidth),
                 horizontalArrangement = Arrangement.spacedBy(spacingXs),
                 verticalArrangement = Arrangement.spacedBy(spacingXs),
             ) {
@@ -184,8 +184,10 @@ private fun AssistantMessageBlock(
     onAutomationAction: (TranscriptMessageUi) -> Unit,
 ) {
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val maxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
+    val actionGap = dimensionResource(R.dimen.m3t_message_action_gap)
+    val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
+    val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
 
     Column(
         modifier = Modifier
@@ -227,24 +229,32 @@ private fun AssistantMessageBlock(
             (item.copyText.isNotBlank() || !item.retryText.isNullOrBlank())
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs)),
+                horizontalArrangement = Arrangement.spacedBy(actionGap),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (item.copyText.isNotBlank()) {
-                    IconButton(onClick = { onCopyMessage(item) }) {
+                    IconButton(
+                        onClick = { onCopyMessage(item) },
+                        modifier = Modifier.size(actionButtonSize),
+                    ) {
                         Icon(
                             imageVector = Icons.Outlined.ContentCopy,
                             contentDescription = stringResource(R.string.common_copy),
                             tint = colorResource(R.color.m3t_message_meta_text),
+                            modifier = Modifier.size(actionIconSize),
                         )
                     }
                 }
                 if (!item.retryText.isNullOrBlank()) {
-                    IconButton(onClick = { onRetryMessage(item) }) {
+                    IconButton(
+                        onClick = { onRetryMessage(item) },
+                        modifier = Modifier.size(actionButtonSize),
+                    ) {
                         Icon(
                             imageVector = Icons.Outlined.Refresh,
                             contentDescription = stringResource(R.string.retry),
                             tint = colorResource(R.color.m3t_message_meta_text),
+                            modifier = Modifier.size(actionIconSize),
                         )
                     }
                 }
@@ -264,6 +274,11 @@ private fun ThinkingSection(
 
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val thinkingCardWidth = dimensionResource(R.dimen.m3t_message_thinking_card_max_width)
+    val thinkingIconBox = dimensionResource(R.dimen.m3t_message_thinking_icon_box_size)
+    val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
+    val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
     var expanded by rememberSaveable(item.id, thinkingExpandedByDefault) {
         mutableStateOf(thinkingExpandedByDefault)
     }
@@ -281,15 +296,15 @@ private fun ThinkingSection(
         }
 
     Surface(
-        modifier = Modifier.widthIn(max = dimensionResource(R.dimen.m3t_input_bar_max_width) * 0.72f),
+        modifier = Modifier.widthIn(max = thinkingCardWidth),
         shape = MaterialTheme.shapes.extraLarge,
         color = colorResource(R.color.m3t_thinking_bg),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = spacingMd, vertical = spacingSm),
-            verticalArrangement = Arrangement.spacedBy(spacingSm),
+                .padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
+            verticalArrangement = Arrangement.spacedBy(spacingXs + spacingSm),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -297,23 +312,25 @@ private fun ThinkingSection(
                 horizontalArrangement = Arrangement.spacedBy(spacingSm),
             ) {
                 Box(
-                    modifier = Modifier.size(dimensionResource(R.dimen.m3t_spacing_xxl)),
+                    modifier = Modifier.size(thinkingIconBox),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Lightbulb,
                         contentDescription = null,
                         tint = colorResource(R.color.m3t_thinking_text),
+                        modifier = Modifier.size(actionIconSize),
                     )
                 }
                 Text(
                     text = thinkingLabel,
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.bodyLarge,
                     color = colorResource(R.color.m3t_thinking_text),
                     fontWeight = FontWeight.Medium,
                 )
                 IconButton(
+                    modifier = Modifier.size(actionButtonSize),
                     onClick = {
                         expanded = !expanded
                         onThinkingExpandedByDefaultChange(expanded)
@@ -328,6 +345,7 @@ private fun ThinkingSection(
                             },
                         contentDescription = null,
                         tint = colorResource(R.color.m3t_thinking_text),
+                        modifier = Modifier.size(actionIconSize),
                     )
                 }
             }
@@ -338,6 +356,7 @@ private fun ThinkingSection(
                         text = thinking,
                         style = MaterialTheme.typography.bodyMedium,
                         color = colorResource(R.color.m3t_thinking_text),
+                        modifier = Modifier.widthIn(max = thinkingCardWidth - spacingMd - spacingMd),
                     )
                 }
             }
