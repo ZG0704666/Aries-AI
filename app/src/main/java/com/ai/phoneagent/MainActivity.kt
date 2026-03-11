@@ -979,7 +979,7 @@ class MainActivity : AppCompatActivity() {
                         val target = conversations.firstOrNull { it.id == conversationId }
                         if (target != null) {
                             activeConversation = target
-                            renderConversation(target)
+                            renderConversation(target, animateTransition = true)
                             persistConversations()
                             binding.drawerLayout.closeDrawer(GravityCompat.START)
                         }
@@ -2981,15 +2981,46 @@ class MainActivity : AppCompatActivity() {
                 )
     }
 
-    private fun renderConversation(conversation: Conversation) {
+    private fun renderConversation(
+        conversation: Conversation,
+        animateTransition: Boolean = false,
+    ) {
         resetAutomationPanelRuntimeState()
-        syncMessageTranscript(conversation)
-        binding.messagesContentHost.post {
-            binding.scrollArea.smoothScrollTo(
-                0,
-                binding.messagesContentHost.height
-            )
+        fun scrollToConversationBottom() {
+            binding.messagesContentHost.post {
+                binding.scrollArea.smoothScrollTo(
+                    0,
+                    binding.messagesContentHost.height,
+                )
+            }
         }
+
+        if (!animateTransition) {
+            syncMessageTranscript(conversation)
+            scrollToConversationBottom()
+            return
+        }
+
+        binding.messagesContentHost.animate().cancel()
+        binding.messagesContentHost.animate()
+            .translationY(-32f)
+            .alpha(0f)
+            .setDuration(160)
+            .setInterpolator(AccelerateInterpolator(1.2f))
+            .withEndAction {
+                syncMessageTranscript(conversation)
+                binding.messagesContentHost.translationY = 24f
+                binding.messagesContentHost.animate()
+                    .translationY(0f)
+                    .alpha(1f)
+                    .setDuration(220)
+                    .setInterpolator(DecelerateInterpolator())
+                    .withEndAction {
+                        scrollToConversationBottom()
+                    }
+                    .start()
+            }
+            .start()
     }
 
     private fun extractAutomationInstruction(rawAnswer: String): Pair<String, String?> {
@@ -3969,7 +4000,7 @@ class MainActivity : AppCompatActivity() {
                             onSelect = { conversationId ->
                                 conversations.firstOrNull { it.id == conversationId }?.let { conversation ->
                                     activeConversation = conversation
-                                    renderConversation(conversation)
+                                    renderConversation(conversation, animateTransition = true)
                                     persistConversations()
                                 }
                                 vibrateLight()

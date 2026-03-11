@@ -5,6 +5,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -44,7 +45,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -340,7 +340,7 @@ private fun ThinkingSection(
     val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
     var expanded by rememberSaveable(item.id) {
-        mutableStateOf(item.isStreaming || thinkingExpandedByDefault)
+        mutableStateOf(item.isStreaming)
     }
     var wasStreaming by rememberSaveable(item.id) {
         mutableStateOf(item.isStreaming)
@@ -375,9 +375,13 @@ private fun ThinkingSection(
     var bodyVisible by rememberSaveable(item.id) {
         mutableStateOf(expanded)
     }
+    var hasExpandedOnce by rememberSaveable(item.id) {
+        mutableStateOf(expanded)
+    }
 
     LaunchedEffect(item.id, expanded) {
         if (expanded) {
+            hasExpandedOnce = true
             kotlinx.coroutines.delay(150)
             bodyVisible = true
         } else {
@@ -397,12 +401,24 @@ private fun ThinkingSection(
             } else {
                 Dp.Unspecified
             }
-        val targetWidth = if (expanded) expandedWidth else collapsedWidth
-        val animatedWidth by animateDpAsState(
-            targetValue = if (targetWidth != Dp.Unspecified) targetWidth else expandedWidth,
-            animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
-            label = "thinkingCardWidth",
-        )
+        val needsCollapsedBootstrap = !expanded && collapsedWidth == Dp.Unspecified
+        val shouldAnimateWidth = expanded || hasExpandedOnce
+        val animatedWidth =
+            if (needsCollapsedBootstrap) {
+                collapsedWidth
+            } else {
+                val targetWidth = if (expanded) expandedWidth else collapsedWidth
+                animateDpAsState(
+                    targetValue = targetWidth,
+                    animationSpec =
+                        if (shouldAnimateWidth) {
+                            tween(durationMillis = 320, easing = FastOutSlowInEasing)
+                        } else {
+                            snap()
+                        },
+                    label = "thinkingCardWidth",
+                ).value
+            }
 
         ThinkingCollapsedMeasure(
             thinkingLabel = thinkingLabel,
@@ -416,11 +432,12 @@ private fun ThinkingSection(
         )
 
         val surfaceModifier =
-            if (collapsedWidth == Dp.Unspecified && !expanded) {
+            if (needsCollapsedBootstrap) {
                 Modifier.wrapContentWidth()
             } else {
                 Modifier.width(animatedWidth)
             }
+        val contentWidthModifier = if (needsCollapsedBootstrap) Modifier.wrapContentWidth() else Modifier.fillMaxWidth()
 
         Surface(
             modifier =
@@ -432,7 +449,7 @@ private fun ThinkingSection(
             Column(
                 modifier =
                     Modifier
-                        .fillMaxWidth()
+                        .then(contentWidthModifier)
                         .animateContentSize(
                             animationSpec = spring(dampingRatio = 0.9f, stiffness = 500f),
                         )
@@ -447,7 +464,8 @@ private fun ThinkingSection(
                     spacingSm = spacingSm,
                     arrowRotation = arrowRotation,
                     onToggle = { expanded = !expanded },
-                    modifier = Modifier.fillMaxWidth(),
+                    expandLabel = !needsCollapsedBootstrap,
+                    modifier = contentWidthModifier,
                 )
 
                 AnimatedVisibility(
