@@ -459,7 +459,7 @@ private fun SwitchRow(
 
 private fun resolveEntryIcon(type: SettingsEntryType): Int =
     when (type) {
-        SettingsEntryType.Appearance -> R.drawable.ic_tune_24
+        SettingsEntryType.Appearance -> R.drawable.palette_24px
         SettingsEntryType.ModelApi -> R.drawable.ic_key_24
         SettingsEntryType.Automation -> R.drawable.ic_settings_24
         SettingsEntryType.About -> R.drawable.ic_settings_24

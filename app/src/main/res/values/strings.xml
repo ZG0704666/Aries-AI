@@ -44,10 +44,27 @@
     <string name="message_streaming_placeholder">正在思考...</string>
     <string name="transcript_empty_hint">开始一段新对话</string>
     <string name="automation_toolbar_title">Aries AI 自动化控制台</string>
+    <string name="automation_console_overview_title">自动化控制中心</string>
+    <string name="automation_console_overview_subtitle">先确认通道状态，再选择执行方式并发起任务。</string>
+    <string name="automation_console_runtime_title">运行概览</string>
+    <string name="automation_console_runtime_subtitle">当前可用性、交互通道与虚拟屏状态会集中显示在这里。</string>
+    <string name="automation_console_interaction_mode_label">交互通道</string>
+    <string name="automation_console_mode_subtitle">根据任务场景选择当前屏幕执行，或切换到后台虚拟屏隔离运行。</string>
+    <string name="automation_console_shizuku_subtitle">启用后优先通过 Shizuku 辅助完成授权和交互链路。</string>
+    <string name="automation_console_auto_approve_subtitle">在主页场景下自动确认自动化任务，减少重复点击。</string>
+    <string name="automation_console_task_subtitle">输入一段明确目标，自动化会按步骤拆解并执行。</string>
+    <string name="automation_console_recommend_title">推荐任务</string>
+    <string name="automation_console_recommend_action">填入</string>
+    <string name="automation_console_controls_title">执行控制</string>
+    <string name="automation_console_controls_subtitle">开始任务后，可随时暂停、继续或终止当前流程。</string>
+    <string name="automation_console_log_subtitle">这里会持续输出自动化执行进度与关键反馈。</string>
+    <string name="automation_console_mode_selected">当前已选中</string>
+    <string name="automation_refresh_status">刷新状态</string>
     <string name="automation_execution_mode_label">执行模式</string>
     <string name="automation_execution_front_mode">前端执行（当前屏幕可见）</string>
     <string name="automation_mode_description_front">在前台屏幕执行自动化任务，您可以看到操作过程</string>
     <string name="automation_virtual_display_status_default">虚拟屏状态：未初始化</string>
+    <string name="automation_virtual_display_status_label">虚拟屏状态</string>
     <string name="automation_virtual_display_status_creating">虚拟屏状态：正在创建...</string>
     <string name="automation_virtual_display_status_running">虚拟屏状态：已启动（displayId=%1$s）</string>
     <string name="automation_virtual_display_status_failed">虚拟屏状态：创建失败</string>
@@ -79,7 +96,7 @@
     <string name="automation_mode_description_background">在后台虚拟屏执行自动化任务，不影响前台操作</string>
     <string name="automation_recommend_task_default">点击尝试：查看当前电池状态</string>
     <string name="automation_open_accessibility">去开启</string>
-    <string name="automation_one_tap_shizuku_authorize">一键 Shizuku 授权</string>
+    <string name="automation_one_tap_shizuku_authorize">一键授权</string>
     <string name="automation_auto_approve_label">自动批准自动化（主页 10 秒）</string>
     <string name="automation_confirm_countdown">确认（%1$d秒）</string>
     <string name="automation_shizuku_not_connected">未检测到 Shizuku 服务连接</string>

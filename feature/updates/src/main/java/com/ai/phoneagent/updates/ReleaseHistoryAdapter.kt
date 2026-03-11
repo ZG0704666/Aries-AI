@@ -8,6 +8,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.ai.phoneagent.feature.updates.R
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
 
 class ReleaseHistoryAdapter(
     private val items: MutableList<ReleaseEntry> = mutableListOf(),
@@ -45,11 +46,12 @@ class ReleaseHistoryAdapter(
     }
 
     inner class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val card: MaterialCardView = itemView as MaterialCardView
         private val tvVersion: TextView = itemView.findViewById(R.id.tvVersion)
         private val tvPrerelease: TextView = itemView.findViewById(R.id.tvPrerelease)
         private val tvTitle: TextView = itemView.findViewById(R.id.tvTitle)
         private val tvDate: TextView = itemView.findViewById(R.id.tvDate)
-        private val btnDetails: MaterialButton = itemView.findViewById(R.id.btnDetails)
+        private val tvSummary: TextView = itemView.findViewById(R.id.tvSummary)
         private val btnOpen: MaterialButton = itemView.findViewById(R.id.btnOpen)
         private val btnDownload: MaterialButton = itemView.findViewById(R.id.btnDownload)
         private var lastClickAt: Long = 0L
@@ -65,10 +67,12 @@ class ReleaseHistoryAdapter(
             tvVersion.text = entry.versionTag
             tvTitle.text = entry.title
             tvDate.text = entry.date
+            tvSummary.text = entry.body.lineSequence().map { it.trim() }.firstOrNull { it.isNotBlank() }
+                ?: itemView.context.getString(R.string.m3t_updates_no_changelog)
 
             tvPrerelease.visibility = if (entry.isPrerelease) View.VISIBLE else View.GONE
 
-            btnDetails.setOnClickListener { runThrottled { onDetails(entry) } }
+            card.setOnClickListener { runThrottled { onDetails(entry) } }
             btnOpen.setOnClickListener { runThrottled { onOpenRelease(entry) } }
 
             btnDownload.text =

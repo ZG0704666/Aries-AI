@@ -1,14 +1,18 @@
 package com.ai.phoneagent.ui.automation
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +22,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -33,22 +38,25 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
@@ -62,6 +70,12 @@ enum class AutomationStatusTone {
     Partial,
     Inactive,
 }
+
+private data class AutomationStatusPalette(
+    val container: Color,
+    val content: Color,
+    val accent: Color,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,11 +118,29 @@ fun AutomationControlScreen(
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
+    val statusPalette = statusPalette(statusTone)
+    val modeTitle =
+        stringResource(
+            if (isBackgroundMode) {
+                R.string.automation_execution_background_mode
+            } else {
+                R.string.automation_execution_front_mode
+            },
+        )
+    val interactionModeText =
+        stringResource(
+            if (useShizukuInteraction) {
+                R.string.automation_status_mode_shizuku
+            } else {
+                R.string.automation_status_mode_accessibility
+            },
+        )
     val voiceTransition = rememberInfiniteTransition(label = "automationVoice")
     val voiceScale by
         voiceTransition.animateFloat(
             initialValue = 1f,
-            targetValue = if (isListening) 1.12f else 1f,
+            targetValue = if (isListening) 1.08f else 1f,
             animationSpec =
                 infiniteRepeatable(
                     animation = tween(durationMillis = 520),
@@ -142,6 +174,11 @@ fun AutomationControlScreen(
                         )
                     }
                 },
+                actions = {
+                    IconButton(onClick = onRefreshStatus) {
+                        Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.automation_refresh_status))
+                    }
+                },
                 colors =
                     TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background,
@@ -156,118 +193,123 @@ fun AutomationControlScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
                     .navigationBarsPadding(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(spacingLg),
-            verticalArrangement = Arrangement.spacedBy(spacingLg),
+            contentPadding = PaddingValues(start = spacingLg, top = spacingSm, end = spacingLg, bottom = spacingXl),
+            verticalArrangement = Arrangement.spacedBy(spacingMd),
         ) {
             item {
-                AutomationCard {
+                AutomationSectionCard {
+                    SectionHeading(
+                        title = stringResource(R.string.automation_console_runtime_title),
+                        subtitle = stringResource(R.string.automation_console_runtime_subtitle),
+                    )
+                    Spacer(modifier = Modifier.height(spacingMd))
+
+                    AutomationInfoRow(
+                        label = stringResource(R.string.automation_status_label),
+                        value = statusText,
+                        accentColor = statusPalette.accent,
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    AutomationInfoRow(
+                        label = stringResource(R.string.automation_execution_mode_label),
+                        value = modeTitle,
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    AutomationInfoRow(
+                        label = stringResource(R.string.automation_console_interaction_mode_label),
+                        value = interactionModeText,
+                    )
+
+                    Spacer(modifier = Modifier.height(spacingMd))
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacingSm),
                     ) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(dimensionResource(R.dimen.m3t_automation_status_dot))
-                                    .padding(dimensionResource(R.dimen.m3t_size_zero)),
+                        FilledTonalButton(
+                            onClick = onOpenAccessibility,
+                            modifier = Modifier.weight(1f),
                         ) {
-                            Surface(
-                                modifier = Modifier.fillMaxSize(),
-                                shape = MaterialTheme.shapes.small,
-                                color =
-                                    when (statusTone) {
-                                        AutomationStatusTone.Ready -> MaterialTheme.colorScheme.primary
-                                        AutomationStatusTone.Partial -> MaterialTheme.colorScheme.tertiary
-                                        AutomationStatusTone.Inactive -> MaterialTheme.colorScheme.error
-                                    },
-                            ) {}
+                            Icon(Icons.Outlined.SettingsAccessibility, contentDescription = null)
+                            Spacer(modifier = Modifier.width(spacingXs))
+                            Text(stringResource(R.string.automation_open_accessibility))
                         }
-
-                        Column(
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .padding(start = spacingLg, end = spacingMd),
-                        ) {
-                            Text(
-                                text = stringResource(R.string.automation_status_label),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                text = statusText,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-
-                        Column(horizontalAlignment = Alignment.End) {
-                            OutlinedButton(onClick = onOpenAccessibility) {
-                                Icon(Icons.Outlined.SettingsAccessibility, contentDescription = null)
+                        AnimatedVisibility(visible = showShizukuAuthorize, modifier = Modifier.weight(1f)) {
+                            FilledTonalButton(
+                                onClick = onAuthorizeShizuku,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(Icons.Outlined.Shield, contentDescription = null)
+                                Spacer(modifier = Modifier.width(spacingXs))
+                                Text(stringResource(R.string.automation_one_tap_shizuku_authorize))
                             }
-                            if (showShizukuAuthorize) {
-                                Spacer(modifier = Modifier.height(spacingXs))
-                                OutlinedButton(onClick = onAuthorizeShizuku) {
-                                    Icon(Icons.Outlined.Shield, contentDescription = null)
-                                }
-                            }
-                        }
-
-                        IconButton(onClick = onRefreshStatus) {
-                            Icon(Icons.Outlined.Refresh, contentDescription = null)
                         }
                     }
                 }
             }
 
             item {
-                AutomationCard {
-                    Text(
-                        text = stringResource(R.string.automation_execution_mode_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                AutomationSectionCard {
+                    SectionHeading(
+                        title = stringResource(R.string.automation_execution_mode_label),
+                        subtitle = stringResource(R.string.automation_console_mode_subtitle),
                     )
-                    Spacer(modifier = Modifier.height(spacingSm))
-                    Row(horizontalArrangement = Arrangement.spacedBy(spacingSm)) {
-                        FilterChip(
+                    Spacer(modifier = Modifier.height(spacingMd))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
+                        AutomationModeOption(
                             selected = !isBackgroundMode,
+                            title = stringResource(R.string.automation_execution_front_mode),
+                            summary = stringResource(R.string.automation_mode_description_front),
                             onClick = { onExecutionModeChange(false) },
-                            label = { Text(stringResource(R.string.automation_execution_front_mode)) },
                         )
-                        FilterChip(
+                        AutomationModeOption(
                             selected = isBackgroundMode,
+                            title = stringResource(R.string.automation_execution_background_mode),
+                            summary = stringResource(R.string.automation_mode_description_background),
                             onClick = { onExecutionModeChange(true) },
-                            label = { Text(stringResource(R.string.automation_execution_background_mode)) },
                         )
                     }
-                    Spacer(modifier = Modifier.height(spacingSm))
-                    Text(
-                        text = modeDescription,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(spacingSm))
-                    Surface(
-                        color = MaterialTheme.colorScheme.surface,
-                        shape = MaterialTheme.shapes.medium,
-                    ) {
-                        Text(
-                            text = virtualDisplayStatus,
-                            modifier = Modifier.fillMaxWidth().padding(spacingSm),
-                            style = MaterialTheme.typography.bodySmall,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
+
+                    if (isBackgroundMode) {
+                        Spacer(modifier = Modifier.height(spacingMd))
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                            shape = MaterialTheme.shapes.large,
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(spacingMd),
+                                verticalArrangement = Arrangement.spacedBy(spacingXs),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.automation_virtual_display_status_label),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    text = virtualDisplayStatus,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
                     }
-                    Spacer(modifier = Modifier.height(spacingSm))
-                    SwitchRow(
+
+                    Spacer(modifier = Modifier.height(spacingMd))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(modifier = Modifier.height(spacingMd))
+
+                    AutomationSwitchRow(
                         title = stringResource(R.string.automation_shizuku_mode_label),
+                        summary = stringResource(R.string.automation_console_shizuku_subtitle),
                         checked = useShizukuInteraction,
                         onCheckedChange = onShizukuModeChange,
                     )
-                    Spacer(modifier = Modifier.height(spacingXs))
-                    SwitchRow(
+                    Spacer(modifier = Modifier.height(spacingSm))
+                    AutomationSwitchRow(
                         title = stringResource(R.string.automation_auto_approve_label),
+                        summary = stringResource(R.string.automation_console_auto_approve_subtitle),
                         checked = autoApprove,
                         onCheckedChange = onAutoApproveChange,
                     )
@@ -275,55 +317,102 @@ fun AutomationControlScreen(
             }
 
             item {
-                AutomationCard {
-                    Text(
-                        text = stringResource(R.string.automation_task_confirm_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                AutomationSectionCard {
+                    SectionHeading(
+                        title = stringResource(R.string.automation_task_confirm_label),
+                        subtitle = stringResource(R.string.automation_console_task_subtitle),
                     )
-                    Spacer(modifier = Modifier.height(spacingSm))
-                    OutlinedTextField(
-                        value = taskText,
-                        onValueChange = onTaskChange,
+                    Spacer(modifier = Modifier.height(spacingMd))
+
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        minLines = 3,
-                        maxLines = 6,
-                        placeholder = { Text(taskHint) },
-                        trailingIcon = {
-                            IconButton(
-                                onClick = onVoiceTask,
-                                modifier =
-                                    Modifier.graphicsLayer {
+                        horizontalArrangement = Arrangement.spacedBy(spacingSm),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        TextField(
+                            value = taskText,
+                            onValueChange = onTaskChange,
+                            modifier = Modifier.weight(1f),
+                            minLines = 4,
+                            maxLines = 7,
+                            placeholder = {
+                                Text(
+                                    text = taskHint,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            },
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            colors =
+                                TextFieldDefaults.colors(
+                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
+                                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f),
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                    disabledIndicatorColor = Color.Transparent,
+                                ),
+                            shape = MaterialTheme.shapes.large,
+                        )
+                        FilledTonalIconButton(
+                            onClick = onVoiceTask,
+                            modifier =
+                                Modifier
+                                    .size(dimensionResource(R.dimen.m3t_automation_voice_button_size))
+                                    .graphicsLayer {
                                         scaleX = if (isListening) voiceScale else 1f
                                         scaleY = if (isListening) voiceScale else 1f
                                         alpha = if (isListening) voiceAlpha else 1f
                                     },
-                            ) {
-                                Icon(Icons.Outlined.KeyboardVoice, contentDescription = null)
-                            }
-                        },
-                    )
-                    Spacer(modifier = Modifier.height(spacingSm))
+                        ) {
+                            Icon(Icons.Outlined.KeyboardVoice, contentDescription = null)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(spacingMd))
+
                     Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                        shape = MaterialTheme.shapes.large,
+                        modifier = Modifier.fillMaxWidth().clickable(onClick = onUseRecommendTask),
                     ) {
                         Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable(onClick = onUseRecommendTask)
-                                    .padding(spacingSm),
+                            modifier = Modifier.fillMaxWidth().padding(spacingMd),
+                            horizontalArrangement = Arrangement.spacedBy(spacingSm),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
+                            Surface(
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                                shape = MaterialTheme.shapes.medium,
+                            ) {
+                                Box(
+                                    modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.secondary,
+                                    )
+                                }
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.automation_console_recommend_title),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                                Text(
+                                    text = recommendText,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                             Text(
-                                text = recommendText,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(start = spacingSm),
+                                text = stringResource(R.string.automation_console_recommend_action),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.secondary,
                             )
                         }
                     }
@@ -331,73 +420,91 @@ fun AutomationControlScreen(
             }
 
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacingSm),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    OutlinedButton(
-                        onClick = onPause,
-                        enabled = pauseButtonEnabled,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(pauseButtonText)
-                    }
+                AutomationSectionCard {
+                    SectionHeading(
+                        title = stringResource(R.string.automation_console_controls_title),
+                        subtitle = stringResource(R.string.automation_console_controls_subtitle),
+                    )
+                    Spacer(modifier = Modifier.height(spacingMd))
+
                     Button(
                         onClick = onStart,
                         enabled = startButtonEnabled,
-                        modifier = Modifier.weight(1.2f),
+                        modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_button_height)),
                     ) {
-                        if (startButtonTerminateStyle) {
-                            Icon(Icons.Outlined.StopCircle, contentDescription = null)
-                            Text(
-                                text = startButtonText,
-                                modifier = Modifier.padding(start = spacingSm),
-                            )
-                        } else {
-                            Icon(Icons.Outlined.Tune, contentDescription = null)
-                            Text(
-                                text = startButtonText,
-                                modifier = Modifier.padding(start = spacingSm),
-                            )
-                        }
+                        Icon(
+                            imageVector = if (startButtonTerminateStyle) Icons.Outlined.StopCircle else Icons.Outlined.Tune,
+                            contentDescription = null,
+                        )
+                        Spacer(modifier = Modifier.width(spacingSm))
+                        Text(startButtonText)
                     }
-                    OutlinedButton(
-                        onClick = onStop,
-                        enabled = stopButtonEnabled,
-                        modifier = Modifier.weight(1f),
+
+                    Spacer(modifier = Modifier.height(spacingSm))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(spacingSm),
                     ) {
-                        Text(stringResource(R.string.automation_stop))
+                        FilledTonalButton(
+                            onClick = onPause,
+                            enabled = pauseButtonEnabled,
+                            modifier = Modifier.weight(1f).height(dimensionResource(R.dimen.m3t_compact_button_height)),
+                        ) {
+                            Text(pauseButtonText)
+                        }
+                        FilledTonalButton(
+                            onClick = onStop,
+                            enabled = stopButtonEnabled,
+                            modifier = Modifier.weight(1f).height(dimensionResource(R.dimen.m3t_compact_button_height)),
+                        ) {
+                            Text(stringResource(R.string.automation_stop))
+                        }
                     }
                 }
             }
 
             item {
-                AutomationCard {
+                AutomationSectionCard {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(spacingSm),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = stringResource(R.string.automation_log_system_label),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.weight(1f),
-                        )
-                        OutlinedButton(onClick = onCopyLog) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.automation_log_system_label),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                text = stringResource(R.string.automation_console_log_subtitle),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        FilledTonalButton(onClick = onCopyLog) {
                             Text(stringResource(R.string.common_copy))
                         }
                     }
+
                     Spacer(modifier = Modifier.height(spacingMd))
-                    SelectionContainer {
-                        Text(
-                            text = logText,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        shape = MaterialTheme.shapes.large,
+                    ) {
+                        SelectionContainer {
+                            Text(
+                                text = logText,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.fillMaxWidth().padding(spacingMd),
+                            )
+                        }
                     }
                 }
             }
@@ -406,46 +513,225 @@ fun AutomationControlScreen(
 }
 
 @Composable
-private fun AutomationCard(
-    content: @Composable () -> Unit,
+private fun statusPalette(statusTone: AutomationStatusTone): AutomationStatusPalette =
+    when (statusTone) {
+        AutomationStatusTone.Ready ->
+            AutomationStatusPalette(
+                container = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f),
+                content = MaterialTheme.colorScheme.onPrimaryContainer,
+                accent = MaterialTheme.colorScheme.primary,
+            )
+
+        AutomationStatusTone.Partial ->
+            AutomationStatusPalette(
+                container = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.72f),
+                content = MaterialTheme.colorScheme.onTertiaryContainer,
+                accent = MaterialTheme.colorScheme.tertiary,
+            )
+
+        AutomationStatusTone.Inactive ->
+            AutomationStatusPalette(
+                container = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f),
+                content = MaterialTheme.colorScheme.onErrorContainer,
+                accent = MaterialTheme.colorScheme.error,
+            )
+    }
+
+@Composable
+private fun AutomationSectionCard(
+    modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    contentPadding: PaddingValues = PaddingValues(dimensionResource(R.dimen.m3t_spacing_lg)),
+    content: @Composable ColumnScope.() -> Unit,
 ) {
-    val cardPadding = dimensionResource(R.dimen.m3t_about_row_text_gap)
     Card(
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
-            ),
-        shape = MaterialTheme.shapes.large,
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        shape = MaterialTheme.shapes.extraLarge,
     ) {
         Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(cardPadding),
+            modifier = Modifier.fillMaxWidth().padding(contentPadding),
+            verticalArrangement = Arrangement.Top,
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun SectionHeading(
+    title: String,
+    subtitle: String,
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.onSurface,
+        fontWeight = FontWeight.Medium,
+    )
+    Text(
+        text = subtitle,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun AutomationStatusBadge(
+    text: String,
+    containerColor: Color,
+    contentColor: Color,
+) {
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+
+    Surface(
+        color = containerColor,
+        shape = MaterialTheme.shapes.large,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
+            horizontalArrangement = Arrangement.spacedBy(spacingSm),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            content()
+            Box(
+                modifier =
+                    Modifier
+                        .size(dimensionResource(R.dimen.m3t_automation_status_dot))
+                        .background(contentColor, MaterialTheme.shapes.small),
+            )
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelLarge,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
 
 @Composable
-private fun SwitchRow(
+private fun AutomationInfoRow(
+    label: String,
+    value: String,
+    accentColor: Color? = null,
+) {
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = spacingMd),
+        horizontalArrangement = Arrangement.spacedBy(spacingSm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        if (accentColor != null) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(dimensionResource(R.dimen.m3t_automation_status_dot))
+                        .background(accentColor, MaterialTheme.shapes.small),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AutomationModeOption(
+    selected: Boolean,
     title: String,
+    summary: String,
+    onClick: () -> Unit,
+) {
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val containerColor =
+        if (selected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.36f)
+        }
+    val titleColor =
+        if (selected) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        }
+    val summaryColor =
+        if (selected) {
+            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f)
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        color = containerColor,
+        shape = MaterialTheme.shapes.large,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacingMd),
+            verticalArrangement = Arrangement.spacedBy(spacingXs),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = titleColor,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.bodySmall,
+                color = summaryColor,
+            )
+            if (selected) {
+                Text(
+                    text = stringResource(R.string.automation_console_mode_selected),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AutomationSwitchRow(
+    title: String,
+    summary: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_sm)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-            fontWeight = FontWeight.Medium,
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

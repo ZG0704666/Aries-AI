@@ -29,6 +29,7 @@
 
     <string name="m3t_updates_title">更新日志</string>
     <string name="m3t_updates_include_prerelease">包含预发布版本</string>
+    <string name="m3t_updates_empty">当前没有可展示的更新记录</string>
     <string name="m3t_updates_load_more">加载更多</string>
     <string name="m3t_updates_no_more">没有更多了</string>
     <string name="m3t_updates_retry">重试</string>

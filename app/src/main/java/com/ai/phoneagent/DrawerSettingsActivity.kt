@@ -8,7 +8,15 @@ import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -49,6 +57,7 @@ class DrawerSettingsActivity : AppCompatActivity() {
     private var qwenDownloadInFlight: Boolean = false
     private var localModelReady: Boolean = false
     private var currentPage by mutableStateOf(SettingsPage.Home)
+    private var pageTransitionForward by mutableStateOf(true)
 
     private var apiInputText by mutableStateOf("")
     private var apiInputTag by mutableStateOf("")
@@ -68,83 +77,123 @@ class DrawerSettingsActivity : AppCompatActivity() {
 
         setContent {
             AriesMaterialTheme {
-                when (currentPage) {
-                    SettingsPage.Home -> {
-                        DrawerSettingsScreen(
-                            onBack = { finishWithTransition() },
-                            onOpenAppearance = {
-                                Toast.makeText(this, R.string.settings_appearance_coming_soon, Toast.LENGTH_SHORT).show()
-                            },
-                            onOpenModelApi = {
-                                currentPage = SettingsPage.ModelApi
-                            },
-                            onOpenAutomation = {
-                                startActivityWithMaterialForwardTransition(
-                                    Intent(this, AutomationActivityNew::class.java),
-                                )
-                            },
-                            onOpenAbout = {
-                                startActivityWithMaterialForwardTransition(
-                                    Intent(this, AboutActivity::class.java),
-                                )
-                            },
-                        )
+                if (currentPage == SettingsPage.ModelApi) {
+                    BackHandler {
+                        pageTransitionForward = false
+                        currentPage = SettingsPage.Home
                     }
-
-                    SettingsPage.ModelApi -> {
-                        DrawerModelApiConfigScreen(
-                            apiInput = apiInputText,
-                            useThirdPartyApi = useThirdPartyApi,
-                            useLocalModel = useLocalModel,
-                            apiBaseUrl = apiBaseUrlText,
-                            apiModel = apiModelText,
-                            apiStatus = apiStatusText,
-                            apiStatusPositive = apiStatusPositive,
-                            qwenButtonText = qwenButtonText,
-                            qwenButtonEnabled = qwenButtonEnabled,
-                            onBack = { currentPage = SettingsPage.Home },
-                            onApiInputChange = { value ->
-                                apiInputTag = ""
-                                apiInputText = value
-                                if (value.isBlank()) {
-                                    onApiConfigChanged(clearApiValue = true)
-                                } else {
-                                    onApiConfigChanged(clearApiValue = false)
-                                }
-                            },
-                            onPasteApi = { pasteApiKey() },
-                            onOpenApiKeyPage = { openApiKeyPage() },
-                            onUseThirdPartyChange = { checked ->
-                                useThirdPartyApi = checked
-                                onApiConfigChanged(clearApiValue = false)
-                            },
-                            onApiBaseUrlChange = { value ->
-                                apiBaseUrlText = value
-                                if (useThirdPartyApi) {
-                                    onApiConfigChanged(clearApiValue = false)
-                                }
-                            },
-                            onApiModelChange = { value ->
-                                apiModelText = value
-                                if (useThirdPartyApi) {
-                                    onApiConfigChanged(clearApiValue = false)
-                                }
-                            },
-                            onUseLocalModelChange = { checked ->
-                                useLocalModel = checked
-                                prefs.edit().putBoolean(apiUseLocalModelPref, checked).apply()
-                                if (checked && !localModelReady) {
+                }
+                AnimatedContent(
+                    targetState = currentPage,
+                    transitionSpec = {
+                        if (pageTransitionForward) {
+                            slideInHorizontally(
+                                animationSpec = tween(260),
+                                initialOffsetX = { it },
+                            ) + fadeIn(animationSpec = tween(220)) togetherWith
+                                slideOutHorizontally(
+                                    animationSpec = tween(260),
+                                    targetOffsetX = { -it },
+                                ) + fadeOut(animationSpec = tween(220))
+                        } else {
+                            slideInHorizontally(
+                                animationSpec = tween(260),
+                                initialOffsetX = { -it },
+                            ) + fadeIn(animationSpec = tween(220)) togetherWith
+                                slideOutHorizontally(
+                                    animationSpec = tween(260),
+                                    targetOffsetX = { it },
+                                ) + fadeOut(animationSpec = tween(220))
+                        }
+                    },
+                    label = "settingsPageTransition",
+                ) { page ->
+                    when (page) {
+                        SettingsPage.Home -> {
+                            DrawerSettingsScreen(
+                                onBack = { finishWithTransition() },
+                                onOpenAppearance = {
                                     Toast.makeText(
-                                        this,
-                                        R.string.m3t_sidebar_local_model_not_ready,
-                                        Toast.LENGTH_LONG,
+                                        this@DrawerSettingsActivity,
+                                        R.string.settings_appearance_coming_soon,
+                                        Toast.LENGTH_SHORT,
                                     ).show()
-                                }
-                                updateStatusText()
-                            },
-                            onCheckApi = { checkApiConnection() },
-                            onDownloadQwenModel = { enqueueQwenDownloads() },
-                        )
+                                },
+                                onOpenModelApi = {
+                                    pageTransitionForward = true
+                                    currentPage = SettingsPage.ModelApi
+                                },
+                                onOpenAutomation = {
+                                    startActivityWithMaterialForwardTransition(
+                                        Intent(this@DrawerSettingsActivity, AutomationActivityNew::class.java),
+                                    )
+                                },
+                                onOpenAbout = {
+                                    startActivityWithMaterialForwardTransition(
+                                        Intent(this@DrawerSettingsActivity, AboutActivity::class.java),
+                                    )
+                                },
+                            )
+                        }
+
+                        SettingsPage.ModelApi -> {
+                            DrawerModelApiConfigScreen(
+                                apiInput = apiInputText,
+                                useThirdPartyApi = useThirdPartyApi,
+                                useLocalModel = useLocalModel,
+                                apiBaseUrl = apiBaseUrlText,
+                                apiModel = apiModelText,
+                                apiStatus = apiStatusText,
+                                apiStatusPositive = apiStatusPositive,
+                                qwenButtonText = qwenButtonText,
+                                qwenButtonEnabled = qwenButtonEnabled,
+                                onBack = {
+                                    pageTransitionForward = false
+                                    currentPage = SettingsPage.Home
+                                },
+                                onApiInputChange = { value ->
+                                    apiInputTag = ""
+                                    apiInputText = value
+                                    if (value.isBlank()) {
+                                        onApiConfigChanged(clearApiValue = true)
+                                    } else {
+                                        onApiConfigChanged(clearApiValue = false)
+                                    }
+                                },
+                                onPasteApi = { pasteApiKey() },
+                                onOpenApiKeyPage = { openApiKeyPage() },
+                                onUseThirdPartyChange = { checked ->
+                                    useThirdPartyApi = checked
+                                    onApiConfigChanged(clearApiValue = false)
+                                },
+                                onApiBaseUrlChange = { value ->
+                                    apiBaseUrlText = value
+                                    if (useThirdPartyApi) {
+                                        onApiConfigChanged(clearApiValue = false)
+                                    }
+                                },
+                                onApiModelChange = { value ->
+                                    apiModelText = value
+                                    if (useThirdPartyApi) {
+                                        onApiConfigChanged(clearApiValue = false)
+                                    }
+                                },
+                                onUseLocalModelChange = { checked ->
+                                    useLocalModel = checked
+                                    prefs.edit().putBoolean(apiUseLocalModelPref, checked).apply()
+                                    if (checked && !localModelReady) {
+                                        Toast.makeText(
+                                            this@DrawerSettingsActivity,
+                                            R.string.m3t_sidebar_local_model_not_ready,
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                    }
+                                    updateStatusText()
+                                },
+                                onCheckApi = { checkApiConnection() },
+                                onDownloadQwenModel = { enqueueQwenDownloads() },
+                            )
+                        }
                     }
                 }
             }
@@ -159,6 +208,7 @@ class DrawerSettingsActivity : AppCompatActivity() {
 
     override fun onBackPressed() {
         if (currentPage == SettingsPage.ModelApi) {
+            pageTransitionForward = false
             currentPage = SettingsPage.Home
             return
         }

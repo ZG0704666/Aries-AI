@@ -90,6 +90,10 @@ class AboutActivity : AppCompatActivity() {
                         vibrateLight()
                         openUrl(getString(R.string.about_website_url))
                     },
+                    onOpenSourceCode = {
+                        vibrateLight()
+                        openUrl(getString(R.string.about_source_code_url))
+                    },
                     onCopyContact = {
                         vibrateLight()
                         copyToClipboard("zhangyongqi@njit.edu.cn")

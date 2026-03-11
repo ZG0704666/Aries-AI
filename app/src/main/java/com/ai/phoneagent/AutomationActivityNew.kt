@@ -101,6 +101,7 @@ class AutomationActivityNew : AppCompatActivity() {
     private var savedTaskText: String = ""
     private var voicePrefix: String = ""
     private var pendingStartVoice: Boolean = false
+    private var sherpaInitializing: Boolean = false
 
     private var virtualDisplayStatusJob: Job? = null
     private var accessibilityStatusSyncJob: Job? = null
@@ -1210,6 +1211,8 @@ class AutomationActivityNew : AppCompatActivity() {
     }
 
     private fun initSherpaModel() {
+        if (sherpaInitializing) return
+        sherpaInitializing = true
         lifecycleScope.launch {
             try {
                 // 检查Activity是否已销毁
@@ -1217,8 +1220,13 @@ class AutomationActivityNew : AppCompatActivity() {
                     return@launch
                 }
 
-                sherpaSpeechRecognizer = SherpaSpeechRecognizer(this@AutomationActivityNew)
-                val success = sherpaSpeechRecognizer?.initialize() == true
+                val (recognizer, success) =
+                    withContext(Dispatchers.Default) {
+                        val localRecognizer = SherpaSpeechRecognizer(this@AutomationActivityNew)
+                        val ok = localRecognizer.initialize()
+                        localRecognizer to ok
+                    }
+                sherpaSpeechRecognizer = if (success) recognizer else null
                 if (!success) {
                     if (!isDestroyed && !isFinishing) {
                         withContext(Dispatchers.Main) {
@@ -1235,6 +1243,7 @@ class AutomationActivityNew : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 Log.e("AutomationActivityNew", "语音模型初始化异常: ${e.message}", e)
+                sherpaSpeechRecognizer = null
                 if (!isDestroyed && !isFinishing) {
                     try {
                         withContext(Dispatchers.Main) {
@@ -1251,6 +1260,8 @@ class AutomationActivityNew : AppCompatActivity() {
                         Log.e("AutomationActivityNew", "Toast显示失败: ${toastException.message}")
                     }
                 }
+            } finally {
+                sherpaInitializing = false
             }
         }
     }

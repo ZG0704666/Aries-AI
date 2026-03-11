@@ -36,6 +36,7 @@ class UpdateHistoryActivity : AppCompatActivity() {
     private lateinit var recycler: RecyclerView
     private lateinit var progress: View
     private lateinit var tvError: TextView
+    private lateinit var tvEmpty: TextView
     private lateinit var btnLoadMore: MaterialButton
 
     private var includePrerelease: Boolean = false
@@ -73,6 +74,7 @@ class UpdateHistoryActivity : AppCompatActivity() {
         recycler = findViewById(R.id.recyclerReleases)
         progress = findViewById(R.id.progress)
         tvError = findViewById(R.id.tvError)
+        tvEmpty = findViewById(R.id.tvEmpty)
         btnLoadMore = findViewById(R.id.btnLoadMore)
 
         toolbar.setNavigationOnClickListener { finish() }
@@ -117,9 +119,12 @@ class UpdateHistoryActivity : AppCompatActivity() {
     private fun refresh() {
         page = 1
         adapter.submitList(emptyList())
+        recycler.scrollToPosition(0)
         loadMoreMode = LoadMoreMode.LoadMore
         btnLoadMore.text = getString(R.string.m3t_updates_load_more)
         btnLoadMore.isEnabled = true
+        btnLoadMore.visibility = View.VISIBLE
+        tvEmpty.visibility = View.GONE
         loadPage(resetError = true)
     }
 
@@ -136,6 +141,7 @@ class UpdateHistoryActivity : AppCompatActivity() {
         if (resetError) {
             tvError.visibility = View.GONE
             tvError.text = ""
+            tvEmpty.visibility = View.GONE
         }
         progress.visibility = View.VISIBLE
 
@@ -156,21 +162,25 @@ class UpdateHistoryActivity : AppCompatActivity() {
                         adapter.appendList(filtered)
                     }
 
+                    val hasItems = adapter.itemCount > 0
+                    tvEmpty.visibility = if (!hasItems) View.VISIBLE else View.GONE
+
                     loadMoreMode = LoadMoreMode.LoadMore
-                    btnLoadMore.isEnabled = true
-                    btnLoadMore.text =
-                        if (filtered.isNotEmpty()) {
-                            getString(R.string.m3t_updates_load_more)
-                        } else {
-                            getString(R.string.m3t_updates_no_more)
-                        }
+                    val hasMore = filtered.isNotEmpty()
+                    btnLoadMore.isEnabled = hasMore
+                    btnLoadMore.visibility = if (hasItems) View.VISIBLE else View.GONE
+                    btnLoadMore.text = if (hasMore) getString(R.string.m3t_updates_load_more) else getString(R.string.m3t_updates_no_more)
                 }
                 .onFailure { e ->
                     tvError.visibility = View.VISIBLE
                     tvError.text = ReleaseUiUtil.formatError(e)
+                    if (adapter.itemCount == 0) {
+                        tvEmpty.visibility = View.GONE
+                    }
 
                     loadMoreMode = LoadMoreMode.Retry
                     btnLoadMore.isEnabled = true
+                    btnLoadMore.visibility = View.VISIBLE
                     btnLoadMore.text = getString(R.string.m3t_updates_retry)
                 }
         }
