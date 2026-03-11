@@ -230,6 +230,17 @@
     <string name="onboarding_welcome_action">继续</string>
     <string name="settings_title">设置</string>
     <string name="settings_subtitle">统一管理 API、本地模型与工具入口。</string>
+    <string name="settings_search_hint">搜索设置</string>
+    <string name="settings_search_empty">没有匹配的设置项</string>
+    <string name="settings_entry_appearance_title">外观设置</string>
+    <string name="settings_entry_appearance_subtitle">主题、界面密度与显示风格</string>
+    <string name="settings_entry_model_api_title">模型与 API 配置</string>
+    <string name="settings_entry_model_api_subtitle">远程 API、本地模型与连接检查</string>
+    <string name="settings_entry_automation_title">自动化配置</string>
+    <string name="settings_entry_automation_subtitle">执行模式、权限与自动化控制</string>
+    <string name="settings_entry_about_title">关于</string>
+    <string name="settings_entry_about_subtitle">版本信息、开源许可与说明</string>
+    <string name="settings_appearance_coming_soon">外观设置入口即将开放</string>
     <string name="settings_section_api">模型与 API</string>
     <string name="settings_api_description">优先在这里完成远程 API 或本地模型的接入配置。</string>
     <string name="drawer_api_base_url_label">API Base URL</string>

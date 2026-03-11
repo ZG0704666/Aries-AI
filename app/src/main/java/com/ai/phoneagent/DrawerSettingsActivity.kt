@@ -18,12 +18,18 @@ import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ModelScopeModelDownloader
 import com.ai.phoneagent.system.applyMaterialCloseTransition
 import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
+import com.ai.phoneagent.ui.settings.DrawerModelApiConfigScreen
 import com.ai.phoneagent.ui.settings.DrawerSettingsScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class DrawerSettingsActivity : AppCompatActivity() {
+
+    private enum class SettingsPage {
+        Home,
+        ModelApi,
+    }
 
     private val prefs by lazy { getSharedPreferences("app_prefs", MODE_PRIVATE) }
 
@@ -42,6 +48,7 @@ class DrawerSettingsActivity : AppCompatActivity() {
     private var lastCheckedApiKey: String = ""
     private var qwenDownloadInFlight: Boolean = false
     private var localModelReady: Boolean = false
+    private var currentPage by mutableStateOf(SettingsPage.Home)
 
     private var apiInputText by mutableStateOf("")
     private var apiInputTag by mutableStateOf("")
@@ -61,69 +68,85 @@ class DrawerSettingsActivity : AppCompatActivity() {
 
         setContent {
             AriesMaterialTheme {
-                DrawerSettingsScreen(
-                    apiInput = apiInputText,
-                    useThirdPartyApi = useThirdPartyApi,
-                    useLocalModel = useLocalModel,
-                    apiBaseUrl = apiBaseUrlText,
-                    apiModel = apiModelText,
-                    apiStatus = apiStatusText,
-                    apiStatusPositive = apiStatusPositive,
-                    qwenButtonText = qwenButtonText,
-                    qwenButtonEnabled = qwenButtonEnabled,
-                    onBack = { finishWithTransition() },
-                    onApiInputChange = { value ->
-                        apiInputTag = ""
-                        apiInputText = value
-                        if (value.isBlank()) {
-                            onApiConfigChanged(clearApiValue = true)
-                        } else {
-                            onApiConfigChanged(clearApiValue = false)
-                        }
-                    },
-                    onPasteApi = { pasteApiKey() },
-                    onOpenApiKeyPage = { openApiKeyPage() },
-                    onUseThirdPartyChange = { checked ->
-                        useThirdPartyApi = checked
-                        onApiConfigChanged(clearApiValue = false)
-                    },
-                    onApiBaseUrlChange = { value ->
-                        apiBaseUrlText = value
-                        if (useThirdPartyApi) {
-                            onApiConfigChanged(clearApiValue = false)
-                        }
-                    },
-                    onApiModelChange = { value ->
-                        apiModelText = value
-                        if (useThirdPartyApi) {
-                            onApiConfigChanged(clearApiValue = false)
-                        }
-                    },
-                    onUseLocalModelChange = { checked ->
-                        useLocalModel = checked
-                        prefs.edit().putBoolean(apiUseLocalModelPref, checked).apply()
-                        if (checked && !localModelReady) {
-                            Toast.makeText(
-                                this,
-                                R.string.m3t_sidebar_local_model_not_ready,
-                                Toast.LENGTH_LONG,
-                            ).show()
-                        }
-                        updateStatusText()
-                    },
-                    onCheckApi = { checkApiConnection() },
-                    onDownloadQwenModel = { enqueueQwenDownloads() },
-                    onOpenAutomation = {
-                        startActivityWithMaterialForwardTransition(
-                            Intent(this, AutomationActivityNew::class.java),
+                when (currentPage) {
+                    SettingsPage.Home -> {
+                        DrawerSettingsScreen(
+                            onBack = { finishWithTransition() },
+                            onOpenAppearance = {
+                                Toast.makeText(this, R.string.settings_appearance_coming_soon, Toast.LENGTH_SHORT).show()
+                            },
+                            onOpenModelApi = {
+                                currentPage = SettingsPage.ModelApi
+                            },
+                            onOpenAutomation = {
+                                startActivityWithMaterialForwardTransition(
+                                    Intent(this, AutomationActivityNew::class.java),
+                                )
+                            },
+                            onOpenAbout = {
+                                startActivityWithMaterialForwardTransition(
+                                    Intent(this, AboutActivity::class.java),
+                                )
+                            },
                         )
-                    },
-                    onOpenAbout = {
-                        startActivityWithMaterialForwardTransition(
-                            Intent(this, AboutActivity::class.java),
+                    }
+
+                    SettingsPage.ModelApi -> {
+                        DrawerModelApiConfigScreen(
+                            apiInput = apiInputText,
+                            useThirdPartyApi = useThirdPartyApi,
+                            useLocalModel = useLocalModel,
+                            apiBaseUrl = apiBaseUrlText,
+                            apiModel = apiModelText,
+                            apiStatus = apiStatusText,
+                            apiStatusPositive = apiStatusPositive,
+                            qwenButtonText = qwenButtonText,
+                            qwenButtonEnabled = qwenButtonEnabled,
+                            onBack = { currentPage = SettingsPage.Home },
+                            onApiInputChange = { value ->
+                                apiInputTag = ""
+                                apiInputText = value
+                                if (value.isBlank()) {
+                                    onApiConfigChanged(clearApiValue = true)
+                                } else {
+                                    onApiConfigChanged(clearApiValue = false)
+                                }
+                            },
+                            onPasteApi = { pasteApiKey() },
+                            onOpenApiKeyPage = { openApiKeyPage() },
+                            onUseThirdPartyChange = { checked ->
+                                useThirdPartyApi = checked
+                                onApiConfigChanged(clearApiValue = false)
+                            },
+                            onApiBaseUrlChange = { value ->
+                                apiBaseUrlText = value
+                                if (useThirdPartyApi) {
+                                    onApiConfigChanged(clearApiValue = false)
+                                }
+                            },
+                            onApiModelChange = { value ->
+                                apiModelText = value
+                                if (useThirdPartyApi) {
+                                    onApiConfigChanged(clearApiValue = false)
+                                }
+                            },
+                            onUseLocalModelChange = { checked ->
+                                useLocalModel = checked
+                                prefs.edit().putBoolean(apiUseLocalModelPref, checked).apply()
+                                if (checked && !localModelReady) {
+                                    Toast.makeText(
+                                        this,
+                                        R.string.m3t_sidebar_local_model_not_ready,
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                }
+                                updateStatusText()
+                            },
+                            onCheckApi = { checkApiConnection() },
+                            onDownloadQwenModel = { enqueueQwenDownloads() },
                         )
-                    },
-                )
+                    }
+                }
             }
         }
     }
@@ -135,6 +158,10 @@ class DrawerSettingsActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
+        if (currentPage == SettingsPage.ModelApi) {
+            currentPage = SettingsPage.Home
+            return
+        }
         super.onBackPressed()
         applyMaterialCloseTransition()
     }
