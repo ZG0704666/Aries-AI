@@ -765,8 +765,10 @@ class MainActivity : AppCompatActivity() {
         val (contentWithoutLogMarkers, embeddedAutomationLogs) = extractAutomationLogMarkers(message.content)
         val (contentWithoutConfirmedMarker, hasConfirmedMarker) =
             extractAutomationConfirmedMarker(contentWithoutLogMarkers)
+        val (contentWithoutRejectedMarker, hasRejectedMarker) =
+            extractAutomationRejectedMarker(contentWithoutConfirmedMarker)
         val (contentWithoutConfirmMarker, confirmInstruction) =
-            extractAutomationConfirmInstruction(contentWithoutConfirmedMarker)
+            extractAutomationConfirmInstruction(contentWithoutRejectedMarker)
         val (thinking, answerRaw) = parseStoredAiContent(contentWithoutConfirmMarker)
         val cleanedAnswer = answerRaw.trim().ifBlank { stripAutomationMarker(contentWithoutConfirmMarker).trim() }
         val isAutomationMessage =
@@ -788,6 +790,7 @@ class MainActivity : AppCompatActivity() {
                 logs = automationLogs,
                 hasConfirm = !confirmInstruction.isNullOrBlank(),
                 hasConfirmed = hasConfirmedMarker,
+                hasRejected = hasRejectedMarker,
             )
         val displayBody =
             cleanedAnswer
@@ -824,6 +827,7 @@ class MainActivity : AppCompatActivity() {
         logs: List<String>,
         hasConfirm: Boolean,
         hasConfirmed: Boolean,
+        hasRejected: Boolean,
     ): TranscriptAutomationUi? {
         if (command.isNullOrBlank()) return null
 
@@ -833,6 +837,7 @@ class MainActivity : AppCompatActivity() {
         val status =
             when {
                 isTerminatePending -> getString(R.string.automation_scene_stop_requested)
+                hasRejected -> getString(R.string.automation_scene_rejected)
                 hasConfirm -> getString(R.string.automation_scene_need_confirm)
                 hasTerminalLog -> getString(R.string.automation_scene_finished)
                 logs.isNotEmpty() -> getString(R.string.automation_scene_running)
@@ -847,6 +852,12 @@ class MainActivity : AppCompatActivity() {
         val confirmInstruction: String?
 
         when {
+            hasRejected -> {
+                actionLabel = getString(R.string.automation_rejected)
+                actionEnabled = false
+                isDestructive = false
+                confirmInstruction = null
+            }
             hasConfirmed && hasTerminalLog -> {
                 actionLabel = getString(R.string.automation_confirmed)
                 actionEnabled = false
@@ -3052,6 +3063,10 @@ class MainActivity : AppCompatActivity() {
         return AutomationMessageParser.extractAutomationConfirmedMarker(rawMessage)
     }
 
+    private fun extractAutomationRejectedMarker(rawMessage: String): Pair<String, Boolean> {
+        return AutomationMessageParser.extractAutomationRejectedMarker(rawMessage)
+    }
+
     private fun stripAutomationMarker(rawText: String): String {
         return AutomationMessageParser.stripAutomationMarker(rawText)
     }
@@ -3135,6 +3150,7 @@ class MainActivity : AppCompatActivity() {
             val messageContentStr = baseUserText
             
             if (resendUser) {
+                rejectPendingAutomationConfirmation(c)
                 c.messages.add(
                     UiMessage(
                         author = "我",
@@ -3495,8 +3511,9 @@ class MainActivity : AppCompatActivity() {
 
         val withoutConfirm = extractAutomationConfirmInstruction(origin.content).first
         val withoutConfirmed = extractAutomationConfirmedMarker(withoutConfirm).first
+        val withoutRejected = extractAutomationRejectedMarker(withoutConfirmed).first
         val updated =
-            (withoutConfirmed.trimEnd() + "\n[[AUTO_CONFIRMED]]")
+            (withoutRejected.trimEnd() + "\n[[AUTO_CONFIRMED]]")
                 .trim()
 
         if (updated == origin.content) return
@@ -3505,6 +3522,34 @@ class MainActivity : AppCompatActivity() {
         targetConversation.updatedAt = System.currentTimeMillis()
         syncMessageTranscript(targetConversation)
         persistConversations()
+    }
+
+    private fun rejectPendingAutomationConfirmation(conversation: Conversation) {
+        val targetIndex =
+            conversation.messages.indexOfLast { msg ->
+                if (msg.isUser) return@indexOfLast false
+                val hasConfirm = extractAutomationConfirmInstruction(msg.content).second != null
+                val hasConfirmed = extractAutomationConfirmedMarker(msg.content).second
+                val hasRejected = extractAutomationRejectedMarker(msg.content).second
+                hasConfirm && !hasConfirmed && !hasRejected
+            }
+        if (targetIndex !in conversation.messages.indices) return
+
+        val origin = conversation.messages[targetIndex]
+        val withoutConfirm = extractAutomationConfirmInstruction(origin.content).first
+        val withoutConfirmed = extractAutomationConfirmedMarker(withoutConfirm).first
+        val withoutRejected = extractAutomationRejectedMarker(withoutConfirmed).first
+        val updated = (withoutRejected.trimEnd() + "\n[[AUTO_REJECTED]]").trim()
+        if (updated == origin.content) return
+
+        conversation.messages[targetIndex] = origin.copy(content = updated)
+        conversation.updatedAt = System.currentTimeMillis()
+        clearAutomationAutoConfirm(
+            AutomationMessageRef(
+                conversationId = conversation.id,
+                messageIndex = targetIndex,
+            ),
+        )
     }
 
     private fun extractAutomationCommand(message: String): String? {

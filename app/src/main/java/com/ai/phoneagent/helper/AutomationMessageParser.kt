@@ -79,11 +79,23 @@ object AutomationMessageParser {
         return cleaned to hasMarker
     }
 
+    fun extractAutomationRejectedMarker(rawMessage: String): Pair<String, Boolean> {
+        val markerRegex =
+            Regex(
+                """\[\[AUTO_REJECTED]]""",
+                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+            )
+        val hasMarker = markerRegex.containsMatchIn(rawMessage)
+        val cleaned = markerRegex.replace(rawMessage, "").trim()
+        return cleaned to hasMarker
+    }
+
     fun stripAutomationMarker(rawText: String): String {
         val withoutExecute = extractAutomationInstruction(rawText).first
         val withoutConfirm = extractAutomationConfirmInstruction(withoutExecute).first
         val withoutConfirmed = extractAutomationConfirmedMarker(withoutConfirm).first
-        return extractAutomationLogMarkers(withoutConfirmed).first
+        val withoutRejected = extractAutomationRejectedMarker(withoutConfirmed).first
+        return extractAutomationLogMarkers(withoutRejected).first
     }
 
     fun normalizeAutomationLogLine(rawLine: String): String {

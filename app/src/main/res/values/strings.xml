@@ -19,6 +19,7 @@
     <string name="automation_confirm">确认</string>
     <string name="automation_confirming">执行中...</string>
     <string name="automation_confirmed">已执行</string>
+    <string name="automation_rejected">已拒绝</string>
     <string name="automation_terminate">终止任务</string>
     <string name="automation_terminating">终止中...</string>
     <string name="automation_terminate_requested">已请求终止任务</string>
@@ -30,6 +31,7 @@
     <string name="automation_scene_title">自动化</string>
     <string name="automation_scene_need_confirm">需求待确认</string>
     <string name="automation_scene_confirmed">需求已确认</string>
+    <string name="automation_scene_rejected">需求已拒绝</string>
     <string name="automation_scene_not_ready">系统未就绪</string>
     <string name="automation_scene_running">执行中</string>
     <string name="automation_scene_finished">已结束</string>
