@@ -374,7 +374,7 @@ class UiAutomationAgent(
             // 解析思考和回答
             val (thinking, answer) = actionParser.parseWithThinking(finalReply)
             if (!thinking.isNullOrBlank()) {
-                onLog("[Step $step] 思考：${thinking.take(config.logThinkingTruncateLength)}")
+                onLog("[Step $step] 思考：$thinking")
                 if (step == 1) {
                     val estimatedSteps = actionParser.parseEstimatedSteps(thinking)
                     if (estimatedSteps > 0) {
@@ -587,7 +587,7 @@ class UiAutomationAgent(
 
                 val (fixThinking, fixAnswer) = actionParser.parseWithThinking(fixFinal)
                 if (!fixThinking.isNullOrBlank()) {
-                    onLog("[Step $step] 修复思考：${fixThinking.take(config.logThinkingTruncateLength)}")
+                    onLog("[Step $step] 修复思考：$fixThinking")
                 }
                 onLog("[Step $step] 修复输出：${fixAnswer.take(config.logAnswerTruncateLength)}")
                 history += ChatRequestMessage(role = "assistant", content = fixFinal)

@@ -828,6 +828,7 @@ class MainActivity : AppCompatActivity() {
         if (command.isNullOrBlank()) return null
 
         val hasTerminalLog = logs.any { isAutomationTerminalLog(it) }
+        val isNormalFinished = isAutomationNormalFinished(logs)
         val isTerminatePending = isAutomationTerminatePending(messageRef)
         val status =
             when {
@@ -890,7 +891,23 @@ class MainActivity : AppCompatActivity() {
             actionEnabled = actionEnabled,
             isDestructive = isDestructive,
             confirmInstruction = confirmInstruction,
+            autoCollapseLogs = isNormalFinished,
         )
+    }
+
+    private fun isAutomationNormalFinished(logs: List<String>): Boolean {
+        if (logs.isEmpty()) return false
+        var hasFinished = false
+        logs.forEach { raw ->
+            val line = normalizeAutomationLogLine(raw)
+            if (line.startsWith("结束：") || line.startsWith("结束:")) {
+                hasFinished = true
+            }
+            if (line.startsWith("异常：") || line.startsWith("异常:") || line == "已停止" || line.startsWith("已请求停止")) {
+                return false
+            }
+        }
+        return hasFinished
     }
 
     private fun syncTranscriptForAutomationMessage(messageRef: AutomationMessageRef?) {

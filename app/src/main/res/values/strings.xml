@@ -55,8 +55,15 @@
     <string name="automation_virtual_display_status_error">虚拟屏：错误 - %1$s</string>
     <string name="automation_shizuku_mode_label">Shizuku 模式</string>
     <string name="automation_task_confirm_label">任务指令确认</string>
+    <string name="automation_card_title">Aries自动化</string>
     <string name="automation_task_hint">在此输入或录入您的任务指令...</string>
     <string name="automation_task_hint_not_ready">请先满足当前模式的连接条件后再开始</string>
+    <string name="automation_action_launch">Launch</string>
+    <string name="automation_action_tap">点击</string>
+    <string name="automation_action_back">返回</string>
+    <string name="automation_action_input">输入</string>
+    <string name="automation_action_swipe">滑动</string>
+    <string name="automation_actions_more">+ %1$d</string>
     <string name="automation_pause">暂停</string>
     <string name="automation_resume">继续</string>
     <string name="automation_stop">停止</string>
