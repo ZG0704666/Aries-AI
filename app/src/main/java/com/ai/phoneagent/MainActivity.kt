@@ -2490,7 +2490,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isLocalModelModeEnabled(): Boolean {
-        return useLocalModel
+        val prefEnabled = prefs.getBoolean(apiUseLocalModelPref, false)
+        val enabled = prefEnabled && localModelReady
+        if (useLocalModel != enabled) {
+            useLocalModel = enabled
+        }
+        return enabled
     }
 
     private fun normalizeBaseUrlInput(rawUrl: String): String? {
@@ -2508,10 +2513,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun resolveApiBaseUrl(): String {
         if (isLocalModelModeEnabled()) {
-            val storedThirdPartyBaseUrl =
-                prefs.getString(apiThirdPartyBaseUrlPref, "").orEmpty()
-            return normalizeBaseUrlInput(storedThirdPartyBaseUrl)
-                ?: AutoGlmClient.DEFAULT_BASE_URL
+            return AutoGlmClient.DEFAULT_BASE_URL
         }
         if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_BASE_URL
         val rawUrl = apiBaseUrl

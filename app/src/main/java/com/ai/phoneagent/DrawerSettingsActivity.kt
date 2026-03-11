@@ -360,6 +360,23 @@ class DrawerSettingsActivity : AppCompatActivity() {
     }
 
     private fun checkApiConnection() {
+        if (useLocalModel) {
+            localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
+            updateQwenDownloadButtonState()
+            apiStatusPositive = localModelReady
+            apiStatusText =
+                getString(
+                    if (localModelReady) {
+                        R.string.m3t_sidebar_local_model_ready
+                    } else {
+                        R.string.m3t_sidebar_local_model_not_ready
+                    },
+                )
+            if (!localModelReady) {
+                Toast.makeText(this, R.string.m3t_sidebar_local_model_not_ready, Toast.LENGTH_LONG).show()
+            }
+            return
+        }
         val key = resolveApiKeyFromInput()
         if (key.isBlank()) {
             Toast.makeText(this, R.string.settings_api_key_required, Toast.LENGTH_SHORT).show()

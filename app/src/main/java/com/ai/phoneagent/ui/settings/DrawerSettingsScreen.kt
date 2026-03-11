@@ -1,8 +1,19 @@
 package com.ai.phoneagent.ui.settings
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,11 +31,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.ContentPaste
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -33,7 +54,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -73,6 +95,7 @@ fun DrawerSettingsScreen(
     onOpenAutomation: () -> Unit,
     onOpenAbout: () -> Unit,
 ) {
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
@@ -211,12 +234,36 @@ fun DrawerModelApiConfigScreen(
     onCheckApi: () -> Unit,
     onDownloadQwenModel: () -> Unit,
 ) {
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
     val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
-    val dialogPadding = dimensionResource(R.dimen.m3t_dialog_padding)
     val compactButtonHeight = dimensionResource(R.dimen.m3t_compact_button_height)
+    val modeTitle =
+        when {
+            useLocalModel -> stringResource(R.string.settings_model_api_mode_local)
+            useThirdPartyApi -> stringResource(R.string.settings_model_api_mode_third_party)
+            else -> stringResource(R.string.settings_model_api_mode_official)
+        }
+    val modeDescription =
+        when {
+            useLocalModel -> stringResource(R.string.settings_model_api_mode_local_description)
+            useThirdPartyApi -> stringResource(R.string.settings_model_api_mode_third_party_description)
+            else -> stringResource(R.string.settings_model_api_mode_official_description)
+        }
+    val statusContainerColor =
+        if (apiStatusPositive) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
+        }
+    val statusContentColor =
+        if (apiStatusPositive) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -247,118 +294,325 @@ fun DrawerModelApiConfigScreen(
                     .padding(innerPadding)
                     .navigationBarsPadding(),
             contentPadding = PaddingValues(start = spacingLg, top = spacingSm, end = spacingLg, bottom = spacingXl),
-            verticalArrangement = Arrangement.spacedBy(spacingSm),
+            verticalArrangement = Arrangement.spacedBy(spacingMd),
         ) {
             item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                    shape = MaterialTheme.shapes.large,
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(dialogPadding),
+                ModelApiSectionCard {
+                    SectionIntro(
+                        title = stringResource(R.string.settings_model_api_summary_title),
+                        subtitle = stringResource(R.string.settings_model_api_summary_subtitle),
+                    )
+
+                    Spacer(modifier = Modifier.height(spacingMd))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(spacingSm),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = stringResource(R.string.settings_api_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-
-                        Spacer(modifier = Modifier.height(spacingMd))
-
-                        OutlinedTextField(
-                            value = apiInput,
-                            onValueChange = onApiInputChange,
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(stringResource(R.string.m3t_sidebar_api_hint)) },
-                            singleLine = true,
-                        )
-
-                        Spacer(modifier = Modifier.height(spacingSm))
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(spacingSm)) {
-                            TextButton(onClick = onPasteApi) {
-                                Text(stringResource(R.string.m3t_sidebar_api_paste))
-                            }
-                            TextButton(onClick = onOpenApiKeyPage) {
-                                Text(stringResource(R.string.m3t_sidebar_get_api_key))
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(spacingSm))
-
-                        SwitchRow(
-                            title = stringResource(R.string.m3t_sidebar_third_party_api),
-                            checked = useThirdPartyApi,
-                            onCheckedChange = onUseThirdPartyChange,
-                        )
-
-                        if (useThirdPartyApi) {
-                            Spacer(modifier = Modifier.height(spacingSm))
-                            OutlinedTextField(
-                                value = apiBaseUrl,
-                                onValueChange = onApiBaseUrlChange,
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(stringResource(R.string.drawer_api_base_url_label)) },
-                                placeholder = { Text(stringResource(R.string.drawer_api_base_url_hint)) },
-                                singleLine = true,
-                            )
-
-                            Spacer(modifier = Modifier.height(spacingSm))
-
-                            OutlinedTextField(
-                                value = apiModel,
-                                onValueChange = onApiModelChange,
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(stringResource(R.string.drawer_api_model_label)) },
-                                placeholder = { Text(stringResource(R.string.drawer_api_model_hint)) },
-                                singleLine = true,
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(spacingSm))
-
-                        SwitchRow(
-                            title = stringResource(R.string.m3t_sidebar_local_model_mode),
-                            checked = useLocalModel,
-                            onCheckedChange = onUseLocalModelChange,
-                        )
-
-                        Spacer(modifier = Modifier.height(spacingMd))
-
-                        Button(
-                            onClick = onCheckApi,
-                            modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
-                        ) {
-                            Text(stringResource(R.string.m3t_sidebar_check_connection))
-                        }
-
-                        Spacer(modifier = Modifier.height(spacingSm))
-
                         Surface(
-                            shape = MaterialTheme.shapes.medium,
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.56f),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
                         ) {
-                            TextButton(
-                                onClick = onDownloadQwenModel,
-                                enabled = qwenButtonEnabled,
-                                modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
-                            ) {
-                                Text(qwenButtonText)
-                            }
+                            Icon(
+                                imageVector = if (useLocalModel) Icons.Outlined.Memory else Icons.Outlined.Cloud,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(spacingSm),
+                            )
                         }
-
-                        Spacer(modifier = Modifier.height(spacingSm))
-
-                        Text(
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = modeTitle,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = modeDescription,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        StatusBadge(
                             text = apiStatus,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (apiStatusPositive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.fillMaxWidth(),
+                            containerColor = statusContainerColor,
+                            contentColor = statusContentColor,
                         )
                     }
                 }
             }
+
+            item {
+                ModelApiSectionCard {
+                    SectionIntro(
+                        title = stringResource(R.string.settings_model_api_remote_title),
+                        subtitle = stringResource(R.string.settings_model_api_remote_subtitle),
+                    )
+
+                    Spacer(modifier = Modifier.height(spacingMd))
+
+                    FilledInputField(
+                        value = apiInput,
+                        onValueChange = onApiInputChange,
+                        label = stringResource(R.string.m3t_sidebar_api_hint),
+                        placeholder = stringResource(R.string.settings_model_api_key_placeholder),
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Key, contentDescription = null)
+                        },
+                    )
+
+                    Spacer(modifier = Modifier.height(spacingSm))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(spacingSm),
+                    ) {
+                        FilledTonalButton(
+                            onClick = onPasteApi,
+                            modifier = Modifier.weight(1f).height(compactButtonHeight),
+                        ) {
+                            Icon(Icons.Outlined.ContentPaste, contentDescription = null)
+                            Spacer(modifier = Modifier.width(spacingSm))
+                            Text(stringResource(R.string.m3t_sidebar_api_paste))
+                        }
+                        FilledTonalButton(
+                            onClick = onOpenApiKeyPage,
+                            modifier = Modifier.weight(1f).height(compactButtonHeight),
+                        ) {
+                            Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null)
+                            Spacer(modifier = Modifier.width(spacingSm))
+                            Text(stringResource(R.string.settings_model_api_get_key_short))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(spacingMd))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(modifier = Modifier.height(spacingMd))
+
+                    DetailSwitchRow(
+                        title = stringResource(R.string.m3t_sidebar_third_party_api),
+                        summary = stringResource(R.string.settings_model_api_third_party_switch_subtitle),
+                        checked = useThirdPartyApi,
+                        onCheckedChange = onUseThirdPartyChange,
+                    )
+
+                    AnimatedVisibility(
+                        visible = useThirdPartyApi,
+                        enter = fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) + expandVertically(animationSpec = tween(180, easing = FastOutSlowInEasing)),
+                        exit = fadeOut(animationSpec = tween(120, easing = FastOutLinearInEasing)) + shrinkVertically(animationSpec = tween(140, easing = FastOutLinearInEasing)),
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(top = spacingMd).animateContentSize(),
+                            verticalArrangement = Arrangement.spacedBy(spacingSm),
+                        ) {
+                            FilledInputField(
+                                value = apiBaseUrl,
+                                onValueChange = onApiBaseUrlChange,
+                                label = stringResource(R.string.drawer_api_base_url_label),
+                                placeholder = stringResource(R.string.drawer_api_base_url_hint),
+                                leadingIcon = { Icon(Icons.Outlined.Cloud, contentDescription = null) },
+                            )
+                            FilledInputField(
+                                value = apiModel,
+                                onValueChange = onApiModelChange,
+                                label = stringResource(R.string.drawer_api_model_label),
+                                placeholder = stringResource(R.string.drawer_api_model_hint),
+                                leadingIcon = { Icon(Icons.Outlined.CheckCircle, contentDescription = null) },
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                ModelApiSectionCard {
+                    SectionIntro(
+                        title = stringResource(R.string.settings_model_api_local_title),
+                        subtitle = stringResource(R.string.settings_model_api_local_subtitle),
+                    )
+
+                    Spacer(modifier = Modifier.height(spacingMd))
+
+                    DetailSwitchRow(
+                        title = stringResource(R.string.m3t_sidebar_local_model_mode),
+                        summary = stringResource(R.string.settings_model_api_local_switch_subtitle),
+                        checked = useLocalModel,
+                        onCheckedChange = onUseLocalModelChange,
+                    )
+
+                    Spacer(modifier = Modifier.height(spacingMd))
+
+                    FilledTonalButton(
+                        onClick = onDownloadQwenModel,
+                        enabled = qwenButtonEnabled,
+                        modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
+                    ) {
+                        Icon(Icons.Outlined.Download, contentDescription = null)
+                        Spacer(modifier = Modifier.width(spacingSm))
+                        Text(qwenButtonText)
+                    }
+                }
+            }
+
+            item {
+                ModelApiSectionCard {
+                    SectionIntro(
+                        title = stringResource(R.string.settings_model_api_action_title),
+                        subtitle = stringResource(R.string.settings_model_api_action_subtitle),
+                    )
+
+                    Spacer(modifier = Modifier.height(spacingMd))
+
+                    Button(
+                        onClick = onCheckApi,
+                        modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
+                    ) {
+                        Icon(Icons.Outlined.Sync, contentDescription = null)
+                        Spacer(modifier = Modifier.width(spacingSm))
+                        Text(stringResource(R.string.m3t_sidebar_check_connection))
+                    }
+
+                    Spacer(modifier = Modifier.height(spacingMd))
+
+                    Surface(
+                        color = statusContainerColor,
+                        shape = MaterialTheme.shapes.large,
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(spacingMd),
+                            verticalArrangement = Arrangement.spacedBy(spacingXs),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_model_api_status_title),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = statusContentColor,
+                            )
+                            Text(
+                                text = apiStatus,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = statusContentColor,
+                            )
+                        }
+                    }
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun ModelApiSectionCard(
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = MaterialTheme.shapes.extraLarge,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacingLg),
+            verticalArrangement = Arrangement.Top,
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun SectionIntro(
+    title: String,
+    subtitle: String,
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
+    Text(
+        text = subtitle,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun StatusBadge(
+    text: String,
+    containerColor: androidx.compose.ui.graphics.Color,
+    contentColor: androidx.compose.ui.graphics.Color,
+) {
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    Surface(
+        color = containerColor,
+        shape = MaterialTheme.shapes.large,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = contentColor,
+            modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
+        )
+    }
+}
+
+@Composable
+private fun FilledInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    leadingIcon: @Composable (() -> Unit)? = null,
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text(label) },
+        placeholder = { Text(placeholder) },
+        leadingIcon = leadingIcon,
+        singleLine = true,
+        shape = MaterialTheme.shapes.large,
+        colors =
+            TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f),
+                focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                disabledIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+            ),
+    )
+}
+
+@Composable
+private fun DetailSwitchRow(
+    title: String,
+    summary: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacingSm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

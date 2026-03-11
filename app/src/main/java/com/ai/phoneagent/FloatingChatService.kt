@@ -282,7 +282,7 @@ class FloatingChatService : Service() {
                             ?: AutoGlmClient.DEFAULT_BASE_URL
             val baseUrl =
                     if (useLocalModel) {
-                        storedThirdPartyBaseUrl
+                        AutoGlmClient.DEFAULT_BASE_URL
                     } else if (!useThirdParty) {
                         AutoGlmClient.DEFAULT_BASE_URL
                     } else {

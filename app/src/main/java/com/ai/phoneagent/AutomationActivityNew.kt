@@ -1421,10 +1421,7 @@ class AutomationActivityNew : AppCompatActivity() {
         val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
         val useThirdParty = prefs.getBoolean(apiUseThirdPartyPref, false)
         val useLocalModel = prefs.getBoolean(apiUseLocalModelPref, false)
-        if (useLocalModel) {
-            val rawUrl = prefs.getString(apiThirdPartyBaseUrlPref, "")?.trim().orEmpty()
-            return rawUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
-        }
+        if (useLocalModel) return AutoGlmClient.DEFAULT_BASE_URL
         if (!useThirdParty) return AutoGlmClient.DEFAULT_BASE_URL
         val rawUrl = prefs.getString(apiThirdPartyBaseUrlPref, "")?.trim().orEmpty()
         return rawUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
