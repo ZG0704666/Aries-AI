@@ -1,11 +1,20 @@
 package com.ai.phoneagent.ui.automation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -261,37 +270,47 @@ fun AutomationControlScreen(
                             selected = !isBackgroundMode,
                             title = stringResource(R.string.automation_execution_front_mode),
                             summary = stringResource(R.string.automation_mode_description_front),
-                            onClick = { onExecutionModeChange(false) },
+                            onClick = { if (isBackgroundMode) onExecutionModeChange(false) },
                         )
                         AutomationModeOption(
                             selected = isBackgroundMode,
                             title = stringResource(R.string.automation_execution_background_mode),
                             summary = stringResource(R.string.automation_mode_description_background),
-                            onClick = { onExecutionModeChange(true) },
+                            onClick = { if (!isBackgroundMode) onExecutionModeChange(true) },
                         )
                     }
 
-                    if (isBackgroundMode) {
-                        Spacer(modifier = Modifier.height(spacingMd))
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                            shape = MaterialTheme.shapes.large,
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(spacingMd),
-                                verticalArrangement = Arrangement.spacedBy(spacingXs),
+                    AnimatedVisibility(
+                        visible = isBackgroundMode,
+                        enter =
+                            fadeIn(animationSpec = tween(durationMillis = 160, easing = LinearOutSlowInEasing)) +
+                                expandVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
+                        exit =
+                            fadeOut(animationSpec = tween(durationMillis = 100, easing = FastOutLinearInEasing)) +
+                                shrinkVertically(animationSpec = tween(durationMillis = 140, easing = FastOutLinearInEasing)),
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(spacingLg)) {
+                            Spacer(modifier = Modifier.height(spacingSm))
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                shape = MaterialTheme.shapes.large,
                             ) {
-                                Text(
-                                    text = stringResource(R.string.automation_virtual_display_status_label),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text(
-                                    text = virtualDisplayStatus,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(spacingMd),
+                                    verticalArrangement = Arrangement.spacedBy(spacingXs),
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.automation_virtual_display_status_label),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text = virtualDisplayStatus,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
                             }
                         }
                     }
@@ -550,7 +569,11 @@ private fun AutomationSectionCard(
         shape = MaterialTheme.shapes.extraLarge,
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(contentPadding),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(tween(durationMillis = 180, easing = FastOutSlowInEasing))
+                    .padding(contentPadding),
             verticalArrangement = Arrangement.Top,
             content = content,
         )
@@ -675,28 +698,58 @@ private fun AutomationModeOption(
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant
         }
+    val animatedContainerColor by
+        animateColorAsState(
+            targetValue = containerColor,
+            animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
+            label = "modeContainerColor",
+        )
+    val animatedTitleColor by
+        animateColorAsState(
+            targetValue = titleColor,
+            animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
+            label = "modeTitleColor",
+        )
+    val animatedSummaryColor by
+        animateColorAsState(
+            targetValue = summaryColor,
+            animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
+            label = "modeSummaryColor",
+        )
 
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        color = containerColor,
+        color = animatedContainerColor,
         shape = MaterialTheme.shapes.large,
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(spacingMd),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(tween(durationMillis = 160, easing = FastOutSlowInEasing))
+                    .padding(spacingMd),
             verticalArrangement = Arrangement.spacedBy(spacingXs),
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = titleColor,
+                color = animatedTitleColor,
                 fontWeight = FontWeight.Medium,
             )
             Text(
                 text = summary,
                 style = MaterialTheme.typography.bodySmall,
-                color = summaryColor,
+                color = animatedSummaryColor,
             )
-            if (selected) {
+            AnimatedVisibility(
+                visible = selected,
+                enter =
+                    fadeIn(animationSpec = tween(durationMillis = 140, easing = LinearOutSlowInEasing)) +
+                        expandVertically(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)),
+                exit =
+                    fadeOut(animationSpec = tween(durationMillis = 90, easing = FastOutLinearInEasing)) +
+                        shrinkVertically(animationSpec = tween(durationMillis = 120, easing = FastOutLinearInEasing)),
+            ) {
                 Text(
                     text = stringResource(R.string.automation_console_mode_selected),
                     style = MaterialTheme.typography.labelMedium,
