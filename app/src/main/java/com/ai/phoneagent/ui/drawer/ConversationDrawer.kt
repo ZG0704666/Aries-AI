@@ -2,6 +2,8 @@ package com.ai.phoneagent.ui.drawer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,8 +20,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -27,9 +32,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -62,6 +73,7 @@ fun ConversationDrawer(
     emptyMessage: String,
     onSearchQueryChange: (String) -> Unit,
     onConversationClick: (Long) -> Unit,
+    onConversationLongClick: (Long) -> Unit,
     onSettingsClick: () -> Unit,
 ) {
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
@@ -141,6 +153,7 @@ fun ConversationDrawer(
                                 verticalPadding = itemVerticalPadding,
                                 itemRadius = itemRadius,
                                 onClick = { onConversationClick(item.conversationId) },
+                                onLongClick = { onConversationLongClick(item.conversationId) },
                             )
                         }
                     }
@@ -198,6 +211,7 @@ private fun DrawerConversationHeader(label: String) {
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DrawerConversationRow(
     item: DrawerConversationUiItem.Conversation,
@@ -205,7 +219,10 @@ private fun DrawerConversationRow(
     verticalPadding: androidx.compose.ui.unit.Dp,
     itemRadius: androidx.compose.ui.unit.Dp,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
+    val haptic = LocalHapticFeedback.current
+    var menuExpanded by remember(item.conversationId) { mutableStateOf(false) }
     val backgroundColor =
         if (item.selected) {
             MaterialTheme.colorScheme.secondaryContainer
@@ -213,30 +230,58 @@ private fun DrawerConversationRow(
             Color.Transparent
         }
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(itemRadius))
-                .background(backgroundColor)
-                .clickable(onClick = onClick)
-                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
-        verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs)),
-    ) {
-        Text(
-            text = item.title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        if (item.preview.isNotBlank()) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(itemRadius))
+                    .background(backgroundColor)
+                    .combinedClickable(
+                        onClick = onClick,
+                        onLongClickLabel = stringResource(R.string.drawer_more_actions),
+                        onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            menuExpanded = true
+                        },
+                    )
+                    .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+            verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs)),
+        ) {
             Text(
-                text = item.preview,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
+                text = item.title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+            if (item.preview.isNotBlank()) {
+                Text(
+                    text = item.preview,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text(text = stringResource(R.string.drawer_delete_conversation)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.DeleteOutline,
+                        contentDescription = null,
+                    )
+                },
+                onClick = {
+                    menuExpanded = false
+                    onLongClick()
+                },
             )
         }
     }

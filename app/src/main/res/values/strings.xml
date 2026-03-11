@@ -250,6 +250,8 @@
     <string name="drawer_settings">设置</string>
     <string name="drawer_empty">暂无聊天记录</string>
     <string name="drawer_empty_search">没有匹配的聊天</string>
+    <string name="drawer_more_actions">更多操作</string>
+    <string name="drawer_delete_conversation">删除对话</string>
     <string name="drawer_open_navigation">打开导航</string>
     <string name="top_bar_new_chat">新建聊天</string>
     <string name="top_bar_history">打开历史记录</string>

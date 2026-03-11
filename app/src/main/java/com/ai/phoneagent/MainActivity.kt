@@ -984,6 +984,11 @@ class MainActivity : AppCompatActivity() {
                             binding.drawerLayout.closeDrawer(GravityCompat.START)
                         }
                     },
+                    onConversationLongClick = { conversationId ->
+                        if (deleteConversationById(conversationId, clearUiForActive = true)) {
+                            vibrateLight()
+                        }
+                    },
                     onSettingsClick = {
                         vibrateLight()
                         navigateFromDrawer {
@@ -1019,6 +1024,23 @@ class MainActivity : AppCompatActivity() {
 
         restoreApiKey()
         refreshDrawerConversationItems()
+    }
+
+    private fun deleteConversationById(
+        conversationId: Long,
+        clearUiForActive: Boolean,
+    ): Boolean {
+        if (conversations.none { it.id == conversationId }) {
+            return false
+        }
+        conversations.removeAll { it.id == conversationId }
+        if (activeConversation?.id == conversationId) {
+            activeConversation = null
+            startNewChat(clearUi = clearUiForActive)
+        } else {
+            persistConversations()
+        }
+        return true
     }
 
     private fun refreshDrawerConversationItems() {
@@ -2899,7 +2921,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun startNewChat(clearUi: Boolean) {
         // 防止启动多个重复的空会话
-        if (activeConversation != null && activeConversation!!.messages.isEmpty()) {
+        if (isAlreadyInNewChat()) {
             Toast.makeText(this, "您已处于新对话中！", Toast.LENGTH_SHORT).show()
             return
         }
@@ -2909,7 +2931,6 @@ class MainActivity : AppCompatActivity() {
         conversations.add(0, c)
         activeConversation = c
         clearStreamingTranscript()
-        syncMessageTranscript(c)
         
         if (clearUi) {
             // 逐步缩小收敛一气呵成向上收缩：不再只是平移，而是带有一种“消失”的速度感
@@ -2922,6 +2943,7 @@ class MainActivity : AppCompatActivity() {
                 .setInterpolator(AccelerateInterpolator(1.8f)) // 纯加速，无回弹
                 .withEndAction {
                     resetAutomationPanelRuntimeState()
+                    syncMessageTranscript(c)
                     
                     // 状态瞬间回位
                     binding.messagesContentHost.translationY = 0f
@@ -2936,9 +2958,15 @@ class MainActivity : AppCompatActivity() {
                         .start()
                 }
                 .start()
+        } else {
+            syncMessageTranscript(c)
         }
         persistConversations()
     }
+
+    private fun isAlreadyInNewChat(): Boolean =
+        activeConversation?.messages?.isEmpty() == true &&
+            streamingTranscriptConversationIdState.value == null
 
     private fun requireActiveConversation(): Conversation {
         val c = activeConversation
@@ -3948,16 +3976,10 @@ class MainActivity : AppCompatActivity() {
                                 dialog.dismiss()
                             },
                             onDelete = { conversationId ->
-                                if (conversations.none { it.id == conversationId }) {
+                                if (!deleteConversationById(conversationId, clearUiForActive = true)) {
                                     return@ConversationHistoryDialog
                                 }
                                 displayedState.removeAll { it.id == conversationId }
-                                conversations.removeAll { it.id == conversationId }
-                                if (activeConversation?.id == conversationId) {
-                                    activeConversation = null
-                                    startNewChat(clearUi = true)
-                                }
-                                persistConversations()
                                 if (displayedState.isEmpty()) {
                                     dialog.dismiss()
                                 }
