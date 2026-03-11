@@ -378,7 +378,7 @@ private fun ThinkingSection(
 
     LaunchedEffect(item.id, expanded) {
         if (expanded) {
-            kotlinx.coroutines.delay(70)
+            kotlinx.coroutines.delay(150)
             bodyVisible = true
         } else {
             bodyVisible = false
