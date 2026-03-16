@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -66,7 +66,6 @@ import android.graphics.RectF
 import android.graphics.SweepGradient
 import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.util.Base64
 import android.util.LruCache
 import android.text.Editable
 import android.text.TextWatcher
@@ -86,7 +85,9 @@ import android.widget.ImageView
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.EditText
-import com.ai.phoneagent.helper.StreamRenderHelper
+import com.ai.phoneagent.helper.AutomationMessageParser
+import com.ai.phoneagent.helper.AutomationTimelineEntry
+import com.ai.phoneagent.helper.AutomationTimelineFormatter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -99,23 +100,12 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.appcompat.widget.ActionMenuView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.ItemTouchHelper
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.ai.phoneagent.databinding.ActivityMainBinding
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
 import com.ai.phoneagent.net.LocalMnnInferenceEngine
 import com.ai.phoneagent.net.ModelScopeModelDownloader
-import com.ai.phoneagent.updates.ReleaseRepository
-import com.ai.phoneagent.updates.ReleaseEntry
-import com.ai.phoneagent.updates.ReleaseUiUtil
-import com.ai.phoneagent.updates.UpdateConfig
-import com.ai.phoneagent.updates.UpdateLinkAdapter
-import com.ai.phoneagent.updates.UpdateNotificationUtil
-import com.ai.phoneagent.updates.UpdateStore
-import com.ai.phoneagent.updates.VersionComparator
-import com.ai.phoneagent.updates.DialogSizingUtil
+import com.ai.phoneagent.updates.UpdateStartupCoordinator
 import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -180,8 +170,23 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.livedata.observeAsState
 import com.ai.phoneagent.data.AttachmentInfo
+import com.ai.phoneagent.data.local.ConversationRecord
+import com.ai.phoneagent.data.local.ConversationStorageRepository
+import com.ai.phoneagent.data.local.StoredAttachmentRecord
+import com.ai.phoneagent.data.local.StoredMessageRecord
+import com.ai.phoneagent.data.preferences.MainUiPreferencesRepository
+import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
+import com.ai.phoneagent.ui.drawer.ConversationDrawer
+import com.ai.phoneagent.ui.drawer.DrawerConversationUiItem
+import com.ai.phoneagent.ui.history.ConversationHistoryDialog
+import com.ai.phoneagent.ui.history.ConversationHistoryItemUi
+import com.ai.phoneagent.ui.messages.ConversationTranscript
+import com.ai.phoneagent.ui.messages.TranscriptAutomationUi
+import com.ai.phoneagent.ui.messages.TranscriptMessageUi
 import com.ai.phoneagent.viewmodel.ChatViewModel
+import com.ai.phoneagent.ui.topbar.MainTopBar
 import java.io.InputStream
+import kotlinx.coroutines.runBlocking
 
 class MainActivity : AppCompatActivity() {
     
@@ -208,6 +213,60 @@ class MainActivity : AppCompatActivity() {
             var updatedAt: Long,
     )
 
+    private fun Conversation.toStorageRecord(): ConversationRecord {
+        return ConversationRecord(
+            id = id,
+            title = title,
+            updatedAt = updatedAt,
+            messages =
+                messages.map { message ->
+                    StoredMessageRecord(
+                        author = message.author,
+                        content = message.content,
+                        isUser = message.isUser,
+                        thinkingDurationMs = message.thinkingDurationMs,
+                        attachments =
+                            message.attachments.orEmpty().map { attachment ->
+                                StoredAttachmentRecord(
+                                    filePath = attachment.filePath,
+                                    fileName = attachment.fileName,
+                                    mimeType = attachment.mimeType,
+                                    fileSize = attachment.fileSize,
+                                    content = attachment.content,
+                                )
+                            },
+                    )
+                },
+        )
+    }
+
+    private fun ConversationRecord.toConversation(): Conversation {
+        return Conversation(
+            id = id,
+            title = title,
+            updatedAt = updatedAt,
+            messages =
+                messages.map { message ->
+                    UiMessage(
+                        author = message.author,
+                        content = message.content,
+                        isUser = message.isUser,
+                        thinkingDurationMs = message.thinkingDurationMs,
+                        attachments =
+                            message.attachments.map { attachment ->
+                                AttachmentInfo(
+                                    filePath = attachment.filePath,
+                                    fileName = attachment.fileName,
+                                    mimeType = attachment.mimeType,
+                                    fileSize = attachment.fileSize,
+                                    content = attachment.content,
+                                )
+                            }.takeIf { it.isNotEmpty() },
+                    )
+                }.toMutableList(),
+        )
+    }
+
     private data class AutomationMessageRef(
             val conversationId: Long,
             val messageIndex: Int,
@@ -217,6 +276,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var onboardingOverlay: MainOnboardingOverlay
 
     private val prefs by lazy { getSharedPreferences("app_prefs", MODE_PRIVATE) }
+    private val uiPreferencesRepository by lazy { MainUiPreferencesRepository(applicationContext) }
+    private val conversationStorageRepository by lazy { ConversationStorageRepository(applicationContext) }
 
     private val conversations = mutableListOf<Conversation>()
 
@@ -232,8 +293,6 @@ class MainActivity : AppCompatActivity() {
 
     private var micAnimator: ObjectAnimator? = null
 
-    private var thinkingView: View? = null
-    private var thinkingTextView: TextView? = null
 
     // 防止并发请求导致重试时更容易出现空回复/失败提示
     private var isRequestInFlight: Boolean = false
@@ -262,16 +321,11 @@ class MainActivity : AppCompatActivity() {
     private var pendingEnterMiniWindowAfterNotifPerm: Boolean = false
     private var pendingAutomationLogUiRefresh: Boolean = false
     private var automationLogReceiverRegistered: Boolean = false
-    private var activeAutomationPanelConversationId: Long = -1L
-    private var activeAutomationPanelMessageIndex: Int = -1
-    private var activeAutomationPanelLogContainer: LinearLayout? = null
-    private var activeAutomationPanelStatusView: TextView? = null
-    private var activeAutomationPanelConfirmButton: View? = null
-    private var activeAutomationPanelConfirmTextView: TextView? = null
     private var automationTerminatePendingRef: AutomationMessageRef? = null
     private var automationTerminateFallbackJob: Job? = null
     private var automationAutoConfirmRef: AutomationMessageRef? = null
     private var automationAutoConfirmJob: Job? = null
+    private val automationCountdownSeconds = mutableMapOf<AutomationMessageRef, Int>()
 
     private val automationLogReceiver =
             object : BroadcastReceiver() {
@@ -338,12 +392,19 @@ class MainActivity : AppCompatActivity() {
     private val localModelDownloadButtonVisiblePref = "local_model_download_button_visible"
     private val qwenPendingDownloadIdsPref = "qwen_pending_download_ids"
 
-    private val permGuideShownPref = "perm_guide_shown"
-
     private val inputTextState = mutableStateOf("")
     private val inputBarState = mutableStateOf<InputState>(InputState.Idle)
     private val voiceAmplitudeState = mutableStateOf(0f)
     private val agentModeEnabledState = mutableStateOf(false)
+    private val statusTextState = mutableStateOf("")
+    private val statusVisibleState = mutableStateOf(false)
+    private val thinkingExpandedByDefaultState = mutableStateOf(false)
+    private val drawerSearchQueryState = mutableStateOf("")
+    private val drawerConversationItemsState = mutableStateOf<List<DrawerConversationUiItem>>(emptyList())
+    private val drawerEmptyMessageState = mutableStateOf("")
+    private val transcriptItemsState = mutableStateOf<List<TranscriptMessageUi>>(emptyList())
+    private val streamingTranscriptItemState = mutableStateOf<TranscriptMessageUi?>(null)
+    private val streamingTranscriptConversationIdState = mutableStateOf<Long?>(null)
 
     // Aries附件上传相关 - 简化为只保留 ActivityResultLauncher
     private lateinit var ariesImagePickerLauncher: ActivityResultLauncher<String>
@@ -352,56 +413,80 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ariesCameraLauncher: ActivityResultLauncher<Uri>
     private var tempCameraUri: Uri? = null
     
-    // 附件预览状态（由 ViewModel 管理，UI 层仅负责显示）
-    private var attachmentPreviewView: View? = null
     private val attachmentThumbnailCache = LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(64)
 
-    @Volatile private var suppressApiInputWatcher: Boolean = false
-    @Volatile private var suppressModelSwitchWatcher: Boolean = false
     @Volatile private var apiNeedsRecheckToastShown: Boolean = false
     @Volatile private var qwenDownloadInFlight: Boolean = false
     @Volatile private var localModelReady: Boolean = false
-    private lateinit var apiInput: EditText
-    private lateinit var apiStatus: TextView
-    private lateinit var apiThirdPartySwitch: MaterialSwitch
-    private lateinit var localModelSwitch: MaterialSwitch
-    private lateinit var localModelSwitchRow: View
-    private lateinit var apiRemoteConfigContainer: View
-    private lateinit var apiThirdPartyContainer: View
-    private lateinit var apiBaseUrlInput: EditText
-    private lateinit var apiModelInput: EditText
-    private var qwenDownloadButton: MaterialButton? = null
+    private var useThirdPartyApi: Boolean = false
+    private var useLocalModel: Boolean = false
+    private var apiBaseUrl: String = AutoGlmClient.DEFAULT_BASE_URL
+    private var apiModel: String = AutoGlmClient.DEFAULT_MODEL
+    private lateinit var drawerPanel: View
     private val pendingQwenDownloadIds = linkedSetOf<Long>()
     private var qwenDownloadReceiverRegistered = false
 
     private fun persistConversations() {
-        try {
-            val json = com.google.gson.Gson().toJson(conversations)
-            prefs.edit()
-                    .putString(conversationsKey, json)
-                    .putLong(activeConversationIdKey, activeConversation?.id ?: -1L)
-                    .apply()
-        } catch (_: Exception) {
+        val snapshot = conversations.map { it.toStorageRecord() }
+        val activeConversationId = activeConversation?.id
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                conversationStorageRepository.persistConversations(snapshot)
+                uiPreferencesRepository.setActiveConversationId(activeConversationId)
+            }
+        }
+        if (::drawerPanel.isInitialized) {
+            refreshDrawerConversationItems()
         }
     }
 
     private fun tryRestoreConversations(): Boolean {
-        val json = prefs.getString(conversationsKey, null) ?: return false
+        val stored =
+            runCatching {
+                runBlocking(Dispatchers.IO) { conversationStorageRepository.loadConversations() }
+            }.getOrNull().orEmpty()
+        val restoredConversations =
+            if (stored.isNotEmpty()) {
+                stored.map { it.toConversation() }
+            } else {
+                tryRestoreLegacyConversations()
+            }
+        if (restoredConversations.isEmpty()) return false
         return try {
-            val type = object : com.google.gson.reflect.TypeToken<List<Conversation>>() {}.type
-            val list: List<Conversation> = com.google.gson.Gson().fromJson(json, type) ?: emptyList()
             conversations.clear()
-            conversations.addAll(list.toMutableList())
+            conversations.addAll(restoredConversations)
 
-            val activeId = prefs.getLong(activeConversationIdKey, -1L)
+            val activeId =
+                runCatching {
+                    runBlocking(Dispatchers.IO) { uiPreferencesRepository.getActiveConversationId() }
+                }.getOrNull() ?: -1L
             activeConversation = conversations.firstOrNull { it.id == activeId } ?: conversations.firstOrNull()
 
-            binding.messagesContainer.removeAllViews()
             activeConversation?.let { renderConversation(it) }
+            if (::drawerPanel.isInitialized) {
+                refreshDrawerConversationItems()
+            }
             true
         } catch (_: Exception) {
             false
         }
+    }
+
+    private fun tryRestoreLegacyConversations(): MutableList<Conversation> {
+        val json = prefs.getString(conversationsKey, null) ?: return mutableListOf()
+        return runCatching {
+            val type = object : com.google.gson.reflect.TypeToken<List<Conversation>>() {}.type
+            val list: List<Conversation> = com.google.gson.Gson().fromJson(json, type) ?: emptyList()
+            val activeId = prefs.getLong(activeConversationIdKey, -1L)
+            lifecycleScope.launch(Dispatchers.IO) {
+                runCatching {
+                    conversationStorageRepository.persistConversations(list.map { it.toStorageRecord() })
+                    uiPreferencesRepository.setActiveConversationId(activeId)
+                    prefs.edit().remove(conversationsKey).remove(activeConversationIdKey).apply()
+                }
+            }
+            list.toMutableList()
+        }.getOrDefault(mutableListOf())
     }
 
     /**
@@ -427,65 +512,6 @@ class MainActivity : AppCompatActivity() {
         // }
     }
     
-    /**
-     * TODO: 显示附件预览（由 ViewModel 状态驱动）
-     */
-    private fun showAttachmentPreview(attachment: Any) {
-        // TODO: 实现附件预览
-        // 移除旧的预览视图
-        // hideAttachmentPreview()
-        
-        // val previewView = layoutInflater.inflate(
-        //     R.layout.aries_selected_file_preview,
-        //     binding.messagesContainer,
-        //     false
-        // )
-        
-        // previewView.findViewById<ImageView>(R.id.ariesSelectedFileIcon).apply {
-        //     val iconRes = when (attachment.attachmentType) {
-        //         AriesAttachmentType.IMAGE -> R.drawable.ic_aries_image
-        //         AriesAttachmentType.PDF -> R.drawable.ic_aries_pdf
-        //         AriesAttachmentType.DOCUMENT -> R.drawable.ic_aries_document
-        //         else -> R.drawable.ic_aries_file
-        //     }
-        //     setImageResource(iconRes)
-        // }
-        
-        // previewView.findViewById<TextView>(R.id.ariesSelectedFileName).text = attachment.fileName
-        // previewView.findViewById<TextView>(R.id.ariesSelectedFileSize).text = 
-        //     formatFileSize(attachment.fileSize)
-        
-        // previewView.findViewById<ImageButton>(R.id.ariesBtnRemoveFile).setOnClickListener {
-        //     chatViewModel.clearAttachment()
-        // }
-        
-        // previewView.visibility = View.VISIBLE
-        // attachmentPreviewView = previewView
-        
-        // binding.messagesContainer.addView(previewView, 0)
-        
-        // binding.scrollArea.post {
-        //     binding.scrollArea.smoothScrollTo(0, 0)
-        // }
-    }
-    
-    /**
-     * 隐藏附件预览
-     */
-    private fun hideAttachmentPreview() {
-        attachmentPreviewView?.let { view ->
-            view.animate()
-                .alpha(0f)
-                .translationY(-20f)
-                .setDuration(200)
-                .withEndAction {
-                    binding.messagesContainer.removeView(view)
-                    attachmentPreviewView = null
-                }
-                .start()
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
 
         super.onCreate(savedInstanceState)
@@ -505,13 +531,15 @@ class MainActivity : AppCompatActivity() {
 
         checkUserAgreement()
 
-        setupToolbar()
+        setupMainChrome()
 
-        setupDrawer()
+        setupComposeDrawer()
         restorePendingQwenDownloadIds()
         registerQwenDownloadReceiverIfNeeded()
         reconcilePendingQwenDownloads()
 
+        observeUiPreferences()
+        setupMessageTranscript()
         setupInputBar()
         registerAutomationLogReceiverIfNeeded()
 
@@ -540,162 +568,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun silentCheckUpdatesOnLaunch() {
-        val now = System.currentTimeMillis()
-        val intervalMs = 6L * 60L * 60L * 1000L
-        val currentVersion =
-                try {
-                    packageManager.getPackageInfo(packageName, 0).versionName ?: ""
-                } catch (_: Exception) {
-                    ""
-                }
-
-        // 1) 先用缓存快速提示（不依赖网络）
-        val cached = UpdateStore.loadLatest(this)
-        if (cached != null) {
-            val newerCached = VersionComparator.compare(cached.version, currentVersion) > 0
-            if (newerCached && UpdateStore.shouldNotify(this, cached.versionTag)) {
-                // 不再直接弹出大的更新界面，改为只发送通知
-                val posted = UpdateNotificationUtil.notifyNewVersion(this, cached)
-                if (posted) {
-                    UpdateStore.markNotified(this, cached.versionTag)
-                } else {
-                    Toast.makeText(this, "发现新版本 ${cached.versionTag}（通知权限未授予）", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
-
-        // 2) 再决定是否进行网络检查
-        val needNetworkCheck =
-            UpdateStore.shouldSilentCheck(this, nowMs = now, intervalMs = intervalMs)
-        if (!needNetworkCheck) return
-
-        // 先打点，避免频繁启动/重建时重复请求
-        UpdateStore.markSilentChecked(this, nowMs = now)
-
-        lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                ReleaseRepository().fetchLatestReleaseResilient(includePrerelease = false)
-            }
-
-            result
-                .onSuccess { latest ->
-                    if (latest == null) return@onSuccess
-                    val newer = VersionComparator.compare(latest.version, currentVersion) > 0
-                    if (!newer) return@onSuccess
-
-                    UpdateStore.saveLatest(this@MainActivity, latest)
-
-                    if (!UpdateStore.shouldNotify(this@MainActivity, latest.versionTag)) return@onSuccess
-
-                    // 不再自动弹出更新详情，改为只发送系统通知，点击通知可进入关于页查看
-                    val posted = UpdateNotificationUtil.notifyNewVersion(this@MainActivity, latest)
-                    if (posted) {
-                        UpdateStore.markNotified(this@MainActivity, latest.versionTag)
-                    } else {
-                        Toast.makeText(this@MainActivity, "发现新版本 ${latest.versionTag}（通知权限未授予）", Toast.LENGTH_LONG).show()
-                    }
-                }
-                .onFailure {
-                    // 静默检查：不打扰用户
-                }
-        }
-    }
-
-    private fun showUpdateLinksDialog(entry: ReleaseEntry) {
-        val options = ReleaseUiUtil.mirroredDownloadOptions(entry.apkUrl)
-        val links = if (options.isNotEmpty()) options else listOf("发布页" to entry.releaseUrl)
-
-        val dialog = Dialog(this)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        val containerView = layoutInflater.inflate(R.layout.dialog_update_links, null)
-        dialog.setContentView(containerView)
-
-        val cardView = containerView.findViewById<View>(R.id.dialogCard)
-
-        dialog.window?.let { window ->
-            window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            window.setLayout(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT
-            )
-            window.setDimAmount(0f)
-            window.setFlags(
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-            )
-            val params = window.attributes
-            params.windowAnimations = 0
-            window.attributes = params
-        }
-
-        val tvTitle = containerView.findViewById<TextView>(R.id.tvTitle)
-        val tvSubtitle = containerView.findViewById<TextView>(R.id.tvSubtitle)
-        val tvBody = containerView.findViewById<TextView>(R.id.tvBody)
-        val rvLinks = containerView.findViewById<RecyclerView>(R.id.rvLinks)
-        val scrollBody = containerView.findViewById<View>(R.id.scrollBody)
-
-        tvTitle.text = "发现新版本 ${entry.versionTag}"
-        tvSubtitle.text = "${UpdateConfig.REPO_OWNER}/${UpdateConfig.REPO_NAME}  •  ${UpdateConfig.APK_ASSET_NAME}"
-        tvBody.text = entry.body.ifBlank { "（无更新说明）" }
-
-        DialogSizingUtil.applyCompactSizing(
-            context = this,
-            cardView = cardView,
-            scrollBody = scrollBody,
-            listView = rvLinks,
-            hasList = true,
-        )
-
-        rvLinks.layoutManager = LinearLayoutManager(this)
-        rvLinks.adapter =
-            UpdateLinkAdapter(
-                items = links,
-                onOpen = { ReleaseUiUtil.openUrl(this@MainActivity, it) },
-                onCopy = {
-                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("text", it))
-                    Toast.makeText(this@MainActivity, "链接已复制", Toast.LENGTH_SHORT).show()
-                },
-            )
-
-        fun exitDialog() {
-            vibrateLight()
-            cardView.animate()
-                .translationY(cardView.height.toFloat() * 1.5f)
-                .alpha(0f)
-                .setDuration(450)
-                .setInterpolator(AccelerateInterpolator(1.2f))
-                .withEndAction { dialog.dismiss() }
-                .start()
-        }
-
-        containerView.findViewById<View>(R.id.btnClose).setOnClickListener { exitDialog() }
-        containerView.setOnClickListener { exitDialog() }
-        cardView.setOnClickListener { }
-
-        containerView.findViewById<View>(R.id.btnOpenRelease).setOnClickListener {
-            exitDialog()
-            ReleaseUiUtil.openUrl(this, entry.releaseUrl)
-        }
-        containerView.findViewById<View>(R.id.btnHistory).setOnClickListener {
-            exitDialog()
-            startActivityWithMaterialForwardTransition(Intent(this, AboutActivity::class.java))
-        }
-
-        dialog.show()
-
-        cardView.post {
-            cardView.translationY = -cardView.height.toFloat() * 1.5f
-            cardView.alpha = 0f
-            cardView.animate()
-                .translationY(0f)
-                .alpha(1f)
-                .scaleX(1.0f)
-                .scaleY(1.0f)
-                .setDuration(600)
-                .setInterpolator(OvershootInterpolator(1.1f))
-                .start()
-        }
+        UpdateStartupCoordinator.silentCheckOnLaunch(this)
     }
 
     private fun checkUserAgreement() {
@@ -720,7 +593,6 @@ class MainActivity : AppCompatActivity() {
             it.isAppearanceLightNavigationBars = useLightSystemBarIcons
         }
         binding.drawerLayout.fitsSystemWindows = false
-        binding.navigationView.fitsSystemWindows = false
         binding.contentRoot.fitsSystemWindows = false
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.drawerLayout) { _, insets ->
@@ -737,115 +609,520 @@ class MainActivity : AppCompatActivity() {
         ViewCompat.requestApplyInsets(binding.drawerLayout)
     }
 
-    private fun setupToolbar() {
-        binding.topAppBar.setNavigationOnClickListener {
-            if (onboardingOverlay.isShowing()) return@setNavigationOnClickListener
-            vibrateLight()
-            hideKeyboard()
-            binding.drawerLayout.openDrawer(GravityCompat.START)
+    private fun setupMainChrome() {
+        binding.topBarCompose.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+        binding.topBarCompose.setContent {
+            AriesMaterialTheme {
+                MainTopBar(
+                    statusText = statusTextState.value,
+                    statusVisible = statusVisibleState.value,
+                    onToggleStatus = {
+                        statusVisibleState.value = !statusVisibleState.value
+                    },
+                    onOpenDrawer = {
+                        if (!onboardingOverlay.isShowing()) {
+                            vibrateLight()
+                            hideKeyboard()
+                            binding.drawerLayout.openDrawer(GravityCompat.START)
+                        }
+                    },
+                    onNewChat = {
+                        vibrateLight()
+                        startNewChat(clearUi = true)
+                    },
+                    onOpenFloatingWindow = {
+                        vibrateLight()
+                        enterMiniWindowMode()
+                    },
+                )
+            }
+        }
+    }
+
+    private fun setupMessageTranscript() {
+        binding.messagesCompose.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+        binding.messagesCompose.setContent {
+            AriesMaterialTheme {
+                ConversationTranscript(
+                    items =
+                        buildList {
+                            addAll(transcriptItemsState.value)
+                            if (streamingTranscriptConversationIdState.value == activeConversation?.id) {
+                                streamingTranscriptItemState.value?.let { add(it) }
+                            }
+                        },
+                    onCopyMessage = { item -> copyTranscriptMessage(item.copyText) },
+                    onRetryMessage = { item ->
+                        val retryText = item.retryText.orEmpty()
+                        if (retryText.isBlank()) {
+                            Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
+                        } else {
+                            retryMessage(retryText)
+                        }
+                    },
+                    onAutomationAction = { item -> handleTranscriptAutomationAction(item) },
+                    thinkingExpandedByDefault = thinkingExpandedByDefaultState.value,
+                )
+            }
+        }
+        syncMessageTranscript()
+    }
+
+    private fun observeUiPreferences() {
+        lifecycleScope.launch {
+            uiPreferencesRepository.thinkingExpandedByDefaultFlow.collect { expanded ->
+                thinkingExpandedByDefaultState.value = expanded
+            }
+        }
+    }
+
+    private fun syncMessageTranscript(conversation: Conversation? = activeConversation) {
+        transcriptItemsState.value =
+            conversation
+                ?.messages
+                ?.mapIndexed { index, message ->
+                    buildTranscriptMessageUi(
+                        conversationId = conversation.id,
+                        index = index,
+                        message = message,
+                    )
+                }
+                .orEmpty()
+    }
+
+    private fun updateStreamingTranscript(
+        retryText: String?,
+        thinking: String,
+        answer: String,
+    ) {
+        val pendingText =
+            getString(
+                if (isLocalModelModeEnabled()) {
+                    R.string.message_local_inference_waiting
+                } else {
+                    R.string.message_connecting_placeholder
+                },
+            )
+        streamingTranscriptConversationIdState.value = activeConversation?.id
+        streamingTranscriptItemState.value =
+            TranscriptMessageUi(
+                conversationId = activeConversation?.id ?: -1L,
+                messageIndex = -1,
+                id = "streaming-assistant",
+                author = "Aries AI",
+                body =
+                    answer.ifBlank {
+                        if (thinking.isBlank()) pendingText else ""
+                    },
+                thinking = thinking.ifBlank { null },
+                thinkingDurationMs = null,
+                isUser = false,
+                attachments = emptyList(),
+                isAutomation = false,
+                copyText = answer,
+                retryText = retryText,
+                isStreaming = true,
+            )
+    }
+
+    private fun clearStreamingTranscript() {
+        streamingTranscriptConversationIdState.value = null
+        streamingTranscriptItemState.value = null
+    }
+
+    private fun updateStreamingTranscriptFromBuffers(
+        retryText: String?,
+        reasoning: CharSequence,
+        answer: CharSequence,
+    ) {
+        updateStreamingTranscript(
+            retryText = retryText,
+            thinking = reasoning.toString(),
+            answer = answer.toString(),
+        )
+    }
+
+    private fun buildTranscriptMessageUi(
+        conversationId: Long,
+        index: Int,
+        message: UiMessage,
+    ): TranscriptMessageUi {
+        if (message.isUser) {
+            return TranscriptMessageUi(
+                conversationId = conversationId,
+                messageIndex = index,
+                id = "$conversationId-user-$index",
+                author = message.author,
+                body = message.content.trim(),
+                thinking = null,
+                thinkingDurationMs = null,
+                isUser = true,
+                attachments =
+                    message.attachments
+                        .orEmpty()
+                        .map { attachment ->
+                            attachment.fileName.ifBlank { File(attachment.filePath).name.ifBlank { attachment.filePath } }
+                        },
+                isAutomation = false,
+                copyText = "",
+                retryText = null,
+            )
         }
 
-        // 统一优化工具栏按钮的点击视觉：去掉默认灰色背景阴影，改为缩放缩放+透明度脉冲
-        binding.topAppBar.post {
-            for (i in 0 until binding.topAppBar.childCount) {
-                val child = binding.topAppBar.getChildAt(i)
-                if (child is ActionMenuView) {
-                    for (j in 0 until child.childCount) {
-                        val menuChild = child.getChildAt(j)
-                        menuChild.background = null // 去除默认背景
-                        menuChild.isClickable = true
+        val messageRef = AutomationMessageRef(conversationId = conversationId, messageIndex = index)
+        val (contentWithoutLogMarkers, embeddedAutomationLogs) = extractAutomationLogMarkers(message.content)
+        val (contentWithoutConfirmedMarker, hasConfirmedMarker) =
+            extractAutomationConfirmedMarker(contentWithoutLogMarkers)
+        val (contentWithoutRejectedMarker, hasRejectedMarker) =
+            extractAutomationRejectedMarker(contentWithoutConfirmedMarker)
+        val (contentWithoutConfirmMarker, confirmInstruction) =
+            extractAutomationConfirmInstruction(contentWithoutRejectedMarker)
+        val (thinking, answerRaw) = parseStoredAiContent(contentWithoutConfirmMarker)
+        val cleanedAnswer = answerRaw.trim().ifBlank { stripAutomationMarker(contentWithoutConfirmMarker).trim() }
+        val isAutomationMessage =
+            cleanedAnswer.startsWith("【自动化】") || extractAutomationCommand(cleanedAnswer) != null
+        val automationCommandText = extractAutomationCommand(cleanedAnswer) ?: confirmInstruction
+        val automationLogs =
+            buildList {
+                addAll(embeddedAutomationLogs)
+                cleanedAnswer
+                    .lines()
+                    .map { it.trim() }
+                    .firstOrNull { it.startsWith("系统未就绪：") }
+                    ?.let { add(it) }
+            }
+        val automationUi =
+            buildTranscriptAutomationUi(
+                messageRef = messageRef,
+                command = automationCommandText,
+                logs = automationLogs,
+                hasConfirm = !confirmInstruction.isNullOrBlank(),
+                hasConfirmed = hasConfirmedMarker,
+                hasRejected = hasRejectedMarker,
+            )
+        val displayBody =
+            cleanedAnswer
+                .removePrefix("【自动化】")
+                .trim()
+                .ifBlank {
+                    if (isAutomationMessage) {
+                        getString(R.string.automation_scene_waiting)
+                    } else {
+                        cleanedAnswer
                     }
-                } else if (child is ImageButton) {
-                    child.background = null // 去除默认背景
                 }
+
+        return TranscriptMessageUi(
+            conversationId = conversationId,
+            messageIndex = index,
+            id = "$conversationId-ai-$index",
+            author = "Aries AI",
+            body = displayBody,
+            thinking = thinking,
+            thinkingDurationMs = message.thinkingDurationMs,
+            isUser = false,
+            attachments = emptyList(),
+            isAutomation = isAutomationMessage,
+            automation = automationUi,
+            copyText = displayBody,
+            retryText = findRetryTextForAssistantMessage(index),
+        )
+    }
+
+    private fun buildTranscriptAutomationUi(
+        messageRef: AutomationMessageRef,
+        command: String?,
+        logs: List<String>,
+        hasConfirm: Boolean,
+        hasConfirmed: Boolean,
+        hasRejected: Boolean,
+    ): TranscriptAutomationUi? {
+        if (command.isNullOrBlank()) return null
+
+        val hasTerminalLog = logs.any { isAutomationTerminalLog(it) }
+        val isNormalFinished = isAutomationNormalFinished(logs)
+        val isTerminatePending = isAutomationTerminatePending(messageRef)
+        val status =
+            when {
+                isTerminatePending -> getString(R.string.automation_scene_stop_requested)
+                hasRejected -> getString(R.string.automation_scene_rejected)
+                hasConfirm -> getString(R.string.automation_scene_need_confirm)
+                hasTerminalLog -> getString(R.string.automation_scene_finished)
+                logs.isNotEmpty() -> getString(R.string.automation_scene_running)
+                hasConfirmed -> getString(R.string.automation_scene_confirmed)
+                else -> getString(R.string.automation_scene_not_ready)
+            }
+
+        val countdownSeconds = automationCountdownSeconds[messageRef]
+        val actionLabel: String?
+        val actionEnabled: Boolean
+        val isDestructive: Boolean
+        val confirmInstruction: String?
+
+        when {
+            hasRejected -> {
+                actionLabel = getString(R.string.automation_rejected)
+                actionEnabled = false
+                isDestructive = false
+                confirmInstruction = null
+            }
+            hasConfirmed && hasTerminalLog -> {
+                actionLabel = getString(R.string.automation_confirmed)
+                actionEnabled = false
+                isDestructive = false
+                confirmInstruction = null
+            }
+            hasConfirmed -> {
+                actionLabel =
+                    if (isTerminatePending) {
+                        getString(R.string.automation_terminating)
+                    } else {
+                        getString(R.string.automation_terminate)
+                    }
+                actionEnabled = !isTerminatePending
+                isDestructive = true
+                confirmInstruction = null
+            }
+            hasConfirm -> {
+                actionLabel =
+                    if (countdownSeconds != null) {
+                        getString(R.string.automation_confirm_countdown, countdownSeconds)
+                    } else {
+                        getString(R.string.automation_confirm)
+                    }
+                actionEnabled = true
+                isDestructive = false
+                confirmInstruction = command
+            }
+            else -> {
+                actionLabel = null
+                actionEnabled = false
+                isDestructive = false
+                confirmInstruction = null
             }
         }
 
-        binding.topAppBar.setOnMenuItemClickListener { item ->
-            vibrateLight()
-            // 通用图标动画
-            findViewById<View>(item.itemId)?.let { view ->
-                view.animate()
-                    .scaleX(0.8f)
-                    .scaleY(0.8f)
-                    .alpha(0.6f)
-                    .setDuration(120)
-                    .withEndAction {
-                        view.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(150).start()
-                    }
-                    .start()
+        return TranscriptAutomationUi(
+            command = command,
+            status = status,
+            logs = logs,
+            actionLabel = actionLabel,
+            actionEnabled = actionEnabled,
+            isDestructive = isDestructive,
+            confirmInstruction = confirmInstruction,
+            autoCollapseLogs = isNormalFinished,
+        )
+    }
+
+    private fun isAutomationNormalFinished(logs: List<String>): Boolean {
+        if (logs.isEmpty()) return false
+        var hasFinished = false
+        logs.forEach { raw ->
+            val line = normalizeAutomationLogLine(raw)
+            if (line.startsWith("结束：") || line.startsWith("结束:")) {
+                hasFinished = true
+            }
+            if (line.startsWith("异常：") || line.startsWith("异常:") || line == "已停止" || line.startsWith("已请求停止")) {
+                return false
+            }
+        }
+        return hasFinished
+    }
+
+    private fun syncTranscriptForAutomationMessage(messageRef: AutomationMessageRef?) {
+        val ref = messageRef ?: return
+        if (activeConversation?.id == ref.conversationId) {
+            syncMessageTranscript(activeConversation)
+        }
+    }
+
+    private fun handleTranscriptAutomationAction(item: TranscriptMessageUi) {
+        val automation = item.automation ?: return
+        if (!item.isAutomation || !automation.actionEnabled) return
+
+        val messageRef = AutomationMessageRef(item.conversationId, item.messageIndex)
+        if (!automation.confirmInstruction.isNullOrBlank()) {
+            clearAutomationAutoConfirm(messageRef)
+            val readyState = resolveAutomationReadyState()
+            if (!readyState.ready) {
+                Toast.makeText(
+                    this,
+                    resolveAutomationNotReadyToast(readyState.reason),
+                    Toast.LENGTH_LONG,
+                ).show()
+                return
             }
 
-            when (item.itemId) {
-                R.id.action_new_chat -> {
-                    // 如果当前已经是空的新对话，则提示并跳过
-                    if (activeConversation?.messages?.isEmpty() == true) {
-                        Toast.makeText(this, "您已处于新对话中！", Toast.LENGTH_SHORT).show()
-                        return@setOnMenuItemClickListener true
-                    }
+            val dispatchResult =
+                ActivityAutomationInstructionGateway.dispatchFromAdvancedAi(
+                    context = this,
+                    instruction = automation.confirmInstruction,
+                )
+            if (dispatchResult.success) {
+                markAutomationCommandConfirmed(automation.confirmInstruction, messageRef)
+            } else {
+                Toast.makeText(
+                    this,
+                    getString(R.string.automation_dispatch_failed, dispatchResult.message),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+            return
+        }
 
-                    startNewChat(clearUi = true)
-                    true
-                }
-                R.id.action_history -> {
-                    showHistoryDialog()
-                    true
-                }
-                R.id.action_floating_window -> {
-                    enterMiniWindowMode()
-                    true
-                }
-                else -> false
+        requestAutomationStopFromHome()
+        markAutomationTerminatePending(messageRef)
+        syncTranscriptForAutomationMessage(messageRef)
+    }
+
+    private fun findRetryTextForAssistantMessage(messageIndex: Int): String? {
+        val conversation = activeConversation ?: return null
+        if (messageIndex !in conversation.messages.indices) return null
+        for (index in (messageIndex - 1) downTo 0) {
+            val candidate = conversation.messages[index]
+            if (candidate.isUser && candidate.content.isNotBlank()) {
+                return candidate.content
+            }
+        }
+        return conversation.messages.findLast { it.isUser && it.content.isNotBlank() }?.content
+    }
+
+    private fun copyTranscriptMessage(text: String) {
+        if (text.isBlank()) return
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val clip = android.content.ClipData.newPlainText("AI Reply", text)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(this, "已复制内容", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun setupComposeDrawer() {
+        drawerPanel = findViewById(R.id.drawerPanel)
+        val drawerComposeView = drawerPanel.findViewById<ComposeView>(R.id.drawerComposeView)
+        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
+
+        drawerComposeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+        drawerComposeView.setContent {
+            AriesMaterialTheme {
+                ConversationDrawer(
+                    searchQuery = drawerSearchQueryState.value,
+                    items = drawerConversationItemsState.value,
+                    emptyMessage = drawerEmptyMessageState.value,
+                    onSearchQueryChange = { query ->
+                        drawerSearchQueryState.value = query
+                        refreshDrawerConversationItems()
+                    },
+                    onConversationClick = { conversationId ->
+                        val target = conversations.firstOrNull { it.id == conversationId }
+                        if (target != null) {
+                            activeConversation = target
+                            renderConversation(target, animateTransition = true)
+                            persistConversations()
+                            binding.drawerLayout.closeDrawer(GravityCompat.START)
+                        }
+                    },
+                    onConversationLongClick = { conversationId ->
+                        if (deleteConversationById(conversationId, clearUiForActive = true)) {
+                            vibrateLight()
+                        }
+                    },
+                    onSettingsClick = {
+                        vibrateLight()
+                        navigateFromDrawer {
+                            startActivityWithMaterialForwardTransition(
+                                Intent(this@MainActivity, DrawerSettingsActivity::class.java),
+                            )
+                        }
+                    },
+                )
             }
         }
 
-        offsetTopBarIcons()
+        binding.drawerLayout.setScrimColor(ContextCompat.getColor(this, R.color.m3t_drawer_scrim))
+        binding.drawerLayout.setStatusBarBackgroundColor(Color.TRANSPARENT)
+        binding.drawerLayout.setStatusBarBackground(null)
+        binding.drawerLayout.addDrawerListener(
+            object : DrawerLayout.SimpleDrawerListener() {
+                override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
+                    isDrawerMoving = slideOffset > 0f && slideOffset < 1f
+                }
+
+                override fun onDrawerClosed(drawerView: View) {
+                    isDrawerMoving = false
+                    runPendingDrawerNavigationAction()
+                }
+
+                override fun onDrawerOpened(drawerView: View) {
+                    isDrawerMoving = false
+                    hideKeyboard()
+                }
+            },
+        )
+
+        restoreApiKey()
+        refreshDrawerConversationItems()
+    }
+
+    private fun deleteConversationById(
+        conversationId: Long,
+        clearUiForActive: Boolean,
+    ): Boolean {
+        if (conversations.none { it.id == conversationId }) {
+            return false
+        }
+        conversations.removeAll { it.id == conversationId }
+        if (activeConversation?.id == conversationId) {
+            activeConversation = null
+            startNewChat(clearUi = clearUiForActive)
+        } else {
+            persistConversations()
+        }
+        return true
+    }
+
+    private fun refreshDrawerConversationItems() {
+        val query = drawerSearchQueryState.value.trim()
+        val filtered =
+            conversations
+                .sortedByDescending { it.updatedAt }
+                .filter { conversation ->
+                    if (query.isBlank()) {
+                        true
+                    } else {
+                        val preview = buildDrawerConversationPreview(conversation)
+                        conversation.title.contains(query, ignoreCase = true) ||
+                            preview.contains(query, ignoreCase = true)
+                    }
+                }
+
+        drawerConversationItemsState.value =
+            filtered.map { conversation ->
+                DrawerConversationUiItem.Conversation(
+                    conversationId = conversation.id,
+                    title = conversation.title.ifBlank { getString(R.string.top_bar_new_chat) },
+                    preview = buildDrawerConversationPreview(conversation),
+                    selected = conversation.id == activeConversation?.id,
+                )
+            }
+
+        drawerEmptyMessageState.value =
+            if (query.isBlank()) {
+                getString(R.string.drawer_empty)
+            } else {
+                getString(R.string.drawer_empty_search)
+            }
+    }
+
+    private fun buildDrawerConversationPreview(conversation: Conversation): String {
+        val lastMessage = conversation.messages.lastOrNull() ?: return ""
+        return if (lastMessage.isUser) {
+            lastMessage.content.trim()
+        } else {
+            parseStoredAiContent(lastMessage.content).second.trim()
+        }
     }
 
     private fun maybeShowPermissionBottomSheet() {
         onboardingOverlay.showPermissionOnlyIfNeeded()
-    }
-
-    private fun offsetTopBarIcons() {
-        binding.topAppBar.post {
-            val toolbar = binding.topAppBar
-            val toolbarTitle = toolbar.title?.toString().orEmpty()
-
-            var titleView: TextView? = null
-            for (i in 0 until toolbar.childCount) {
-                val child = toolbar.getChildAt(i)
-                if (child is TextView && child.text?.toString() == toolbarTitle) {
-                    titleView = child
-                    break
-                }
-            }
-            if (titleView == null) {
-                for (i in 0 until toolbar.childCount) {
-                    val child = toolbar.getChildAt(i)
-                    if (child is TextView && child.text?.isNotBlank() == true) {
-                        titleView = child
-                        break
-                    }
-                }
-            }
-
-            val title = titleView ?: return@post
-            val titleCenterY = title.top + title.height / 2f
-
-            for (i in 0 until toolbar.childCount) {
-                val child = toolbar.getChildAt(i)
-                if (child is ActionMenuView) {
-                    for (j in 0 until child.childCount) {
-                        val menuChild = child.getChildAt(j)
-                        val menuCenterY = menuChild.top + menuChild.height / 2f
-                        menuChild.translationY = titleCenterY - menuCenterY
-                    }
-                } else if (child is ImageButton) {
-                    val navCenterY = child.top + child.height / 2f
-                    child.translationY = titleCenterY - navCenterY
-                }
-            }
-        }
     }
 
     override fun onResume() {
@@ -909,17 +1186,8 @@ class MainActivity : AppCompatActivity() {
                     if (!exists) {
                         c.messages.add(UiMessage(author = author, content = content, isUser = isUser))
                         c.updatedAt = System.currentTimeMillis()
-                        if (isUser) {
-                            appendComplexUserMessage(author, content, animate = false)
-                        } else {
-                            appendComplexAiMessage(
-                                author,
-                                content,
-                                animate = false,
-                                timeCostMs = 0,
-                                messageIndexInConversation = c.messages.lastIndex
-                            )
-                        }
+                        syncMessageTranscript(c)
+                        smoothScrollToBottom()
                         persistConversations()
                     }
                 }
@@ -927,8 +1195,9 @@ class MainActivity : AppCompatActivity() {
             
             override fun onMessagesCleared() {
                 runOnUiThread {
-                    binding.messagesContainer.removeAllViews()
-                    clearAutomationPanelRuntimeRefs()
+                    resetAutomationPanelRuntimeState()
+                    clearStreamingTranscript()
+                    syncMessageTranscript()
                 }
             }
         })
@@ -974,7 +1243,7 @@ class MainActivity : AppCompatActivity() {
         currentIntent.removeExtra(EXTRA_SCROLL_TO_BOTTOM)
         currentIntent.removeExtra(EXTRA_SHOW_AUTOMATION_STOP)
 
-        binding.messagesContainer.post {
+        binding.messagesContentHost.post {
             revealActionAreasForMessages()
             smoothScrollToBottom()
         }
@@ -1136,54 +1405,19 @@ class MainActivity : AppCompatActivity() {
     private fun refreshLocalModelReadyState() {
         localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
         updateLocalModelSwitchAvailabilityUi()
-        updateQwenDownloadButtonState()
         updateStatusText()
     }
 
     private fun updateLocalModelSwitchAvailabilityUi() {
-        if (!::localModelSwitchRow.isInitialized || !::localModelSwitch.isInitialized) return
-
-        if (localModelReady) {
-            localModelSwitchRow.visibility = View.VISIBLE
-            return
-        }
-
-        localModelSwitchRow.visibility = View.GONE
-
-        val prefEnabled = prefs.getBoolean(apiUseLocalModelPref, false)
-        val switchEnabled = localModelSwitch.isChecked
-        if (prefEnabled || switchEnabled) {
-            suppressModelSwitchWatcher = true
-            localModelSwitch.isChecked = false
-            suppressModelSwitchWatcher = false
+        if (!localModelReady) {
+            val prefEnabled = prefs.getBoolean(apiUseLocalModelPref, false)
+            if (prefEnabled || useLocalModel) {
+                useLocalModel = false
             prefs.edit().putBoolean(apiUseLocalModelPref, false).apply()
             applyLocalModelUiState(false)
             onApiConfigPotentiallyChanged(showNeedsCheckMessage = false)
-        } else {
-            applyLocalModelUiState(false)
-        }
-    }
-
-    private fun updateQwenDownloadButtonState() {
-        val button = qwenDownloadButton ?: return
-        val shouldShow = prefs.getBoolean(localModelDownloadButtonVisiblePref, false)
-        if (!shouldShow) {
-            button.visibility = View.GONE
-            return
-        }
-        button.visibility = View.VISIBLE
-        when {
-            qwenDownloadInFlight -> {
-                button.isEnabled = false
-                button.text = getString(R.string.m3t_sidebar_qwen_download_preparing)
-            }
-            localModelReady -> {
-                button.isEnabled = true
-                button.text = getString(R.string.m3t_sidebar_qwen_download_ready)
-            }
-            else -> {
-                button.isEnabled = true
-                button.text = getString(R.string.m3t_sidebar_qwen_download)
+            } else {
+                applyLocalModelUiState(false)
             }
         }
     }
@@ -1235,17 +1469,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyLocalModelUiState(enabled: Boolean) {
-        apiRemoteConfigContainer.visibility = if (enabled) View.GONE else View.VISIBLE
+        useLocalModel = enabled
         updateStatusText()
     }
 
-    private fun clearAutomationPanelRuntimeRefs() {
-        activeAutomationPanelConversationId = -1L
-        activeAutomationPanelMessageIndex = -1
-        activeAutomationPanelLogContainer = null
-        activeAutomationPanelStatusView = null
-        activeAutomationPanelConfirmButton = null
-        activeAutomationPanelConfirmTextView = null
+    private fun resetAutomationPanelRuntimeState() {
+        clearAutomationTerminatePending()
         clearAutomationAutoConfirm()
     }
 
@@ -1271,14 +1500,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun resolveAutomationMessageRef(messageRef: AutomationMessageRef?): AutomationMessageRef? {
-        if (messageRef != null) return messageRef
-        val cid = activeAutomationPanelConversationId
-        val idx = activeAutomationPanelMessageIndex
-        return if (cid > 0L && idx >= 0) {
-            AutomationMessageRef(cid, idx)
-        } else {
-            null
-        }
+        return messageRef
     }
 
     private fun isAutomationTerminatePending(messageRef: AutomationMessageRef?): Boolean {
@@ -1288,13 +1510,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun markAutomationTerminatePending(messageRef: AutomationMessageRef?) {
         automationTerminatePendingRef = resolveAutomationMessageRef(messageRef)
+        syncTranscriptForAutomationMessage(automationTerminatePendingRef)
     }
 
     private fun clearAutomationTerminatePending(messageRef: AutomationMessageRef? = null) {
         if (messageRef == null) {
+            val previousRef = automationTerminatePendingRef
             automationTerminatePendingRef = null
             automationTerminateFallbackJob?.cancel()
             automationTerminateFallbackJob = null
+            syncTranscriptForAutomationMessage(previousRef)
             return
         }
         val resolved = resolveAutomationMessageRef(messageRef) ?: return
@@ -1302,6 +1527,7 @@ class MainActivity : AppCompatActivity() {
             automationTerminatePendingRef = null
             automationTerminateFallbackJob?.cancel()
             automationTerminateFallbackJob = null
+            syncTranscriptForAutomationMessage(resolved)
         }
     }
 
@@ -1315,45 +1541,23 @@ class MainActivity : AppCompatActivity() {
         if (isUser) {
             return conversation.messages.any { it.isUser && it.content.trim() == incomingRaw }
         }
-
-        val incomingStripped = stripAutomationMarker(incomingRaw).trim()
-        val incomingAnswer = parseStoredAiContent(incomingStripped).second.trim()
-        return conversation.messages.any { msg ->
-            if (msg.isUser) return@any false
-            val existingStripped = stripAutomationMarker(msg.content).trim()
-            if (existingStripped == incomingStripped) return@any true
-
-            val existingAnswer = parseStoredAiContent(existingStripped).second.trim()
-            incomingAnswer.isNotBlank() &&
-                existingAnswer.isNotBlank() &&
-                existingAnswer == incomingAnswer
-        }
+        return AutomationMessageParser.hasEquivalentAssistantMessage(
+            existingAssistantMessages =
+                conversation.messages.filterNot { it.isUser }.map { it.content },
+            incomingRaw = incomingRaw,
+        )
     }
 
     private fun encodeAutomationLogMarker(logLine: String): String {
-        val encoded = Base64.encodeToString(logLine.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-        return "[[AUTO_LOG_B64:$encoded]]"
+        return AutomationMessageParser.encodeAutomationLogMarker(logLine)
     }
 
     private fun decodeAutomationLogMarker(markerPayload: String): String? {
-        return runCatching {
-            val bytes = Base64.decode(markerPayload, Base64.DEFAULT)
-            String(bytes, Charsets.UTF_8).trim()
-        }.getOrNull()?.takeIf { it.isNotBlank() }
+        return AutomationMessageParser.decodeAutomationLogMarker(markerPayload)
     }
 
     private fun extractAutomationLogMarkers(rawMessage: String): Pair<String, List<String>> {
-        val markerRegex =
-            Regex(
-                """\[\[AUTO_LOG_B64:(.*?)]]""",
-                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
-            )
-        val logs =
-            markerRegex.findAll(rawMessage).mapNotNull { match ->
-                decodeAutomationLogMarker(match.groupValues.getOrNull(1)?.trim().orEmpty())
-            }.toList()
-        val cleaned = markerRegex.replace(rawMessage, "").trim()
-        return cleaned to logs
+        return AutomationMessageParser.extractAutomationLogMarkers(rawMessage)
     }
 
     private fun findLatestAutomationPanelMessageIndex(conversation: Conversation): Int {
@@ -1386,14 +1590,7 @@ class MainActivity : AppCompatActivity() {
             lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) &&
                 activeConversation?.id == conversation.id
 
-        if (canRenderNow &&
-            activeAutomationPanelConversationId == conversation.id &&
-            activeAutomationPanelMessageIndex == targetIndex
-        ) {
-            appendAutomationLogToPanelUi(logLine)
-        } else if (canRenderNow) {
-            renderConversation(conversation)
-        } else {
+        if (!canRenderNow) {
             pendingAutomationLogUiRefresh = true
         }
         if (isAutomationTerminalLog(normalizedLogLine)) {
@@ -1404,39 +1601,9 @@ class MainActivity : AppCompatActivity() {
                 )
             )
         }
+        syncMessageTranscript(conversation)
         persistConversations()
         return true
-    }
-
-    private fun appendAutomationLogToPanelUi(logLine: String) {
-        val normalized = normalizeAutomationLogLine(logLine)
-        val logContainer = activeAutomationPanelLogContainer
-        if (logContainer != null) {
-            @Suppress("UNCHECKED_CAST")
-            val timeline =
-                (logContainer.tag as? MutableList<AutomationTimelineEntry>)
-                    ?: mutableListOf<AutomationTimelineEntry>().also { logContainer.tag = it }
-            appendAutomationTimelineEntry(timeline, normalized)
-            renderAutomationTimelineRows(logContainer, timeline)
-        }
-        if (isAutomationTerminalLog(normalized)) {
-            val statusView = activeAutomationPanelStatusView
-            val button = activeAutomationPanelConfirmButton
-            val textView = activeAutomationPanelConfirmTextView
-            val iconView = button?.findViewById<ImageView?>(R.id.iv_confirm_icon)
-            configureAutomationFinishedButton(
-                button = button,
-                textView = textView,
-                iconView = iconView,
-                statusView = statusView
-            )
-        } else {
-            val statusView = activeAutomationPanelStatusView
-            val finishedText = getString(R.string.automation_scene_finished)
-            if (statusView?.text?.toString() != finishedText) {
-                statusView?.text = getString(R.string.automation_scene_running)
-            }
-        }
     }
 
     private fun appendAutomationLogAsAiMessage(rawLogLine: String) {
@@ -1467,16 +1634,12 @@ class MainActivity : AppCompatActivity() {
                 lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) &&
                         activeConversation?.id == c.id
         if (canRenderNow) {
-            appendComplexAiMessage(
-                "Aries AI",
-                messageContent,
-                animate = false,
-                timeCostMs = 0,
-                messageIndexInConversation = c.messages.lastIndex
-            )
+            syncMessageTranscript(c)
+            smoothScrollToBottom()
         } else {
             pendingAutomationLogUiRefresh = true
         }
+        syncMessageTranscript(c)
         persistConversations()
     }
 
@@ -1498,15 +1661,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isAutomationTerminalLog(rawLogLine: String): Boolean {
-        val normalized = normalizeAutomationLogLine(rawLogLine)
-        if (normalized.isBlank()) return false
-        return normalized.startsWith("结束：") ||
-            normalized.startsWith("结束:") ||
-            normalized == "已停止" ||
-            normalized == "已请求停止" ||
-            normalized.startsWith("已请求停止") ||
-            normalized.startsWith("异常：") ||
-            normalized.startsWith("异常:")
+        return AutomationMessageParser.isAutomationTerminalLog(rawLogLine)
     }
 
     private data class AutomationReadyState(
@@ -1757,7 +1912,9 @@ class MainActivity : AppCompatActivity() {
     private var isDrawerMoving = false
     private var pendingDrawerNavigationAction: (() -> Unit)? = null
 
-    private fun setupDrawer() {
+    private fun setupDrawer() = Unit
+
+    /*
 
         val header = binding.navigationView.getHeaderView(0)
 
@@ -2131,6 +2288,7 @@ class MainActivity : AppCompatActivity() {
             true
         }
     }
+    */
 
     private fun navigateFromDrawer(action: () -> Unit) {
         if (onboardingOverlay.isShowing()) return
@@ -2154,27 +2312,22 @@ class MainActivity : AppCompatActivity() {
     private fun restoreApiKey() {
 
         val saved = prefs.getString("api_key", "") ?: ""
+        useThirdPartyApi = prefs.getBoolean(apiUseThirdPartyPref, false)
+        useLocalModel = prefs.getBoolean(apiUseLocalModelPref, false)
+        apiBaseUrl =
+            prefs.getString(apiThirdPartyBaseUrlPref, AutoGlmClient.DEFAULT_BASE_URL)
+                .orEmpty()
+                .ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
+        apiModel =
+            prefs.getString(apiThirdPartyModelPref, AutoGlmClient.DEFAULT_MODEL)
+                .orEmpty()
+                .ifBlank { AutoGlmClient.DEFAULT_MODEL }
 
-        apiInput.tag = saved
-        suppressApiInputWatcher = true
-        suppressModelSwitchWatcher = true
-        apiInput.setText(maskKey(saved))
-        apiInput.setSelection(apiInput.text?.length ?: 0)
-        val useThirdParty = prefs.getBoolean(apiUseThirdPartyPref, false)
-        val useLocalModel = prefs.getBoolean(apiUseLocalModelPref, false)
-        apiThirdPartySwitch.isChecked = useThirdParty
-        localModelSwitch.isChecked = useLocalModel
-        apiThirdPartyContainer.visibility =
-                if (apiThirdPartySwitch.isChecked) View.VISIBLE else View.GONE
-        apiBaseUrlInput.setText(
-                prefs.getString(apiThirdPartyBaseUrlPref, AutoGlmClient.DEFAULT_BASE_URL)
-        )
-        apiModelInput.setText(
-                prefs.getString(apiThirdPartyModelPref, AutoGlmClient.DEFAULT_MODEL)
-        )
+        if (useLocalModel && !localModelReady) {
+            useLocalModel = false
+            prefs.edit().putBoolean(apiUseLocalModelPref, false).apply()
+        }
         applyLocalModelUiState(useLocalModel)
-        suppressApiInputWatcher = false
-        suppressModelSwitchWatcher = false
 
         if (saved.isBlank()) {
             onApiConfigChanged(clearApiValue = true, showNeedsCheckMessage = false)
@@ -2192,7 +2345,6 @@ class MainActivity : AppCompatActivity() {
             remoteApiOk = ok
             remoteApiChecking = false
             lastCheckedApiKey = saved
-            apiStatus.text = if (ok) "API 可用" else "API 检查失败"
             updateStatusText()
             return
         }
@@ -2200,7 +2352,6 @@ class MainActivity : AppCompatActivity() {
         lastCheckedApiKey = saved
         remoteApiOk = null
         remoteApiChecking = false
-        apiStatus.text = "未检查"
         updateStatusText()
     }
 
@@ -2208,7 +2359,7 @@ class MainActivity : AppCompatActivity() {
             key: String,
             baseUrl: String = AutoGlmClient.DEFAULT_BASE_URL,
             model: String = AutoGlmClient.DEFAULT_MODEL,
-            useThirdParty: Boolean = apiThirdPartySwitch.isChecked,
+            useThirdParty: Boolean = useThirdPartyApi,
             force: Boolean,
     ) {
         val k = key.trim()
@@ -2219,14 +2370,10 @@ class MainActivity : AppCompatActivity() {
             if (lastCheckedApiKey == k && remoteApiOk != null) return
         }
 
-        val header = binding.navigationView.getHeaderView(0)
-        val apiStatus = header.findViewById<TextView>(R.id.apiStatus)
-
         remoteApiChecking = true
         remoteApiOk = null
         lastCheckedApiKey = k
 
-        apiStatus.text = "检查中..."
         updateStatusText()
 
         val seq = ++apiCheckSeq
@@ -2235,7 +2382,6 @@ class MainActivity : AppCompatActivity() {
         if (baseUrlSecurityError != null) {
             remoteApiChecking = false
             remoteApiOk = false
-            apiStatus.text = "API 地址不安全"
             updateStatusText()
             if (force) {
                 Toast.makeText(this, baseUrlSecurityError, Toast.LENGTH_LONG).show()
@@ -2267,7 +2413,6 @@ class MainActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
             }
-            apiStatus.text = if (ok) "API 可用" else "API 检查失败"
             prefs.edit()
                     .putString(
                             apiLastCheckSigPref,
@@ -2298,7 +2443,6 @@ class MainActivity : AppCompatActivity() {
                     .remove(apiLastCheckOkPref)
                     .remove(apiLastCheckTimePref)
                     .apply()
-            apiStatus.text = "未检查"
             updateStatusText()
             return
         }
@@ -2315,7 +2459,6 @@ class MainActivity : AppCompatActivity() {
                     .remove(apiLastCheckOkPref)
                     .remove(apiLastCheckTimePref)
                     .apply()
-            apiStatus.text = "未检查"
             updateStatusText()
             return
         }
@@ -2325,7 +2468,7 @@ class MainActivity : AppCompatActivity() {
                         apiKey = currentKey,
                         baseUrl = resolveApiBaseUrl(),
                         model = resolveApiModel(),
-                        useThirdParty = apiThirdPartySwitch.isChecked,
+                        useThirdParty = useThirdPartyApi,
                 )
         val lastSig = prefs.getString(apiLastCheckSigPref, "").orEmpty()
         val hasLast = prefs.contains(apiLastCheckOkPref)
@@ -2334,7 +2477,6 @@ class MainActivity : AppCompatActivity() {
             remoteApiOk = ok
             remoteApiChecking = false
             lastCheckedApiKey = currentKey
-            apiStatus.text = if (ok) "API 可用" else "API 检查失败"
             updateStatusText()
             return
         }
@@ -2343,7 +2485,6 @@ class MainActivity : AppCompatActivity() {
         remoteApiOk = null
         remoteApiChecking = false
         lastCheckedApiKey = ""
-        apiStatus.text = "请检查API配置"
         updateStatusText()
 
         if (showNeedsCheckMessage && !apiNeedsRecheckToastShown) {
@@ -2357,7 +2498,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isLocalModelModeEnabled(): Boolean {
-        return ::localModelSwitch.isInitialized && localModelSwitch.isChecked
+        val prefEnabled = prefs.getBoolean(apiUseLocalModelPref, false)
+        val enabled = prefEnabled && localModelReady
+        if (useLocalModel != enabled) {
+            useLocalModel = enabled
+        }
+        return enabled
     }
 
     private fun normalizeBaseUrlInput(rawUrl: String): String? {
@@ -2375,13 +2521,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun resolveApiBaseUrl(): String {
         if (isLocalModelModeEnabled()) {
-            val storedThirdPartyBaseUrl =
-                prefs.getString(apiThirdPartyBaseUrlPref, "").orEmpty()
-            return normalizeBaseUrlInput(storedThirdPartyBaseUrl)
-                ?: AutoGlmClient.DEFAULT_BASE_URL
+            return AutoGlmClient.DEFAULT_BASE_URL
         }
-        if (!apiThirdPartySwitch.isChecked) return AutoGlmClient.DEFAULT_BASE_URL
-        val rawUrl = apiBaseUrlInput.text?.toString().orEmpty()
+        if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_BASE_URL
+        val rawUrl = apiBaseUrl
         return normalizeBaseUrlInput(rawUrl) ?: AutoGlmClient.DEFAULT_BASE_URL
     }
 
@@ -2427,15 +2570,15 @@ class MainActivity : AppCompatActivity() {
         if (isLocalModelModeEnabled()) {
             return ModelScopeModelDownloader.QWEN35_MODEL_NAME
         }
-        if (!apiThirdPartySwitch.isChecked) return AutoGlmClient.DEFAULT_MODEL
-        return apiModelInput.text?.toString()?.trim().orEmpty().ifBlank { AutoGlmClient.DEFAULT_MODEL }
+        if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_MODEL
+        return apiModel.trim().ifBlank { AutoGlmClient.DEFAULT_MODEL }
     }
 
     private fun apiConfigSignature(
             apiKey: String,
             baseUrl: String,
             model: String,
-            useThirdParty: Boolean = apiThirdPartySwitch.isChecked,
+            useThirdParty: Boolean = useThirdPartyApi,
     ): String {
         val normalizedBaseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
         val normalizedModel = model.ifBlank { AutoGlmClient.DEFAULT_MODEL }
@@ -2443,22 +2586,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun resolveApiKeyFromInput(): String {
-        val displayed = apiInput.text?.toString().orEmpty()
-        val tagKey = (apiInput.tag as? String).orEmpty().trim()
-        val savedKey = prefs.getString("api_key", "").orEmpty().trim()
-
-        val resolved =
-                when {
-                    tagKey.isNotBlank() && displayed == maskKey(tagKey) -> tagKey
-                    savedKey.isNotBlank() && displayed == maskKey(savedKey) -> savedKey
-                    displayed.contains("*") && savedKey.isNotBlank() -> savedKey
-                    else -> displayed
-                }
-        return resolved.trim()
+        return prefs.getString("api_key", "").orEmpty().trim()
     }
 
     private fun updateStatusText() {
-        val localModeEnabled = ::localModelSwitch.isInitialized && localModelSwitch.isChecked
+        val localModeEnabled = useLocalModel
         if (localModeEnabled) {
             val localText =
                 when {
@@ -2467,22 +2599,22 @@ class MainActivity : AppCompatActivity() {
                     localModelReady -> getString(R.string.m3t_sidebar_local_model_ready)
                     else -> getString(R.string.m3t_sidebar_local_model_not_ready)
                 }
-            binding.statusText.text = localText
+            statusTextState.value = localText
             return
         }
 
         val text =
                 when {
-                    remoteApiChecking && offlineModelReady -> "已配置语音模型 | API 检查中..."
-                    remoteApiChecking -> "检查中..."
-                    remoteApiOk == true && offlineModelReady -> "已连接模型 | 语音模型已就绪"
-                    remoteApiOk == true -> "已连接模型"
-                    remoteApiOk == false && offlineModelReady -> "未连接 | 语音模型已就绪"
-                    remoteApiOk == false -> "未连接"
-                    offlineModelReady -> "语音模型已就绪"
+                    remoteApiChecking && offlineModelReady -> getString(R.string.status_checking_with_voice)
+                    remoteApiChecking -> getString(R.string.status_checking)
+                    remoteApiOk == true && offlineModelReady -> getString(R.string.status_connected_with_voice)
+                    remoteApiOk == true -> getString(R.string.status_connected)
+                    remoteApiOk == false && offlineModelReady -> getString(R.string.status_disconnected_with_voice)
+                    remoteApiOk == false -> getString(R.string.status_disconnected_short)
+                    offlineModelReady -> getString(R.string.status_ready)
                     else -> getString(R.string.status_disconnected)
                 }
-        binding.statusText.text = text
+        statusTextState.value = text
     }
 
     private fun maskKey(raw: String): String {
@@ -2725,6 +2857,40 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        binding.floatingInputLayer.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            syncFloatingInputPadding()
+        }
+        binding.floatingInputLayer.post {
+            syncFloatingInputPadding()
+        }
+    }
+
+    private fun syncFloatingInputPadding() {
+        val extraBottomPadding =
+            binding.floatingInputLayer.height + resources.getDimensionPixelSize(R.dimen.m3t_spacing_md)
+        binding.messagesContentHost.setPadding(
+            binding.messagesContentHost.paddingLeft,
+            binding.messagesContentHost.paddingTop,
+            binding.messagesContentHost.paddingRight,
+            extraBottomPadding,
+        )
+        if (shouldAutoFollowBottom(extraBottomPadding * 2)) {
+            binding.scrollArea.post {
+                binding.scrollArea.smoothScrollTo(0, binding.messagesContentHost.bottom)
+            }
+        }
+    }
+
+    private fun hasAssistantOutputInActiveConversation(): Boolean {
+        return activeConversation?.messages?.any { !it.isUser && it.content.isNotBlank() } == true
+    }
+
+    private fun shouldAutoFollowBottom(thresholdPx: Int = 0): Boolean {
+        if (!hasAssistantOutputInActiveConversation()) return false
+        val distanceToBottom =
+            binding.messagesContentHost.bottom - (binding.scrollArea.scrollY + binding.scrollArea.height)
+        return distanceToBottom <= thresholdPx.coerceAtLeast(0)
     }
 
     private fun hideKeyboard() {
@@ -2733,23 +2899,7 @@ class MainActivity : AppCompatActivity() {
         binding.inputBarCompose.clearFocus()
     }
 
-    private fun elevateAiBar() {
-
-        val aiBar = binding.topAppBar
-
-        aiBar.elevation = 0f
-        aiBar.background = null
-        aiBar.setBackgroundColor(Color.TRANSPARENT)
-        aiBar.stateListAnimator = null
-
-        val params = aiBar.layoutParams as LinearLayout.LayoutParams
-
-        params.topMargin = 0
-        params.marginStart = 0
-        params.marginEnd = 0
-
-        aiBar.layoutParams = params
-    }
+    private fun elevateAiBar() = Unit
 
     private fun setupKeyboardListener() {
 
@@ -2776,9 +2926,9 @@ class MainActivity : AppCompatActivity() {
             )
 
             val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            if (imeVisible && !lastImeVisible) {
+            if (imeVisible && !lastImeVisible && shouldAutoFollowBottom(resources.getDimensionPixelSize(R.dimen.m3t_spacing_xxl))) {
                 binding.scrollArea.post {
-                    binding.scrollArea.smoothScrollTo(0, binding.messagesContainer.height)
+                    binding.scrollArea.smoothScrollTo(0, binding.messagesContentHost.height)
                 }
             }
             lastImeVisible = imeVisible
@@ -2786,7 +2936,7 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        val nav = binding.navigationView
+        val nav = drawerPanel
         val navInitialLeft = nav.paddingLeft
         val navInitialTop = nav.paddingTop
         val navInitialRight = nav.paddingRight
@@ -2809,7 +2959,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun startNewChat(clearUi: Boolean) {
         // 防止启动多个重复的空会话
-        if (activeConversation != null && activeConversation!!.messages.isEmpty()) {
+        if (isAlreadyInNewChat()) {
             Toast.makeText(this, "您已处于新对话中！", Toast.LENGTH_SHORT).show()
             return
         }
@@ -2818,10 +2968,11 @@ class MainActivity : AppCompatActivity() {
         val c = Conversation(id = now, title = "", messages = mutableListOf(), updatedAt = now)
         conversations.add(0, c)
         activeConversation = c
+        clearStreamingTranscript()
         
         if (clearUi) {
             // 逐步缩小收敛一气呵成向上收缩：不再只是平移，而是带有一种“消失”的速度感
-            binding.messagesContainer.animate()
+            binding.messagesContentHost.animate()
                 .translationY(-1000f) // 冲刺距离加大，一气呵成
                 .scaleX(0.6f)         // 收缩更明显
                 .scaleY(0.6f)
@@ -2829,25 +2980,31 @@ class MainActivity : AppCompatActivity() {
                 .setDuration(400)      // 稍微加快，更显果断
                 .setInterpolator(AccelerateInterpolator(1.8f)) // 纯加速，无回弹
                 .withEndAction {
-                    binding.messagesContainer.removeAllViews()
-                    clearAutomationPanelRuntimeRefs()
+                    resetAutomationPanelRuntimeState()
+                    syncMessageTranscript(c)
                     
                     // 状态瞬间回位
-                    binding.messagesContainer.translationY = 0f
-                    binding.messagesContainer.scaleX = 1f
-                    binding.messagesContainer.scaleY = 1f
+                    binding.messagesContentHost.translationY = 0f
+                    binding.messagesContentHost.scaleX = 1f
+                    binding.messagesContentHost.scaleY = 1f
                     
                     // 新对话界面原地极其自然地透出来
-                    binding.messagesContainer.animate()
+                    binding.messagesContentHost.animate()
                         .alpha(1.0f)
                         .setDuration(500)
                         .setInterpolator(DecelerateInterpolator())
                         .start()
                 }
                 .start()
+        } else {
+            syncMessageTranscript(c)
         }
         persistConversations()
     }
+
+    private fun isAlreadyInNewChat(): Boolean =
+        activeConversation?.messages?.isEmpty() == true &&
+            streamingTranscriptConversationIdState.value == null
 
     private fun requireActiveConversation(): Conversation {
         val c = activeConversation
@@ -2862,85 +3019,66 @@ class MainActivity : AppCompatActivity() {
                 )
     }
 
-    private fun renderConversation(conversation: Conversation) {
-        binding.messagesContainer.removeAllViews()
-        clearAutomationPanelRuntimeRefs()
-        var lastUserContent: String? = null
-        val currentModel = resolveApiModel() // 获取当前模型配置
-        for ((index, m) in conversation.messages.withIndex()) {
-            // 历史消息全部使用新的复杂气泡（如果是AI），确保视觉风格统一
-            if (!m.isUser) {
-                // 无论是包含 leshoot 还是普通消息，都使用 appendComplexAiMessage
-                // 使用 animate = false 立即显示
-                appendComplexAiMessage(
-                    m.author,
-                    m.content,
-                    animate = false,
-                    timeCostMs = m.thinkingDurationMs ?: 0L,
-                    retryUserText = lastUserContent,
-                    messageIndexInConversation = index,
-                    modelName = currentModel
-                )
-            } else {
-                lastUserContent = m.content
-                appendComplexUserMessage(
-                    m.author,
-                    m.content,
-                    animate = false,
-                    attachments = m.attachments.orEmpty()
+    private fun renderConversation(
+        conversation: Conversation,
+        animateTransition: Boolean = false,
+    ) {
+        resetAutomationPanelRuntimeState()
+        fun scrollToConversationBottom() {
+            binding.messagesContentHost.post {
+                binding.scrollArea.smoothScrollTo(
+                    0,
+                    binding.messagesContentHost.height,
                 )
             }
         }
-        
-        // 渲染完后滚动到底部
-        binding.messagesContainer.post {
-            (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
-                0,
-                binding.messagesContainer.height
-            )
+
+        if (!animateTransition) {
+            syncMessageTranscript(conversation)
+            scrollToConversationBottom()
+            return
         }
+
+        binding.messagesContentHost.animate().cancel()
+        binding.messagesContentHost.animate()
+            .translationY(-32f)
+            .alpha(0f)
+            .setDuration(160)
+            .setInterpolator(AccelerateInterpolator(1.2f))
+            .withEndAction {
+                syncMessageTranscript(conversation)
+                binding.messagesContentHost.translationY = 24f
+                binding.messagesContentHost.animate()
+                    .translationY(0f)
+                    .alpha(1f)
+                    .setDuration(220)
+                    .setInterpolator(DecelerateInterpolator())
+                    .withEndAction {
+                        scrollToConversationBottom()
+                    }
+                    .start()
+            }
+            .start()
     }
 
     private fun extractAutomationInstruction(rawAnswer: String): Pair<String, String?> {
-        val markerRegex =
-                Regex(
-                        """\[\[AUTO_EXECUTE:(.*?)]]""",
-                        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
-                )
-        val match = markerRegex.find(rawAnswer)
-        val instruction = match?.groupValues?.getOrNull(1)?.trim().orEmpty()
-        val cleaned = markerRegex.replace(rawAnswer, "").trim()
-        return cleaned to instruction.ifBlank { null }
+        return AutomationMessageParser.extractAutomationInstruction(rawAnswer)
     }
 
     private fun extractAutomationConfirmInstruction(rawMessage: String): Pair<String, String?> {
-        val markerRegex =
-                Regex(
-                        """\[\[AUTO_CONFIRM:(.*?)]]""",
-                        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
-                )
-        val match = markerRegex.find(rawMessage)
-        val instruction = match?.groupValues?.getOrNull(1)?.trim().orEmpty()
-        val cleaned = markerRegex.replace(rawMessage, "").trim()
-        return cleaned to instruction.ifBlank { null }
+        return AutomationMessageParser.extractAutomationConfirmInstruction(rawMessage)
     }
 
     private fun extractAutomationConfirmedMarker(rawMessage: String): Pair<String, Boolean> {
-        val markerRegex =
-                Regex(
-                        """\[\[AUTO_CONFIRMED]]""",
-                        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
-                )
-        val hasMarker = markerRegex.containsMatchIn(rawMessage)
-        val cleaned = markerRegex.replace(rawMessage, "").trim()
-        return cleaned to hasMarker
+        return AutomationMessageParser.extractAutomationConfirmedMarker(rawMessage)
+    }
+
+    private fun extractAutomationRejectedMarker(rawMessage: String): Pair<String, Boolean> {
+        return AutomationMessageParser.extractAutomationRejectedMarker(rawMessage)
     }
 
     private fun stripAutomationMarker(rawText: String): String {
-        val withoutExecute = extractAutomationInstruction(rawText).first
-        val withoutConfirm = extractAutomationConfirmInstruction(withoutExecute).first
-        val withoutConfirmed = extractAutomationConfirmedMarker(withoutConfirm).first
-        return extractAutomationLogMarkers(withoutConfirmed).first
+        return AutomationMessageParser.stripAutomationMarker(rawText)
     }
 
     private fun sendMessage(content: Any, resendUser: Boolean = true, retryMode: Boolean = false) {
@@ -2964,9 +3102,8 @@ class MainActivity : AppCompatActivity() {
 
         if (!localModeEnabled && apiKey.isBlank()) {
 
-            Toast.makeText(this, "请先在边栏配置 API Key", Toast.LENGTH_SHORT).show()
-
-            binding.drawerLayout.openDrawer(GravityCompat.START)
+            Toast.makeText(this, getString(R.string.settings_api_key_missing_entry), Toast.LENGTH_SHORT).show()
+            startActivityWithMaterialForwardTransition(Intent(this, DrawerSettingsActivity::class.java))
 
             return
         }
@@ -3023,6 +3160,7 @@ class MainActivity : AppCompatActivity() {
             val messageContentStr = baseUserText
             
             if (resendUser) {
+                rejectPendingAutomationConfirmation(c)
                 c.messages.add(
                     UiMessage(
                         author = "我",
@@ -3032,14 +3170,9 @@ class MainActivity : AppCompatActivity() {
                     )
                 )
                 c.updatedAt = System.currentTimeMillis()
+                syncMessageTranscript(c)
                 persistConversations()
-
-                appendComplexUserMessage(
-                    "我",
-                    messageContentStr,
-                    animate = true,
-                    attachments = userAttachments
-                )
+                smoothScrollToBottom()
                 
                 // 同步消息到悬浮窗（如果运行中）
                 if (FloatingChatService.isRunning()) {
@@ -3063,44 +3196,14 @@ class MainActivity : AppCompatActivity() {
             try {
                 val startTime = System.currentTimeMillis()
 
-                // 使用 StreamRenderHelper 绑定视图
-                val aiView =
-                        layoutInflater.inflate(
-                                R.layout.item_ai_message_complex,
-                                binding.messagesContainer,
-                                false,
-                        )
-                binding.messagesContainer.addView(aiView)
-                val vh = StreamRenderHelper.bindViews(aiView)
-                StreamRenderHelper.initThinkingState(vh)
-                val tvModelName = aiView.findViewById<TextView>(R.id.tv_model_name)
-                if (resolvedModel.isNotBlank()) {
-                    tvModelName.text = resolvedModel
-                    tvModelName.visibility = View.VISIBLE
-                } else {
-                    tvModelName.visibility = View.GONE
-                }
-
-                // 按钮事件绑定
-                val retryPrompt = textForTitle
-                vh.retryButton?.setOnClickListener {
-                    setRetryButtonLoadingState(vh.retryButton, isLoading = true)
-                    val started = retryMessage(retryPrompt)
-                    if (!started) {
-                        setRetryButtonLoadingState(vh.retryButton, isLoading = false)
-                    }
-                }
-
-                vh.copyButton?.setOnClickListener {
-                    val cm =
-                            getSystemService(android.content.Context.CLIPBOARD_SERVICE) as
-                                    android.content.ClipboardManager
-                    val clip = android.content.ClipData.newPlainText("AI Reply", vh.messageContent.text)
-                    cm.setPrimaryClip(clip)
-                    Toast.makeText(this@MainActivity, "已复制内容", Toast.LENGTH_SHORT).show()
-                }
-
                 smoothScrollToBottom()
+                runOnUiThread {
+                    updateStreamingTranscript(
+                        retryText = baseUserText,
+                        thinking = "",
+                        answer = "",
+                    )
+                }
 
                 // 临时变量用于构建完整内容以方便保存
                 val reasoningSb = StringBuilder()
@@ -3144,10 +3247,15 @@ class MainActivity : AppCompatActivity() {
 
                 for (attempt in 1..maxAttempts) {
                     if (attempt > 1) {
-                        // 重试前清理界面
                         reasoningSb.clear()
                         contentSb.clear()
-                        runOnUiThread { StreamRenderHelper.initThinkingState(vh) }
+                        runOnUiThread {
+                            updateStreamingTranscript(
+                                retryText = baseUserText,
+                                thinking = "",
+                                answer = "",
+                            )
+                        }
                         if (FloatingChatService.isRunning()) {
                             FloatingChatService.getInstance()?.resetExternalStreamAiReply()
                         }
@@ -3159,11 +3267,12 @@ class MainActivity : AppCompatActivity() {
                         } else if (delta.isNotBlank()) {
                             reasoningSb.append(delta)
                             runOnUiThread {
-                                StreamRenderHelper.processReasoningDelta(
-                                    vh,
-                                    delta,
-                                    lifecycleScope,
-                                ) { smoothScrollToBottom() }
+                                updateStreamingTranscriptFromBuffers(
+                                    retryText = baseUserText,
+                                    reasoning = reasoningSb,
+                                    answer = contentSb,
+                                )
+                                smoothScrollToBottom()
                             }
                             if (FloatingChatService.isRunning()) {
                                 FloatingChatService.getInstance()
@@ -3176,30 +3285,15 @@ class MainActivity : AppCompatActivity() {
                         if (shouldStopGeneration) {
                             // stop requested; ignore incoming delta
                         } else if (delta.isNotEmpty()) {
-                            runOnUiThread {
-                                StreamRenderHelper.processContentDelta(
-                                    vh,
-                                    delta,
-                                    lifecycleScope,
-                                    this@MainActivity,
-                                    onScroll = { smoothScrollToBottom() },
-                                    onPhaseChange = { isAnswerPhase ->
-                                        if (isAnswerPhase) {
-                                            StreamRenderHelper.transitionToAnswer(vh)
-                                            if (
-                                                vh.thinkingText.visibility == View.VISIBLE ||
-                                                    vh.thinkingContentArea.visibility == View.VISIBLE
-                                            ) {
-                                                vh.thinkingHeader.performClick()
-                                            }
-                                        }
-                                    },
-                                )
-                            }
-
-                            // 更新 contentSb（用于保存）
-                            // 注意：这里我们保存原始内容，解析器会处理显示
                             contentSb.append(delta)
+                            runOnUiThread {
+                                updateStreamingTranscriptFromBuffers(
+                                    retryText = baseUserText,
+                                    reasoning = reasoningSb,
+                                    answer = contentSb,
+                                )
+                                smoothScrollToBottom()
+                            }
 
                             // 同步到悬浮窗
                             if (FloatingChatService.isRunning()) {
@@ -3257,49 +3351,20 @@ class MainActivity : AppCompatActivity() {
                             "请求失败: $err"
                         }
 
-                // 显示完成状态
-                runOnUiThread {
-                    StreamRenderHelper.markCompleted(vh, timeCost)
-                    if (
-                            vh.thinkingText.visibility == View.VISIBLE ||
-                                    vh.thinkingContentArea.visibility == View.VISIBLE
-                    ) {
-                        vh.thinkingHeader.performClick()
-                    }
-                    if (!streamOk || shouldStopGeneration) {
-                        // 如果失败或被停止，直接显示消息
-                        vh.messageContent.text = finalContent
-                    }
-                }
-
                 if (floatingStreamStarted && FloatingChatService.isRunning()) {
                     FloatingChatService.getInstance()
                             ?.finishExternalStreamAiReply(timeCost.toInt(), finalContent)
                 }
 
-                // 保存到历史 - 使用解析后的内容
-                val thinkingContent = StreamRenderHelper.getThinkingText(vh)
-                val renderedAnswerRaw = StreamRenderHelper.getAnswerText(vh).trim()
-                val parsedFinalAnswer = parseStoredAiContent(finalContent).second.trim()
-                val fallbackAnswerRaw =
-                    parsedFinalAnswer.ifBlank { stripAutomationMarker(finalContent).trim() }
+                val parsedPersisted = parseStoredAiContent(finalContent)
+                val thinkingContent =
+                    reasoningSb.toString().trim().ifBlank { parsedPersisted.first.orEmpty().trim() }
                 val answerContentRaw =
-                    if (renderedAnswerRaw.isNotBlank()) renderedAnswerRaw else fallbackAnswerRaw
-                if (renderedAnswerRaw.isBlank() && answerContentRaw.isNotBlank() && streamOk && !shouldStopGeneration) {
-                    runOnUiThread {
-                        StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, answerContentRaw)
-                    }
-                }
+                    parsedPersisted.second.trim().ifBlank { stripAutomationMarker(finalContent).trim() }
                 val (answerContent, markerInAnswer) =
                         extractAutomationInstruction(answerContentRaw)
                 val automationInstruction =
                         markerInAnswer ?: extractAutomationInstruction(finalContent).second
-
-                if (answerContent != answerContentRaw) {
-                    runOnUiThread {
-                        StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, answerContent)
-                    }
-                }
 
                 val persistContent =
                         if (thinkingContent.isNotEmpty()) {
@@ -3320,6 +3385,8 @@ class MainActivity : AppCompatActivity() {
                     )
                 )
                 cc.updatedAt = System.currentTimeMillis()
+                clearStreamingTranscript()
+                syncMessageTranscript(cc)
                 persistConversations()
 
                 if (!automationInstruction.isNullOrBlank()) {
@@ -3350,23 +3417,13 @@ class MainActivity : AppCompatActivity() {
                         )
                     )
                     cc.updatedAt = System.currentTimeMillis()
+                    syncMessageTranscript(cc)
                     persistConversations()
-
-                    runOnUiThread {
-                        appendComplexAiMessage(
-                            "Aries AI",
-                            commandMessage,
-                            animate = true,
-                            timeCostMs = 0,
-                            automationInstructionForConfirm = if (readyState.ready) automationInstruction else null,
-                            messageIndexInConversation = cc.messages.lastIndex,
-                            modelName = resolvedModel
-                        )
-                    }
                 }
             } finally {
                 isRequestInFlight = false
                 inputBarState.value = InputState.Idle
+                clearStreamingTranscript()
             }
         }
     }
@@ -3417,223 +3474,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun clearAutomationAutoConfirm(messageRef: AutomationMessageRef? = null) {
+        var resolvedRef: AutomationMessageRef? = null
         if (messageRef != null) {
             val resolved = resolveAutomationMessageRef(messageRef) ?: return
             if (automationAutoConfirmRef != resolved) return
+            resolvedRef = resolved
+        } else {
+            resolvedRef = automationAutoConfirmRef
         }
         automationAutoConfirmJob?.cancel()
         automationAutoConfirmJob = null
+        resolvedRef?.let { automationCountdownSeconds.remove(it) }
         automationAutoConfirmRef = null
-    }
-
-    private fun scheduleAutomationAutoConfirm(
-        button: View?,
-        textView: TextView?,
-        task: String,
-        messageRef: AutomationMessageRef?
-    ) {
-        clearAutomationAutoConfirm(messageRef)
-        if (button == null || textView == null) return
-        if (task.isBlank()) return
-        if (!VirtualDisplayConfig.getAutoApproveAutomation(this)) return
-
-        val resolvedRef = resolveAutomationMessageRef(messageRef) ?: return
-        automationAutoConfirmRef = resolvedRef
-        val currentJob =
-            lifecycleScope.launch {
-                for (secondsRemaining in 10 downTo 1) {
-                    if (automationAutoConfirmRef != resolvedRef) return@launch
-                    if (!button.isAttachedToWindow || !button.isEnabled) return@launch
-                    textView.text = getString(R.string.automation_confirm_countdown, secondsRemaining)
-                    delay(1000L)
-                }
-
-                if (automationAutoConfirmRef != resolvedRef) return@launch
-                if (!button.isAttachedToWindow || !button.isEnabled) return@launch
-                button.performClick()
-            }
-        automationAutoConfirmJob = currentJob
-        currentJob.invokeOnCompletion {
-            if (automationAutoConfirmJob === currentJob) {
-                automationAutoConfirmJob = null
-                automationAutoConfirmRef = null
-            }
-        }
-    }
-    private fun bindAutomationConfirmButton(
-        button: View?,
-        textView: TextView?,
-        instruction: String?,
-        messageRef: AutomationMessageRef?,
-        isConfirmed: Boolean,
-        isFinished: Boolean
-    ) {
-        val statusView = findAutomationPanelStatusView(button)
-        val task = instruction?.trim().orEmpty()
-        val iconView = button?.findViewById<ImageView?>(R.id.iv_confirm_icon)
-
-        if (isConfirmed) {
-            clearAutomationAutoConfirm(messageRef)
-            if (isFinished) {
-                configureAutomationFinishedButton(
-                    button = button,
-                    textView = textView,
-                    iconView = iconView,
-                    statusView = statusView
-                )
-            } else {
-                configureAutomationTerminateButton(
-                    button = button,
-                    textView = textView,
-                    iconView = iconView,
-                    statusView = statusView,
-                    messageRef = messageRef,
-                )
-            }
-            return
-        }
-
-        if (task.isBlank()) {
-            clearAutomationAutoConfirm(messageRef)
-            button?.visibility = View.GONE
-            button?.isEnabled = false
-            textView?.text = getString(R.string.automation_confirm)
-            return
-        }
-
-        button?.visibility = View.VISIBLE
-        button?.isEnabled = true
-        button?.alpha = 1f
-        textView?.text = getString(R.string.automation_confirm)
-        statusView?.text = getString(R.string.automation_scene_need_confirm)
-        button?.setOnClickListener {
-            if (button.isEnabled.not()) return@setOnClickListener
-            clearAutomationAutoConfirm(messageRef)
-            button.isEnabled = false
-            button.alpha = 0.7f
-            textView?.text = getString(R.string.automation_confirming)
-
-            val readyState = resolveAutomationReadyState()
-            if (!readyState.ready) {
-                button.isEnabled = true
-                button.alpha = 1f
-                textView?.text = getString(R.string.automation_not_ready_short)
-                statusView?.text = getString(R.string.automation_scene_not_ready)
-                Toast.makeText(
-                    this@MainActivity,
-                    resolveAutomationNotReadyToast(readyState.reason),
-                    Toast.LENGTH_LONG
-                ).show()
-                return@setOnClickListener
-            }
-
-            val dispatchResult =
-                ActivityAutomationInstructionGateway.dispatchFromAdvancedAi(
-                    context = this@MainActivity,
-                    instruction = task
-                )
-
-            if (dispatchResult.success) {
-                markAutomationCommandConfirmed(task, messageRef)
-                configureAutomationTerminateButton(
-                    button = button,
-                    textView = textView,
-                    iconView = iconView,
-                    statusView = statusView,
-                    messageRef = messageRef,
-                )
-            } else {
-                button.isEnabled = true
-                button.alpha = 1f
-                textView?.text = getString(R.string.automation_confirm)
-                statusView?.text = getString(R.string.automation_scene_need_confirm)
-                scheduleAutomationAutoConfirm(button, textView, task, messageRef)
-            }
-        }
-        scheduleAutomationAutoConfirm(button, textView, task, messageRef)
-    }
-
-    private fun configureAutomationTerminateButton(
-        button: View?,
-        textView: TextView?,
-        iconView: ImageView?,
-        statusView: TextView?,
-        messageRef: AutomationMessageRef? = null,
-    ) {
-        clearAutomationAutoConfirm(messageRef)
-        button?.visibility = View.VISIBLE
-        button?.background = ContextCompat.getDrawable(this, R.drawable.bg_action_button_oval_danger)
-        textView?.setTextColor(ContextCompat.getColor(this, R.color.m3t_on_error_container))
-        iconView?.setImageResource(R.drawable.ic_stop_24)
-        iconView?.setColorFilter(ContextCompat.getColor(this, R.color.m3t_on_error_container))
-
-        if (isAutomationTerminatePending(messageRef)) {
-            textView?.text = getString(R.string.automation_terminating)
-            statusView?.text = getString(R.string.automation_scene_stop_requested)
-            button?.isEnabled = false
-            button?.alpha = 0.75f
-            return
-        }
-
-        button?.isEnabled = true
-        button?.alpha = 1f
-        textView?.text = getString(R.string.automation_terminate)
-        statusView?.text = getString(R.string.automation_scene_confirmed)
-        button?.setOnClickListener {
-            requestAutomationStopFromHome()
-            markAutomationTerminatePending(messageRef)
-            textView?.text = getString(R.string.automation_terminating)
-            statusView?.text = getString(R.string.automation_scene_stop_requested)
-            button.isEnabled = false
-            button.alpha = 0.75f
-            automationTerminateFallbackJob?.cancel()
-            val resolvedRef = resolveAutomationMessageRef(messageRef)
-            if (resolvedRef != null) {
-                automationTerminateFallbackJob =
-                    lifecycleScope.launch {
-                        delay(12_000L)
-                        if (automationTerminatePendingRef == resolvedRef) {
-                            clearAutomationTerminatePending(resolvedRef)
-                            configureAutomationTerminateButton(
-                                button = button,
-                                textView = textView,
-                                iconView = iconView,
-                                statusView = statusView,
-                                messageRef = resolvedRef,
-                            )
-                            textView?.text = getString(R.string.automation_terminate)
-                            button.alpha = 1f
-                            button.isEnabled = true
-                            statusView?.text = getString(R.string.automation_scene_confirmed)
-                            Toast.makeText(
-                                this@MainActivity,
-                                getString(R.string.automation_terminate_timeout_retry),
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        }
-                    }
-            }
-        }
-    }
-
-    private fun configureAutomationFinishedButton(
-        button: View?,
-        textView: TextView?,
-        iconView: ImageView?,
-        statusView: TextView?
-    ) {
-        clearAutomationTerminatePending()
-        clearAutomationAutoConfirm()
-        button?.visibility = View.VISIBLE
-        button?.isEnabled = false
-        button?.alpha = 1f
-        button?.background = ContextCompat.getDrawable(this, R.drawable.bg_action_button_oval)
-        textView?.setTextColor(ContextCompat.getColor(this, R.color.m3t_message_action))
-        iconView?.setColorFilter(ContextCompat.getColor(this, R.color.m3t_message_action))
-        statusView?.text = getString(R.string.automation_scene_finished)
-        textView?.text = getString(R.string.automation_confirmed)
-        iconView?.setImageResource(R.drawable.ic_check_circle_24)
-        button?.setOnClickListener(null)
+        syncTranscriptForAutomationMessage(resolvedRef)
     }
 
     private fun requestAutomationStopFromHome() {
@@ -3668,25 +3521,45 @@ class MainActivity : AppCompatActivity() {
 
         val withoutConfirm = extractAutomationConfirmInstruction(origin.content).first
         val withoutConfirmed = extractAutomationConfirmedMarker(withoutConfirm).first
+        val withoutRejected = extractAutomationRejectedMarker(withoutConfirmed).first
         val updated =
-            (withoutConfirmed.trimEnd() + "\n[[AUTO_CONFIRMED]]")
+            (withoutRejected.trimEnd() + "\n[[AUTO_CONFIRMED]]")
                 .trim()
 
         if (updated == origin.content) return
 
         targetConversation.messages[targetIndex] = origin.copy(content = updated)
         targetConversation.updatedAt = System.currentTimeMillis()
+        syncMessageTranscript(targetConversation)
         persistConversations()
     }
 
-    private fun findAutomationPanelStatusView(anchor: View?): TextView? {
-        var cursor: View? = anchor
-        while (cursor != null) {
-            val found = cursor.findViewById<TextView?>(R.id.automation_panel_status)
-            if (found != null) return found
-            cursor = cursor.parent as? View
-        }
-        return null
+    private fun rejectPendingAutomationConfirmation(conversation: Conversation) {
+        val targetIndex =
+            conversation.messages.indexOfLast { msg ->
+                if (msg.isUser) return@indexOfLast false
+                val hasConfirm = extractAutomationConfirmInstruction(msg.content).second != null
+                val hasConfirmed = extractAutomationConfirmedMarker(msg.content).second
+                val hasRejected = extractAutomationRejectedMarker(msg.content).second
+                hasConfirm && !hasConfirmed && !hasRejected
+            }
+        if (targetIndex !in conversation.messages.indices) return
+
+        val origin = conversation.messages[targetIndex]
+        val withoutConfirm = extractAutomationConfirmInstruction(origin.content).first
+        val withoutConfirmed = extractAutomationConfirmedMarker(withoutConfirm).first
+        val withoutRejected = extractAutomationRejectedMarker(withoutConfirmed).first
+        val updated = (withoutRejected.trimEnd() + "\n[[AUTO_REJECTED]]").trim()
+        if (updated == origin.content) return
+
+        conversation.messages[targetIndex] = origin.copy(content = updated)
+        conversation.updatedAt = System.currentTimeMillis()
+        clearAutomationAutoConfirm(
+            AutomationMessageRef(
+                conversationId = conversation.id,
+                messageIndex = targetIndex,
+            ),
+        )
     }
 
     private fun extractAutomationCommand(message: String): String? {
@@ -3703,362 +3576,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun normalizeAutomationLogLine(rawLine: String): String {
-        val line = rawLine.trim()
-        return line.replace(Regex("""^\[Step\s+\d+]\s*"""), "").trim()
-    }
-
-    private data class AutomationTimelineEntry(
-        var displayText: String,
-        var action: String? = null
-    )
-
-    private fun appendAutomationTimelineEntry(
-        timeline: MutableList<AutomationTimelineEntry>,
-        normalizedLogLine: String
-    ) {
-        val thinkingText = extractAutomationDisplayText(normalizedLogLine)
-        val intentText = extractAutomationIntentTextFromOutput(normalizedLogLine)
-        val actionLabel = extractAutomationActionLabel(normalizedLogLine)
-
-        if (!thinkingText.isNullOrBlank()) {
-            timeline.add(AutomationTimelineEntry(displayText = thinkingText, action = actionLabel))
-            return
-        }
-
-        if (!intentText.isNullOrBlank()) {
-            val lastWithoutAction = timeline.lastOrNull { it.action.isNullOrBlank() }
-            if (lastWithoutAction != null) {
-                lastWithoutAction.displayText = intentText
-                if (!actionLabel.isNullOrBlank()) {
-                    lastWithoutAction.action = actionLabel
-                }
-            } else {
-                timeline.add(AutomationTimelineEntry(displayText = intentText, action = actionLabel))
-            }
-            return
-        }
-
-        if (!actionLabel.isNullOrBlank()) {
-            val lastWithoutAction = timeline.lastOrNull { it.action.isNullOrBlank() }
-            if (lastWithoutAction != null) {
-                lastWithoutAction.action = actionLabel
-            } else {
-                timeline.add(
-                    AutomationTimelineEntry(
-                        displayText = "",
-                        action = actionLabel
-                    )
-                )
-            }
-        }
-    }
-
-    private fun renderAutomationTimelineRows(
-        container: LinearLayout,
-        timeline: List<AutomationTimelineEntry>
-    ) {
-        container.removeAllViews()
-
-        if (timeline.isEmpty()) {
-            val waitingView =
-                TextView(this).apply {
-                    text = getString(R.string.automation_scene_waiting)
-                    setTextAppearance(this@MainActivity, R.style.TextAppearance_M3t_Body_Small)
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface_variant))
-                }
-            container.addView(
-                waitingView,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-            )
-            return
-        }
-
-        val rowSpacing = resources.getDimensionPixelSize(R.dimen.m3t_spacing_xs)
-        timeline.forEachIndexed { index, entry ->
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-            }
-
-            val displayText = entry.displayText.trim()
-            if (displayText.isNotBlank()) {
-                val thoughtView =
-                    TextView(this).apply {
-                        text = "• $displayText"
-                        setTextAppearance(this@MainActivity, R.style.TextAppearance_M3t_Body_Small)
-                        setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface_variant))
-                    }
-                val thoughtLp = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                row.addView(thoughtView, thoughtLp)
-            }
-
-            val action = entry.action?.trim().orEmpty()
-            if (action.isNotBlank()) {
-                val chip = createAutomationInlineChip(action)
-                val chipLp =
-                    LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        topMargin =
-                            if (displayText.isNotBlank()) {
-                                resources.getDimensionPixelSize(R.dimen.m3t_spacing_xxxs)
-                            } else {
-                                0
-                            }
-                    }
-                row.addView(chip, chipLp)
-            }
-
-            val rowLp =
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    if (index > 0) topMargin = rowSpacing
-                }
-            container.addView(row, rowLp)
-        }
-    }
-
-    private fun createAutomationInlineChip(label: String): TextView {
-        return TextView(this).apply {
-            text = label
-            setTextAppearance(this@MainActivity, R.style.TextAppearance_M3t_Body_Small)
-            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_message_action))
-            val padH = resources.getDimensionPixelSize(R.dimen.m3t_spacing_sm)
-            val padV = resources.getDimensionPixelSize(R.dimen.m3t_spacing_xs)
-            setPadding(padH, padV, padH, padV)
-            background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_action_button_oval)
-        }
-    }
-
-    private fun extractAutomationDisplayText(logLine: String): String? {
-        val normalized = normalizeAutomationLogLine(logLine)
-        val thought =
-            when {
-                normalized.startsWith("思考：") -> normalized.substringAfter("思考：").trim()
-                normalized.startsWith("修复思考：") -> normalized.substringAfter("修复思考：").trim()
-                else -> ""
-            }
-        if (thought.isNotBlank()) return thought
-        return null
-    }
-
-    private fun extractAutomationIntentTextFromOutput(logLine: String): String? {
-        val normalized = normalizeAutomationLogLine(logLine)
-        val outputPayload =
-            when {
-                normalized.startsWith("输出：") -> normalized.substringAfter("输出：").trim()
-                normalized.startsWith("修复输出：") -> normalized.substringAfter("修复输出：").trim()
-                else -> ""
-            }
-        if (outputPayload.isBlank()) return null
-
-        val actionFromDo =
-            Regex("""action\s*=\s*"([^"]+)"""", RegexOption.IGNORE_CASE)
-                .find(outputPayload)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.trim()
-                ?.lowercase()
-                .orEmpty()
-        if (actionFromDo in setOf("type", "input", "text", "type_name")) {
-            return null
-        }
-
-        val textFromDo =
-            Regex("""text\s*=\s*"([^"]+)"""", RegexOption.IGNORE_CASE)
-                .find(outputPayload)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.trim()
-        if (!textFromDo.isNullOrBlank()) return textFromDo
-
-        val textFromJson =
-            Regex(""""text"\s*:\s*"([^"]+)"""", RegexOption.IGNORE_CASE)
-                .find(outputPayload)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.trim()
-        if (!textFromJson.isNullOrBlank()) return textFromJson
-
-        return null
-    }
-
-    private fun extractDescFromOutputPayload(payload: String): String? {
-        val clean = payload.trim()
-        if (clean.isBlank()) return null
-
-        // 1) JSON/对象形式："desc":"..."
-        Regex(""""desc"\s*:\s*"([^"]+)"""")
-            .find(clean)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?.let { return it }
-
-        // 2) do(..., desc="...")
-        Regex("""desc\s*=\s*"([^"]+)"""")
-            .find(clean)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?.let { return it }
-
-        // 3) 文本形式：desc: ...
-        Regex("""\bdesc\b\s*[:=]\s*(.+)$""", RegexOption.IGNORE_CASE)
-            .find(clean)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?.let { return it }
-
-        return null
-    }
-
-    private fun mapAutomationActionLabel(rawAction: String): String {
-        return when (rawAction.trim().lowercase()) {
-            "tap", "click" -> "点击"
-            "type", "input" -> "输入"
-            "swipe" -> "滑动"
-            "launch", "open", "startapp" -> "启动"
-            "back" -> "返回"
-            "wait" -> "等待"
-            "longpress" -> "长按"
-            "scroll" -> "滚动"
-            "home" -> "回桌面"
-            else -> rawAction.trim().ifBlank { "执行" }.take(10)
-        }
-    }
-
-    private fun extractAutomationActionLabel(logLine: String): String? {
-        val normalized = normalizeAutomationLogLine(logLine)
-        val actionByCurrent = normalized.substringAfter("当前动作：", "").trim()
-        if (actionByCurrent.isNotBlank() && actionByCurrent != normalized) {
-            return actionByCurrent.take(10)
-        }
-
-        return null
-    }
-
-    private fun setAutomationPanelCollapsedState(
-        content: View,
-        toggleButton: ImageButton,
-        collapsed: Boolean,
-        animate: Boolean = true
-    ) {
-        val targetRotation = if (collapsed) 180f else 0f
-        val contentOffset = resources.getDimensionPixelSize(R.dimen.m3t_spacing_sm).toFloat()
-
-        content.animate().cancel()
-        toggleButton.animate().cancel()
-        toggleButton.contentDescription =
-            getString(
-                if (collapsed) {
-                    R.string.automation_scene_expand
-                } else {
-                    R.string.automation_scene_collapse
-                }
-            )
-
-        if (!animate || !content.isLaidOut) {
-            content.visibility = if (collapsed) View.GONE else View.VISIBLE
-            content.alpha = 1f
-            content.translationY = 0f
-            content.scaleY = 1f
-            toggleButton.rotation = targetRotation
-            toggleButton.isEnabled = true
-            return
-        }
-
-        toggleButton.isEnabled = false
-        toggleButton.animate().cancel()
-        content.animate().cancel()
-        toggleButton.animate()
-            .rotation(targetRotation)
-            .setDuration(260)
-            .setInterpolator(OvershootInterpolator(0.45f))
-            .start()
-
-        if (collapsed) {
-            if (content.visibility != View.VISIBLE) {
-                toggleButton.isEnabled = true
-                return
-            }
-            content.pivotY = 0f
-            content.pivotX = (content.width * 0.5f).coerceAtLeast(0f)
-            content.animate()
-                .alpha(0f)
-                .translationY(-contentOffset * 0.4f)
-                .scaleX(0.985f)
-                .scaleY(0.985f)
-                .setDuration(240)
-                .setInterpolator(AccelerateInterpolator(1.1f))
-                .withEndAction {
-                    content.visibility = View.GONE
-                    content.alpha = 1f
-                    content.translationY = 0f
-                    content.scaleX = 1f
-                    content.scaleY = 1f
-                    toggleButton.isEnabled = true
-                }
-                .start()
-        } else {
-            content.visibility = View.VISIBLE
-            content.alpha = 0f
-            content.translationY = -contentOffset * 0.28f
-            content.scaleX = 0.985f
-            content.scaleY = 0.985f
-            content.pivotY = 0f
-            content.pivotX = (content.width * 0.5f).coerceAtLeast(0f)
-            content.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .scaleX(1f)
-                .scaleY(1f)
-                .setDuration(320)
-                .setInterpolator(DecelerateInterpolator(1.25f))
-                .withEndAction {
-                    toggleButton.isEnabled = true
-                }
-                .start()
-        }
-    }
-
-    private fun configureAutomationPanel(
-        command: String,
-        logs: List<String>,
-        hasConfirm: Boolean,
-        hasConfirmed: Boolean,
-        statusView: TextView,
-        commandView: TextView,
-        logContainer: LinearLayout
-    ) {
-        commandView.text = command
-        val hasTerminalLog = logs.any { isAutomationTerminalLog(it) }
-        statusView.text =
-            when {
-                hasConfirm -> getString(R.string.automation_scene_need_confirm)
-                hasTerminalLog -> getString(R.string.automation_scene_finished)
-                logs.isNotEmpty() -> getString(R.string.automation_scene_running)
-                hasConfirmed -> getString(R.string.automation_scene_confirmed)
-                else -> getString(R.string.automation_scene_not_ready)
-            }
-
-        val normalizedLogs = logs.map { normalizeAutomationLogLine(it) }.filter { it.isNotBlank() }
-        val timeline = mutableListOf<AutomationTimelineEntry>()
-        normalizedLogs.forEach { line -> appendAutomationTimelineEntry(timeline, line) }
-        logContainer.tag = timeline
-        renderAutomationTimelineRows(logContainer, timeline)
+        return AutomationMessageParser.normalizeAutomationLogLine(rawLine)
     }
 
     /**
@@ -4189,330 +3707,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 解析并显示复杂的 AI 消息（包含思考过程）
-     * 支持淡蓝色液态玻璃框、思考过程折叠、打字机动画、丝滑滚动
-     */
-    private fun appendComplexAiMessage(
-        author: String,
-        fullContent: String,
-        animate: Boolean,
-        timeCostMs: Long,
-        retryUserText: String? = null,
-        automationInstructionForConfirm: String? = null,
-        messageIndexInConversation: Int? = null,
-        modelName: String? = null
-    ) {
-        // 1. Inflate 复杂布局
-        val view = layoutInflater.inflate(R.layout.item_ai_message_complex, binding.messagesContainer, false)
-        binding.messagesContainer.addView(view)
-        
-        val thinkingLayout = view.findViewById<LinearLayout>(R.id.thinking_layout)
-        val thinkingHeader = view.findViewById<LinearLayout>(R.id.thinking_header)
-        val thinkingText = view.findViewById<TextView>(R.id.thinking_text)
-        val thinkingIndicator = view.findViewById<TextView>(R.id.thinking_indicator_text)
-        val messageContent = view.findViewById<TextView>(R.id.message_content)
-        val authorName = view.findViewById<TextView>(R.id.ai_author_name)
-        val btnConfirm = view.findViewById<View?>(R.id.btn_confirm)
-        val tvConfirmText = view.findViewById<TextView?>(R.id.tv_confirm_text)
-        val automationPanel = view.findViewById<LinearLayout>(R.id.automation_panel)
-        val automationStatus = view.findViewById<TextView>(R.id.automation_panel_status)
-        val automationPanelToggle = view.findViewById<ImageButton>(R.id.automation_panel_toggle)
-        val automationPanelContent = view.findViewById<LinearLayout>(R.id.automation_panel_content)
-        val automationCommand = view.findViewById<TextView>(R.id.automation_panel_command)
-        val automationLogContainer = view.findViewById<LinearLayout>(R.id.automation_log_container)
-        val tvModelName = view.findViewById<TextView>(R.id.tv_model_name)
-
-        // 解析内容（兼容旧格式，避免展示旧分隔符）
-        val (contentWithoutLogMarkers, embeddedAutomationLogs) = extractAutomationLogMarkers(fullContent)
-        val (contentWithoutConfirmedMarker, hasConfirmedMarker) =
-            extractAutomationConfirmedMarker(contentWithoutLogMarkers)
-        val (contentWithoutConfirmMarker, confirmInstructionFromMessage) =
-            extractAutomationConfirmInstruction(contentWithoutConfirmedMarker)
-        val confirmInstruction =
-            if (hasConfirmedMarker) null else (automationInstructionForConfirm ?: confirmInstructionFromMessage)
-        val (storedThinking, storedAnswer) = parseStoredAiContent(contentWithoutConfirmMarker)
-        val thinkContent = storedThinking?.trim()
-        val realContent = storedAnswer.trim()
-        val automationCommandText = extractAutomationCommand(realContent) ?: confirmInstruction
-        val messageRef =
-            if (messageIndexInConversation != null && messageIndexInConversation >= 0) {
-                val cid = activeConversation?.id ?: -1L
-                if (cid > 0L) {
-                    AutomationMessageRef(
-                        conversationId = cid,
-                        messageIndex = messageIndexInConversation
-                    )
-                } else {
-                    null
-                }
-            } else {
-                null
-            }
-        val initialAutomationLogs =
-            buildList {
-                addAll(embeddedAutomationLogs)
-                val notReadyReason =
-                    realContent.lines().map { it.trim() }.firstOrNull { it.startsWith("系统未就绪：") }
-                if (!notReadyReason.isNullOrBlank()) add(notReadyReason)
-            }
-        val isAutomationCard = !automationCommandText.isNullOrBlank()
-        val isAutomationFinished = initialAutomationLogs.any { isAutomationTerminalLog(it) }
-        
-        // 设置作者名
-        val aiHeaderRow = authorName.parent as? View
-        val automationPanelLayoutParams = automationPanel.layoutParams as? ViewGroup.MarginLayoutParams
-        val automationPanelDefaultTopMargin = resources.getDimensionPixelSize(R.dimen.m3t_spacing_sm)
-        val automationPanelDefaultPadding = resources.getDimensionPixelSize(R.dimen.m3t_spacing_md)
-        authorName.text = if (author == "Aries") "Aries AI" else author
-        if (isAutomationCard) {
-            aiHeaderRow?.visibility = View.GONE
-            tvModelName.visibility = View.GONE
-            view.setBackgroundResource(R.drawable.bg_glass_pane)
-            automationPanel.background = null
-            automationPanel.setPadding(0, 0, 0, 0)
-            automationPanelLayoutParams?.topMargin = 0
-            automationPanel.layoutParams = automationPanelLayoutParams
-        } else {
-            aiHeaderRow?.visibility = View.VISIBLE
-            view.setBackgroundResource(R.drawable.bg_glass_pane)
-            automationPanel.setBackgroundResource(R.drawable.bg_rounded_input_light)
-            automationPanel.setPadding(
-                automationPanelDefaultPadding,
-                automationPanelDefaultPadding,
-                automationPanelDefaultPadding,
-                automationPanelDefaultPadding
-            )
-            automationPanelLayoutParams?.topMargin = automationPanelDefaultTopMargin
-            automationPanel.layoutParams = automationPanelLayoutParams
-            authorName.visibility = View.VISIBLE
-            if (!modelName.isNullOrBlank()) {
-                tvModelName.text = modelName
-                tvModelName.visibility = View.VISIBLE
-            } else {
-                tvModelName.visibility = View.GONE
-            }
-        }
-        // 设置思考部分交互
-        if (!thinkContent.isNullOrBlank()) {
-            thinkingLayout.visibility = View.VISIBLE
-            val seconds = (timeCostMs / 1000).coerceAtLeast(1)
-            val headerTitle = thinkingHeader.getChildAt(0) as TextView
-            headerTitle.text = "已思考 (用时 ${seconds} 秒)"
-            
-            var isExpanded = true
-            thinkingHeader.setOnClickListener {
-                isExpanded = !isExpanded
-                if (isExpanded) {
-                    thinkingText.visibility = View.VISIBLE
-                    thinkingIndicator.text = " ⌄" // Down arrow (expanded)
-                    (view.findViewById<View>(R.id.thinking_content_area)).visibility = View.VISIBLE
-                } else {
-                    thinkingText.visibility = View.GONE
-                    thinkingIndicator.text = " ›" // Right arrow (collapsed)
-                    (view.findViewById<View>(R.id.thinking_content_area)).visibility = View.GONE
-                }
-            }
-        } else {
-            thinkingLayout.visibility = View.GONE
-        }
-
-        if (isAutomationCard) {
-            messageContent.visibility = View.GONE
-            automationPanel.visibility = View.VISIBLE
-            setAutomationPanelCollapsedState(
-                content = automationPanelContent,
-                toggleButton = automationPanelToggle,
-                collapsed = false,
-                animate = false
-            )
-            automationPanelToggle.setOnClickListener {
-                setAutomationPanelCollapsedState(
-                    content = automationPanelContent,
-                    toggleButton = automationPanelToggle,
-                    collapsed = automationPanelContent.visibility == View.VISIBLE
-                )
-            }
-            configureAutomationPanel(
-                command = automationCommandText,
-                logs = initialAutomationLogs,
-                hasConfirm = !confirmInstruction.isNullOrBlank(),
-                hasConfirmed = hasConfirmedMarker,
-                statusView = automationStatus,
-                commandView = automationCommand,
-                logContainer = automationLogContainer
-            )
-            val conversationId = activeConversation?.id ?: -1L
-            if (conversationId > 0L && messageIndexInConversation != null && messageIndexInConversation >= 0) {
-                activeAutomationPanelConversationId = conversationId
-                activeAutomationPanelMessageIndex = messageIndexInConversation
-                activeAutomationPanelLogContainer = automationLogContainer
-                activeAutomationPanelStatusView = automationStatus
-                activeAutomationPanelConfirmButton = btnConfirm
-                activeAutomationPanelConfirmTextView = tvConfirmText
-            }
-        } else {
-            messageContent.visibility = View.VISIBLE
-            automationPanel.visibility = View.GONE
-            automationPanelToggle.setOnClickListener(null)
-            automationPanelContent.visibility = View.VISIBLE
-        }
-        
-        smoothScrollToBottom()
-
-        if (!animate || isAutomationCard) {
-            if (!thinkContent.isNullOrBlank()) {
-                StreamRenderHelper.applyMarkdownToHistory(thinkingText, thinkContent)
-                if (thinkingText.visibility == View.VISIBLE) {
-                    thinkingHeader.performClick()
-                }
-            }
-            if (messageContent.visibility == View.VISIBLE) {
-                StreamRenderHelper.applyMarkdownToHistory(messageContent, realContent)
-            }
-            view.findViewById<View>(R.id.action_area).visibility = View.VISIBLE
-
-            val btnCopy = view.findViewById<View>(R.id.btn_copy)
-            btnCopy.setOnClickListener {
-                val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                // 复制时是否包含思考过程？Aries AI 默认只复制正文
-                val clip = android.content.ClipData.newPlainText("AI Reply", realContent)
-                cm.setPrimaryClip(clip)
-                Toast.makeText(this@MainActivity, "已复制内容", Toast.LENGTH_SHORT).show()
-            }
-
-            val btnRetry = view.findViewById<View>(R.id.btn_retry)
-            btnRetry.setOnClickListener {
-                val retryText = retryUserText ?: activeConversation?.messages?.findLast { it.isUser }?.content
-                if (!retryText.isNullOrBlank()) {
-                    setRetryButtonLoadingState(btnRetry, isLoading = true)
-                    val started = retryMessage(retryText)
-                    if (!started) {
-                        setRetryButtonLoadingState(btnRetry, isLoading = false)
-                    }
-                } else {
-                    Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
-                }
-            }
-            bindAutomationConfirmButton(
-                button = btnConfirm,
-                textView = tvConfirmText,
-                instruction = confirmInstruction,
-                messageRef = messageRef,
-                isConfirmed = hasConfirmedMarker,
-                isFinished = isAutomationFinished
-            )
-            return
-        }
-        
-        // 动画显示逻辑
-        lifecycleScope.launch {
-            // 1. 如果有思考内容，先播放思考打字机
-            if (!thinkContent.isNullOrBlank()) {
-                val sb = StringBuilder()
-                val chunkSize = 5
-                var index = 0
-                while (index < thinkContent.length) {
-                    val end = minOf(index + chunkSize, thinkContent.length)
-                    sb.append(thinkContent.substring(index, end))
-                    thinkingText.text = sb.toString()
-                    index = end
-                    
-                    smoothScrollToBottom()
-                    delay(10) // 思考过程刷快一点
-                }
-                thinkingText.text = thinkContent // 确保完整
-                delay(200) // 思考完停顿一下
-                if (thinkingText.visibility == View.VISIBLE) {
-                    thinkingHeader.performClick()
-                }
-            }
-            
-            // 2. 播放正文打字机
-            val sb = StringBuilder()
-            val chunkSize = 2 // 正文稍微慢一点，更像打字
-            var index = 0
-            while (index < realContent.length) {
-                val end = minOf(index + chunkSize, realContent.length)
-                val chunk = realContent.substring(index, end)
-                sb.append(chunk)
-                messageContent.text = sb.toString()
-                index = end
-                
-                smoothScrollToBottom()
-                
-                // 根据标点调整节奏
-                val lastChar = chunk.lastOrNull() ?: ' '
-                val d = when (lastChar) {
-                    '。', '！', '？', '\n' -> 50L
-                    '，', '；' -> 30L
-                    else -> 10L // 默认很快，丝滑
-                }
-                delay(d)
-            }
-            messageContent.text = realContent
-            
-            // 动画结束后显示底部操作栏（分割线+复制/重试）
-            val actionArea = view.findViewById<View>(R.id.action_area)
-            actionArea.visibility = View.VISIBLE
-            smoothScrollToBottom()
-        }
-        
-        // 绑定复制和重试按钮事件
-        val btnCopy = view.findViewById<View>(R.id.btn_copy)
-        btnCopy.setOnClickListener {
-            val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            // 复制时是否包含思考过程？Aries AI 默认只复制正文
-            val clip = android.content.ClipData.newPlainText("AI Reply", realContent)
-            cm.setPrimaryClip(clip)
-            Toast.makeText(this@MainActivity, "已复制内容", Toast.LENGTH_SHORT).show()
-        }
-
-        val btnRetry = view.findViewById<View>(R.id.btn_retry)
-        btnRetry.setOnClickListener {
-            // 重试逻辑：获取上一条用户消息，重新发送
-            val retryText = retryUserText ?: activeConversation?.messages?.findLast { it.isUser }?.content
-            if (!retryText.isNullOrBlank()) {
-                setRetryButtonLoadingState(btnRetry, isLoading = true)
-                val started = retryMessage(retryText)
-                if (!started) {
-                    setRetryButtonLoadingState(btnRetry, isLoading = false)
-                }
-            } else {
-                Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
-            }
-        }
-        bindAutomationConfirmButton(
-            button = btnConfirm,
-            textView = tvConfirmText,
-            instruction = confirmInstruction,
-            messageRef = messageRef,
-            isConfirmed = hasConfirmedMarker,
-            isFinished = isAutomationFinished
-        )
-        
-        if (!animate) {
-            // 如果非动画模式（如历史记录），直接显示操作栏
-            view.findViewById<View>(R.id.action_area).visibility = View.VISIBLE
-        }
-    }
-    
-    /**
      * 丝滑滚动到底部
      */
     private fun smoothScrollToBottom() {
-        binding.messagesContainer.post {
-            val scrollView = binding.messagesContainer.parent as? android.widget.ScrollView ?: return@post
-            // 检查是否需要滚动：如果已经在底部附近，则跟随滚动
-            val viewHeight = binding.messagesContainer.height
-            val scrollViewHeight = scrollView.height
-            val scrollY = scrollView.scrollY
-            
-            // 容差值，判定是否在底部
-            val isAtBottom = (viewHeight - (scrollY + scrollViewHeight)) < 300 
-            
-            // 强制滚动，或者仅当用户没往回滚时滚动？
-            // 用户要求“同步下移”，通常是强制跟随。
-            scrollView.smoothScrollTo(0, viewHeight)
+        binding.messagesContentHost.post {
+            binding.scrollArea.smoothScrollTo(0, binding.messagesContentHost.height)
         }
     }
 
@@ -4521,491 +3720,7 @@ class MainActivity : AppCompatActivity() {
      * 某些情况下（如动画被打断或 Activity 复用）action_area 可能保持 GONE 状态。
      */
     private fun revealActionAreasForMessages() {
-        val container = binding.messagesContainer
-        for (i in 0 until container.childCount) {
-            val child = container.getChildAt(i)
-            val actionArea = child.findViewById<View?>(R.id.action_area)
-            // thinking 占位或非标准布局可能没有 action_area，这里仅对存在的进行显隐修正
-            if (actionArea != null && actionArea.visibility != View.VISIBLE) {
-                actionArea.visibility = View.VISIBLE
-            }
-        }
-    }
-
-    /**
-     * 用户消息复杂气泡：淡水蓝背景，右侧对齐，并与底部输入栏左右边界保持一致。
-     */
-    private fun resolveAttachmentIcon(attachment: AttachmentInfo): ImageVector =
-        when {
-            attachment.fileName.startsWith("camera_") -> Icons.Default.PhotoCamera
-            isImageAttachment(attachment) -> Icons.Default.Image
-            attachment.filePath.startsWith("screen_") -> Icons.Default.ScreenshotMonitor
-            attachment.mimeType.startsWith("audio/") -> Icons.Default.AudioFile
-            attachment.mimeType.startsWith("video/") -> Icons.Default.VideoLibrary
-            else -> Icons.Default.Description
-        }
-
-    private fun isImageAttachment(attachment: AttachmentInfo): Boolean {
-        if (attachment.mimeType.startsWith("image/", ignoreCase = true)) return true
-        val extension =
-            attachment.fileName.substringAfterLast('.', "").ifBlank {
-                attachment.filePath.substringAfterLast('.', "")
-            }.lowercase()
-        return extension in setOf("jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp")
-    }
-
-    private fun openAttachmentInputStream(filePath: String): InputStream? {
-        return runCatching {
-            when {
-                filePath.startsWith("content://") || filePath.startsWith("file://") -> {
-                    contentResolver.openInputStream(Uri.parse(filePath))
-                }
-                else -> {
-                    val file = File(filePath)
-                    if (file.exists() && file.isFile) file.inputStream() else null
-                }
-            }
-        }.getOrNull()
-    }
-
-    private fun calculateInSampleSize(options: BitmapFactory.Options, reqSizePx: Int): Int {
-        val outHeight = options.outHeight
-        val outWidth = options.outWidth
-        var inSampleSize = 1
-        if (outHeight > reqSizePx || outWidth > reqSizePx) {
-            var halfHeight = outHeight / 2
-            var halfWidth = outWidth / 2
-            while ((halfHeight / inSampleSize) >= reqSizePx && (halfWidth / inSampleSize) >= reqSizePx) {
-                inSampleSize *= 2
-            }
-        }
-        return inSampleSize.coerceAtLeast(1)
-    }
-
-    private fun decodeAttachmentThumbnail(filePath: String, reqSizePx: Int): Bitmap? {
-        val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        openAttachmentInputStream(filePath)?.use { input ->
-            BitmapFactory.decodeStream(input, null, boundsOptions)
-        } ?: return null
-
-        if (boundsOptions.outWidth <= 0 || boundsOptions.outHeight <= 0) return null
-
-        val decodeOptions =
-            BitmapFactory.Options().apply {
-                inSampleSize = calculateInSampleSize(boundsOptions, reqSizePx)
-                inPreferredConfig = Bitmap.Config.RGB_565
-            }
-        return openAttachmentInputStream(filePath)?.use { input ->
-            BitmapFactory.decodeStream(input, null, decodeOptions)
-        }
-    }
-
-    private fun bindUserAttachmentIcons(composeView: ComposeView, attachments: List<AttachmentInfo>) {
-        if (attachments.isEmpty()) {
-            composeView.visibility = View.GONE
-            composeView.setContent {}
-            return
-        }
-
-        composeView.visibility = View.VISIBLE
-        composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-        composeView.setContent {
-            val density = LocalDensity.current
-            val itemBg = colorResource(id = R.color.m3t_attachment_preview_card_bg)
-            val iconBg = colorResource(id = R.color.m3t_attachment_option_bg)
-            val iconTint = colorResource(id = R.color.m3t_attachment_option_icon)
-            val textColor = colorResource(id = R.color.m3t_attachment_preview_name)
-
-            val itemSpacing = dimensionResource(id = R.dimen.m3t_user_attachment_chip_spacing)
-            val itemRadius = dimensionResource(id = R.dimen.m3t_user_attachment_chip_radius)
-            val itemPaddingH = dimensionResource(id = R.dimen.m3t_spacing_sm)
-            val itemPaddingV = dimensionResource(id = R.dimen.m3t_spacing_xs)
-            val thumbSize = dimensionResource(id = R.dimen.m3t_user_attachment_thumb_size)
-            val iconBoxSize = dimensionResource(id = R.dimen.m3t_user_attachment_chip_size)
-            val iconSize = dimensionResource(id = R.dimen.m3t_user_attachment_chip_icon_size)
-            val titleMaxWidth = dimensionResource(id = R.dimen.m3t_user_attachment_name_max_width)
-
-            Column(verticalArrangement = Arrangement.spacedBy(itemSpacing)) {
-                attachments.forEach { attachment ->
-                    val isImage = isImageAttachment(attachment)
-                    val previewSizePx = with(density) { thumbSize.roundToPx() }.coerceAtLeast(1)
-                    val previewBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
-                        initialValue = null,
-                        key1 = attachment.filePath,
-                        key2 = previewSizePx,
-                        key3 = isImage
-                    ) {
-                        if (!isImage) {
-                            value = null
-                            return@produceState
-                        }
-
-                        val cacheKey = "${attachment.filePath}#$previewSizePx"
-                        val cachedBitmap = attachmentThumbnailCache.get(cacheKey)
-                        if (cachedBitmap != null) {
-                            value = cachedBitmap
-                            return@produceState
-                        }
-
-                        val decodedBitmap =
-                            withContext(Dispatchers.IO) {
-                                decodeAttachmentThumbnail(attachment.filePath, previewSizePx)?.asImageBitmap()
-                            }
-                        if (decodedBitmap != null) {
-                            attachmentThumbnailCache.put(cacheKey, decodedBitmap)
-                        }
-                        value = decodedBitmap
-                    }
-                    val shouldRenderImageStyle = isImage || previewBitmap != null
-
-                    Row(
-                        modifier =
-                            Modifier
-                                .clip(RoundedCornerShape(itemRadius))
-                                .background(itemBg)
-                                .padding(horizontal = itemPaddingH, vertical = itemPaddingV),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(itemSpacing)
-                    ) {
-                        if (shouldRenderImageStyle) {
-                            if (previewBitmap != null) {
-                                Image(
-                                    bitmap = previewBitmap!!,
-                                    contentDescription = attachment.fileName,
-                                    contentScale = ContentScale.Crop,
-                                    modifier =
-                                        Modifier
-                                            .size(thumbSize)
-                                            .clip(RoundedCornerShape(itemRadius))
-                                )
-                            } else {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .size(thumbSize)
-                                            .clip(RoundedCornerShape(itemRadius))
-                                            .background(iconBg),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = resolveAttachmentIcon(attachment),
-                                        contentDescription = attachment.fileName,
-                                        tint = iconTint,
-                                        modifier = Modifier.size(iconSize)
-                                    )
-                                }
-                            }
-                        } else {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(iconBoxSize)
-                                        .clip(RoundedCornerShape(itemRadius))
-                                        .background(iconBg),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = resolveAttachmentIcon(attachment),
-                                    contentDescription = attachment.fileName,
-                                    tint = iconTint,
-                                    modifier = Modifier.size(iconSize)
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = attachment.fileName.ifBlank { if (isImage) "图片" else "文件" },
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = textColor,
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.widthIn(max = titleMaxWidth)
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    private fun appendComplexUserMessage(
-        author: String,
-        content: String,
-        animate: Boolean,
-        attachments: List<AttachmentInfo> = emptyList()
-    ) {
-        val bubble = layoutInflater.inflate(R.layout.item_user_message_complex, binding.messagesContainer, false)
-        val tv = bubble.findViewById<TextView>(R.id.message_content)
-        val authorTv = bubble.findViewById<TextView>(R.id.user_author_name)
-        val attachmentIconsView = bubble.findViewById<ComposeView>(R.id.user_attachment_icons)
-        authorTv.text = author
-        authorTv.visibility = View.GONE
-        bindUserAttachmentIcons(attachmentIconsView, attachments)
-        tv.visibility = if (content.isBlank()) View.GONE else View.VISIBLE
-
-        val density = resources.displayMetrics.density
-        fun dp(v: Int): Int = (v * density).toInt()
-
-        // 用 row 容器把气泡贴到右侧（row 宽度 match_parent）
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.END
-        }
-
-        row.addView(
-            bubble,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                // 左侧留出空间制造“对话层次”，右侧贴边由 row + ScrollView padding 保证
-                setMargins(dp(48), dp(8), 0, dp(8))
-            }
-        )
-
-        binding.messagesContainer.addView(
-            row,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        )
-
-        smoothScrollToBottom()
-
-        if (!animate || content.isBlank()) {
-            tv.text = content
-            return
-        }
-
-        lifecycleScope.launch {
-            val sb = StringBuilder()
-            val chunkSize = 2
-            var idx = 0
-            while (idx < content.length) {
-                val end = minOf(idx + chunkSize, content.length)
-                sb.append(content.substring(idx, end))
-                tv.text = sb.toString()
-                idx = end
-                smoothScrollToBottom()
-                delay(10)
-            }
-            tv.text = content
-        }
-    }
-    
-    /**
-     * 【优化】使用StringBuilder批量更新方式显示消息
-    * 参考groupBy 算法，每次收到一点就拼接，然后刷新整个文本
-     */
-    private fun appendMessageBatch(
-            author: String,
-            content: String,
-            isUser: Boolean,
-    ) {
-        val tv =
-                TextView(this).apply {
-                    text = "$author："
-                    setPadding(20, 12, 20, 12)
-                    background =
-                            ContextCompat.getDrawable(
-                                    this@MainActivity,
-                                    if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
-                            )
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface))
-                }
-
-        val lp =
-                LinearLayout.LayoutParams(
-                                LinearLayout.LayoutParams.WRAP_CONTENT,
-                                LinearLayout.LayoutParams.WRAP_CONTENT
-                        )
-                        .apply {
-                            setMargins(12, 8, 12, 8)
-                            gravity = if (isUser) Gravity.END else Gravity.START
-                        }
-
-        binding.messagesContainer.addView(tv, lp)
-
-        binding.messagesContainer.post {
-            (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
-                    0,
-                    binding.messagesContainer.height
-            )
-        }
-
-        // 使用StringBuilder批量构建文本，分块更新UI
-        lifecycleScope.launch {
-            val sb = StringBuilder("$author：")
-            val chunkSize = 5 // 每5个字符批量更新一次
-            var charIndex = 0
-            
-            while (charIndex < content.length) {
-                // 计算本次要添加的字符数
-                val endIndex = minOf(charIndex + chunkSize, content.length)
-                val chunk = content.substring(charIndex, endIndex)
-                sb.append(chunk)
-                
-                // 刷新整个文本到界面
-                tv.text = sb.toString()
-                
-                charIndex = endIndex
-                
-                // 根据标点符号调整延迟，让显示更自然
-                val lastChar = chunk.lastOrNull() ?: ' '
-                val delayMs = when (lastChar) {
-                    '。', '！', '？', '.', '!', '?', ';', '：', ':' -> 80L
-                    '，', '、', '；', ',', ';', '：', ':' -> 50L
-                    '\n' -> 60L
-                    else -> 25L
-                }
-                delay(delayMs)
-            }
-            
-            // 最终滚动到底部
-            binding.messagesContainer.post {
-                (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
-                        0,
-                        binding.messagesContainer.height
-                )
-            }
-        }
-    }
-
-    private fun appendMessageInstant(author: String, content: String, isUser: Boolean) {
-        val tv =
-                TextView(this).apply {
-                    text = "$author：$content"
-                    setPadding(20, 12, 20, 12)
-                    background =
-                            ContextCompat.getDrawable(
-                                    this@MainActivity,
-                                    if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
-                            )
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface))
-                }
-        val lp =
-                LinearLayout.LayoutParams(
-                                LinearLayout.LayoutParams.WRAP_CONTENT,
-                                LinearLayout.LayoutParams.WRAP_CONTENT
-                        )
-                        .apply {
-                            setMargins(12, 8, 12, 8)
-                            gravity = if (isUser) Gravity.END else Gravity.START
-                        }
-        binding.messagesContainer.addView(tv, lp)
-        binding.messagesContainer.post {
-            (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
-                    0,
-                    binding.messagesContainer.height
-            )
-        }
-    }
-
-    private fun appendMessageTyping(
-            author: String,
-            content: String,
-            isUser: Boolean,
-            natural: Boolean = false
-    ) {
-
-        val tv =
-                TextView(this).apply {
-                    text = "$author："
-
-                    setPadding(20, 12, 20, 12)
-
-                    background =
-                            ContextCompat.getDrawable(
-                                    this@MainActivity,
-                                    if (isUser) R.drawable.bg_user_bubble_water else R.drawable.bubble_bot
-                            )
-
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.m3t_on_surface))
-                }
-
-        val lp =
-                LinearLayout.LayoutParams(
-                                LinearLayout.LayoutParams.WRAP_CONTENT,
-                                LinearLayout.LayoutParams.WRAP_CONTENT
-                        )
-                        .apply {
-                            setMargins(12, 8, 12, 8)
-
-                            gravity = if (isUser) Gravity.END else Gravity.START
-                        }
-
-        binding.messagesContainer.addView(tv, lp)
-
-        binding.messagesContainer.post {
-            (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
-                    0,
-                    binding.messagesContainer.height
-            )
-        }
-
-        lifecycleScope.launch {
-            for (i in 1..content.length) {
-
-                tv.text = "$author：${content.take(i)}"
-
-                val ch = content[i - 1]
-                val d =
-                        if (natural) {
-                            when (ch) {
-                                '。', '，', '、', '！', '？', '；', '.', ',', '!', '?', ';', '：', ':' ->
-                                        130L
-                                ' ' -> 30L
-                                else -> 28L
-                            }
-                        } else 12L
-                delay(d)
-            }
-        }
-    }
-
-    private fun showThinking() {
-        removeThinking()
-
-        val view = layoutInflater.inflate(R.layout.item_ai_message_complex, binding.messagesContainer, false)
-        val authorName = view.findViewById<TextView>(R.id.ai_author_name)
-        val messageContent = view.findViewById<TextView>(R.id.message_content)
-        val thinkingLayout = view.findViewById<View>(R.id.thinking_layout)
-        val actionArea = view.findViewById<View>(R.id.action_area)
-
-        authorName.text = "Aries AI"
-        authorName.visibility = View.VISIBLE
-        thinkingLayout.visibility = View.GONE
-        actionArea.visibility = View.GONE
-
-        messageContent.text = "正在思考"
-        messageContent.setTextColor(ContextCompat.getColor(this, R.color.m3t_thinking_text))
-
-        binding.messagesContainer.addView(view)
-        thinkingView = view
-        thinkingTextView = messageContent
-
-        lifecycleScope.launch {
-            var n = 0
-            while (thinkingView === view) {
-                val dots = ".".repeat(n % 4)
-                thinkingTextView?.text = "正在思考$dots"
-                n++
-                delay(400)
-            }
-        }
-        binding.messagesContainer.post {
-            (binding.messagesContainer.parent as? android.widget.ScrollView)?.smoothScrollTo(
-                    0,
-                    binding.messagesContainer.height
-            )
-        }
-    }
-
-    private fun removeThinking() {
-        val v = thinkingView ?: return
-        binding.messagesContainer.removeView(v)
-        thinkingView = null
-        thinkingTextView = null
+        Unit
     }
 
     private fun initSherpaModel() {
@@ -5320,10 +4035,70 @@ class MainActivity : AppCompatActivity() {
 
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        val containerView = layoutInflater.inflate(R.layout.dialog_history, null)
-        dialog.setContentView(containerView)
+        val displayedState =
+            mutableStateListOf<ConversationHistoryItemUi>().apply {
+                addAll(
+                    displayed.map { conversation ->
+                        val lastMessage = conversation.messages.lastOrNull()
+                        val previewRaw =
+                            if (lastMessage?.isUser == false) {
+                                parseStoredAiContent(lastMessage.content).second
+                            } else {
+                                lastMessage?.content.orEmpty()
+                            }
+                        ConversationHistoryItemUi(
+                            id = conversation.id,
+                            title =
+                                conversation.title.ifBlank {
+                                    getString(R.string.history_new_chat)
+                                },
+                            preview = previewRaw.replace('\n', ' ').trim(),
+                        )
+                    }
+                )
+            }
 
-        val cardView = containerView.findViewById<View>(R.id.dialogCard)
+        val composeView =
+            ComposeView(this).apply {
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+                setContent {
+                    AriesMaterialTheme {
+                        ConversationHistoryDialog(
+                            items = displayedState,
+                            onDismiss = {
+                                vibrateLight()
+                                dialog.dismiss()
+                            },
+                            onSelect = { conversationId ->
+                                conversations.firstOrNull { it.id == conversationId }?.let { conversation ->
+                                    activeConversation = conversation
+                                    renderConversation(conversation, animateTransition = true)
+                                    persistConversations()
+                                }
+                                vibrateLight()
+                                dialog.dismiss()
+                            },
+                            onDelete = { conversationId ->
+                                if (!deleteConversationById(conversationId, clearUiForActive = true)) {
+                                    return@ConversationHistoryDialog
+                                }
+                                displayedState.removeAll { it.id == conversationId }
+                                if (displayedState.isEmpty()) {
+                                    dialog.dismiss()
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+
+        dialog.setContentView(
+            composeView,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
 
         dialog.window?.let { window ->
             window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
@@ -5331,148 +4106,17 @@ class MainActivity : AppCompatActivity() {
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT
             )
-            window.setDimAmount(0f) // 完全丢弃系统暗色遮罩
-            window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
+            window.setDimAmount(0f)
+            window.setFlags(
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            )
             val params = window.attributes
             params.windowAnimations = 0
             window.attributes = params
         }
 
-        val rv = containerView.findViewById<RecyclerView>(R.id.rvHistory)
-        DialogSizingUtil.applyCompactSizing(
-            context = this,
-            cardView = cardView,
-            scrollBody = null,
-            listView = rv,
-            hasList = true,
-        )
-        rv.layoutManager = LinearLayoutManager(this)
-        val adapter =
-            ConversationAdapter(
-                items = displayed,
-                onClick = { conv ->
-                    activeConversation = conv
-                    renderConversation(conv)
-                    persistConversations()
-                },
-                aiPreviewExtractor = { parseStoredAiContent(it).second },
-            )
-        rv.adapter = adapter
-
-        fun exitDialog() {
-            vibrateLight()
-            cardView.animate()
-                .translationY(cardView.height.toFloat() * 1.5f)
-                .alpha(0f)
-                .setDuration(450)
-                .setInterpolator(AccelerateInterpolator(1.2f))
-                .withEndAction { dialog.dismiss() }
-                .start()
-        }
-
-        containerView.findViewById<View>(R.id.btnClose).setOnClickListener { exitDialog() }
-        // 点击卡片外部区域退出
-        containerView.setOnClickListener { exitDialog() }
-        cardView.setOnClickListener { /* 阻止点击穿透到 containerView */ }
-
-        val helper =
-            ItemTouchHelper(
-                object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
-                    override fun onMove(
-                        recyclerView: RecyclerView,
-                        viewHolder: RecyclerView.ViewHolder,
-                        target: RecyclerView.ViewHolder
-                    ): Boolean = false
-
-                    override fun onSwiped(
-                        viewHolder: RecyclerView.ViewHolder,
-                        direction: Int
-                    ) {
-                        val pos = viewHolder.bindingAdapterPosition
-                        if (pos == RecyclerView.NO_POSITION) return
-                        val removed = displayed.removeAt(pos)
-                        conversations.removeAll { it.id == removed.id }
-
-                        if (activeConversation?.id == removed.id) {
-                            activeConversation = null
-                            startNewChat(clearUi = true)
-                        }
-                        adapter.notifyItemRemoved(pos)
-                        persistConversations()
-                    }
-                }
-            )
-        helper.attachToRecyclerView(rv)
-
-        adapter.onItemSelected = { exitDialog() }
-
         dialog.show()
-
-        // 入场动画：纯正扫入，不再受遮罩影响
-        cardView.post {
-            cardView.translationY = -cardView.height.toFloat() * 1.5f
-            cardView.alpha = 0f
-
-            cardView.animate()
-                .translationY(0f)
-                .alpha(1f)
-                .scaleX(1.0f)
-                .scaleY(1.0f)
-                .setDuration(600)
-                .setInterpolator(OvershootInterpolator(1.1f))
-                .start()
-        }
-    }
-
-    private class ConversationAdapter(
-            private val items: List<Conversation>,
-            private val onClick: (Conversation) -> Unit,
-            private val aiPreviewExtractor: (String) -> String,
-    ) : RecyclerView.Adapter<ConversationAdapter.VH>() {
-
-        var onItemSelected: (() -> Unit)? = null
-
-        class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            val title: TextView = itemView.findViewById(R.id.tvTitle)
-            val subtitle: TextView = itemView.findViewById(R.id.tvSubtitle)
-        }
-
-        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): VH {
-            val v =
-                    android.view.LayoutInflater.from(parent.context)
-                            .inflate(R.layout.item_conversation, parent, false)
-            return VH(v)
-        }
-
-        override fun onBindViewHolder(holder: VH, position: Int) {
-            val c = items[position]
-            holder.title.text =
-                if (c.title.isBlank()) {
-                    holder.itemView.context.getString(R.string.history_new_chat)
-                } else {
-                    c.title
-                }
-            val lastMessage = c.messages.lastOrNull()
-            val previewRaw =
-                if (lastMessage?.isUser == false) {
-                    aiPreviewExtractor(lastMessage.content)
-                } else {
-                    lastMessage?.content.orEmpty()
-                }
-            val preview = previewRaw.replace('\n', ' ').trim()
-            if (preview.isBlank()) {
-                holder.subtitle.visibility = View.GONE
-            } else {
-                holder.subtitle.visibility = View.VISIBLE
-                holder.subtitle.text = preview
-            }
-            holder.itemView.setOnClickListener {
-                onClick(c)
-                onItemSelected?.invoke()
-            }
-        }
-
-        override fun getItemCount(): Int = items.size
     }
 
     private fun attachAnimatedRing(target: View, strokeDp: Float) {

@@ -1,45 +1,94 @@
 package com.ai.phoneagent
 
-import android.Manifest
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.graphics.Color
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
 import android.text.Html
+import android.view.Gravity
 import android.view.View
+import android.widget.ScrollView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
-import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.KeyboardVoice
+import androidx.compose.material.icons.outlined.SettingsAccessibility
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.Dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
-import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.isVisible
-import androidx.core.view.updatePadding
 import androidx.drawerlayout.widget.DrawerLayout
-import com.google.android.material.button.MaterialButton
-
-import rikka.shizuku.Shizuku
+import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
 
 class MainOnboardingOverlay(
     private val activity: AppCompatActivity,
 ) {
-    private enum class FlowMode {
+    enum class FlowMode {
         ONBOARDING,
         PERMISSION_ONLY,
     }
 
-    private enum class Step {
+    enum class Step {
         WELCOME,
         AGREEMENT,
         PERMISSION,
+    }
+
+    data class PermissionUiState(
+        val accessibilityReady: Boolean,
+        val overlayReady: Boolean,
+        val microphoneReady: Boolean,
+    ) {
+        val allReady: Boolean
+            get() = accessibilityReady && overlayReady && microphoneReady
     }
 
     companion object {
@@ -52,46 +101,51 @@ class MainOnboardingOverlay(
 
     private val prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val drawerLayout = activity.findViewById<DrawerLayout>(R.id.drawerLayout)
+    private val hostRoot = activity.findViewById<ComposeView>(R.id.onboardingHost)
 
-    private val hostRoot = activity.findViewById<View>(R.id.onboardingHost)
-    private val welcomePage = activity.findViewById<View>(R.id.pageWelcome)
-    private val agreementPage = activity.findViewById<View>(R.id.pageAgreement)
-    private val permissionPage = activity.findViewById<View>(R.id.pagePermission)
-
-    private val btnWelcomeNext = welcomePage.findViewById<MaterialButton>(R.id.btnWelcomeNext)
-    private val btnAgreementAgree = agreementPage.findViewById<MaterialButton>(R.id.btnAgreementAgree)
-
-    private val permissionHeader = permissionPage.findViewById<View>(R.id.permissionSheetHeader)
-    private val permissionActions = permissionPage.findViewById<View>(R.id.permissionSheetActions)
-    private val tvAccStatus = permissionPage.findViewById<TextView>(R.id.tvPermAccStatus)
-    private val tvOverlayStatus = permissionPage.findViewById<TextView>(R.id.tvPermOverlayStatus)
-    private val tvMicStatus = permissionPage.findViewById<TextView>(R.id.tvPermMicStatus)
-    private val btnAcc = permissionPage.findViewById<MaterialButton>(R.id.btnPermAcc)
-    private val btnOverlay = permissionPage.findViewById<MaterialButton>(R.id.btnPermOverlay)
-    private val btnMic = permissionPage.findViewById<MaterialButton>(R.id.btnPermMic)
-    private val btnGuide = permissionPage.findViewById<MaterialButton>(R.id.btnPermGuide)
-    private val btnDone = permissionPage.findViewById<MaterialButton>(R.id.btnPermDone)
-
-    private var flowMode = FlowMode.ONBOARDING
-    private var currentStep: Step? = null
-    private var isTransitionRunning = false
+    private var overlayVisible by mutableStateOf(false)
+    private var flowMode by mutableStateOf(FlowMode.ONBOARDING)
+    private var currentStep by mutableStateOf(Step.WELCOME)
+    private var permissionUiState by mutableStateOf(readPermissionUiState())
 
     init {
-        configureAgreementPage()
-        configurePermissionPage()
-        applyWindowInsets()
-        hostRoot.setOnClickListener { }
-        hostRoot.isClickable = false
-        hostRoot.isFocusable = false
-        hostRoot.isFocusableInTouchMode = false
-        hostRoot.isVisible = false
+        hostRoot.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+        hostRoot.setContent {
+            AriesMaterialTheme {
+                if (overlayVisible) {
+                    MainOnboardingOverlayScreen(
+                        flowMode = flowMode,
+                        currentStep = currentStep,
+                        agreementHtml = activity.getString(R.string.user_agreement_content),
+                        permissionUiState = permissionUiState,
+                        onNext = {
+                            when (currentStep) {
+                                Step.WELCOME -> currentStep = Step.AGREEMENT
+                                Step.AGREEMENT -> {
+                                    prefs.edit().putBoolean(KEY_USER_AGREEMENT_ACCEPTED, true).apply()
+                                    markPermissionGuideShown()
+                                    refreshPermissionUi()
+                                    currentStep = Step.PERMISSION
+                                }
+                                Step.PERMISSION -> Unit
+                            }
+                        },
+                        onOpenAccessibility = { openAccessibilitySettings() },
+                        onOpenOverlay = { openOverlaySettings() },
+                        onOpenMic = { requestMicPermission() },
+                        onGuideAll = { guideAll() },
+                        onDone = { hideOverlay() },
+                    )
+                }
+            }
+        }
+        hostRoot.visibility = View.GONE
         setupBackBehavior()
     }
 
     fun showOnboarding() {
-        if (hostRoot.isVisible && flowMode == FlowMode.ONBOARDING) return
+        if (overlayVisible && flowMode == FlowMode.ONBOARDING) return
         flowMode = FlowMode.ONBOARDING
-        btnAgreementAgree.text = activity.getString(R.string.user_agreement_action_next)
         showOverlay(Step.WELCOME)
     }
 
@@ -103,9 +157,7 @@ class MainOnboardingOverlay(
     }
 
     fun onResume() {
-        if (hostRoot.isVisible && currentStep == Step.PERMISSION) {
-            updatePermissionUi()
-        }
+        if (overlayVisible) refreshPermissionUi()
     }
 
     fun onRequestPermissionsResult(
@@ -114,63 +166,49 @@ class MainOnboardingOverlay(
         grantResults: IntArray,
     ): Boolean {
         if (requestCode != REQ_RECORD_AUDIO) return false
-        updatePermissionUi()
+        refreshPermissionUi()
         return true
     }
 
-    fun isShowing(): Boolean = hostRoot.isVisible
+    fun isShowing(): Boolean = overlayVisible
 
     private fun showOverlay(initialStep: Step) {
         closeDrawerIfOpen(immediate = true)
-        hostRoot.isClickable = true
-        hostRoot.isFocusable = true
-        hostRoot.isFocusableInTouchMode = true
-        hostRoot.isVisible = true
+        overlayVisible = true
+        currentStep = initialStep
+        hostRoot.visibility = View.VISIBLE
         hostRoot.bringToFront()
         drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
         applyOverlaySystemBars()
-        showStep(initialStep, forward = true, animate = false)
+        if (initialStep == Step.PERMISSION) {
+            markPermissionGuideShown()
+            refreshPermissionUi()
+        }
     }
 
     private fun hideOverlay() {
-        hostRoot.clearFocus()
-        hostRoot.isClickable = false
-        hostRoot.isFocusable = false
-        hostRoot.isFocusableInTouchMode = false
-        hostRoot.isVisible = false
-        isTransitionRunning = false
-        currentStep = null
+        overlayVisible = false
+        hostRoot.visibility = View.GONE
         drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
         closeDrawerIfOpen(immediate = true)
         restoreMainSystemBars()
     }
 
-    private fun configureAgreementPage() {
-        val contentView = agreementPage.findViewById<TextView>(R.id.tvAgreementContent)
-        val content = activity.getString(R.string.user_agreement_content)
-        contentView.text =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                Html.fromHtml(content, Html.FROM_HTML_MODE_COMPACT)
-            } else {
-                @Suppress("DEPRECATION")
-                Html.fromHtml(content)
-            }
-
-        btnWelcomeNext.setOnClickListener {
-            showStep(Step.AGREEMENT, forward = true, animate = true)
-        }
-        btnAgreementAgree.setOnClickListener {
-            prefs.edit().putBoolean(KEY_USER_AGREEMENT_ACCEPTED, true).apply()
-            showStep(Step.PERMISSION, forward = true, animate = true)
-        }
+    private fun markPermissionGuideShown() {
+        prefs.edit().putBoolean(KEY_PERMISSION_GUIDE_SHOWN, true).apply()
     }
 
-    private fun configurePermissionPage() {
-        btnAcc.setOnClickListener { openAccessibilitySettings() }
-        btnOverlay.setOnClickListener { openOverlaySettings() }
-        btnMic.setOnClickListener { requestMicPermission() }
-        btnGuide.setOnClickListener { guideAll() }
-        btnDone.setOnClickListener { hideOverlay() }
+    private fun refreshPermissionUi() {
+        permissionUiState = readPermissionUiState()
+    }
+
+    private fun readPermissionUiState(): PermissionUiState {
+        val accessibilityReady = PermissionSetupSupport.isAccessibilityEnabled(activity)
+        val overlayReady = PermissionSetupSupport.hasOverlayPermission(activity)
+        val microphoneReady =
+            ContextCompat.checkSelfPermission(activity, android.Manifest.permission.RECORD_AUDIO) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        return PermissionUiState(accessibilityReady, overlayReady, microphoneReady)
     }
 
     private fun setupBackBehavior() {
@@ -179,22 +217,22 @@ class MainOnboardingOverlay(
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
                     if (closeDrawerIfOpen()) return
-                    if (!hostRoot.isVisible) {
+                    if (!overlayVisible) {
                         isEnabled = false
                         activity.onBackPressedDispatcher.onBackPressed()
                         isEnabled = true
                         return
                     }
-                    if (isTransitionRunning) return
 
                     when (flowMode) {
                         FlowMode.PERMISSION_ONLY -> hideOverlay()
                         FlowMode.ONBOARDING -> {
-                            when (currentStep) {
-                                Step.PERMISSION -> showStep(Step.AGREEMENT, forward = false, animate = true)
-                                Step.AGREEMENT -> showStep(Step.WELCOME, forward = false, animate = true)
-                                else -> Unit
-                            }
+                            currentStep =
+                                when (currentStep) {
+                                    Step.PERMISSION -> Step.AGREEMENT
+                                    Step.AGREEMENT -> Step.WELCOME
+                                    Step.WELCOME -> Step.WELCOME
+                                }
                         }
                     }
                 }
@@ -208,74 +246,11 @@ class MainOnboardingOverlay(
         return true
     }
 
-    private fun showStep(target: Step, forward: Boolean, animate: Boolean) {
-        if (currentStep == target || isTransitionRunning) return
-
-        val targetView = pageFor(target)
-        val previousView = currentStep?.let(::pageFor)
-
-        if (!animate || previousView == null || hostRoot.width == 0) {
-            listOf(welcomePage, agreementPage, permissionPage).forEach { page ->
-                page.isVisible = page === targetView
-                page.alpha = 1f
-                page.translationX = 0f
-            }
-            currentStep = target
-            onStepShown(target)
-            return
-        }
-
-        isTransitionRunning = true
-        val distance = hostRoot.width.toFloat().coerceAtLeast(1f)
-        val enterFrom = if (forward) distance * 0.18f else -distance * 0.18f
-        val exitTo = if (forward) -distance * 0.12f else distance * 0.12f
-
-        targetView.isVisible = true
-        targetView.alpha = 0f
-        targetView.translationX = enterFrom
-
-        previousView.animate()
-            .translationX(exitTo)
-            .alpha(0f)
-            .setDuration(280)
-            .withEndAction {
-                previousView.isVisible = false
-                previousView.translationX = 0f
-                previousView.alpha = 1f
-            }
-            .start()
-
-        targetView.animate()
-            .translationX(0f)
-            .alpha(1f)
-            .setDuration(320)
-            .withEndAction {
-                currentStep = target
-                isTransitionRunning = false
-                onStepShown(target)
-            }
-            .start()
-    }
-
-    private fun onStepShown(step: Step) {
-        if (step == Step.PERMISSION) {
-            prefs.edit().putBoolean(KEY_PERMISSION_GUIDE_SHOWN, true).apply()
-            updatePermissionUi()
-        }
-    }
-    private fun pageFor(step: Step): View =
-        when (step) {
-            Step.WELCOME -> welcomePage
-            Step.AGREEMENT -> agreementPage
-            Step.PERMISSION -> permissionPage
-        }
-
     private fun applyOverlaySystemBars() {
         val pageColor = ContextCompat.getColor(activity, R.color.m3t_drawer_background)
         val useLightSystemBarIcons = activity.resources.getBoolean(R.bool.m3t_light_system_bars)
         activity.window.statusBarColor = pageColor
         activity.window.navigationBarColor = pageColor
-        activity.window.decorView.setBackgroundColor(Color.TRANSPARENT)
         WindowCompat.getInsetsController(activity.window, activity.window.decorView)?.let {
             it.isAppearanceLightStatusBars = useLightSystemBarIcons
             it.isAppearanceLightNavigationBars = useLightSystemBarIcons
@@ -284,329 +259,388 @@ class MainOnboardingOverlay(
 
     private fun restoreMainSystemBars() {
         val useLightSystemBarIcons = activity.resources.getBoolean(R.bool.m3t_light_system_bars)
-        activity.window.statusBarColor = Color.TRANSPARENT
-        activity.window.navigationBarColor = Color.TRANSPARENT
+        activity.window.statusBarColor = android.graphics.Color.TRANSPARENT
+        activity.window.navigationBarColor = android.graphics.Color.TRANSPARENT
         WindowCompat.getInsetsController(activity.window, activity.window.decorView)?.let {
             it.isAppearanceLightStatusBars = useLightSystemBarIcons
             it.isAppearanceLightNavigationBars = useLightSystemBarIcons
         }
     }
 
-    private fun applyWindowInsets() {
-        applyPageInsets(
-            root = welcomePage,
-            header = welcomePage.findViewById(R.id.welcomeHeader),
-            actions = welcomePage.findViewById(R.id.welcomeActions),
-        )
-        applyPageInsets(
-            root = agreementPage.findViewById(R.id.cardAgreement),
-            header = agreementPage.findViewById(R.id.agreementHeader),
-            actions = agreementPage.findViewById(R.id.agreementActions),
-        )
-        applyPageInsets(
-            root = permissionPage,
-            header = permissionHeader,
-            actions = permissionActions,
-        )
-    }
-
-    private fun applyPageInsets(root: View, header: View, actions: View) {
-        val rootStart = root.paddingStart
-        val rootEnd = root.paddingEnd
-        val headerTop = header.paddingTop
-        val actionsBottom = actions.paddingBottom
-
-        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            root.updatePadding(left = rootStart + systemBars.left, right = rootEnd + systemBars.right)
-            header.updatePadding(top = headerTop + systemBars.top)
-            actions.updatePadding(bottom = actionsBottom + systemBars.bottom)
-            insets
-        }
-        ViewCompat.requestApplyInsets(root)
-    }
-
-    private fun hasOverlayPermission(context: Context): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context)
-
-    private fun allPermissionsReady(context: Context): Boolean {
-        val micOk =
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
-        return isAccessibilityEnabled(context) && hasOverlayPermission(context) && micOk
-    }
-
-    private fun updatePermissionUi() {
-        val accOk = isAccessibilityEnabled(activity)
-        updatePermissionRow(tvAccStatus, btnAcc, accOk, R.string.perm_sheet_action_enable)
-
-        val overlayOk = hasOverlayPermission(activity)
-        updatePermissionRow(tvOverlayStatus, btnOverlay, overlayOk, R.string.perm_sheet_action_settings)
-
-        val micOk =
-            ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
-        updatePermissionRow(tvMicStatus, btnMic, micOk, R.string.perm_sheet_action_grant)
-
-        val allOk = accOk && overlayOk && micOk
-        btnGuide.text =
-            activity.getString(
-                if (allOk) {
-                    R.string.perm_sheet_primary_action_ready
-                } else {
-                    R.string.perm_sheet_primary_action
-                },
-            )
-        btnDone.isVisible = !allOk
-    }
-
-    private fun updatePermissionRow(
-        statusView: TextView,
-        actionButton: MaterialButton,
-        ready: Boolean,
-        @StringRes pendingActionText: Int,
-    ) {
-        statusView.text =
-            activity.getString(
-                if (ready) {
-                    R.string.perm_sheet_status_ready
-                } else {
-                    R.string.perm_sheet_status_pending
-                },
-            )
-        statusView.setTextColor(
-            ContextCompat.getColor(
-                activity,
-                if (ready) {
-                    R.color.blue_glass_primary
-                } else {
-                    R.color.blue_glass_text_dim
-                },
-            ),
-        )
-        actionButton.isEnabled = !ready
-        actionButton.text =
-            activity.getString(
-                if (ready) {
-                    R.string.perm_sheet_action_ready
-                } else {
-                    pendingActionText
-                },
-            )
-    }
-
-    private fun isAccessibilityEnabled(context: Context): Boolean {
-        val enabled =
-            Settings.Secure.getInt(
-                context.contentResolver,
-                Settings.Secure.ACCESSIBILITY_ENABLED,
-                0,
-            )
-        if (enabled != 1) return false
-        val setting =
-            Settings.Secure.getString(
-                context.contentResolver,
-                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-            ) ?: return false
-        val serviceId = "${context.packageName}/${PhoneAgentAccessibilityService::class.java.name}"
-        return setting.split(':').any { it.equals(serviceId, ignoreCase = true) }
-    }
-
     private fun openAccessibilitySettings() {
-        val componentName = ComponentName(activity, PhoneAgentAccessibilityService::class.java)
-        val actionAccessibilityDetailsSettings = "android.settings.ACCESSIBILITY_DETAILS_SETTINGS"
-        val extraAccessibilityServiceComponentName =
-            "android.provider.extra.ACCESSIBILITY_SERVICE_COMPONENT_NAME"
-
-        fun tryStart(intent: Intent): Boolean = runCatching { activity.startActivity(intent) }.isSuccess
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val intentWithComponent =
-                Intent(actionAccessibilityDetailsSettings).apply {
-                    putExtra(Intent.EXTRA_COMPONENT_NAME, componentName)
-                    putExtra(extraAccessibilityServiceComponentName, componentName)
-                }
-            if (tryStart(intentWithComponent)) return
-
-            val intentWithFlattenedName =
-                Intent(actionAccessibilityDetailsSettings).apply {
-                    putExtra(Intent.EXTRA_COMPONENT_NAME, componentName)
-                    putExtra(extraAccessibilityServiceComponentName, componentName.flattenToString())
-                }
-            if (tryStart(intentWithFlattenedName)) return
-        }
-
-        tryStart(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        PermissionSetupSupport.openAccessibilitySettings(activity)
     }
 
     private fun openOverlaySettings() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        activity.startActivity(
-            Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:${activity.packageName}"),
-            ),
-        )
+        PermissionSetupSupport.openOverlaySettings(activity)
     }
 
     private fun requestMicPermission() {
-        val granted =
-            ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
-        if (granted) {
-            updatePermissionUi()
-            return
+        PermissionSetupSupport.requestMicPermission(activity, REQ_RECORD_AUDIO) {
+            refreshPermissionUi()
         }
-        activity.requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_RECORD_AUDIO)
     }
 
     private fun guideAll() {
-        if (allPermissionsReady(activity)) {
-            hideOverlay()
-            return
-        }
-
-        if (ShizukuBridge.pingBinder() && !ShizukuBridge.hasPermission()) {
-            runCatching { Shizuku.requestPermission(REQ_SHIZUKU_PERMISSION) }
-            Toast.makeText(
-                activity,
-                activity.getString(R.string.automation_shizuku_permission_requested),
-                Toast.LENGTH_SHORT,
-            ).show()
-            return
-        }
-
-        if (ShizukuBridge.isShizukuAvailable()) {
-            val autoGranted = grantPermissionsViaShizuku(activity)
-            if (autoGranted) {
-                Toast.makeText(
-                    activity,
-                    activity.getString(R.string.perm_sheet_shizuku_success),
-                    Toast.LENGTH_SHORT,
-                ).show()
+        PermissionSetupSupport.guideAll(
+            activity = activity,
+            requestShizukuPermissionCode = REQ_SHIZUKU_PERMISSION,
+            requestMicPermission = { requestMicPermission() },
+            onReady = {
+                refreshPermissionUi()
                 hideOverlay()
-                return
+            },
+            onUiRefresh = { refreshPermissionUi() },
+        )
+    }
+}
+
+@Composable
+private fun MainOnboardingOverlayScreen(
+    flowMode: MainOnboardingOverlay.FlowMode,
+    currentStep: MainOnboardingOverlay.Step,
+    agreementHtml: String,
+    permissionUiState: MainOnboardingOverlay.PermissionUiState,
+    onNext: () -> Unit,
+    onOpenAccessibility: () -> Unit,
+    onOpenOverlay: () -> Unit,
+    onOpenMic: () -> Unit,
+    onGuideAll: () -> Unit,
+    onDone: () -> Unit,
+) {
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingXxl = dimensionResource(R.dimen.m3t_spacing_xxl)
+    val progress = (currentStep.ordinal + 1) / MainOnboardingOverlay.Step.entries.size.toFloat()
+    val animatedProgress by
+        animateFloatAsState(
+            targetValue = progress,
+            animationSpec = tween(durationMillis = 420, easing = FastOutSlowInEasing),
+            label = "onboardingProgress",
+        )
+
+    Column(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+    ) {
+        Box(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+        ) {
+            AnimatedContent(
+                targetState = currentStep,
+                transitionSpec = {
+                    if (targetState.ordinal > initialState.ordinal) {
+                        slideInHorizontally(initialOffsetX = { it / 5 }) + fadeIn() togetherWith
+                            slideOutHorizontally(targetOffsetX = { -it / 6 }) + fadeOut()
+                    } else {
+                        slideInHorizontally(initialOffsetX = { -it / 5 }) + fadeIn() togetherWith
+                            slideOutHorizontally(targetOffsetX = { it / 6 }) + fadeOut()
+                    }
+                },
+                label = "onboardingStepContent",
+            ) { step ->
+                when (step) {
+                    MainOnboardingOverlay.Step.WELCOME ->
+                        WelcomePanel(
+                            modifier = Modifier.fillMaxSize(),
+                            onNext = onNext,
+                        )
+
+                    MainOnboardingOverlay.Step.AGREEMENT ->
+                        AgreementPanel(
+                            modifier = Modifier.fillMaxSize(),
+                            agreementHtml = agreementHtml,
+                            onAccept = onNext,
+                        )
+
+                    MainOnboardingOverlay.Step.PERMISSION ->
+                        PermissionPanel(
+                            modifier = Modifier.fillMaxSize(),
+                            flowMode = flowMode,
+                            permissionUiState = permissionUiState,
+                            onOpenAccessibility = onOpenAccessibility,
+                            onOpenOverlay = onOpenOverlay,
+                            onOpenMic = onOpenMic,
+                            onGuideAll = onGuideAll,
+                            onDone = onDone,
+                        )
+                }
             }
-            updatePermissionUi()
         }
 
-        if (!isAccessibilityEnabled(activity)) {
-            openAccessibilitySettings()
-            return
-        }
-
-        if (!hasOverlayPermission(activity)) {
-            openOverlaySettings()
-            return
-        }
-
-        if (
-            ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) !=
-                PackageManager.PERMISSION_GRANTED
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = spacingLg),
+            verticalArrangement = Arrangement.spacedBy(spacingSm),
         ) {
-            requestMicPermission()
-            return
-        }
-
-        hideOverlay()
-    }
-
-    private fun grantPermissionsViaShizuku(context: Context): Boolean {
-        val accessibilityGranted = grantAccessibilityServiceViaShizuku(context)
-        if (!accessibilityGranted) return false
-
-        val overlayGranted = grantOverlayPermissionViaShizuku(context)
-        if (!overlayGranted) return false
-
-        return grantMicrophonePermissionViaShizuku(context)
-    }
-
-    private fun grantAccessibilityServiceViaShizuku(context: Context): Boolean {
-        if (isAccessibilityEnabled(context)) return true
-
-        val serviceId = "${context.packageName}/${PhoneAgentAccessibilityService::class.java.name}"
-        val existing =
-            Settings.Secure.getString(
-                context.contentResolver,
-                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-            ) ?: ""
-        val serviceSet =
-            existing.split(':')
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-                .toMutableSet()
-
-        if (!serviceSet.any { it.equals(serviceId, ignoreCase = true) }) {
-            serviceSet.add(serviceId)
-        }
-
-        val enableList = serviceSet.joinToString(":")
-        val setServicesResult =
-            runCatching {
-                ShizukuBridge.execResultArgs(
-                    listOf("settings", "put", "secure", "enabled_accessibility_services", enableList),
-                )
-            }.getOrNull()
-        val enableServiceResult =
-            runCatching {
-                ShizukuBridge.execResultArgs(
-                    listOf("settings", "put", "secure", "accessibility_enabled", "1"),
-                )
-            }.getOrNull()
-
-        if (setServicesResult == null || setServicesResult.exitCode != 0) return false
-        if (enableServiceResult == null || enableServiceResult.exitCode != 0) return false
-
-        return isAccessibilityEnabled(context)
-    }
-
-    private fun grantOverlayPermissionViaShizuku(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
-        if (hasOverlayPermission(context)) return true
-
-        runCatching {
-            ShizukuBridge.execResultArgs(
-                listOf("appops", "set", context.packageName, "SYSTEM_ALERT_WINDOW", "allow"),
+            Text(
+                text = "${currentStep.ordinal + 1}/${MainOnboardingOverlay.Step.entries.size}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
-        runCatching {
-            ShizukuBridge.execResultArgs(
-                listOf("appops", "set", context.packageName, "android:system_alert_window", "allow"),
+            LinearProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier.fillMaxWidth(),
             )
         }
 
-        return hasOverlayPermission(context)
+        Spacer(modifier = Modifier.navigationBarsPadding())
+        Spacer(modifier = Modifier.height(spacingXxl))
     }
+}
 
-    private fun grantMicrophonePermissionViaShizuku(context: Context): Boolean {
-        if (
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
+@Composable
+private fun WelcomePanel(
+    modifier: Modifier = Modifier,
+    onNext: () -> Unit,
+) {
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
+    val buttonHeight = dimensionResource(R.dimen.m3t_button_height)
+
+    Card(
+        modifier = modifier.padding(horizontal = spacingXl, vertical = spacingLg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = MaterialTheme.shapes.extraLarge,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(spacingLg),
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            return true
-        }
+            Box(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(R.string.onboarding_welcome_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
 
-        runCatching {
-            ShizukuBridge.execResultArgs(
-                listOf("pm", "grant", context.packageName, Manifest.permission.RECORD_AUDIO),
+            Button(
+                onClick = onNext,
+                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+            ) {
+                Text(stringResource(R.string.onboarding_welcome_action))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AgreementPanel(
+    modifier: Modifier = Modifier,
+    agreementHtml: String,
+    onAccept: () -> Unit,
+) {
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
+    val buttonHeight = dimensionResource(R.dimen.m3t_button_height)
+    val agreementTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    val agreementContainerColor = MaterialTheme.colorScheme.surfaceVariant.toArgb()
+
+    Card(
+        modifier = modifier.padding(horizontal = spacingXl, vertical = spacingLg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = MaterialTheme.shapes.extraLarge,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(spacingLg),
+            verticalArrangement = Arrangement.spacedBy(spacingMd),
+        ) {
+            Text(
+                text = stringResource(R.string.user_agreement_title),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Surface(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = MaterialTheme.shapes.large,
+            ) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { context ->
+                        val horizontalPadding = context.resources.getDimensionPixelSize(R.dimen.m3t_spacing_xl)
+                        val verticalPadding = context.resources.getDimensionPixelSize(R.dimen.m3t_spacing_lg)
+                        ScrollView(context).apply {
+                            isFillViewport = true
+                            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+                            setBackgroundColor(agreementContainerColor)
+                            addView(
+                                TextView(context).apply {
+                                    setTextColor(agreementTextColor)
+                                    textSize = 15f
+                                    setLineSpacing(0f, 1.35f)
+                                    gravity = Gravity.START
+                                    setBackgroundColor(agreementContainerColor)
+                                    setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
+                                },
+                            )
+                        }
+                    },
+                    update = { scrollView ->
+                        val textView = scrollView.getChildAt(0) as? TextView ?: return@AndroidView
+                        textView.text =
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                Html.fromHtml(agreementHtml, Html.FROM_HTML_MODE_COMPACT)
+                            } else {
+                                @Suppress("DEPRECATION")
+                                Html.fromHtml(agreementHtml)
+                            }
+                    },
+                )
+            }
+            Button(
+                onClick = onAccept,
+                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+            ) {
+                Text(stringResource(R.string.user_agreement_agree))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PermissionPanel(
+    modifier: Modifier = Modifier,
+    flowMode: MainOnboardingOverlay.FlowMode,
+    permissionUiState: MainOnboardingOverlay.PermissionUiState,
+    onOpenAccessibility: () -> Unit,
+    onOpenOverlay: () -> Unit,
+    onOpenMic: () -> Unit,
+    onGuideAll: () -> Unit,
+    onDone: () -> Unit,
+) {
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
+    val buttonHeight = dimensionResource(R.dimen.m3t_button_height)
+    val compactButtonHeight = dimensionResource(R.dimen.m3t_compact_button_height)
+
+    Card(
+        modifier = modifier.padding(horizontal = spacingXl, vertical = spacingLg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = MaterialTheme.shapes.extraLarge,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(spacingLg),
+            verticalArrangement = Arrangement.spacedBy(spacingMd),
+        ) {
+            Text(
+                text = stringResource(R.string.perm_sheet_title),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
+                shape = MaterialTheme.shapes.large,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(spacingLg),
+                    horizontalArrangement = Arrangement.spacedBy(spacingMd),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), shape = CircleShape) {
+                        Box(modifier = Modifier.padding(spacingSm), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Outlined.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                        }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
+                        Text(
+                            text = stringResource(R.string.perm_sheet_shizuku_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        Text(
+                            text = stringResource(R.string.perm_sheet_shizuku_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)),
+                shape = MaterialTheme.shapes.large,
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    PermissionRow(Icons.Outlined.SettingsAccessibility, stringResource(R.string.perm_sheet_accessibility_title), stringResource(R.string.perm_sheet_accessibility_desc), permissionUiState.accessibilityReady, stringResource(R.string.perm_sheet_action_enable), onOpenAccessibility, compactButtonHeight)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    PermissionRow(Icons.AutoMirrored.Outlined.OpenInNew, stringResource(R.string.perm_sheet_overlay_title), stringResource(R.string.perm_sheet_overlay_desc), permissionUiState.overlayReady, stringResource(R.string.perm_sheet_action_settings), onOpenOverlay, compactButtonHeight)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    PermissionRow(Icons.Outlined.KeyboardVoice, stringResource(R.string.perm_sheet_microphone_title), stringResource(R.string.perm_sheet_microphone_desc), permissionUiState.microphoneReady, stringResource(R.string.perm_sheet_action_grant), onOpenMic, compactButtonHeight)
+                }
+            }
+
+            Button(
+                onClick = onGuideAll,
+                modifier = Modifier.fillMaxWidth().height(buttonHeight),
+            ) {
+                Text(stringResource(if (permissionUiState.allReady) R.string.perm_sheet_primary_action_ready else R.string.perm_sheet_primary_action))
+            }
+
+            if (!permissionUiState.allReady || flowMode == MainOnboardingOverlay.FlowMode.PERMISSION_ONLY) {
+                FilledTonalButton(
+                    onClick = onDone,
+                    modifier = Modifier.fillMaxWidth().height(buttonHeight).navigationBarsPadding(),
+                ) {
+                    Text(stringResource(R.string.perm_sheet_secondary_action))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PermissionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    ready: Boolean,
+    pendingAction: String,
+    onAction: () -> Unit,
+    buttonHeight: Dp,
+) {
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(spacingLg),
+        horizontalArrangement = Arrangement.spacedBy(spacingMd),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f), shape = CircleShape) {
+            Box(modifier = Modifier.padding(spacingSm), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacingSm),
+        ) {
+            Text(text = title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+            Text(text = description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = stringResource(if (ready) R.string.perm_sheet_status_ready else R.string.perm_sheet_status_pending),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-
-        if (
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
+        FilledTonalButton(
+            onClick = onAction,
+            enabled = !ready,
+            modifier = Modifier.height(buttonHeight),
         ) {
-            return true
+            Text(if (ready) stringResource(R.string.perm_sheet_action_ready) else pendingAction)
         }
-
-        val fallback =
-            runCatching {
-                ShizukuBridge.execResultArgs(
-                    listOf("appops", "set", context.packageName, "RECORD_AUDIO", "allow"),
-                )
-            }.getOrNull()
-
-        return ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-            PackageManager.PERMISSION_GRANTED || (fallback != null && fallback.exitCode == 0)
     }
 }

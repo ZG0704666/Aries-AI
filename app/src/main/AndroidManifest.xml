@@ -63,6 +63,11 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".DrawerSettingsActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".LaunchProxyActivity"
             android:exported="false"
             android:theme="@style/Theme.TransparentLaunch"
@@ -98,22 +103,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".AboutActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-        
-        
-        <activity
-            android:name=".UserAgreementActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-
-        <activity
-            android:name=".PermissionGuideActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-        
         <!-- FileProvider for camera photos -->
         <provider
             android:name="androidx.core.content.FileProvider"

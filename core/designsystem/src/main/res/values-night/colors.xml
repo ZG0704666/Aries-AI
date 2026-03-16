@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="blue_glass_primary">@color/m3t_primary</color>
+    <color name="blue_glass_primary_variant">@color/m3t_primary_container</color>
+    <color name="blue_glass_primary_dark">#7FB4FF</color>
+    <color name="blue_glass_primary_light">#CFE2FF</color>
+
+    <color name="teal_accent">#80CBC4</color>
+    <color name="purple_accent">#CFC0F9</color>
+    <color name="orange_accent">#FFB95E</color>
+
+    <color name="success">@color/m3t_success</color>
+    <color name="success_light">#1D3A23</color>
+    <color name="success_dark">#7FCC88</color>
+
+    <color name="warning">@color/m3t_warning</color>
+    <color name="warning_light">#3D2C12</color>
+    <color name="warning_dark">#FFC474</color>
+
+    <color name="error">@color/m3t_error</color>
+    <color name="error_light">#3F1D1D</color>
+    <color name="error_dark">#FFB4AB</color>
+
+    <color name="info">#9BCBFF</color>
+    <color name="info_light">#1B2E45</color>
+    <color name="info_dark">#9BCBFF</color>
+
+    <color name="text_primary">@color/m3t_on_surface</color>
+    <color name="text_secondary">@color/m3t_on_surface_variant</color>
+    <color name="text_tertiary">#9AA4B5</color>
+    <color name="text_disabled">#697280</color>
+    <color name="text_on_primary">@color/m3t_on_primary</color>
+
+    <color name="border_light">@color/m3t_outline_variant</color>
+    <color name="border_default">@color/m3t_outline</color>
+    <color name="border_focus">@color/m3t_primary</color>
+    <color name="divider">#293240</color>
+
+    <color name="background">@color/m3t_background</color>
+    <color name="surface">@color/m3t_surface</color>
+    <color name="surface_variant">@color/m3t_surface_variant</color>
+
+    <color name="blue_glass_light">@color/m3t_background</color>
+    <color name="blue_glass_surface">@color/m3t_drawer_background</color>
+    <color name="blue_glass_stroke">@color/m3t_outline_variant</color>
+    <color name="blue_glass_ripple">#55A9C7FF</color>
+    <color name="blue_glass_icon">@color/m3t_on_surface_variant</color>
+    <color name="blue_glass_text">@color/m3t_on_surface</color>
+    <color name="blue_glass_text_dim">#B3BFCF</color>
+
+    <color name="thinking_background">@color/m3t_thinking_bg</color>
+    <color name="user_bubble_background">@color/m3t_message_user_bg</color>
+    <color name="ai_bubble_background">@color/m3t_message_ai_bg</color>
+
+    <color name="input_background">@color/m3t_surface_container</color>
+    <color name="input_background_focused">@color/m3t_surface</color>
+    <color name="input_stroke">@color/m3t_outline_variant</color>
+    <color name="input_stroke_focused">@color/m3t_primary</color>
+
+    <color name="button_primary">@color/m3t_primary</color>
+    <color name="button_primary_pressed">#8FB8F8</color>
+    <color name="button_disabled">#3A4555</color>
+    <color name="button_text_disabled">#8A96AA</color>
+
+    <color name="card_background">@color/m3t_surface</color>
+    <color name="card_stroke">@color/m3t_outline_variant</color>
+    <color name="card_shadow">#00000000</color>
+
+    <color name="switch_track_on">@color/m3t_primary</color>
+    <color name="switch_track_off">@color/m3t_outline_variant</color>
+
+    <color name="dark_background">@color/m3t_background</color>
+    <color name="dark_surface">@color/m3t_surface</color>
+    <color name="dark_surface_variant">@color/m3t_surface_variant</color>
+    <color name="dark_text_primary">@color/m3t_on_surface</color>
+    <color name="dark_text_secondary">@color/m3t_on_surface_variant</color>
+    <color name="dark_border">@color/m3t_outline</color>
+</resources>
+

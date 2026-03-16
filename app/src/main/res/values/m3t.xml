@@ -43,12 +43,19 @@
 
     <color name="m3t_message_ai_bg">#E5EFFF</color>
     <color name="m3t_message_user_bg">#D8E7FF</color>
+    <color name="m3t_message_ai_border">#C3D4EA</color>
+    <color name="m3t_message_user_border">#91B2DC</color>
+    <color name="m3t_message_meta_bg">#F1F6FF</color>
+    <color name="m3t_message_meta_text">#435E7D</color>
     <color name="m3t_message_action">#203D5E</color>
     <color name="m3t_message_action_stroke">#2A000000</color>
 
     <color name="m3t_drawer_background">#EAF3FF</color>
     <color name="m3t_drawer_section_bg">#F1F7FF</color>
     <color name="m3t_drawer_input_bg">#DFEAF8</color>
+    <color name="m3t_drawer_footer_bg">#E2EEFF</color>
+    <color name="m3t_drawer_active_item_bg">#D8E7FF</color>
+    <color name="m3t_drawer_scrim">#520E1621</color>
     <color name="m3t_floating_header">#3D4D66</color>
     <color name="m3t_floating_surface">#F1F7FF</color>
     <color name="m3t_floating_text_secondary">#5D7088</color>
@@ -155,9 +162,24 @@
     <dimen name="m3t_drawer_header_top_padding">36dp</dimen>
     <dimen name="m3t_drawer_app_icon_size">44dp</dimen>
     <dimen name="m3t_drawer_app_icon_padding">2dp</dimen>
+    <dimen name="m3t_drawer_profile_avatar_size">72dp</dimen>
+    <dimen name="m3t_drawer_header_action_size">40dp</dimen>
     <dimen name="m3t_drawer_input_min_height">42dp</dimen>
     <dimen name="m3t_drawer_api_field_height">48dp</dimen>
     <dimen name="m3t_drawer_label_start">4dp</dimen>
+    <dimen name="m3t_drawer_search_height">56dp</dimen>
+    <dimen name="m3t_drawer_footer_height">72dp</dimen>
+    <dimen name="m3t_drawer_conversation_item_padding_h">16dp</dimen>
+    <dimen name="m3t_drawer_conversation_item_padding_v">14dp</dimen>
+    <dimen name="m3t_drawer_conversation_radius">20dp</dimen>
+    <dimen name="m3t_input_bar_max_width">560dp</dimen>
+    <dimen name="m3t_message_user_bubble_max_width">392dp</dimen>
+    <dimen name="m3t_message_thinking_card_max_width">328dp</dimen>
+    <dimen name="m3t_message_action_button_size">34dp</dimen>
+    <dimen name="m3t_message_action_icon_size">19dp</dimen>
+    <dimen name="m3t_message_action_gap">2dp</dimen>
+    <dimen name="m3t_message_thinking_icon_box_size">20dp</dimen>
+    <dimen name="m3t_input_bar_shadow">10dp</dimen>
     <dimen name="m3t_update_history_list_height">320dp</dimen>
     <dimen name="m3t_update_links_body_height">120dp</dimen>
     <dimen name="m3t_update_links_list_height">300dp</dimen>
@@ -449,8 +471,8 @@
         <item name="android:colorBackground">@color/m3t_background</item>
         <item name="colorOnBackground">@color/m3t_on_background</item>
 
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@color/m3t_background</item>
+        <item name="android:navigationBarColor">@color/m3t_background</item>
         <item name="android:windowLightStatusBar">@bool/m3t_light_system_bars</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="27">@bool/m3t_light_system_bars</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
