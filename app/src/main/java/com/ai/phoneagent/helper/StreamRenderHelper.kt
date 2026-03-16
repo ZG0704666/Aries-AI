@@ -202,7 +202,7 @@ object StreamRenderHelper {
     /**
      * 初始化思考状态
      */
-    fun initThinkingState(vh: ViewHolder) {
+    fun initThinkingState(vh: ViewHolder, initialTitle: String = "连接中") {
         val viewId = vh.hashCode()
         
         // 1. 先清理旧资源（包括清除缓存的 animators）
@@ -224,9 +224,9 @@ object StreamRenderHelper {
         vh.thinkingLayout.alpha = 1f
         vh.actionArea.visibility = View.GONE
 
-        // 显示"思考中"
+        // 显示初始状态
         val headerTitle = vh.thinkingHeader.getChildAt(0) as? TextView
-        headerTitle?.text = "思考中"
+        headerTitle?.text = initialTitle
         
         // 思考区域初始展开
         vh.thinkingText.visibility = View.VISIBLE

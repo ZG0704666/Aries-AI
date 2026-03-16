@@ -87,8 +87,10 @@
 
     </androidx.drawerlayout.widget.DrawerLayout>
 
-    <include
-        layout="@layout/activity_user_agreement_flow"
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/onboardingHost"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:visibility="gone" />
 
 </FrameLayout>

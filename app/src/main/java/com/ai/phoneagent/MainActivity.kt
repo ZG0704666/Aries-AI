@@ -695,6 +695,14 @@ class MainActivity : AppCompatActivity() {
         thinking: String,
         answer: String,
     ) {
+        val pendingText =
+            getString(
+                if (isLocalModelModeEnabled()) {
+                    R.string.message_local_inference_waiting
+                } else {
+                    R.string.message_connecting_placeholder
+                },
+            )
         streamingTranscriptConversationIdState.value = activeConversation?.id
         streamingTranscriptItemState.value =
             TranscriptMessageUi(
@@ -704,7 +712,7 @@ class MainActivity : AppCompatActivity() {
                 author = "Aries AI",
                 body =
                     answer.ifBlank {
-                        if (thinking.isBlank()) getString(R.string.message_streaming_placeholder) else ""
+                        if (thinking.isBlank()) pendingText else ""
                     },
                 thinking = thinking.ifBlank { null },
                 thinkingDurationMs = null,

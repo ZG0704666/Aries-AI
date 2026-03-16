@@ -302,6 +302,11 @@ class FloatingChatService : Service() {
             return Triple(apiKey, baseUrl, model)
     }
 
+    private fun getStreamingPendingTitle(): String {
+            val useLocalModel = getAppPrefs().getBoolean("api_use_local_model", false)
+            return if (useLocalModel) "本地推理中，请等待" else "连接中"
+    }
+
     private var awaitingReturnAck: Boolean = false
 
     private var lastOpenAppAttemptAt: Long = 0L
@@ -1162,7 +1167,7 @@ class FloatingChatService : Service() {
                     container.addView(aiView)
 
                     val vh = StreamRenderHelper.bindViews(aiView)
-                    StreamRenderHelper.initThinkingState(vh)
+                    StreamRenderHelper.initThinkingState(vh, getStreamingPendingTitle())
                     currentStreamViewHolder = vh
 
                     vh.copyButton?.setOnClickListener {
@@ -1408,7 +1413,7 @@ class FloatingChatService : Service() {
             vh.messageContent.textSize = 13.5f
             if (vh.thinkingText != null) vh.thinkingText.textSize = 12.5f
 
-            StreamRenderHelper.initThinkingState(vh)
+            StreamRenderHelper.initThinkingState(vh, getStreamingPendingTitle())
             currentStreamViewHolder = vh
 
             floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
@@ -1452,7 +1457,9 @@ class FloatingChatService : Service() {
 
     fun resetExternalStreamAiReply() {
         val vh = currentStreamViewHolder ?: return
-        Handler(Looper.getMainLooper()).post { StreamRenderHelper.initThinkingState(vh) }
+        Handler(Looper.getMainLooper()).post {
+            StreamRenderHelper.initThinkingState(vh, getStreamingPendingTitle())
+        }
     }
 
     fun finishExternalStreamAiReply(timeCost: Int, finalContent: String) {

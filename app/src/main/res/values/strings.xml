@@ -42,6 +42,8 @@
     <string name="message_thinking_label">思考</string>
     <string name="message_streaming_label">生成中</string>
     <string name="message_streaming_placeholder">正在思考...</string>
+    <string name="message_connecting_placeholder">连接中</string>
+    <string name="message_local_inference_waiting">本地推理中，请等待</string>
     <string name="transcript_empty_hint">开始一段新对话</string>
     <string name="automation_toolbar_title">Aries AI 自动化控制台</string>
     <string name="automation_console_overview_title">自动化控制中心</string>
