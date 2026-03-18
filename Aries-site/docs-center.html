@@ -1580,6 +1580,12 @@
           items: [{ id: 'home', title: { CN: '文档中心首页', EN: 'Home' } }]
         },
         {
+          title: { CN: '技术文档', EN: 'Technical Docs' },
+          items: [
+            { id: 'doc-technical', title: { CN: '技术概览（TECHNICAL_OVERVIEW）', EN: 'Technical Overview' } },
+          ]
+        },
+        {
           title: { CN: '开发与共创', EN: 'Co-Create' },
           items: [
             { id: 'doc-building', title: { CN: '构建指南（BUILDING）', EN: 'Building Guide' } },
@@ -1590,7 +1596,7 @@
         },
         {
           title: { CN: '常见问题 Q&A', EN: 'Q&A' },
-          items: [{ id: 'faq', title: { CN: '常见问题 Q&A', EN: 'Q&A' } }]
+          items: [{ id: 'faq', title: { CN: '常见问题 Q&A', EN: 'FAQ' } }]
         },
       ];
 
@@ -1647,8 +1653,11 @@
               </ol>
               <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 <a class="doc-card p-5" href="#/quick-5min"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '快速开始' : 'Quick Start'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '从安装到跑通一个任务。' : 'Install and complete a first task.'}</div></a>
-                <a class="doc-card p-5" href="#/doc-building"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '开发与共创' : 'Dev & Co-Create'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '构建、工作流、代码规范与协作。' : 'Build, workflow, standards and collaboration.'}</div></a>
+                <a class="doc-card p-5" href="#/doc-technical"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '技术文档' : 'Technical Docs'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '核心技术实现与架构设计。' : 'Core technology and architecture.'}</div></a>
                 <a class="doc-card p-5" href="#/faq"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '常见问题 Q&A' : 'Q&A'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '集中收录典型问题与解决方案。' : 'Common questions & answers.'}</div></a>
+                <a class="doc-card p-5" href="#/doc-building"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '构建指南' : 'Building Guide'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '从源码编译到打包发布。' : 'Build from source to release.'}</div></a>
+                <a class="doc-card p-5" href="#/doc-workflow"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? 'Git 工作流' : 'Git Workflow'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '分支管理与协作规范。' : 'Branch management and collaboration.'}</div></a>
+                <a class="doc-card p-5" href="#/doc-standards"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '代码规范' : 'Coding Standards'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? 'Kotlin 编码风格与最佳实践。' : 'Kotlin style guide and best practices.'}</div></a>
               </div>
             </div>
           `;
@@ -1719,18 +1728,12 @@
             </div>
           `;
         },
+        'doc-technical': () => docPage('技术概览（TECHNICAL_OVERVIEW）', 'Technical Overview', 'TECHNICAL_OVERVIEW'),
         'doc-building': () => docPage('构建指南（BUILDING）', 'Building Guide', 'BUILDING'),
         'doc-workflow': () => docPage('工作流（GIT_WORKFLOW）', 'Git Workflow', 'GIT_WORKFLOW'),
         'doc-standards': () => docPage('代码规范（CODING_STANDARDS）', 'Coding Standards', 'CODING_STANDARDS'),
         'doc-feishu': () => docPage('飞书协作（FEISHU）', 'Feishu Collaboration', 'FEISHU_COLLABORATION'),
-        faq: () => {
-          return `
-            <div class="doc-prose">
-              <h1>${lang === 'CN' ? '常见问题 Q&A' : 'Q&A'}</h1>
-              <p>${lang === 'CN' ? '本页收录使用/构建/运行过程中的典型问题与解决方案。' : 'Common questions and answers.'}</p>
-            </div>
-          `;
-        },
+        faq: () => docPage('常见问题 Q&A', 'FAQ', 'FAQ'),
       };
 
       function getRoute() {

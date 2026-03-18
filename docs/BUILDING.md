@@ -510,7 +510,7 @@ Heap Size: 4096 MB
 - [FEISHU_COLLABORATION.md](./FEISHU_COLLABORATION.md) - 飞书协作文档模板
 - [CODING_STANDARDS.md](./CODING_STANDARDS.md) - 代码规范
 - [GIT_WORKFLOW.md](./GIT_WORKFLOW.md) - Git工作流
-- [README.md](../../README.md) - 项目概述
+- [README.md](../README.md) - 项目概述
 
 ---
 
