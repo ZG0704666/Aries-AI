@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/m3t_background">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/topAppBar"
+            style="@style/Widget.M3t.Toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="@drawable/ic_arrow_back_24"
+            app:navigationIconTint="@color/m3t_on_surface_variant"
+            app:title="@string/m3t_updates_title"
+            app:titleTextColor="@color/m3t_on_surface" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingHorizontal="@dimen/m3t_spacing_lg"
+        android:paddingTop="@dimen/m3t_spacing_sm"
+        android:paddingBottom="@dimen/m3t_spacing_lg"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/m3t_surface"
+            app:cardCornerRadius="@dimen/m3t_radius_lg"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/m3t_outline_variant"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/m3t_spacing_md">
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchPrerelease"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/m3t_updates_include_prerelease"
+                    android:textAppearance="@style/TextAppearance.M3t.Body.Medium"
+                    android:textColor="@color/m3t_on_surface" />
+
+                <TextView
+                    android:id="@+id/tvHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/m3t_spacing_xs"
+                    android:text="@string/m3t_updates_history_tip"
+                    android:textAppearance="@style/TextAppearance.M3t.Body.Small"
+                    android:textColor="@color/m3t_on_surface_variant" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/m3t_spacing_sm"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvError"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/m3t_spacing_sm"
+            android:textAppearance="@style/TextAppearance.M3t.Body.Small"
+            android:textColor="@color/m3t_error"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/m3t_spacing_md"
+            android:text="@string/m3t_updates_empty"
+            android:textAppearance="@style/TextAppearance.M3t.Body.Small"
+            android:textColor="@color/m3t_on_surface_variant"
+            android:visibility="gone" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerReleases"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="@dimen/m3t_spacing_sm"
+            android:layout_weight="1"
+            android:overScrollMode="never" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnLoadMore"
+            style="@style/Widget.M3t.Button.Tonal"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/m3t_button_height"
+            android:layout_marginTop="@dimen/m3t_spacing_sm"
+            android:text="@string/m3t_updates_load_more"
+            android:textAllCaps="false" />
+
+    </LinearLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

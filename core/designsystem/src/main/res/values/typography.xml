@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ===========================================
+         Typography System - 统一排版规范
+         =========================================== -->
+
+    <!-- 字体家族 -->
+    <style name="TextAppearance.Aries.Font" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="fontFamily">sans-serif</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <style name="TextAppearance.Aries.Font.Mono" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="fontFamily">monospace</item>
+        <item name="android:fontFamily">monospace</item>
+    </style>
+
+    <!-- ===========================================
+         Display - 大标题展示
+         =========================================== -->
+    <style name="TextAppearance.Aries.Display.Large" parent="TextAppearance.MaterialComponents.Headline4">
+        <item name="android:textSize">32sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:lineSpacingExtra">4dp</item>
+    </style>
+
+    <style name="TextAppearance.Aries.Display.Medium" parent="TextAppearance.MaterialComponents.Headline5">
+        <item name="android:textSize">28sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:lineSpacingExtra">3dp</item>
+    </style>
+
+    <style name="TextAppearance.Aries.Display.Small" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:textSize">24sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+
+    <!-- ===========================================
+         Headline - 标题
+         =========================================== -->
+    <style name="TextAppearance.Aries.Headline.Large" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.01</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+
+    <!-- Toolbar Title (保留兼容样式) -->
+    <style name="TextAppearance.Aries.ToolbarTitle" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.Aries.Headline.Medium" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <item name="android:textSize">18sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.01</item>
+        <item name="android:lineSpacingExtra">1dp</item>
+    </style>
+
+    <style name="TextAppearance.Aries.Headline.Small" parent="TextAppearance.MaterialComponents.Subtitle2">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:lineSpacingExtra">1dp</item>
+    </style>
+
+    <!-- ===========================================
+         Title - 卡片/区块标题
+         =========================================== -->
+    <style name="TextAppearance.Aries.Title.Large" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <item name="android:textSize">18sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.01</item>
+    </style>
+
+    <style name="TextAppearance.Aries.Title.Medium" parent="TextAppearance.MaterialComponents.Subtitle2">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+
+    <style name="TextAppearance.Aries.Title.Small" parent="TextAppearance.MaterialComponents.Overline">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.1</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+
+    <!-- ===========================================
+         Body - 正文内容
+         =========================================== -->
+    <style name="TextAppearance.Aries.Body.Large" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:letterSpacing">0.03</item>
+        <item name="android:lineSpacingExtra">4dp</item>
+    </style>
+
+    <style name="TextAppearance.Aries.Body.Medium" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:lineSpacingExtra">4dp</item>
+    </style>
+
+    <style name="TextAppearance.Aries.Body.Small" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:lineSpacingExtra">3dp</item>
+    </style>
+
+    <!-- ===========================================
+         Label - 标签和按钮文字
+         =========================================== -->
+    <style name="TextAppearance.Aries.Label.Large" parent="TextAppearance.MaterialComponents.Button">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.05</item>
+    </style>
+
+    <style name="TextAppearance.Aries.Label.Medium" parent="TextAppearance.MaterialComponents.Button">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.05</item>
+    </style>
+
+    <style name="TextAppearance.Aries.Label.Small" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:letterSpacing">0.05</item>
+    </style>
+
+    <!-- ===========================================
+         Caption - 辅助说明
+         =========================================== -->
+    <style name="TextAppearance.Aries.Caption" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/text_tertiary</item>
+        <item name="android:letterSpacing">0.03</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+
+    <!-- ===========================================
+         特殊场景文本样式
+         =========================================== -->
+    <!-- 聊天消息 -->
+    <style name="TextAppearance.Aries.Chat.Message" parent="TextAppearance.Aries.Body.Medium">
+        <item name="android:lineSpacingExtra">3dp</item>
+    </style>
+
+    <!-- 代码/日志 -->
+    <style name="TextAppearance.Aries.Code" parent="TextAppearance.Aries.Font.Mono">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:lineSpacingExtra">5dp</item>
+    </style>
+
+    <!-- 链接文字 -->
+    <style name="TextAppearance.Aries.Link" parent="TextAppearance.Aries.Body.Medium">
+        <item name="android:textColor">@color/blue_glass_primary</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- 状态文字 -->
+    <style name="TextAppearance.Aries.Status.Success" parent="TextAppearance.Aries.Body.Medium">
+        <item name="android:textColor">@color/success</item>
+    </style>
+
+    <style name="TextAppearance.Aries.Status.Error" parent="TextAppearance.Aries.Body.Medium">
+        <item name="android:textColor">@color/error</item>
+    </style>
+
+    <style name="TextAppearance.Aries.Status.Warning" parent="TextAppearance.Aries.Body.Medium">
+        <item name="android:textColor">@color/warning</item>
+    </style>
+
+</resources>
+

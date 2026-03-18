@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Aries" parent="Theme.M3t" />
+    <style name="Theme.Aries.App" parent="Theme.M3t.App" />
+    <style name="Theme.Aries.TransparentLaunch" parent="Theme.M3t.TransparentLaunch" />
+
+    <style name="Theme.PhoneAgent" parent="Theme.M3t.App" />
+    <style name="Theme.TransparentLaunch" parent="Theme.M3t.TransparentLaunch" />
+</resources>
+

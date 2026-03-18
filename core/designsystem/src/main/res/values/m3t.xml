@@ -1,0 +1,513 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- M3T Light Palette -->
+    <color name="m3t_primary">#005AC1</color>
+    <color name="m3t_on_primary">#FFFFFF</color>
+    <color name="m3t_primary_container">#D7E5FF</color>
+    <color name="m3t_on_primary_container">#001B3F</color>
+
+    <color name="m3t_secondary">#3A5F85</color>
+    <color name="m3t_on_secondary">#FFFFFF</color>
+    <color name="m3t_secondary_container">#D9E8FF</color>
+    <color name="m3t_on_secondary_container">#081D36</color>
+
+    <color name="m3t_tertiary">#65558F</color>
+    <color name="m3t_on_tertiary">#FFFFFF</color>
+
+    <color name="m3t_error">#BA1A1A</color>
+    <color name="m3t_on_error">#FFFFFF</color>
+    <color name="m3t_error_container">#FFDAD6</color>
+    <color name="m3t_on_error_container">#410002</color>
+
+    <color name="m3t_background">#F5FAFF</color>
+    <color name="m3t_on_background">#171C22</color>
+    <color name="m3t_surface">#FFFFFF</color>
+    <color name="m3t_on_surface">#171C22</color>
+    <color name="m3t_surface_container">#E8F1FF</color>
+    <color name="m3t_surface_container_high">#E2EEFF</color>
+    <color name="m3t_surface_variant">#DCE7F5</color>
+    <color name="m3t_on_surface_variant">#2E3D51</color>
+    <color name="m3t_outline">#5E7188</color>
+    <color name="m3t_outline_variant">#A9BBCF</color>
+
+    <color name="m3t_inverse_surface">#2C3138</color>
+    <color name="m3t_inverse_on_surface">#EFF1F7</color>
+
+    <color name="m3t_success">#2E7D32</color>
+    <color name="m3t_warning">#B56A00</color>
+
+    <color name="m3t_thinking_bg">#DBE8FF</color>
+    <color name="m3t_thinking_text">#1E3551</color>
+    <color name="m3t_thinking_stroke">#6E89AE</color>
+
+    <color name="m3t_message_ai_bg">#E5EFFF</color>
+    <color name="m3t_message_user_bg">#D8E7FF</color>
+    <color name="m3t_message_action">#203D5E</color>
+    <color name="m3t_message_action_stroke">#2A000000</color>
+
+    <color name="m3t_drawer_background">#EAF3FF</color>
+    <color name="m3t_drawer_section_bg">#F1F7FF</color>
+    <color name="m3t_drawer_input_bg">#DFEAF8</color>
+    <color name="m3t_floating_header">#3D4D66</color>
+    <color name="m3t_floating_surface">#F1F7FF</color>
+    <color name="m3t_floating_text_secondary">#5D7088</color>
+    <color name="m3t_recommend_grad_start">#262A60AB</color>
+    <color name="m3t_recommend_grad_end">#263B82F6</color>
+    <color name="m3t_dialog_surface">#E4F2FF</color>
+    <color name="m3t_dialog_surface_alt">#E2F4E6</color>
+    <color name="m3t_button_white">#FFFFFF</color>
+    <color name="m3t_button_light_blue">#B3D9FF</color>
+    <color name="m3t_about_page_bg">#F2F8FF</color>
+    <color name="m3t_automation_page_bg">#F6FAFF</color>
+    <color name="m3t_about_card_bg">#E6F0FF</color>
+    <color name="m3t_automation_card_bg">#DCEBFF</color>
+    <color name="m3t_virtual_welcome_bg">#FF000000</color>
+    <color name="m3t_virtual_welcome_text">#FFFFFFFF</color>
+    <color name="m3t_automation_progress_bg">#E8F5E9</color>
+    <color name="m3t_automation_progress_title">#2E7D32</color>
+    <color name="m3t_automation_progress_text">#424242</color>
+    <color name="m3t_automation_progress_text_secondary">#616161</color>
+    <color name="m3t_perm_sheet_handle">#E2E8F0</color>
+    <color name="m3t_perm_sheet_handle_tint">#CBD5E1</color>
+    <color name="m3t_perm_sheet_card_bg">#F8FAFC</color>
+    <color name="m3t_perm_sheet_separator">#F1F5F9</color>
+    <color name="m3t_attachment_option_bg">#E6F0FF</color>
+    <color name="m3t_attachment_option_icon">#1F4168</color>
+    <color name="m3t_attachment_option_text">#2A425F</color>
+    <color name="m3t_attachment_preview_title">#4A617F</color>
+    <color name="m3t_attachment_preview_card_bg">#EFF5FF</color>
+    <color name="m3t_attachment_preview_card_stroke">#B5C7DA</color>
+    <color name="m3t_attachment_preview_icon">#2F5D91</color>
+    <color name="m3t_attachment_preview_name">#1C314D</color>
+    <color name="m3t_attachment_preview_size">#5C738E</color>
+    <color name="m3t_vd_mini_bg">#DC2878DC</color>
+    <color name="m3t_vd_mini_stroke">#B4FFFFFF</color>
+    <color name="m3t_vd_bg_progress_bg">#E6282832</color>
+    <color name="m3t_vd_bg_progress_stroke">#64646496</color>
+    <color name="m3t_vd_bg_progress_text">#FFFFFFFF</color>
+    <color name="m3t_vd_bg_progress_close_text">#B4FFFFFF</color>
+    <color name="m3t_vd_container_bg">#E61E1E23</color>
+    <color name="m3t_vd_container_stroke">#64646478</color>
+    <color name="m3t_vd_header_bg">#C832323C</color>
+    <color name="m3t_vd_header_text">#FFFFFFFF</color>
+    <color name="m3t_vd_header_action">#C8FFFFFF</color>
+    <color name="m3t_vd_status_bg">#78000000</color>
+    <color name="m3t_vd_status_text">#C8C8C8C8</color>
+    <color name="m3t_vd_control_bar_bg">#DC282832</color>
+    <color name="m3t_vd_control_btn_bg">#3CFFFFFF</color>
+    <color name="m3t_voice_wave_start">#007AFF</color>
+    <color name="m3t_voice_wave_mid">#5856D6</color>
+    <color name="m3t_voice_wave_end">#FF2D55</color>
+    <color name="m3t_btn_glow_border_start">#77B6E6FF</color>
+    <color name="m3t_btn_glow_border_end">#3383CFFF</color>
+    <color name="m3t_btn_glow_inner_start">#1A6BA8FF</color>
+    <color name="m3t_btn_glow_inner_end">#00FFFFFF</color>
+    <color name="m3t_card_border_grad_start">#66B6E6FF</color>
+    <color name="m3t_card_border_grad_end">#3383CFFF</color>
+    <color name="m3t_circle_glass_bg">#266BA8FF</color>
+
+    <!-- M3T Dimensions -->
+    <dimen name="m3t_spacing_xxxs">2dp</dimen>
+    <dimen name="m3t_size_zero">0dp</dimen>
+    <dimen name="m3t_spacing_xs">4dp</dimen>
+    <dimen name="m3t_spacing_sm">8dp</dimen>
+    <dimen name="m3t_spacing_md">12dp</dimen>
+    <dimen name="m3t_spacing_lg">16dp</dimen>
+    <dimen name="m3t_spacing_xl">20dp</dimen>
+    <dimen name="m3t_spacing_xxl">24dp</dimen>
+    <dimen name="m3t_perm_sheet_handle_width">32dp</dimen>
+    <dimen name="m3t_perm_sheet_icon_size">24dp</dimen>
+    <dimen name="m3t_stroke_thin">1dp</dimen>
+    <dimen name="m3t_onboarding_loading_indicator_size">34dp</dimen>
+    <dimen name="m3t_onboarding_loading_container_width">48dp</dimen>
+    <dimen name="m3t_onboarding_loading_container_height">48dp</dimen>
+    <dimen name="m3t_user_attachment_chip_size">24dp</dimen>
+    <dimen name="m3t_user_attachment_chip_icon_size">14dp</dimen>
+    <dimen name="m3t_user_attachment_chip_spacing">4dp</dimen>
+    <dimen name="m3t_user_attachment_chip_radius">8dp</dimen>
+    <dimen name="m3t_user_attachment_thumb_size">32dp</dimen>
+    <dimen name="m3t_user_attachment_name_max_width">148dp</dimen>
+
+    <dimen name="m3t_radius_sm">12dp</dimen>
+    <dimen name="m3t_radius_md">16dp</dimen>
+    <dimen name="m3t_radius_lg">24dp</dimen>
+    <dimen name="m3t_radius_xl">32dp</dimen>
+
+    <dimen name="m3t_button_height">52dp</dimen>
+    <dimen name="m3t_compact_button_height">48dp</dimen>
+    <dimen name="m3t_compact_button_min_width">64dp</dimen>
+    <dimen name="m3t_toolbar_height">56dp</dimen>
+    <dimen name="m3t_toolbar_nav_size">56dp</dimen>
+    <dimen name="m3t_dialog_card_margin_h">20dp</dimen>
+    <dimen name="m3t_dialog_padding">20dp</dimen>
+    <dimen name="m3t_drawer_width">296dp</dimen>
+    <dimen name="m3t_about_item_height">52dp</dimen>
+    <dimen name="m3t_about_icon_card_size">80dp</dimen>
+    <dimen name="m3t_about_row_icon_size">22dp</dimen>
+    <dimen name="m3t_about_chevron_size">20dp</dimen>
+    <dimen name="m3t_about_row_padding_h">18dp</dimen>
+    <dimen name="m3t_about_row_text_gap">14dp</dimen>
+    <dimen name="m3t_about_card_padding">20dp</dimen>
+    <dimen name="m3t_history_close_button_size">36dp</dimen>
+    <dimen name="m3t_history_icon_size">42dp</dimen>
+    <dimen name="m3t_history_icon_padding">10dp</dimen>
+    <dimen name="m3t_drawer_header_top_padding">36dp</dimen>
+    <dimen name="m3t_drawer_app_icon_size">44dp</dimen>
+    <dimen name="m3t_drawer_app_icon_padding">2dp</dimen>
+    <dimen name="m3t_drawer_input_min_height">42dp</dimen>
+    <dimen name="m3t_drawer_api_field_height">48dp</dimen>
+    <dimen name="m3t_drawer_label_start">4dp</dimen>
+    <dimen name="m3t_update_history_list_height">320dp</dimen>
+    <dimen name="m3t_update_links_body_height">120dp</dimen>
+    <dimen name="m3t_update_links_list_height">300dp</dimen>
+    <dimen name="m3t_update_item_padding_v">10dp</dimen>
+    <dimen name="m3t_update_chip_padding_h">8dp</dimen>
+    <dimen name="m3t_update_chip_padding_v">2dp</dimen>
+    <dimen name="m3t_license_list_height">420dp</dimen>
+    <dimen name="m3t_automation_status_dot">12dp</dimen>
+    <dimen name="m3t_automation_log_dot">8dp</dimen>
+    <dimen name="m3t_automation_icon_button_size">40dp</dimen>
+    <dimen name="m3t_automation_voice_button_size">52dp</dimen>
+    <dimen name="m3t_automation_voice_icon_size">24dp</dimen>
+    <dimen name="m3t_automation_voice_button_radius">26dp</dimen>
+    <dimen name="m3t_automation_log_line_spacing">6dp</dimen>
+
+    <!-- M3T Typography -->
+    <style name="TextAppearance.M3t.ToolbarTitle" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/m3t_on_surface</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Title.Large" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:textSize">22sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/m3t_on_surface</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Title.Medium" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/m3t_on_surface</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Body.Medium" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/m3t_on_surface</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Body.Small" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/m3t_on_surface_variant</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Label.Small" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/m3t_on_surface_variant</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Body.Mono" parent="TextAppearance.M3t.Body.Small">
+        <item name="android:fontFamily">monospace</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Label" parent="TextAppearance.MaterialComponents.Button">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Chat.Message" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/m3t_on_surface</item>
+        <item name="android:lineSpacingExtra">4dp</item>
+    </style>
+
+    <style name="TextAppearance.M3t.Chat.Thinking" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/m3t_thinking_text</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+
+    <!-- M3T Widgets -->
+    <style name="Widget.M3t.Toolbar" parent="Widget.MaterialComponents.Toolbar">
+        <item name="android:background">@android:color/transparent</item>
+        <item name="android:elevation">0dp</item>
+        <item name="elevation">0dp</item>
+        <item name="titleTextAppearance">@style/TextAppearance.M3t.ToolbarTitle</item>
+        <item name="titleTextColor">@color/m3t_on_surface</item>
+    </style>
+
+    <style name="Widget.M3t.Card" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/m3t_surface</item>
+        <item name="cardCornerRadius">@dimen/m3t_radius_lg</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@color/m3t_outline_variant</item>
+    </style>
+
+    <style name="Widget.M3t.Card.Subtle" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/m3t_surface_container</item>
+        <item name="cardCornerRadius">@dimen/m3t_radius_md</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="strokeColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Widget.M3t.Card.About" parent="Widget.M3t.Card.Subtle">
+        <item name="cardBackgroundColor">@color/m3t_about_card_bg</item>
+        <item name="cardCornerRadius">@dimen/m3t_radius_lg</item>
+    </style>
+
+    <style name="Widget.M3t.Card.Automation" parent="Widget.M3t.Card.Subtle">
+        <item name="cardBackgroundColor">@color/m3t_automation_card_bg</item>
+        <item name="cardCornerRadius">@dimen/m3t_radius_lg</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Filled" parent="Widget.MaterialComponents.Button">
+        <item name="android:minHeight">@dimen/m3t_button_height</item>
+        <item name="cornerRadius">@dimen/m3t_radius_lg</item>
+        <item name="backgroundTint">@color/m3t_primary</item>
+        <item name="android:textColor">@color/m3t_on_primary</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Outlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:minHeight">@dimen/m3t_button_height</item>
+        <item name="cornerRadius">@dimen/m3t_radius_lg</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@color/m3t_outline</item>
+        <item name="android:textColor">@color/m3t_primary</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Outlined.Compact" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:minHeight">@dimen/m3t_compact_button_height</item>
+        <item name="android:minWidth">@dimen/m3t_compact_button_min_width</item>
+        <item name="cornerRadius">@dimen/m3t_radius_sm</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@color/m3t_outline</item>
+        <item name="android:textColor">@color/m3t_primary</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Body.Small</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Text" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:textColor">@color/m3t_primary</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
+    </style>
+
+    <style name="Widget.M3t.LoadingIndicator.Onboarding" parent="Widget.Material3.LoadingIndicator">
+        <item name="indicatorColor">@color/blue_glass_primary</item>
+        <item name="containerColor">@android:color/transparent</item>
+        <item name="indicatorSize">@dimen/m3t_onboarding_loading_indicator_size</item>
+        <item name="containerWidth">@dimen/m3t_onboarding_loading_container_width</item>
+        <item name="containerHeight">@dimen/m3t_onboarding_loading_container_height</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Text.Dialog" parent="Widget.AppCompat.Button.ButtonBar.AlertDialog">
+        <item name="android:textColor">@color/m3t_primary</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
+    </style>
+
+    <style name="Widget.M3t.Dialog.TitleText" parent="MaterialAlertDialog.MaterialComponents.Title.Text">
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Title.Medium</item>
+    </style>
+
+    <style name="Widget.M3t.Dialog.BodyText" parent="MaterialAlertDialog.MaterialComponents.Body.Text">
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Body.Medium</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Tonal" parent="Widget.MaterialComponents.Button">
+        <item name="android:minHeight">@dimen/m3t_button_height</item>
+        <item name="cornerRadius">@dimen/m3t_radius_lg</item>
+        <item name="backgroundTint">@color/m3t_surface_container_high</item>
+        <item name="android:textColor">@color/m3t_primary</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
+        <item name="elevation">0dp</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Tonal.Compact" parent="Widget.MaterialComponents.Button">
+        <item name="android:minHeight">@dimen/m3t_compact_button_height</item>
+        <item name="android:minWidth">@dimen/m3t_compact_button_min_width</item>
+        <item name="cornerRadius">@dimen/m3t_radius_sm</item>
+        <item name="backgroundTint">@color/m3t_surface_container_high</item>
+        <item name="android:textColor">@color/m3t_primary</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Body.Small</item>
+        <item name="elevation">0dp</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Tonal.Dialog" parent="Widget.M3t.Button.Tonal">
+        <item name="backgroundTint">@color/m3t_dialog_surface_alt</item>
+    </style>
+
+    <style name="Widget.M3t.Button.Tonal.Dialog.Compact" parent="Widget.M3t.Button.Tonal.Compact">
+        <item name="backgroundTint">@color/m3t_button_white</item>
+        <item name="cornerRadius">@dimen/m3t_radius_lg</item>
+    </style>
+
+    <style name="Widget.M3t.IconButton.AutomationToggle" parent="">
+        <item name="android:layout_width">@dimen/m3t_automation_icon_button_size</item>
+        <item name="android:layout_height">@dimen/m3t_automation_icon_button_size</item>
+        <item name="android:minWidth">@dimen/m3t_automation_icon_button_size</item>
+        <item name="android:minHeight">@dimen/m3t_automation_icon_button_size</item>
+        <item name="android:background">@drawable/bg_automation_toggle_button</item>
+        <item name="android:padding">@dimen/m3t_size_zero</item>
+        <item name="android:scaleType">center</item>
+        <item name="android:tint">@color/m3t_on_surface</item>
+        <item name="android:src">@drawable/ic_minimize_24</item>
+    </style>
+
+    <style name="Widget.M3t.Button.CloseAction" parent="Widget.MaterialComponents.Button">
+        <item name="android:minHeight">@dimen/m3t_button_height</item>
+        <item name="cornerRadius">@dimen/m3t_radius_lg</item>
+        <item name="backgroundTint">@color/m3t_button_light_blue</item>
+        <item name="android:textColor">@color/m3t_on_primary_container</item>
+        <item name="android:textAppearance">@style/TextAppearance.M3t.Label</item>
+        <item name="android:elevation">0dp</item>
+        <item name="elevation">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+
+    <style name="Widget.M3t.TextInput" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">@color/m3t_outline</item>
+        <item name="boxStrokeWidth">1dp</item>
+        <item name="boxCornerRadiusTopStart">@dimen/m3t_radius_sm</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/m3t_radius_sm</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/m3t_radius_sm</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/m3t_radius_sm</item>
+        <item name="hintTextColor">@color/m3t_on_surface_variant</item>
+    </style>
+
+    <style name="Widget.M3t.DialogCard" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/m3t_dialog_surface</item>
+        <item name="cardCornerRadius">@dimen/m3t_radius_xl</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="strokeColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Widget.M3t.History.CloseButton" parent="">
+        <item name="android:layout_width">@dimen/m3t_history_close_button_size</item>
+        <item name="android:layout_height">@dimen/m3t_history_close_button_size</item>
+        <item name="android:background">@drawable/bg_circle_light</item>
+        <item name="android:padding">@dimen/m3t_spacing_sm</item>
+        <item name="android:src">@drawable/ic_close_24</item>
+        <item name="android:tint">@color/m3t_on_surface_variant</item>
+    </style>
+
+    <style name="Widget.M3t.History.Item" parent="Widget.M3t.Card.Subtle">
+        <item name="cardBackgroundColor">@color/m3t_surface_container</item>
+        <item name="cardCornerRadius">@dimen/m3t_radius_md</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+
+    <style name="Widget.M3t.History.ItemIcon" parent="">
+        <item name="android:layout_width">@dimen/m3t_history_icon_size</item>
+        <item name="android:layout_height">@dimen/m3t_history_icon_size</item>
+        <item name="android:background">@drawable/bg_circle_light</item>
+        <item name="android:padding">@dimen/m3t_history_icon_padding</item>
+        <item name="android:src">@android:drawable/ic_menu_recent_history</item>
+        <item name="android:tint">@color/m3t_primary</item>
+    </style>
+
+    <style name="Widget.M3t.History.ItemChevron" parent="">
+        <item name="android:layout_width">@dimen/m3t_about_chevron_size</item>
+        <item name="android:layout_height">@dimen/m3t_about_chevron_size</item>
+        <item name="android:alpha">0.5</item>
+        <item name="android:src">@drawable/ic_arrow_right</item>
+        <item name="android:tint">@color/m3t_on_surface_variant</item>
+    </style>
+
+    <!-- M3T Themes -->
+    <style name="Theme.M3t" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/m3t_primary</item>
+        <item name="colorOnPrimary">@color/m3t_on_primary</item>
+        <item name="colorPrimaryContainer">@color/m3t_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/m3t_on_primary_container</item>
+
+        <item name="colorSecondary">@color/m3t_secondary</item>
+        <item name="colorOnSecondary">@color/m3t_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/m3t_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/m3t_on_secondary_container</item>
+
+        <item name="colorTertiary">@color/m3t_tertiary</item>
+        <item name="colorOnTertiary">@color/m3t_on_tertiary</item>
+
+        <item name="colorError">@color/m3t_error</item>
+        <item name="colorOnError">@color/m3t_on_error</item>
+
+        <item name="colorSurface">@color/m3t_surface</item>
+        <item name="colorOnSurface">@color/m3t_on_surface</item>
+        <item name="colorSurfaceVariant">@color/m3t_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/m3t_on_surface_variant</item>
+
+        <item name="android:colorBackground">@color/m3t_background</item>
+        <item name="colorOnBackground">@color/m3t_on_background</item>
+
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">@bool/m3t_light_system_bars</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">@bool/m3t_light_system_bars</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+
+        <item name="materialAlertDialogTheme">@style/Theme.M3t.Dialog</item>
+        <item name="bottomSheetDialogTheme">@style/Theme.M3t.BottomSheet</item>
+        <item name="materialCardViewStyle">@style/Widget.M3t.Card</item>
+        <item name="materialButtonStyle">@style/Widget.M3t.Button.Filled</item>
+        <item name="textInputStyle">@style/Widget.M3t.TextInput</item>
+        <item name="toolbarStyle">@style/Widget.M3t.Toolbar</item>
+    </style>
+
+    <style name="Theme.M3t.App" parent="Theme.M3t">
+        <item name="android:windowBackground">@color/m3t_background</item>
+    </style>
+
+    <style name="Theme.M3t.TransparentLaunch" parent="Theme.M3t">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+
+    <style name="Theme.M3t.Dialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="colorPrimary">@color/m3t_primary</item>
+        <item name="colorOnSurface">@color/m3t_on_surface</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/Widget.M3t.Dialog.BodyText</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/Widget.M3t.Dialog.TitleText</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.M3t.Button.Text.Dialog</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.M3t.Button.Text.Dialog</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.M3t.Button.Text.Dialog</item>
+    </style>
+
+    <style name="Theme.M3t.BottomSheet" parent="ThemeOverlay.MaterialComponents.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Widget.M3t.BottomSheet</item>
+    </style>
+
+    <style name="Widget.M3t.BottomSheet" parent="Widget.MaterialComponents.BottomSheet.Modal">
+        <item name="backgroundTint">@color/m3t_surface</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.M3t.BottomSheet</item>
+    </style>
+
+    <style name="ShapeAppearance.M3t.BottomSheet" parent="ShapeAppearance.MaterialComponents.LargeComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">@dimen/m3t_radius_xl</item>
+        <item name="cornerSizeTopRight">@dimen/m3t_radius_xl</item>
+    </style>
+
+    <!-- Compatibility aliases -->
+    <style name="Widget.Aries.Toolbar" parent="Widget.M3t.Toolbar" />
+    <style name="Widget.Aries.Card" parent="Widget.M3t.Card" />
+    <style name="Widget.Aries.Button" parent="Widget.M3t.Button.Filled" />
+    <style name="Widget.Aries.Button.Primary" parent="Widget.M3t.Button.Filled" />
+    <style name="Widget.Aries.Button.Secondary" parent="Widget.M3t.Button.Outlined" />
+    <style name="Widget.Aries.Button.Text" parent="Widget.M3t.Button.Text" />
+    <style name="Widget.Aries.TextInput" parent="Widget.M3t.TextInput" />
+
+</resources>
