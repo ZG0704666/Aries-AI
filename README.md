@@ -13,7 +13,7 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9+-purple.svg)]()
 [![Stars](https://img.shields.io/github/stars/ZG0704666/Aries-AI?style=social)](https://github.com/ZG0704666/Aries-AI)
 
-[快速开始](#-快速开始) • [核心特性](#-核心特性) • [技术文档](./TECHNICAL_OVERVIEW.md) • [开发指南](#-开发指南)
+[快速开始](#-快速开始) • [核心特性](#-核心特性) • [技术文档](./docs/TECHNICAL_OVERVIEW.md) • [FAQ](./docs/FAQ.md)
 
 </div>
 
