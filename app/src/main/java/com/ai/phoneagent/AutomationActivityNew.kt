@@ -232,8 +232,10 @@ class AutomationActivityNew : AppCompatActivity() {
         )
         setAutoApprove(checked = VirtualDisplayConfig.getAutoApproveAutomation(this))
 
-        // 初始化工具系统
-        initializeToolSystem()
+        // 初始化工具系统（后台线程执行）
+        lifecycleScope.launch(Dispatchers.Default) {
+            initializeToolSystem()
+        }
 
         // 启动推荐语句滚动
         startRecommendTaskRotation()
@@ -304,7 +306,6 @@ class AutomationActivityNew : AppCompatActivity() {
                         statusText = composeStatusText,
                         statusTone = resolveComposeStatusTone(),
                         isBackgroundMode = isBackgroundMode,
-                        modeDescription = composeModeDescription,
                         virtualDisplayStatus = composeVirtualDisplayStatus,
                         useShizukuInteraction = composeUseShizukuInteraction,
                         autoApprove = composeAutoApprove,
