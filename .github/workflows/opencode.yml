@@ -26,18 +26,22 @@ jobs:
       )
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pull-requests: read
-      issues: read
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 固定到 v6.0.2
+        uses: actions/checkout@v4
         with:
+          fetch-depth: 1
           persist-credentials: false
 
       - name: Run opencode
-        uses: anomalyco/opencode/github@b15fb211917de83b39d9ec3a1d66ae4353d1e6e0
+        uses: anomalyco/opencode/github@latest
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ALIBABA_CODING_PLAN_API_KEY: ${{ secrets.ALIBABA_CODING_PLAN_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          model: openrouter/google/gemini-3.1-pro-preview
+          model: alibaba-coding-plan/qwen3.5-plus
+          use_github_token: true

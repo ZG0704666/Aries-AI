@@ -7,6 +7,8 @@
   'use strict';
 
   const ICON_BASE = './assets/icons/models/';
+  const MOBILE_BREAKPOINT = 640;
+  const TABLET_BREAKPOINT = 1024;
 
   // 官方图标 - 使用可国内访问的镜像
   const OFFICIAL_ICONS = {
@@ -44,20 +46,85 @@
    * 创建模型提供商卡片 HTML
    */
   function createProviderCard(provider) {
-    let iconUrl;
-
-    if (provider.type === 'official' || provider.type === 'external') {
-      iconUrl = provider.icon;
-    } else {
-      iconUrl = ICON_BASE + provider.icon;
-    }
+    const iconUrl = provider.type === 'official' || provider.type === 'external'
+      ? provider.icon
+      : ICON_BASE + provider.icon;
 
     return `
       <div class="model-provider-item">
         <span class="model-provider-name">${provider.name}</span>
-        <img class="model-provider-icon" src="${iconUrl}" alt="${provider.name}" loading="lazy" onerror="this.style.display='none'">
+        <span class="model-provider-icon-shell" aria-hidden="true">
+          <img class="model-provider-icon" src="${iconUrl}" alt="${provider.name}" width="68" height="68" loading="eager" decoding="async" onerror="this.parentElement.style.display='none'">
+        </span>
       </div>
     `;
+  }
+
+  function getPixelsPerSecond() {
+    if (window.innerWidth <= MOBILE_BREAKPOINT) return 52;
+    if (window.innerWidth <= TABLET_BREAKPOINT) return 58;
+    return 66;
+  }
+
+  function waitForImage(img) {
+    if (img.complete && img.naturalWidth > 0) {
+      return typeof img.decode === 'function' ? img.decode().catch(() => { }) : Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        if (typeof img.decode === 'function' && img.complete && img.naturalWidth > 0) {
+          img.decode().catch(() => { }).finally(resolve);
+          return;
+        }
+        resolve();
+      };
+
+      img.addEventListener('load', done, { once: true });
+      img.addEventListener('error', done, { once: true });
+    });
+  }
+
+  function waitForImages(root) {
+    const images = Array.from(root.querySelectorAll('img'));
+    if (!images.length) return Promise.resolve();
+    return Promise.all(images.map(waitForImage)).then(() => { });
+  }
+
+  function waitForFonts() {
+    if (!document.fonts || typeof document.fonts.ready?.then !== 'function') {
+      return Promise.resolve();
+    }
+
+    return document.fonts.ready.catch(() => { });
+  }
+
+  function createSegment(items) {
+    const segment = document.createElement('div');
+    segment.className = 'model-marquee-segment';
+    segment.innerHTML = items.map(createProviderCard).join('');
+    return segment;
+  }
+
+  function randomizeProviders() {
+    return [...MODEL_PROVIDERS]
+      .map((provider) => ({ provider, sort: Math.random() }))
+      .sort((a, b) => a.sort - b.sort)
+      .map(({ provider }) => provider);
+  }
+
+  function updateTrackMetrics(track, segment) {
+    const distance = segment.getBoundingClientRect().width;
+    if (!distance) return;
+
+    const duration = Math.max(distance / getPixelsPerSecond(), 24);
+    track.style.setProperty('--marquee-distance', `${distance.toFixed(2)}px`);
+    track.style.setProperty('--marquee-duration', `${duration.toFixed(2)}s`);
+    track.classList.add('is-ready');
+    track.style.animationPlayState = 'running';
   }
 
   /**
@@ -70,51 +137,53 @@
     const track = container.querySelector('.model-marquee-track');
     if (!track) return;
 
-    const shuffled = [...MODEL_PROVIDERS].sort(() => Math.random() - 0.5);
-
-    let baseContent = '';
-    shuffled.forEach(provider => {
-      baseContent += createProviderCard(provider);
-    });
-
-    track.innerHTML = baseContent.repeat(6);
-    track.classList.add('scroll-left');
-
-    preloadImages(track, () => {
-      track.style.animationPlayState = 'running';
-    });
-  }
-
-  /**
-   * 预加载图片
-   */
-  function preloadImages(track, callback) {
-    const images = track.querySelectorAll('img');
-    let loaded = 0;
-    const total = images.length;
-
-    if (total === 0) {
-      callback();
-      return;
+    if (container._modelMarqueeCleanup) {
+      container._modelMarqueeCleanup();
     }
 
-    const checkLoaded = () => {
-      loaded++;
-      if (loaded >= total * 0.5) {
-        callback();
-      }
+    track.classList.remove('is-ready');
+    track.classList.add('scroll-left');
+    track.style.animationPlayState = 'paused';
+
+    const segment = createSegment(randomizeProviders());
+    track.replaceChildren(segment);
+
+    let resizeFrame = 0;
+    const scheduleMeasure = () => {
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => updateTrackMetrics(track, segment));
     };
 
-    images.forEach(img => {
-      if (img.complete) {
-        checkLoaded();
-      } else {
-        img.onload = checkLoaded;
-        img.onerror = checkLoaded;
-      }
-    });
+    const cloneAndMeasure = () => {
+      const clone = segment.cloneNode(true);
+      clone.setAttribute('aria-hidden', 'true');
+      track.appendChild(clone);
+      scheduleMeasure();
+    };
 
-    setTimeout(callback, 2000);
+    Promise.all([waitForImages(segment), waitForFonts()])
+      .catch(() => { })
+      .finally(() => {
+        cloneAndMeasure();
+      });
+
+    let resizeObserver = null;
+    if ('ResizeObserver' in window) {
+      resizeObserver = new ResizeObserver(scheduleMeasure);
+      resizeObserver.observe(container);
+      resizeObserver.observe(segment);
+    } else {
+      window.addEventListener('resize', scheduleMeasure, { passive: true });
+    }
+
+    container._modelMarqueeCleanup = () => {
+      cancelAnimationFrame(resizeFrame);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      } else {
+        window.removeEventListener('resize', scheduleMeasure);
+      }
+    };
   }
 
   /**

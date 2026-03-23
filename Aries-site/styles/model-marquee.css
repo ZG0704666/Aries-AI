@@ -8,6 +8,7 @@
   width: 100%;
   overflow: hidden;
   padding: 4rem 0;
+  --model-marquee-gap: 3rem;
 }
 
 .model-marquee-container {
@@ -30,18 +31,22 @@
 .model-marquee-track {
   display: flex;
   width: max-content;
-  gap: 3rem;
-  padding-left: 3rem;
+  gap: 0;
   transform: translate3d(0, 0, 0);
   will-change: transform;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   animation-play-state: paused;
+  opacity: 0;
+  transition: opacity 0.35s ease;
 }
 
-/* 向左滚动 - 60秒更慢更流畅 */
+.model-marquee-track.is-ready {
+  opacity: 1;
+}
+
 .model-marquee-track.scroll-left {
-  animation: scrollLeft 60s linear infinite;
+  animation: scrollLeft var(--marquee-duration, 36s) linear infinite;
 }
 
 @keyframes scrollLeft {
@@ -50,8 +55,17 @@
   }
 
   100% {
-    transform: translate3d(-50%, 0, 0);
+    transform: translate3d(calc(var(--marquee-distance, 0px) * -1), 0, 0);
   }
+}
+
+.model-marquee-segment {
+  display: flex;
+  align-items: center;
+  gap: var(--model-marquee-gap);
+  min-width: max-content;
+  padding-right: var(--model-marquee-gap);
+  flex-shrink: 0;
 }
 
 /* 暂停动画（悬停时） */
@@ -63,8 +77,9 @@
 .model-provider-item {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 1rem;
   flex-shrink: 0;
+  min-width: max-content;
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
@@ -72,7 +87,7 @@
 }
 
 .model-provider-item:hover {
-  transform: translate3d(0, 0, 0) scale(1.05);
+  transform: translate3d(0, 0, 0) scale(1.03);
 }
 
 /* 模型提供商名称 - 更大 */
@@ -91,14 +106,34 @@ html.light .model-provider-name {
 }
 
 /* 模型提供商图标 - 更大 */
-.model-provider-icon {
-  height: 60px;
-  width: auto;
-  max-width: 90px;
-  object-fit: contain;
+.model-provider-icon-shell {
+  width: 68px;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.model-provider-icon {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  padding: 0.4rem;
+  object-fit: contain;
   display: block;
   transform: translate3d(0, 0, 0);
+}
+
+html.light .model-provider-icon-shell {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 /* SVG 图标容器 */
@@ -139,16 +174,16 @@ html.dark .model-marquee-title {
   }
 
   .model-marquee-track {
-    gap: 2.5rem;
-    padding-left: 2.5rem;
+    --model-marquee-gap: 2.5rem;
   }
 
   .model-provider-name {
     font-size: 28px;
   }
 
-  .model-provider-icon {
-    height: 52px;
+  .model-provider-icon-shell {
+    width: 60px;
+    height: 60px;
   }
 }
 
@@ -172,8 +207,7 @@ html.dark .model-marquee-title {
   }
 
   .model-marquee-track {
-    gap: 2rem;
-    padding-left: 2rem;
+    --model-marquee-gap: 2rem;
   }
 
   .model-provider-item {
@@ -184,8 +218,13 @@ html.dark .model-marquee-title {
     font-size: 22px;
   }
 
+  .model-provider-icon-shell {
+    width: 52px;
+    height: 52px;
+  }
+
   .model-provider-icon {
-    height: 42px;
+    padding: 0.3rem;
   }
 
   .model-marquee-title {
