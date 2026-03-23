@@ -10,6 +10,7 @@
     <string name="status_checking">检查中...</string>
     <string name="status_checking_with_voice">已配置语音模型 | API 检查中...</string>
     <string name="common_copy">复制</string>
+    <string name="common_edit">编辑</string>
     <string name="input_hint">请输入你的问题…</string>
     <string name="voice_input">语音输入</string>
     <string name="send">发送</string>

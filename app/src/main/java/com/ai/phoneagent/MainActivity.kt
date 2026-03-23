@@ -660,6 +660,28 @@ class MainActivity : AppCompatActivity() {
                             retryMessage(retryText)
                         }
                     },
+                    onEditMessage = { item ->
+                        if (isRequestInFlight) {
+                            Toast.makeText(this@MainActivity, "正在生成回复，请稍后…", Toast.LENGTH_SHORT).show()
+                        } else {
+                            val conversation = activeConversation
+                            if (conversation != null) {
+                                val newText = item.body
+                                val msgIndex = item.messageIndex
+                                if (msgIndex in conversation.messages.indices) {
+                                    conversation.messages[msgIndex] =
+                                        conversation.messages[msgIndex].copy(content = newText)
+                                    if (msgIndex + 1 < conversation.messages.size) {
+                                        conversation.messages.subList(msgIndex + 1, conversation.messages.size).clear()
+                                    }
+                                    conversation.updatedAt = System.currentTimeMillis()
+                                    persistConversations()
+                                    renderConversation(conversation)
+                                    sendMessage(newText, resendUser = false, retryMode = true)
+                                }
+                            }
+                        }
+                    },
                     onAutomationAction = { item -> handleTranscriptAutomationAction(item) },
                     thinkingExpandedByDefault = thinkingExpandedByDefaultState.value,
                 )
@@ -764,8 +786,8 @@ class MainActivity : AppCompatActivity() {
                             attachment.fileName.ifBlank { File(attachment.filePath).name.ifBlank { attachment.filePath } }
                         },
                 isAutomation = false,
-                copyText = "",
-                retryText = null,
+                copyText = message.content.trim(),
+                retryText = message.content.trim(),
             )
         }
 

@@ -31,6 +31,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Refresh
@@ -41,10 +44,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -99,6 +105,7 @@ fun ConversationTranscript(
     onAutomationAction: (TranscriptMessageUi) -> Unit,
     thinkingExpandedByDefault: Boolean,
     modifier: Modifier = Modifier,
+    onEditMessage: (TranscriptMessageUi) -> Unit = {},
 ) {
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
@@ -142,7 +149,12 @@ fun ConversationTranscript(
 
         items.forEach { item ->
             if (item.isUser) {
-                UserMessageBubble(item = item)
+                UserMessageBubble(
+                    item = item,
+                    onCopyMessage = onCopyMessage,
+                    onRetryMessage = onRetryMessage,
+                    onEditMessage = onEditMessage,
+                )
             } else {
                 AssistantMessageBlock(
                     item = item,
@@ -158,11 +170,21 @@ fun ConversationTranscript(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun UserMessageBubble(item: TranscriptMessageUi) {
+private fun UserMessageBubble(
+    item: TranscriptMessageUi,
+    onCopyMessage: (TranscriptMessageUi) -> Unit,
+    onRetryMessage: (TranscriptMessageUi) -> Unit,
+    onEditMessage: (TranscriptMessageUi) -> Unit,
+) {
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val bubbleMaxWidth = dimensionResource(R.dimen.m3t_message_user_bubble_max_width)
+    val actionGap = dimensionResource(R.dimen.m3t_message_action_gap)
+    val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
+    val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
+    var isEditing by remember { mutableStateOf(false) }
+    var editText by remember(item.body) { mutableStateOf(item.body) }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -175,13 +197,114 @@ private fun UserMessageBubble(item: TranscriptMessageUi) {
             color = MaterialTheme.colorScheme.primaryContainer,
             tonalElevation = 1.dp,
         ) {
-            SelectionContainer {
-                Text(
-                    text = item.body,
-                    modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+            if (isEditing) {
+                TextField(
+                    value = editText,
+                    onValueChange = { editText = it },
+                    modifier = Modifier
+                        .widthIn(max = bubbleMaxWidth)
+                        .padding(horizontal = spacingXs, vertical = spacingXs),
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    colors =
+                        TextFieldDefaults.colors(
+                            focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            cursorColor = MaterialTheme.colorScheme.primary,
+                            focusedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            disabledContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent,
+                        ),
+                    shape = MaterialTheme.shapes.large,
+                    minLines = 2,
+                    maxLines = 8,
                 )
+            } else {
+                SelectionContainer {
+                    Text(
+                        text = item.body,
+                        modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+        }
+
+        if (!item.isStreaming && item.attachments.isEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(actionGap, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (isEditing) {
+                    MessageActionButton(
+                        onClick = {
+                            if (editText.isNotBlank()) {
+                                onEditMessage(item.copy(body = editText.trim()))
+                                isEditing = false
+                            }
+                        },
+                        buttonSize = actionButtonSize,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Check,
+                            contentDescription = stringResource(R.string.automation_confirm),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(actionIconSize),
+                        )
+                    }
+                    MessageActionButton(
+                        onClick = {
+                            editText = item.body
+                            isEditing = false
+                        },
+                        buttonSize = actionButtonSize,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = stringResource(R.string.action_cancel),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(actionIconSize),
+                        )
+                    }
+                } else {
+                    MessageActionButton(
+                        onClick = { onCopyMessage(item) },
+                        buttonSize = actionButtonSize,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ContentCopy,
+                            contentDescription = stringResource(R.string.common_copy),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(actionIconSize),
+                        )
+                    }
+                    MessageActionButton(
+                        onClick = { onRetryMessage(item) },
+                        buttonSize = actionButtonSize,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Refresh,
+                            contentDescription = stringResource(R.string.retry),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(actionIconSize),
+                        )
+                    }
+                    MessageActionButton(
+                        onClick = { isEditing = true },
+                        buttonSize = actionButtonSize,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Edit,
+                            contentDescription = stringResource(R.string.common_edit),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(actionIconSize),
+                        )
+                    }
+                }
             }
         }
 
