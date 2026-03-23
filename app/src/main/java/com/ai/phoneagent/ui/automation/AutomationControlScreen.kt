@@ -92,7 +92,6 @@ fun AutomationControlScreen(
     statusText: String,
     statusTone: AutomationStatusTone,
     isBackgroundMode: Boolean,
-    modeDescription: String,
     virtualDisplayStatus: String,
     useShizukuInteraction: Boolean,
     autoApprove: Boolean,
@@ -129,22 +128,6 @@ fun AutomationControlScreen(
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
     val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
     val statusPalette = statusPalette(statusTone)
-    val modeTitle =
-        stringResource(
-            if (isBackgroundMode) {
-                R.string.automation_execution_background_mode
-            } else {
-                R.string.automation_execution_front_mode
-            },
-        )
-    val interactionModeText =
-        stringResource(
-            if (useShizukuInteraction) {
-                R.string.automation_status_mode_shizuku
-            } else {
-                R.string.automation_status_mode_accessibility
-            },
-        )
     val voiceTransition = rememberInfiniteTransition(label = "automationVoice")
     val voiceScale by
         voiceTransition.animateFloat(
@@ -209,7 +192,6 @@ fun AutomationControlScreen(
                 AutomationSectionCard {
                     SectionHeading(
                         title = stringResource(R.string.automation_console_runtime_title),
-                        subtitle = stringResource(R.string.automation_console_runtime_subtitle),
                     )
                     Spacer(modifier = Modifier.height(spacingMd))
 
@@ -217,16 +199,6 @@ fun AutomationControlScreen(
                         label = stringResource(R.string.automation_status_label),
                         value = statusText,
                         accentColor = statusPalette.accent,
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    AutomationInfoRow(
-                        label = stringResource(R.string.automation_execution_mode_label),
-                        value = modeTitle,
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    AutomationInfoRow(
-                        label = stringResource(R.string.automation_console_interaction_mode_label),
-                        value = interactionModeText,
                     )
 
                     Spacer(modifier = Modifier.height(spacingMd))
@@ -583,7 +555,7 @@ private fun AutomationSectionCard(
 @Composable
 private fun SectionHeading(
     title: String,
-    subtitle: String,
+    subtitle: String? = null,
 ) {
     Text(
         text = title,
@@ -591,11 +563,13 @@ private fun SectionHeading(
         color = MaterialTheme.colorScheme.onSurface,
         fontWeight = FontWeight.Medium,
     )
-    Text(
-        text = subtitle,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+    if (subtitle != null) {
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 @Composable
