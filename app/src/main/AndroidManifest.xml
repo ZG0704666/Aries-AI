@@ -60,6 +60,7 @@
             android:name=".AutomationActivityNew"
             android:exported="false"
             android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
