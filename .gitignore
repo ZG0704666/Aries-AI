@@ -1,37 +1,27 @@
+# IDE / editor
+*.iml
+.gradle/
+.idea/
+.kotlin/
+.vscode/
+.DS_Store
+
+# Android / Gradle local artifacts
+local.properties
+.externalNativeBuild/
+.cxx/
+captures/
+build/
+app/build/
+release/
+
 # Ignore all temp assets and tool copies
 /temp
-#语音模型
-/app/src/main/assets
-*.iml
-.gradle
-/local.properties
-/.idea/
-/.kotlin/
-/.vscode/
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-
-build/
-/app/build/
-release/
 
 # Local environment / secrets
 .env
 .env.*
 !.env.example
-.env.local
-.env.*.local
-.env.prod
 *.bak*
 
 # Signing keys and certificates
@@ -48,41 +38,29 @@ release.keystore
 *.aar
 
 # Exclude sherpa model binaries (too large for GitHub)
-app/src/main/assets/sherpa-models/*
+app/src/main/assets/sherpa-models/**
 !app/src/main/assets/sherpa-models/README.md
+!app/src/main/assets/sherpa-models/.keep
 
 # 忽略所有日志文件
 *.log
-logs/
 **/logs/
-**/*.log
-.trae/documents/
-docs/思考回答区域修复说明.md
-COMPLETION_REPORT.md
-IMPLEMENTATION_SUMMARY.md
-TODO001_未来优化方案.md
-IMPLEMENTATION_GUIDE.md
-PROGRESS_ANALYSIS.md
-ComposeMigrationProgress.md
 
-docs/VIRTUAL_DISPLAY_FOCUS_ISOLATION_ANALYSIS.md
-docs/VIRTUAL_DISPLAY_FOCUS_SOLUTION_SUMMARY.md
-docs/VIRTUAL_DISPLAY_FOCUS_TESTING.md
-.gitignore
-docs/api-interface-spec.md
-docs/backend-technical-solution.md
-docs/frontend-readme.md
-docs/reference-architecture.md
+.trae/documents/
 
 # Local-only temporary files
 .android/
-AGENTS.md
 analytics.settings
 key/key
 .tmp_material_113/
 .tmp_material_113.zip
-tmp_onboarding_check.png
 
 # Lighthouse reports (local performance profiling artifacts)
 Aries-site/lighthouse-*.report.html
 Aries-site/lighthouse-*.report.json
+
+# Opencode local configs
+.opencode
+AGENTS.md
+
+
