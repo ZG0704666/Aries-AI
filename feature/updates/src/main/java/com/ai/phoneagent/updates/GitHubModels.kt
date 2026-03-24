@@ -1,25 +1,29 @@
 package com.ai.phoneagent.updates
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class GitHubRelease(
-    @SerializedName("id") val id: Long,
-    @SerializedName("tag_name") val tagName: String,
-    @SerializedName("name") val name: String?,
-    @SerializedName("body") val body: String?,
-    @SerializedName("html_url") val htmlUrl: String,
-    @SerializedName("draft") val draft: Boolean,
-    @SerializedName("prerelease") val prerelease: Boolean,
-    @SerializedName("published_at") val publishedAt: String?,
-    @SerializedName("assets") val assets: List<GitHubReleaseAsset> = emptyList(),
+    @SerialName("id") val id: Long,
+    @SerialName("tag_name") val tagName: String,
+    @SerialName("name") val name: String?,
+    @SerialName("body") val body: String?,
+    @SerialName("html_url") val htmlUrl: String,
+    @SerialName("draft") val draft: Boolean,
+    @SerialName("prerelease") val prerelease: Boolean,
+    @SerialName("published_at") val publishedAt: String?,
+    @SerialName("assets") val assets: List<GitHubReleaseAsset> = emptyList(),
 )
 
+@Serializable
 data class GitHubReleaseAsset(
-    @SerializedName("id") val id: Long,
-    @SerializedName("name") val name: String,
-    @SerializedName("browser_download_url") val browserDownloadUrl: String,
+    @SerialName("id") val id: Long,
+    @SerialName("name") val name: String,
+    @SerialName("browser_download_url") val browserDownloadUrl: String,
 )
 
+@Serializable
 data class ReleaseEntry(
     val versionTag: String,
     val version: String,

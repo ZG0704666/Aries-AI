@@ -162,6 +162,7 @@ dependencies {
     }
 
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20240303")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
@@ -176,6 +177,26 @@ dependencies {
     implementation(libs.androidx.compose.runtime.livedata)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    
+    // Koin - Dependency Injection
+    implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
+    testImplementation(libs.koin.test)
+    testImplementation(libs.koin.test.junit4)
+    
+    // Coil - Image Loading
+    implementation(libs.coil.compose)
+    
+    // Lucide Icons
+    implementation(libs.compose.icons.lucide)
+    
+    // Markdown Renderer
+    implementation(libs.multiplatform.markdown.renderer)
+    
+    // Test Dependencies
+    testImplementation(libs.mockk)
+    testImplementation(libs.turbine)
     
     // ViewModel 和 LiveData
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")

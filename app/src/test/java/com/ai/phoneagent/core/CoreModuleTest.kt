@@ -165,48 +165,6 @@ class CoreModuleTest {
         assertEquals(2800L, ActionUtils.computeModelRetryDelayMs(2, 700L))
     }
     
-    @Test
-    fun `ActionUtils 敏感内容检测`() {
-        val utils = ActionUtils()
-        
-        assertTrue(utils.looksSensitive("请输入支付密码"))
-        assertTrue(utils.looksSensitive("请确认银行卡号"))
-        assertFalse(utils.looksSensitive("这是一个普通输入框"))
-    }
-    
-    @Test
-    fun `ActionUtils 截断UI树`() {
-        val utils = ActionUtils()
-        
-        val longTree = "A".repeat(5000)
-        val truncated = utils.truncateUiTree(longTree, 1000)
-        
-        assertTrue(truncated.length < 5000)
-        assertTrue(truncated.contains("已截断"))
-    }
-    
-    @Test
-    fun `ActionUtils 估算token`() {
-        val utils = ActionUtils()
-        
-        // 英文
-        val englishTokens = utils.estimateTokens("Hello World")
-        assertTrue(englishTokens > 0)
-        
-        // 中文（token估算不同）
-        val chineseTokens = utils.estimateTokens("你好世界")
-        assertTrue(chineseTokens > 0)
-    }
-    
-    @Test
-    fun `ActionUtils 计算模型重试延迟`() {
-        val utils = ActionUtils()
-        
-        assertEquals(700L, utils.computeModelRetryDelayMs(0, 700L))
-        assertEquals(1400L, utils.computeModelRetryDelayMs(1, 700L))
-        assertEquals(2800L, utils.computeModelRetryDelayMs(2, 700L))
-    }
-    
     // ========== 模板测试 ==========
     
     @Test
@@ -288,28 +246,3 @@ class PerformanceTest {
         assertTrue("截断 100 次大文本耗时：${elapsed}ms", elapsed < 500)
     }
 }
-        val elapsed = System.currentTimeMillis() - startTime
-        
-        // 1000次解析应该在1秒内完成
-        assertTrue("解析1000次动作耗时: ${elapsed}ms", elapsed < 2000)
-    }
-    
-    @Test
-    fun `ActionUtils 截断大文本性能`() {
-        val utils = ActionUtils()
-        val largeText = "A".repeat(100000)
-        
-        val startTime = System.currentTimeMillis()
-        repeat(100) {
-            utils.truncateUiTree(largeText, 3000)
-        }
-        val elapsed = System.currentTimeMillis() - startTime
-        
-        // 100次截断应该在500ms内完成
-        assertTrue("截断100次大文本耗时: ${elapsed}ms", elapsed < 500)
-    }
-}
-
-
-
-

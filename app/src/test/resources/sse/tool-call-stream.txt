@@ -1,0 +1,4 @@
+data: {"id":"chatcmpl-tool","object":"chat.completion.chunk","choices":[{"delta":{"tool_calls":[{"function":{"name":"search","arguments":"{\"query\":\""}}]},"finish_reason":null}]}
+data: {"id":"chatcmpl-tool","object":"chat.completion.chunk","choices":[{"delta":{"tool_calls":[{"function":{"arguments":"kotlin\"}"}}]},"finish_reason":null}]}
+data: {"id":"chatcmpl-tool","object":"chat.completion.chunk","choices":[{"delta":{"content":"result ready"},"finish_reason":null}]}
+data: [DONE]

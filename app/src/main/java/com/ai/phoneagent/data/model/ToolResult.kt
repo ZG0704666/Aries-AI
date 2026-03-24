@@ -1,5 +1,7 @@
 package com.ai.phoneagent.data.model
 
+import kotlinx.serialization.Serializable
+
 /**
  * 工具执行结果
  * @param toolName 工具名称
@@ -7,6 +9,7 @@ package com.ai.phoneagent.data.model
  * @param result 结果数据（可以是字符串、图片、UI信息等）
  * @param error 错误信息（失败时）
  */
+@Serializable
 data class ToolResult(
     val toolName: String,
     val success: Boolean,
@@ -18,11 +21,13 @@ data class ToolResult(
  * 工具结果数据的基类
  * 不同类型的工具返回不同的结果数据
  */
+@Serializable
 sealed class ToolResultData
 
 /**
  * 字符串结果数据
  */
+@Serializable
 data class StringResultData(
     val data: String
 ) : ToolResultData()
@@ -30,6 +35,7 @@ data class StringResultData(
 /**
  * 图片结果数据
  */
+@Serializable
 data class ImageResultData(
     val width: Int,
     val height: Int,
@@ -39,6 +45,7 @@ data class ImageResultData(
 /**
  * UI页面信息结果数据
  */
+@Serializable
 data class UIPageResultData(
     val packageName: String,
     val activityName: String,
@@ -48,6 +55,7 @@ data class UIPageResultData(
 /**
  * 简化的UI节点
  */
+@Serializable
 data class SimplifiedUINode(
     val className: String?,
     val text: String?,
@@ -61,6 +69,7 @@ data class SimplifiedUINode(
 /**
  * UI操作结果数据
  */
+@Serializable
 data class UIActionResultData(
     val action: String,
     val success: Boolean,

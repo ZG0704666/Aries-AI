@@ -1,0 +1,6 @@
+data: {"id":"chatcmpl-abc","object":"chat.completion.chunk","choices":[{"delta":{"content":"Hello"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-abc","object":"chat.completion.chunk","choices":[{"delta":{"content":" world"},"finish_reason":null}]}
+
+data: [DONE]
+data: {"id":"chatcmpl-abc","object":"chat.completion.chunk","choices":[{"delta":{"content":"ignored-after-done"},"finish_reason":null}]}

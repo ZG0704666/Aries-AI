@@ -1,0 +1,7 @@
+event: message
+data:
+data: {"error":{"message":"invalid auth"}}
+data: {"choices":[]}
+data: {"choices":[{"delta":{"content":"ok"},"finish_reason":null}]}
+data: {"choices":[{"delta":{"content":}}]}
+data: [DONE]

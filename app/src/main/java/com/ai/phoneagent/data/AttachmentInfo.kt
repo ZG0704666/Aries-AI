@@ -1,5 +1,7 @@
 package com.ai.phoneagent.data
 
+import kotlinx.serialization.Serializable
+
 /**
  * 附件信息数据类
  * 
@@ -11,6 +13,7 @@ package com.ai.phoneagent.data
  * @property fileSize 文件大小（字节），虚拟附件为内容长度
  * @property content 内联内容，用于存储OCR文本、位置JSON等不对应实际文件的数据
  */
+@Serializable
 data class AttachmentInfo(
     val filePath: String,
     val fileName: String,
@@ -37,6 +40,7 @@ enum class AttachmentType {
  * 附件引用数据类
  * 用于解析消息中的附件引用标签
  */
+@Serializable
 data class AttachmentRef(
     val id: String,
     val filename: String,
@@ -49,6 +53,7 @@ data class AttachmentRef(
  * 多媒体链接数据类
  * 用于表示内嵌的图片/音频/视频数据
  */
+@Serializable
 data class MediaLink(
     val type: String,        // "image", "audio", "video"
     val mimeType: String,    // MIME类型
