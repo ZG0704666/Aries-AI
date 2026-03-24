@@ -111,25 +111,58 @@ class CoreModuleTest {
     }
     
     // ========== 工具类测试 ==========
+    // 注意：ActionUtils 是 object（单例），直接用 ActionUtils.method() 调用
     
     @Test
     fun `ActionUtils 解析坐标点`() {
-        val utils = ActionUtils()
-        
-        val point = utils.parsePoint("[500,600]")
+        val point = ActionUtils.parsePoint("[500,600]")
         assertNotNull(point)
         assertEquals(500, point?.first)
         assertEquals(600, point?.second)
 
-        val floatPoint = utils.parsePoint("[500.6, 200.4]")
+        val floatPoint = ActionUtils.parsePoint("[500.6, 200.4]")
         assertNotNull(floatPoint)
         assertEquals(501, floatPoint?.first)
         assertEquals(200, floatPoint?.second)
 
-        val percentPoint = utils.parsePoint("[50%,25%]")
+        val percentPoint = ActionUtils.parsePoint("[50%,25%]")
         assertNotNull(percentPoint)
         assertEquals(500, percentPoint?.first)
         assertEquals(250, percentPoint?.second)
+    }
+    
+    @Test
+    fun `ActionUtils 敏感内容检测`() {
+        assertTrue(ActionUtils.looksSensitive("请输入支付密码"))
+        assertTrue(ActionUtils.looksSensitive("请确认银行卡号"))
+        assertFalse(ActionUtils.looksSensitive("这是一个普通输入框"))
+    }
+    
+    @Test
+    fun `ActionUtils 截断 UI 树`() {
+        val longTree = "A".repeat(5000)
+        val truncated = ActionUtils.truncateUiTree(longTree, 1000)
+        
+        assertTrue(truncated.length < 5000)
+        assertTrue(truncated.contains("已截断"))
+    }
+    
+    @Test
+    fun `ActionUtils 估算 token`() {
+        // 英文
+        val englishTokens = ActionUtils.estimateTokens("Hello World")
+        assertTrue(englishTokens > 0)
+        
+        // 中文（token 估算不同）
+        val chineseTokens = ActionUtils.estimateTokens("你好世界")
+        assertTrue(chineseTokens > 0)
+    }
+    
+    @Test
+    fun `ActionUtils 计算模型重试延迟`() {
+        assertEquals(700L, ActionUtils.computeModelRetryDelayMs(0, 700L))
+        assertEquals(1400L, ActionUtils.computeModelRetryDelayMs(1, 700L))
+        assertEquals(2800L, ActionUtils.computeModelRetryDelayMs(2, 700L))
     }
     
     @Test
@@ -235,6 +268,26 @@ class PerformanceTest {
         repeat(1000) {
             actions.forEach { parser.parse(it) }
         }
+        val elapsed = System.currentTimeMillis() - startTime
+        
+        // 1000 次解析应该在 1 秒内完成
+        assertTrue("解析 1000 次动作耗时：${elapsed}ms", elapsed < 2000)
+    }
+    
+    @Test
+    fun `ActionUtils 截断大文本性能`() {
+        val largeText = "A".repeat(100000)
+        
+        val startTime = System.currentTimeMillis()
+        repeat(100) {
+            ActionUtils.truncateUiTree(largeText, 3000)
+        }
+        val elapsed = System.currentTimeMillis() - startTime
+        
+        // 100 次截断应该在 500ms 内完成
+        assertTrue("截断 100 次大文本耗时：${elapsed}ms", elapsed < 500)
+    }
+}
         val elapsed = System.currentTimeMillis() - startTime
         
         // 1000次解析应该在1秒内完成

@@ -1,66 +1,56 @@
-# IDE / editor
+# OS / editor files
+.DS_Store
 *.iml
-.gradle/
 .idea/
 .kotlin/
 .vscode/
-.DS_Store
 
-# Android / Gradle local artifacts
-local.properties
-.externalNativeBuild/
+# Android / Gradle local state
+.android/
 .cxx/
+.externalNativeBuild/
+.gradle/
+.gradle-build/
 captures/
-build/
-app/build/
+local.properties
 release/
+**/build/
 
-# Ignore all temp assets and tool copies
-/temp
-
-# Local environment / secrets
+# Local environment, temp files, and logs
 .env
 .env.*
 !.env.example
 *.bak*
+*.log
+**/logs/
+/temp/
+.tmp_material_113/
+.tmp_material_113.zip
+.trae/documents/
 
 # Signing keys and certificates
 *.jks
 *.keystore
 *.p12
-*.pfx
 *.pem
-release.keystore
+*.pfx
 
-# Build outputs that may contain metadata
-*.apk
+# Packaged build artifacts
 *.aab
 *.aar
+*.apk
 
-# Exclude sherpa model binaries (too large for GitHub)
+# Large local model assets
 app/src/main/assets/sherpa-models/**
-!app/src/main/assets/sherpa-models/README.md
 !app/src/main/assets/sherpa-models/.keep
+!app/src/main/assets/sherpa-models/README.md
 
-# 忽略所有日志文件
-*.log
-**/logs/
-
-.trae/documents/
-
-# Local-only temporary files
-.android/
+# Local tool configs and secrets
+.opencode/
+AGENTS.md
 analytics.settings
 key/key
-.tmp_material_113/
-.tmp_material_113.zip
 
-# Lighthouse reports (local performance profiling artifacts)
+# Local performance profiling artifacts
 Aries-site/lighthouse-*.report.html
 Aries-site/lighthouse-*.report.json
-
-# Opencode local configs
-.opencode
-AGENTS.md
-
-
