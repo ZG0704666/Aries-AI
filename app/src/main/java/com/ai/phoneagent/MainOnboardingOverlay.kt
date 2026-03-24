@@ -71,6 +71,8 @@ import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 class MainOnboardingOverlay(
     private val activity: AppCompatActivity,
     private val appPrefs: AppPreferencesRepository,
+    private val drawerLayout: DrawerLayout,
+    private val hostRoot: ComposeView,
 ) {
     enum class FlowMode {
         ONBOARDING,
@@ -96,9 +98,6 @@ class MainOnboardingOverlay(
         private const val REQ_RECORD_AUDIO = 101
         private const val REQ_SHIZUKU_PERMISSION = 2026
     }
-
-    private val drawerLayout = activity.findViewById<DrawerLayout>(R.id.drawerLayout)
-    private val hostRoot = activity.findViewById<ComposeView>(R.id.onboardingHost)
 
     private var overlayVisible by mutableStateOf(false)
     private var flowMode by mutableStateOf(FlowMode.ONBOARDING)

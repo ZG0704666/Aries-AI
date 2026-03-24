@@ -45,7 +45,9 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.navigation.NavHostController
 import com.ai.phoneagent.R
+import com.ai.phoneagent.navigation.Routes
 
 sealed interface DrawerConversationUiItem {
     val stableKey: String
@@ -71,10 +73,11 @@ fun ConversationDrawer(
     searchQuery: String,
     items: List<DrawerConversationUiItem>,
     emptyMessage: String,
+    navController: NavHostController? = null,
     onSearchQueryChange: (String) -> Unit,
     onConversationClick: (Long) -> Unit,
     onConversationLongClick: (Long) -> Unit,
-    onSettingsClick: () -> Unit,
+    onSettingsClick: (() -> Unit)? = null,
 ) {
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
@@ -167,7 +170,12 @@ fun ConversationDrawer(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onSettingsClick),
+                    .clickable(
+                        onClick = {
+                            onSettingsClick?.invoke()
+                                ?: navController?.navigate(Routes.Settings.route)
+                        },
+                    ),
             shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,

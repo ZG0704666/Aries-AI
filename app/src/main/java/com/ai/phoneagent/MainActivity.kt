@@ -89,6 +89,7 @@ import com.ai.phoneagent.helper.AutomationMessageParser
 import com.ai.phoneagent.helper.AutomationTimelineEntry
 import com.ai.phoneagent.helper.AutomationTimelineFormatter
 import android.widget.Toast
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -106,7 +107,6 @@ import com.ai.phoneagent.net.ChatRequestMessage
 import com.ai.phoneagent.net.LocalMnnInferenceEngine
 import com.ai.phoneagent.net.ModelScopeModelDownloader
 import com.ai.phoneagent.updates.UpdateStartupCoordinator
-import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -165,10 +165,10 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.runtime.livedata.observeAsState
 import com.ai.phoneagent.data.AttachmentInfo
 import com.ai.phoneagent.data.local.ConversationRecord
 import com.ai.phoneagent.data.local.ConversationStorageRepository
@@ -187,8 +187,12 @@ import com.ai.phoneagent.ui.messages.TranscriptAutomationUi
 import com.ai.phoneagent.ui.messages.TranscriptMessageUi
 import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.ui.topbar.MainTopBar
+import com.ai.phoneagent.navigation.AriesNavGraph
+import com.ai.phoneagent.navigation.Routes
 import java.io.InputStream
 import kotlinx.coroutines.runBlocking
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import org.koin.android.ext.android.inject
 
 class MainActivity : AppCompatActivity() {
@@ -561,6 +565,8 @@ class MainActivity : AppCompatActivity() {
     private var apiBaseUrl: String = AutoGlmClient.DEFAULT_BASE_URL
     private var apiModel: String = AutoGlmClient.DEFAULT_MODEL
     private lateinit var drawerPanel: View
+    private val navControllerState = mutableStateOf<NavHostController?>(null)
+    private val routeNavigationActionState = mutableStateOf<((String) -> Unit)?>(null)
     private val pendingQwenDownloadIds = linkedSetOf<Long>()
     private var qwenDownloadReceiverRegistered = false
 
@@ -656,8 +662,44 @@ class MainActivity : AppCompatActivity() {
 
         binding = ActivityMainBinding.inflate(layoutInflater)
 
-        setContentView(binding.root)
-        onboardingOverlay = MainOnboardingOverlay(this, appPrefs = appPrefsRepository)
+        setContent {
+            AriesMaterialTheme {
+                val navController = rememberNavController()
+                DisposableEffect(navController) {
+                    navControllerState.value = navController
+                    routeNavigationActionState.value = { route ->
+                        if (navController.currentDestination?.route != route) {
+                            navController.navigate(route) {
+                                launchSingleTop = true
+                            }
+                        }
+                    }
+                    onDispose {
+                        if (navControllerState.value === navController) {
+                            navControllerState.value = null
+                        }
+                        routeNavigationActionState.value = null
+                    }
+                }
+
+                AriesNavGraph(
+                    navController = navController,
+                    homeContent = {
+                        AndroidView(
+                            modifier = Modifier.fillMaxSize(),
+                            factory = { binding.root },
+                        )
+                    },
+                )
+            }
+        }
+
+        onboardingOverlay = MainOnboardingOverlay(
+            activity = this,
+            appPrefs = appPrefsRepository,
+            drawerLayout = binding.drawerLayout,
+            hostRoot = binding.onboardingHost,
+        )
 
         // 设置附件观察者（使用 ViewModel）
         setupAttachmentObservers()
@@ -1156,7 +1198,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupComposeDrawer() {
-        drawerPanel = findViewById(R.id.drawerPanel)
+        drawerPanel = binding.root.findViewById(R.id.drawerPanel)
         val drawerComposeView = drawerPanel.findViewById<ComposeView>(R.id.drawerComposeView)
         localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
 
@@ -1167,6 +1209,7 @@ class MainActivity : AppCompatActivity() {
                     searchQuery = drawerSearchQueryState.value,
                     items = drawerConversationItemsState.value,
                     emptyMessage = drawerEmptyMessageState.value,
+                    navController = navControllerState.value,
                     onSearchQueryChange = { query ->
                         drawerSearchQueryState.value = query
                         refreshDrawerConversationItems()
@@ -1187,11 +1230,7 @@ class MainActivity : AppCompatActivity() {
                     },
                     onSettingsClick = {
                         vibrateLight()
-                        navigateFromDrawer {
-                            startActivityWithMaterialForwardTransition(
-                                Intent(this@MainActivity, DrawerSettingsActivity::class.java),
-                            )
-                        }
+                        navigateToRoute(Routes.Settings.route, closeDrawerFirst = true)
                     },
                 )
             }
@@ -2460,6 +2499,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun navigateToRoute(route: String, closeDrawerFirst: Boolean = false) {
+        val navigate = routeNavigationActionState.value ?: return
+        if (closeDrawerFirst) {
+            navigateFromDrawer {
+                navigate(route)
+            }
+        } else {
+            navigate(route)
+        }
+    }
+
     private fun runPendingDrawerNavigationAction() {
         val pendingAction = pendingDrawerNavigationAction ?: return
         pendingDrawerNavigationAction = null
@@ -3260,7 +3310,7 @@ class MainActivity : AppCompatActivity() {
         if (!localModeEnabled && apiKey.isBlank()) {
 
             Toast.makeText(this, getString(R.string.settings_api_key_missing_entry), Toast.LENGTH_SHORT).show()
-            startActivityWithMaterialForwardTransition(Intent(this, DrawerSettingsActivity::class.java))
+            navigateToRoute(Routes.Settings.route)
 
             return
         }
