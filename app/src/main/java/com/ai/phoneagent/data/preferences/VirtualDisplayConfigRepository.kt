@@ -9,6 +9,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 
 private val Context.virtualDisplayConfigDataStore by preferencesDataStore(name = "virtual_display_config")
 
@@ -121,4 +122,34 @@ class VirtualDisplayConfigRepository(
             prefs[Keys.autoApproveAutomation] = value
         }
     }
+
+    suspend fun getUseVirtualDisplay(): Boolean {
+        val prefs = context.virtualDisplayConfigDataStore.data.first()
+        return prefs[Keys.useVirtualDisplay] ?: false
+    }
+
+    suspend fun getUseShizukuInteraction(): Boolean {
+        val prefs = context.virtualDisplayConfigDataStore.data.first()
+        return prefs[Keys.useShizukuInteraction] ?: false
+    }
+
+    suspend fun getAutoApproveAutomation(): Boolean {
+        val prefs = context.virtualDisplayConfigDataStore.data.first()
+        return prefs[Keys.autoApproveAutomation] ?: false
+    }
+
+    fun getResolutionPresetBlocking(): String = runBlocking { getResolutionPreset() }
+    fun setResolutionPresetBlocking(value: String) = runBlocking { setResolutionPreset(value) }
+    fun getVirtualDisplayDpiBlocking(): Int = runBlocking { getVirtualDisplayDpi() }
+    fun setVirtualDisplayDpiBlocking(value: Int) = runBlocking { setVirtualDisplayDpi(value) }
+    fun getVirtualDisplayWidthBlocking(): Int = runBlocking { getVirtualDisplayWidth() }
+    fun setVirtualDisplayWidthBlocking(value: Int) = runBlocking { setVirtualDisplayWidth(value) }
+    fun getVirtualDisplayHeightBlocking(): Int = runBlocking { getVirtualDisplayHeight() }
+    fun setVirtualDisplayHeightBlocking(value: Int) = runBlocking { setVirtualDisplayHeight(value) }
+    fun getUseVirtualDisplayBlocking(): Boolean = runBlocking { getUseVirtualDisplay() }
+    fun setUseVirtualDisplayBlocking(value: Boolean) = runBlocking { setUseVirtualDisplay(value) }
+    fun getUseShizukuInteractionBlocking(): Boolean = runBlocking { getUseShizukuInteraction() }
+    fun setUseShizukuInteractionBlocking(value: Boolean) = runBlocking { setUseShizukuInteraction(value) }
+    fun getAutoApproveAutomationBlocking(): Boolean = runBlocking { getAutoApproveAutomation() }
+    fun setAutoApproveAutomationBlocking(value: Boolean) = runBlocking { setAutoApproveAutomation(value) }
 }

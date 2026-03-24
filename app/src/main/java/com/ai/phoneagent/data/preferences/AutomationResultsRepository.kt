@@ -10,6 +10,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 
 private val Context.automationResultsDataStore by preferencesDataStore(name = "automation_results")
 
@@ -118,5 +119,30 @@ class AutomationResultsRepository(
             prefs[Keys.lastResultTime] = time
             prefs[Keys.lastLog] = log
         }
+    }
+
+    suspend fun clearAll() {
+        context.automationResultsDataStore.edit { prefs -> prefs.clear() }
+    }
+
+    // ─── Blocking snapshot helpers ────────────────────────────────────────────
+
+    data class LastResult(
+        val success: Boolean,
+        val message: String,
+        val steps: Int,
+        val time: Long,
+        val log: String,
+    )
+
+    fun getLastResultBlocking(): LastResult = runBlocking {
+        val prefs = context.automationResultsDataStore.data.first()
+        LastResult(
+            success = prefs[Keys.lastResultSuccess] ?: false,
+            message = prefs[Keys.lastResultMessage] ?: "",
+            steps = prefs[Keys.lastResultSteps] ?: 0,
+            time = prefs[Keys.lastResultTime] ?: 0L,
+            log = prefs[Keys.lastLog] ?: "",
+        )
     }
 }

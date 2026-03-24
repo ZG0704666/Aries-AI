@@ -4,15 +4,34 @@ import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
+import com.ai.phoneagent.core.common.AppJson
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 object ModelScopeModelDownloader {
+
+    @Serializable
+    private data class ModelScopeRepoFilesResponse(
+        @SerialName("Data") val data: ModelScopeRepoData? = null,
+    )
+
+    @Serializable
+    private data class ModelScopeRepoData(
+        @SerialName("Files") val files: List<ModelScopeRepoFileEntry>? = null,
+    )
+
+    @Serializable
+    private data class ModelScopeRepoFileEntry(
+        @SerialName("Path") val path: String? = null,
+        @SerialName("Size") val size: Long? = null,
+    )
 
     // MNN local-inference package (contains llm.mnn / llm.mnn.weight / llm_config.json).
     const val QWEN35_MODEL_ID = "MNN/Qwen3.5-9B-MNN"
@@ -91,15 +110,14 @@ object ModelScopeModelDownloader {
     private fun fetchRequiredFiles(modelId: String): List<RepoFile> {
         val endpoint = "$MODELSCOPE_API_BASE/$modelId/repo/files?Revision=master"
         val body = httpGet(endpoint)
-        val root = JSONObject(body)
-        val files = root.optJSONObject("Data")?.optJSONArray("Files")
-        if (files == null || files.length() == 0) return emptyList()
+        val root = AppJson.decodeFromString<ModelScopeRepoFilesResponse>(body)
+        val files = root.data?.files.orEmpty()
+        if (files.isEmpty()) return emptyList()
 
         val selected = linkedMapOf<String, RepoFile>()
-        for (i in 0 until files.length()) {
-            val item = files.optJSONObject(i) ?: continue
-            val path = item.optString("Path", "").trim()
-            val size = item.optLong("Size", 0L).coerceAtLeast(0L)
+        for (item in files) {
+            val path = item.path.orEmpty().trim()
+            val size = (item.size ?: 0L).coerceAtLeast(0L)
             val repoFile = normalizeRequiredRepoFile(path, size) ?: continue
             selected.putIfAbsent(repoFile.fileName, repoFile)
         }

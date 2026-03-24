@@ -1,6 +1,7 @@
 package com.ai.phoneagent.net
 
 import android.util.Base64
+import com.ai.phoneagent.core.common.AppJson
 import com.ai.phoneagent.data.AttachmentInfo
 import com.ai.phoneagent.helper.ChatMarkupRegex
 import com.ai.phoneagent.helper.MediaLinkParser
@@ -11,10 +12,19 @@ import kotlinx.coroutines.withContext
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
-import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.File
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * OpenAI 兼容的 Provider 实现
@@ -30,6 +40,46 @@ class OpenAICompatibleProvider(
     override val supportsVideo: Boolean = false,
     override val enableToolCall: Boolean = false
 ) : AIProvider {
+
+    @Serializable
+    private data class OpenAiChatRequest(
+        val model: String,
+        val stream: Boolean,
+        val messages: List<OpenAiChatMessage>,
+    )
+
+    @Serializable
+    private data class OpenAiChatMessage(
+        val role: String,
+        val content: JsonElement,
+    )
+
+    @Serializable
+    private data class OpenAiSseChunk(
+        val choices: List<OpenAiSseChoice>? = null,
+    )
+
+    @Serializable
+    private data class OpenAiSseChoice(
+        val delta: OpenAiDelta? = null,
+    )
+
+    @Serializable
+    private data class OpenAiDelta(
+        val content: String? = null,
+        @SerialName("tool_calls") val toolCalls: List<OpenAiToolCall>? = null,
+    )
+
+    @Serializable
+    private data class OpenAiToolCall(
+        val function: OpenAiToolFunction? = null,
+    )
+
+    @Serializable
+    private data class OpenAiToolFunction(
+        val name: String? = null,
+        val arguments: String? = null,
+    )
     
     override val providerName: String = "OpenAI"
     
@@ -75,29 +125,23 @@ class OpenAICompatibleProvider(
      * 构建请求体
      */
     private fun buildRequestBody(messages: List<ChatMessage>): RequestBody {
-        val jsonObject = JSONObject()
-        jsonObject.put("model", modelName)
-        jsonObject.put("stream", true)
-        
-        val messagesArray = JSONArray()
-        messages.forEach { message ->
-            val messageObj = JSONObject()
-            messageObj.put("role", message.role)
-            
-            // 处理附件
-            if (message.attachments.isNotEmpty()) {
-                val content = buildContentWithAttachments(message.content, message.attachments)
-                messageObj.put("content", content)
-            } else {
-                messageObj.put("content", message.content)
-            }
-            
-            messagesArray.put(messageObj)
-        }
-        
-        jsonObject.put("messages", messagesArray)
-        
-        return jsonObject.toString().toRequestBody(JSON)
+        val request = OpenAiChatRequest(
+            model = modelName,
+            stream = true,
+            messages = messages.map { message ->
+                val content: Any = if (message.attachments.isNotEmpty()) {
+                    buildContentWithAttachments(message.content, message.attachments)
+                } else {
+                    message.content
+                }
+                OpenAiChatMessage(
+                    role = message.role,
+                    content = content.toJsonElement(),
+                )
+            },
+        )
+
+        return AppJson.encodeToString(request).toRequestBody(JSON)
     }
     
     /**
@@ -121,23 +165,19 @@ class OpenAICompatibleProvider(
             if (data.isBlank()) continue
             
             try {
-                val jsonResponse = JSONObject(data)
-                val choices = jsonResponse.optJSONArray("choices")
-                if (choices == null || choices.length() == 0) continue
-                
-                val choice = choices.getJSONObject(0)
-                val delta = choice.optJSONObject("delta") ?: continue
+                val chunk = AppJson.decodeFromString<OpenAiSseChunk>(data)
+                val delta = chunk.choices?.firstOrNull()?.delta ?: continue
                 
                 // 处理Tool Call
-                val toolCalls = delta.optJSONArray("tool_calls")
-                if (toolCalls != null && toolCalls.length() > 0 && enableToolCall) {
+                val toolCalls = delta.toolCalls.orEmpty()
+                if (toolCalls.isNotEmpty() && enableToolCall) {
                     processToolCallsDelta(toolCalls, converter, onChunk)
                     isInToolCall = true
                     continue
                 }
                 
                 // 处理普通内容
-                val content = delta.optString("content", "")
+                val content = delta.content.orEmpty()
                 if (content.isNotEmpty()) {
                     if (isInToolCall) {
                         // 关闭Tool Call
@@ -175,20 +215,19 @@ class OpenAICompatibleProvider(
      * 处理Tool Call增量数据
      */
     private fun processToolCallsDelta(
-        toolCalls: JSONArray,
+        toolCalls: List<OpenAiToolCall>,
         converter: StreamingJsonXmlConverter,
         onChunk: (String) -> Unit
     ) {
-        for (i in 0 until toolCalls.length()) {
-            val toolCall = toolCalls.getJSONObject(i)
-            val function = toolCall.optJSONObject("function") ?: continue
+        toolCalls.forEach { toolCall ->
+            val function = toolCall.function ?: return@forEach
             
-            val name = function.optString("name", "")
+            val name = function.name.orEmpty()
             if (name.isNotEmpty()) {
                 onChunk("\n<tool name=\"$name\">")
             }
             
-            val arguments = function.optString("arguments", "")
+            val arguments = function.arguments.orEmpty()
             if (arguments.isNotEmpty()) {
                 val events = converter.feed(arguments)
                 events.forEach { event ->
@@ -229,7 +268,7 @@ class OpenAICompatibleProvider(
         }
         
         // 构建多模态content数组
-        val contentArray = JSONArray()
+        val contentParts = mutableListOf<JsonObject>()
         
         // 添加图片
         if (supportsVision) {
@@ -237,12 +276,12 @@ class OpenAICompatibleProvider(
                 try {
                     val base64 = readFileAsBase64(attachment.filePath)
                     if (base64 != null) {
-                        contentArray.put(JSONObject().apply {
+                        contentParts += buildJsonObject {
                             put("type", "image_url")
-                            put("image_url", JSONObject().apply {
+                            put("image_url", buildJsonObject {
                                 put("url", "data:${attachment.mimeType};base64,$base64")
                             })
-                        })
+                        }
                     }
                 } catch (e: Exception) {
                     // 忽略错误
@@ -256,13 +295,13 @@ class OpenAICompatibleProvider(
                 try {
                     val base64 = readFileAsBase64(attachment.filePath)
                     if (base64 != null) {
-                        contentArray.put(JSONObject().apply {
+                        contentParts += buildJsonObject {
                             put("type", "input_audio")
-                            put("input_audio", JSONObject().apply {
+                            put("input_audio", buildJsonObject {
                                 put("data", base64)
                                 put("format", getAudioFormat(attachment.mimeType))
                             })
-                        })
+                        }
                     }
                 } catch (e: Exception) {
                     // 忽略错误
@@ -280,13 +319,15 @@ class OpenAICompatibleProvider(
         }
         
         if (textWithInlineAttachments.isNotEmpty()) {
-            contentArray.put(JSONObject().apply {
+            contentParts += buildJsonObject {
                 put("type", "text")
                 put("text", textWithInlineAttachments)
-            })
+            }
         }
         
-        return contentArray
+        return buildJsonArray {
+            contentParts.forEach { add(it) }
+        }
     }
     
     override fun parseXmlToolCalls(content: String): Pair<String, Any?> {
@@ -295,7 +336,7 @@ class OpenAICompatibleProvider(
         val matches = ChatMarkupRegex.toolCallPattern.findAll(content)
         if (!matches.any()) return Pair(content, null)
         
-        val toolCalls = JSONArray()
+        val toolCalls = mutableListOf<JsonObject>()
         var textContent = content
         var callIndex = 0
         
@@ -304,28 +345,34 @@ class OpenAICompatibleProvider(
             val toolBody = match.groupValues[2]
             
             // 解析参数
-            val params = JSONObject()
+            val params = buildJsonObject {
             ChatMarkupRegex.toolParamPattern.findAll(toolBody).forEach { paramMatch ->
                 val paramName = paramMatch.groupValues[1]
                 val paramValue = XmlEscaper.unescape(paramMatch.groupValues[2].trim())
-                params.put(paramName, paramValue)
+                    put(paramName, paramValue)
+                }
             }
             
             // 构建OpenAI格式的tool_call
-            toolCalls.put(JSONObject().apply {
+            toolCalls += buildJsonObject {
                 put("id", "call_${toolName}_${callIndex}")
                 put("type", "function")
-                put("function", JSONObject().apply {
+                put("function", buildJsonObject {
                     put("name", toolName)
                     put("arguments", params.toString())
                 })
-            })
+            }
             
             callIndex++
             textContent = textContent.replace(match.value, "")
         }
         
-        return Pair(textContent.trim(), toolCalls)
+        return Pair(
+            textContent.trim(),
+            buildJsonArray {
+                toolCalls.forEach { add(it) }
+            }
+        )
     }
     
     override fun parseXmlToolResults(content: String): Pair<String, Any?> {
@@ -353,6 +400,16 @@ class OpenAICompatibleProvider(
         }
         
         return Pair(textContent, results)
+    }
+
+    private fun Any.toJsonElement(): JsonElement {
+        return when (this) {
+            is JsonElement -> this
+            is String -> JsonPrimitive(this)
+            is Number -> JsonPrimitive(this)
+            is Boolean -> JsonPrimitive(this)
+            else -> JsonPrimitive(toString())
+        }
     }
     
     /**

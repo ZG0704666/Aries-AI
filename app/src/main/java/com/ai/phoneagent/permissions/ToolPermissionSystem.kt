@@ -1,35 +1,38 @@
 package com.ai.phoneagent.permissions
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.util.Log
 import com.ai.phoneagent.core.tools.AIToolHandler
 import com.ai.phoneagent.data.model.AITool
+import com.ai.phoneagent.data.preferences.ToolPermissionsRepository
 
 /**
  * 工具权限系统
  * 简化版实现，只支持危险操作确认
  */
-class ToolPermissionSystem private constructor(private val context: Context) {
+class ToolPermissionSystem private constructor(
+    private val context: Context,
+    private val toolPermissionsRepository: ToolPermissionsRepository,
+) {
 
     companion object {
         private const val TAG = "ToolPermissionSystem"
-        private const val PREFS_NAME = "tool_permissions"
-        private const val KEY_MASTER_SWITCH = "master_switch"
-
         @Volatile
         private var INSTANCE: ToolPermissionSystem? = null
 
         fun getInstance(context: Context): ToolPermissionSystem {
             return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: ToolPermissionSystem(context.applicationContext).also {
+                val appContext = context.applicationContext
+                INSTANCE ?: ToolPermissionSystem(
+                    context = appContext,
+                    toolPermissionsRepository = ToolPermissionsRepository(appContext),
+                ).also {
                     INSTANCE = it
                 }
             }
         }
     }
 
-    private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val toolHandler = AIToolHandler.getInstance(context)
 
     /**
@@ -46,9 +49,9 @@ class ToolPermissionSystem private constructor(private val context: Context) {
      * 获取主开关权限级别
      */
     fun getMasterPermissionLevel(): PermissionLevel {
-        val value = prefs.getString(KEY_MASTER_SWITCH, PermissionLevel.CAUTION.name)
+        val value = toolPermissionsRepository.getMasterSwitchBlocking()
         return try {
-            PermissionLevel.valueOf(value ?: PermissionLevel.CAUTION.name)
+            PermissionLevel.valueOf(value)
         } catch (e: Exception) {
             PermissionLevel.CAUTION
         }
@@ -58,15 +61,14 @@ class ToolPermissionSystem private constructor(private val context: Context) {
      * 设置主开关权限级别
      */
     fun setMasterPermissionLevel(level: PermissionLevel) {
-        prefs.edit().putString(KEY_MASTER_SWITCH, level.name).apply()
+        toolPermissionsRepository.setMasterSwitchBlocking(level.name)
     }
 
     /**
      * 获取工具的权限级别
      */
     fun getToolPermissionLevel(toolName: String): PermissionLevel {
-        val key = "tool_$toolName"
-        val value = prefs.getString(key, null)
+        val value = toolPermissionsRepository.getToolPermissionBlocking(toolName)
         return if (value != null) {
             try {
                 PermissionLevel.valueOf(value)
@@ -82,8 +84,7 @@ class ToolPermissionSystem private constructor(private val context: Context) {
      * 设置工具的权限级别
      */
     fun setToolPermissionLevel(toolName: String, level: PermissionLevel) {
-        val key = "tool_$toolName"
-        prefs.edit().putString(key, level.name).apply()
+        toolPermissionsRepository.setToolPermissionBlocking(toolName, level.name)
     }
 
     /**

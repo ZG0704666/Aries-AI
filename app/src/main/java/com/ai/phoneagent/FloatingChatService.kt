@@ -28,7 +28,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.SharedPreferences
 import android.graphics.PixelFormat
 import android.os.Binder
 import android.os.Build
@@ -62,15 +61,21 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import com.ai.phoneagent.helper.StreamRenderHelper
+import com.ai.phoneagent.data.preferences.AppPreferencesRepository
+import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
 import com.ai.phoneagent.net.LocalMnnInferenceEngine
 import com.ai.phoneagent.net.ModelScopeModelDownloader
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.*
+import org.koin.android.ext.android.inject
 
 /** 悬浮聊天窗口服务 提供小窗模式的聊天界面和虚拟屏工具箱模式 */
 class FloatingChatService : Service() {
+
+    private val appPrefsRepository by inject<AppPreferencesRepository>()
+    private val floatingChatPrefs by inject<FloatingChatPreferencesRepository>()
 
     companion object {
         private const val TAG = "FloatingChatService"
@@ -114,12 +119,10 @@ class FloatingChatService : Service() {
 
         fun cacheMessagesForNextStart(context: Context, messages: List<String>) {
             runCatching {
-                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val repo = FloatingChatPreferencesRepository(context.applicationContext)
                 val json = com.google.gson.Gson().toJson(messages)
-                prefs.edit()
-                        .putString(PREF_KEY_FLOATING_MESSAGES, json)
-                        .putLong(PREF_KEY_FLOATING_MESSAGES_UPDATED_AT, System.currentTimeMillis())
-                        .apply()
+                repo.setFloatingMessagesBlocking(json)
+                repo.setFloatingMessagesUpdatedAtBlocking(System.currentTimeMillis())
             }
         }
 
@@ -223,7 +226,6 @@ class FloatingChatService : Service() {
 
     private val binder = LocalBinder()
     private lateinit var windowManager: WindowManager
-    private lateinit var prefs: SharedPreferences
     private var floatingView: View? = null
     private var isViewAdded = false
 
@@ -263,23 +265,19 @@ class FloatingChatService : Service() {
     private var speechRecognizer: SpeechRecognizer? = null
     private var isListening: Boolean = false
 
-    private fun getAppPrefs(): SharedPreferences = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-
     private fun m3Color(colorRes: Int): Int = ContextCompat.getColor(this, colorRes)
 
     private fun m3ColorWithAlpha(colorRes: Int, alpha: Int): Int =
             ColorUtils.setAlphaComponent(m3Color(colorRes), alpha.coerceIn(0, 255))
 
     private fun resolveApiConfig(): Triple<String, String, String> {
-            val appPrefs = getAppPrefs()
-            val apiKey = appPrefs.getString("api_key", "")?.trim().orEmpty()
-            val useThirdParty = appPrefs.getBoolean("api_use_third_party", false)
-            val useLocalModel = appPrefs.getBoolean("api_use_local_model", false)
+            val apiKey = appPrefsRepository.getApiKeyBlocking().trim()
+            val useThirdParty = appPrefsRepository.getApiUseThirdPartyBlocking()
+            val useLocalModel = appPrefsRepository.getApiUseLocalModelBlocking()
             val storedThirdPartyBaseUrl =
-                    appPrefs.getString("api_third_party_base_url", AutoGlmClient.DEFAULT_BASE_URL)
-                            ?.trim()
-                            ?.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
-                            ?: AutoGlmClient.DEFAULT_BASE_URL
+                    appPrefsRepository.getApiThirdPartyBaseUrlBlocking()
+                        .trim()
+                        .ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
             val baseUrl =
                     if (useLocalModel) {
                         AutoGlmClient.DEFAULT_BASE_URL
@@ -294,16 +292,15 @@ class FloatingChatService : Service() {
                     } else if (!useThirdParty) {
                         AutoGlmClient.DEFAULT_MODEL
                     } else {
-                        appPrefs.getString("api_third_party_model", AutoGlmClient.DEFAULT_MODEL)
-                                ?.trim()
-                                ?.ifBlank { AutoGlmClient.DEFAULT_MODEL }
-                                ?: AutoGlmClient.DEFAULT_MODEL
+                        appPrefsRepository.getApiThirdPartyModelBlocking()
+                            .trim()
+                            .ifBlank { AutoGlmClient.DEFAULT_MODEL }
                     }
             return Triple(apiKey, baseUrl, model)
     }
 
     private fun getStreamingPendingTitle(): String {
-            val useLocalModel = getAppPrefs().getBoolean("api_use_local_model", false)
+            val useLocalModel = appPrefsRepository.getApiUseLocalModelBlocking()
             return if (useLocalModel) "本地推理中，请等待" else "连接中"
     }
 
@@ -338,7 +335,6 @@ class FloatingChatService : Service() {
         super.onCreate()
         instance = this
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        prefs = getSharedPreferences("floating_chat_prefs", Context.MODE_PRIVATE)
 
         restoreWindowState()
         createNotificationChannel()
@@ -1122,8 +1118,7 @@ class FloatingChatService : Service() {
     /** 请求 AI 回复 */
     private fun requestAIResponse(userText: String) {
         val (apiKey, baseUrl, model) = resolveApiConfig()
-        val appPrefs = getAppPrefs()
-        val useLocalModel = appPrefs.getBoolean("api_use_local_model", false)
+        val useLocalModel = appPrefsRepository.getApiUseLocalModelBlocking()
         if (useLocalModel && !ModelScopeModelDownloader.isQwen35ModelReady(this)) {
             addMessage("Aries: 本地模型未就绪，请先在主界面下载模型", isUser = false)
             return
@@ -1684,10 +1679,8 @@ class FloatingChatService : Service() {
     private fun saveMessagesToPrefs() {
         try {
             val json = com.google.gson.Gson().toJson(messages)
-            prefs.edit()
-                    .putString("floating_messages", json)
-                    .putLong("floating_messages_updated_at", System.currentTimeMillis())
-                    .apply()
+            floatingChatPrefs.setFloatingMessagesBlocking(json)
+            floatingChatPrefs.setFloatingMessagesUpdatedAtBlocking(System.currentTimeMillis())
         } catch (e: Exception) {
             // ignore
         }
@@ -1696,7 +1689,7 @@ class FloatingChatService : Service() {
     /** 从本地存储恢复消息 */
     private fun restoreMessagesFromPrefs() {
         try {
-            val json = prefs.getString("floating_messages", null) ?: return
+            val json = floatingChatPrefs.getFloatingMessagesBlocking() ?: return
             val type = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
             val list: List<String> = com.google.gson.Gson().fromJson(json, type) ?: emptyList()
             messages.clear()
@@ -2010,12 +2003,10 @@ class FloatingChatService : Service() {
     // ============================================================
 
     private fun saveWindowState() {
-        prefs.edit()
-                .putInt("window_x", windowX)
-                .putInt("window_y", windowY)
-                .putInt("window_width", windowWidth)
-                .putInt("window_height", windowHeight)
-                .apply()
+        floatingChatPrefs.setWindowXBlocking(windowX)
+        floatingChatPrefs.setWindowYBlocking(windowY)
+        floatingChatPrefs.setWindowWidthBlocking(windowWidth)
+        floatingChatPrefs.setWindowHeightBlocking(windowHeight)
     }
 
     private fun restoreWindowState() {
@@ -2029,12 +2020,12 @@ class FloatingChatService : Service() {
         val autoWidth = (screenWidthDp * 0.8).toInt().coerceIn(280, 360)
         val autoHeight = (screenHeightDp * 0.52).toInt().coerceIn(340, 480)
 
-        windowWidth = prefs.getInt("window_width", autoWidth)
-        windowHeight = prefs.getInt("window_height", autoHeight)
+        windowWidth = floatingChatPrefs.getWindowWidthBlocking().takeIf { it > 0 } ?: autoWidth
+        windowHeight = floatingChatPrefs.getWindowHeightBlocking().takeIf { it > 0 } ?: autoHeight
 
         // 检查之前保存的坐标是否超出当前屏幕（万一分辨率变了）
         windowX =
-                prefs.getInt("window_x", 100)
+                floatingChatPrefs.getWindowXBlocking()
                         .coerceIn(
                                 0,
                                 maxOf(
@@ -2044,7 +2035,7 @@ class FloatingChatService : Service() {
                                 )
                         )
         windowY =
-                prefs.getInt("window_y", 200)
+                floatingChatPrefs.getWindowYBlocking()
                         .coerceIn(
                                 0,
                                 maxOf(

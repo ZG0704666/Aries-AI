@@ -9,6 +9,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 
 private val Context.floatingChatPreferencesDataStore by preferencesDataStore(name = "floating_chat_prefs")
 
@@ -75,6 +76,11 @@ class FloatingChatPreferencesRepository(
         }
     }
 
+    suspend fun getFloatingMessagesUpdatedAt(): Long {
+        val prefs = context.floatingChatPreferencesDataStore.data.first()
+        return prefs[Keys.floatingMessagesUpdatedAt] ?: 0L
+    }
+
     suspend fun getWindowX(): Int {
         val prefs = context.floatingChatPreferencesDataStore.data.first()
         return prefs[Keys.windowX] ?: 100
@@ -118,4 +124,25 @@ class FloatingChatPreferencesRepository(
             prefs[Keys.windowHeight] = value
         }
     }
+
+    suspend fun clearFloatingMessages() {
+        context.floatingChatPreferencesDataStore.edit { prefs ->
+            prefs.remove(Keys.floatingMessages)
+            prefs.remove(Keys.floatingMessagesUpdatedAt)
+        }
+    }
+
+    fun getFloatingMessagesBlocking(): String? = runBlocking { getFloatingMessages() }
+    fun setFloatingMessagesBlocking(value: String?) = runBlocking { setFloatingMessages(value) }
+    fun getFloatingMessagesUpdatedAtBlocking(): Long = runBlocking { getFloatingMessagesUpdatedAt() }
+    fun setFloatingMessagesUpdatedAtBlocking(value: Long) = runBlocking { setFloatingMessagesUpdatedAt(value) }
+    fun clearFloatingMessagesBlocking() = runBlocking { clearFloatingMessages() }
+    fun getWindowXBlocking(): Int = runBlocking { getWindowX() }
+    fun setWindowXBlocking(value: Int) = runBlocking { setWindowX(value) }
+    fun getWindowYBlocking(): Int = runBlocking { getWindowY() }
+    fun setWindowYBlocking(value: Int) = runBlocking { setWindowY(value) }
+    fun getWindowWidthBlocking(): Int = runBlocking { getWindowWidth() }
+    fun setWindowWidthBlocking(value: Int) = runBlocking { setWindowWidth(value) }
+    fun getWindowHeightBlocking(): Int = runBlocking { getWindowHeight() }
+    fun setWindowHeightBlocking(value: Int) = runBlocking { setWindowHeight(value) }
 }

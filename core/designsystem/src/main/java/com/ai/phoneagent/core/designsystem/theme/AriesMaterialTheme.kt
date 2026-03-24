@@ -19,7 +19,7 @@ import com.ai.phoneagent.core.designsystem.R
 @Composable
 fun AriesMaterialTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme =

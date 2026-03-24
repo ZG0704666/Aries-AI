@@ -174,6 +174,8 @@ import com.ai.phoneagent.data.local.ConversationRecord
 import com.ai.phoneagent.data.local.ConversationStorageRepository
 import com.ai.phoneagent.data.local.StoredAttachmentRecord
 import com.ai.phoneagent.data.local.StoredMessageRecord
+import com.ai.phoneagent.data.preferences.AppPreferencesRepository
+import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
 import com.ai.phoneagent.data.preferences.MainUiPreferencesRepository
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
 import com.ai.phoneagent.ui.drawer.ConversationDrawer
@@ -187,8 +189,142 @@ import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.ui.topbar.MainTopBar
 import java.io.InputStream
 import kotlinx.coroutines.runBlocking
+import org.koin.android.ext.android.inject
 
 class MainActivity : AppCompatActivity() {
+
+    private class AppPrefsCompat(
+        private val appPrefsRepository: AppPreferencesRepository,
+    ) {
+        inner class Editor {
+            private val stringValues = mutableMapOf<String, String?>()
+            private val booleanValues = mutableMapOf<String, Boolean>()
+            private val longValues = mutableMapOf<String, Long>()
+            private val stringSetValues = mutableMapOf<String, Set<String>>()
+            private val removeKeys = mutableSetOf<String>()
+
+            fun putString(key: String, value: String?): Editor {
+                stringValues[key] = value
+                removeKeys.remove(key)
+                return this
+            }
+
+            fun putBoolean(key: String, value: Boolean): Editor {
+                booleanValues[key] = value
+                removeKeys.remove(key)
+                return this
+            }
+
+            fun putLong(key: String, value: Long): Editor {
+                longValues[key] = value
+                removeKeys.remove(key)
+                return this
+            }
+
+            fun putStringSet(key: String, value: Set<String>): Editor {
+                stringSetValues[key] = value
+                removeKeys.remove(key)
+                return this
+            }
+
+            fun remove(key: String): Editor {
+                removeKeys.add(key)
+                stringValues.remove(key)
+                booleanValues.remove(key)
+                longValues.remove(key)
+                stringSetValues.remove(key)
+                return this
+            }
+
+            fun apply() {
+                removeKeys.forEach { key ->
+                    when (key) {
+                        "api_key" -> appPrefsRepository.writeApiConfigBlocking(removeApiKey = true)
+                        "api_last_check_key" -> appPrefsRepository.setApiLastCheckKeyBlocking("")
+                        "api_last_check_ok" -> appPrefsRepository.writeApiConfigBlocking(clearCheckResults = true)
+                        "api_last_check_time" -> appPrefsRepository.setApiLastCheckTimeBlocking(0L)
+                        "api_last_check_sig" -> appPrefsRepository.setApiLastCheckSigBlocking("")
+                        "conversations_json" -> appPrefsRepository.setLegacyConversationsJsonBlocking(null)
+                        "active_conversation_id" -> appPrefsRepository.setLegacyActiveConversationIdBlocking(null)
+                    }
+                }
+
+                stringValues.forEach { (key, value) ->
+                    when (key) {
+                        "api_key" -> appPrefsRepository.setApiKeyBlocking(value.orEmpty())
+                        "api_third_party_base_url" -> appPrefsRepository.setApiThirdPartyBaseUrlBlocking(value.orEmpty())
+                        "api_third_party_model" -> appPrefsRepository.setApiThirdPartyModelBlocking(value.orEmpty())
+                        "api_last_check_key" -> appPrefsRepository.setApiLastCheckKeyBlocking(value.orEmpty())
+                        "api_last_check_sig" -> appPrefsRepository.setApiLastCheckSigBlocking(value.orEmpty())
+                        "conversations_json" -> appPrefsRepository.setLegacyConversationsJsonBlocking(value)
+                    }
+                }
+
+                booleanValues.forEach { (key, value) ->
+                    when (key) {
+                        "api_use_third_party" -> appPrefsRepository.setApiUseThirdPartyBlocking(value)
+                        "api_use_local_model" -> appPrefsRepository.setApiUseLocalModelBlocking(value)
+                        "api_last_check_ok" -> appPrefsRepository.setApiLastCheckOkBlocking(value)
+                        "user_agreement_accepted" -> appPrefsRepository.setUserAgreementAcceptedBlocking(value)
+                    }
+                }
+
+                longValues.forEach { (key, value) ->
+                    when (key) {
+                        "api_last_check_time" -> appPrefsRepository.setApiLastCheckTimeBlocking(value)
+                        "active_conversation_id" -> appPrefsRepository.setLegacyActiveConversationIdBlocking(value)
+                    }
+                }
+
+                stringSetValues.forEach { (key, value) ->
+                    when (key) {
+                        "qwen_pending_download_ids" -> appPrefsRepository.setQwenPendingDownloadIdsBlocking(value)
+                    }
+                }
+            }
+        }
+
+        fun getString(key: String, defaultValue: String?): String? =
+            when (key) {
+                "api_key" -> appPrefsRepository.getApiKeyBlocking()
+                "api_third_party_base_url" -> appPrefsRepository.getApiThirdPartyBaseUrlBlocking()
+                "api_third_party_model" -> appPrefsRepository.getApiThirdPartyModelBlocking()
+                "api_last_check_key" -> appPrefsRepository.getApiLastCheckKeyBlocking()
+                "api_last_check_sig" -> appPrefsRepository.getApiLastCheckSigBlocking()
+                "conversations_json" -> appPrefsRepository.getLegacyConversationsJsonBlocking()
+                else -> defaultValue
+            } ?: defaultValue
+
+        fun getBoolean(key: String, defaultValue: Boolean): Boolean =
+            when (key) {
+                "api_use_third_party" -> appPrefsRepository.getApiUseThirdPartyBlocking()
+                "api_use_local_model" -> appPrefsRepository.getApiUseLocalModelBlocking()
+                "api_last_check_ok" -> appPrefsRepository.getApiLastCheckOkBlocking()
+                "user_agreement_accepted" -> appPrefsRepository.getUserAgreementAcceptedBlocking()
+                else -> defaultValue
+            }
+
+        fun getLong(key: String, defaultValue: Long): Long =
+            when (key) {
+                "api_last_check_time" -> appPrefsRepository.getApiLastCheckTimeBlocking()
+                "active_conversation_id" -> appPrefsRepository.getLegacyActiveConversationIdBlocking(defaultValue)
+                else -> defaultValue
+            }
+
+        fun getStringSet(key: String, defaultValue: Set<String>?): Set<String>? =
+            when (key) {
+                "qwen_pending_download_ids" -> appPrefsRepository.getQwenPendingDownloadIdsBlocking()
+                else -> defaultValue
+            }
+
+        fun contains(key: String): Boolean =
+            when (key) {
+                "api_last_check_ok" -> appPrefsRepository.hasApiLastCheckOkBlocking()
+                else -> false
+            }
+
+        fun edit(): Editor = Editor()
+    }
     
     // ViewModel for managing chat and attachment state
     private val chatViewModel: ChatViewModel by viewModels()
@@ -275,7 +411,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var onboardingOverlay: MainOnboardingOverlay
 
-    private val prefs by lazy { getSharedPreferences("app_prefs", MODE_PRIVATE) }
+    private val appPrefsRepository by inject<AppPreferencesRepository>()
+    private val floatingChatPrefs by inject<FloatingChatPreferencesRepository>()
+    private val prefs by lazy { AppPrefsCompat(appPrefsRepository) }
     private val uiPreferencesRepository by lazy { MainUiPreferencesRepository(applicationContext) }
     private val conversationStorageRepository by lazy { ConversationStorageRepository(applicationContext) }
 
@@ -519,7 +657,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
 
         setContentView(binding.root)
-        onboardingOverlay = MainOnboardingOverlay(this)
+        onboardingOverlay = MainOnboardingOverlay(this, appPrefs = appPrefsRepository)
 
         // 设置附件观察者（使用 ViewModel）
         setupAttachmentObservers()
@@ -1284,11 +1422,10 @@ class MainActivity : AppCompatActivity() {
             floatingMessages = floatingService.getMessages()
         }
 
-        // 如果服务未运行，从 SharedPreferences 恢复消息
+        // 如果服务未运行，从本地持久化恢复消息
         if (floatingMessages == null || floatingMessages.isEmpty()) {
             try {
-                val floatingPrefs = getSharedPreferences("floating_chat_prefs", MODE_PRIVATE)
-                val json = floatingPrefs.getString("floating_messages", null)
+                val json = floatingChatPrefs.getFloatingMessagesBlocking()
                 if (json != null) {
                     val type = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
                     floatingMessages = com.google.gson.Gson().fromJson(json, type) ?: emptyList()
@@ -1332,8 +1469,7 @@ class MainActivity : AppCompatActivity() {
 
         // 清空浮窗消息存储（已同步完成）
         try {
-            val floatingPrefs = getSharedPreferences("floating_chat_prefs", MODE_PRIVATE)
-            floatingPrefs.edit().remove("floating_messages").apply()
+            floatingChatPrefs.clearFloatingMessagesBlocking()
         } catch (e: Exception) {
             // ignore
         }
@@ -1802,13 +1938,12 @@ class MainActivity : AppCompatActivity() {
         val miniWindowWidth = 280 * density
         val miniWindowHeight = 360 * density
 
-        val floatingPrefs = getSharedPreferences("floating_chat_prefs", MODE_PRIVATE)
         val fallbackX = ((displayMetrics.widthPixels - miniWindowWidth) / 2f).toInt()
         val fallbackY = ((displayMetrics.heightPixels - miniWindowHeight) / 2f).toInt()
-        val savedX = floatingPrefs.getInt("window_x", Int.MIN_VALUE)
-        val savedY = floatingPrefs.getInt("window_y", Int.MIN_VALUE)
-        val targetX = (if (savedX != Int.MIN_VALUE) savedX else fallbackX).toFloat()
-        val targetY = (if (savedY != Int.MIN_VALUE) savedY else fallbackY).toFloat()
+        val savedX = floatingChatPrefs.getWindowXBlocking()
+        val savedY = floatingChatPrefs.getWindowYBlocking()
+        val targetX = (savedX.takeIf { it >= 0 } ?: fallbackX).toFloat()
+        val targetY = (savedY.takeIf { it >= 0 } ?: fallbackY).toFloat()
         
         // 仅保留近期消息，避免历史过大导致小窗启动异常
         val messagesList = ArrayList<String>()

@@ -36,8 +36,10 @@ import java.util.concurrent.Executors
 import kotlin.coroutines.resume
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 class PhoneAgentAccessibilityService : AccessibilityService() {
 
@@ -526,35 +528,35 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         sb.append("</node>")
     }
 
-    private fun nodeToJson(node: UiNodeSnapshot, detailLevel: UiDetailLevel): JSONObject {
-        val obj = JSONObject()
-        obj.put("node_id", node.nodeId)
-        obj.put("class", node.className)
-        obj.put("package", node.packageName)
-        if (!node.text.isNullOrEmpty()) obj.put("text", node.text)
-        if (!node.contentDesc.isNullOrEmpty()) obj.put("content_desc", node.contentDesc)
-        if (!node.resourceId.isNullOrEmpty()) obj.put("resource_id", node.resourceId)
-        obj.put("bounds", node.bounds)
-        obj.put("bounds_norm", node.boundsNorm)
-        obj.put("center", node.centerNorm)
-        if (detailLevel != UiDetailLevel.MINIMAL) {
-            obj.put("clickable", node.clickable)
-            obj.put("focused", node.focused)
-            if (detailLevel == UiDetailLevel.FULL) {
-                obj.put("enabled", node.enabled)
-                obj.put("checkable", node.checkable)
-                obj.put("checked", node.checked)
-                obj.put("selected", node.selected)
-                obj.put("scrollable", node.scrollable)
-                obj.put("long_clickable", node.longClickable)
-                obj.put("editable", node.editable)
+    private fun nodeToJson(node: UiNodeSnapshot, detailLevel: UiDetailLevel): JsonObject {
+        return buildJsonObject {
+            put("node_id", node.nodeId)
+            put("class", node.className)
+            put("package", node.packageName)
+            if (!node.text.isNullOrEmpty()) put("text", node.text)
+            if (!node.contentDesc.isNullOrEmpty()) put("content_desc", node.contentDesc)
+            if (!node.resourceId.isNullOrEmpty()) put("resource_id", node.resourceId)
+            put("bounds", node.bounds)
+            put("bounds_norm", node.boundsNorm)
+            put("center", node.centerNorm)
+            if (detailLevel != UiDetailLevel.MINIMAL) {
+                put("clickable", node.clickable)
+                put("focused", node.focused)
+                if (detailLevel == UiDetailLevel.FULL) {
+                    put("enabled", node.enabled)
+                    put("checkable", node.checkable)
+                    put("checked", node.checked)
+                    put("selected", node.selected)
+                    put("scrollable", node.scrollable)
+                    put("long_clickable", node.longClickable)
+                    put("editable", node.editable)
+                }
             }
-        }
 
-        val children = JSONArray()
-        node.children.forEach { child -> children.put(nodeToJson(child, detailLevel)) }
-        obj.put("children", children)
-        return obj
+            put("children", buildJsonArray {
+                node.children.forEach { child -> add(nodeToJson(child, detailLevel)) }
+            })
+        }
     }
 
     fun dumpUiTreeXml(maxNodes: Int = 30, detail: String = "minimal"): String {
@@ -604,17 +606,17 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
                 buildNodeSnapshot(root, detailLevel, maxNodes, counter, screenWidth, screenHeight)
                         ?: return "{}"
 
-        val rootObj = JSONObject()
-        sanitizeAttr(root.packageName, 120)?.let { rootObj.put("package", it) }
-        sanitizeAttr(root.className, 120)?.let { rootObj.put("activity", it) }
-        rootObj.put("screen_width", screenWidth)
-        rootObj.put("screen_height", screenHeight)
-        rootObj.put("tree", nodeToJson(snapshot, detailLevel))
-        if (counter[0] >= maxNodes) {
-            rootObj.put("truncated", true)
-            rootObj.put("max_nodes", maxNodes)
-        }
-        return rootObj.toString()
+        return buildJsonObject {
+            sanitizeAttr(root.packageName, 120)?.let { put("package", it) }
+            sanitizeAttr(root.className, 120)?.let { put("activity", it) }
+            put("screen_width", screenWidth)
+            put("screen_height", screenHeight)
+            put("tree", nodeToJson(snapshot, detailLevel))
+            if (counter[0] >= maxNodes) {
+                put("truncated", true)
+                put("max_nodes", maxNodes)
+            }
+        }.toString()
     }
 
     fun getUiHierarchy(
@@ -1006,12 +1008,13 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             maxResults: Int = 10,
     ): String {
         val root = rootInActiveWindow ?: return "[]"
-        val results = mutableListOf<JSONObject>()
+        val results = mutableListOf<JsonObject>()
 
         findAllMatchingNodes(root, resourceId, text, contentDesc, className, maxResults, results)
 
-        val jsonArray = JSONArray()
-        results.forEach { jsonArray.put(it) }
+        val jsonArray = buildJsonArray {
+            results.forEach { add(it) }
+        }
 
         Log.d("FIND_ELEMENTS", "找到 ${results.size} 个匹配元素: resourceId=$resourceId, text=$text")
         return jsonArray.toString()
@@ -1024,7 +1027,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             contentDesc: String?,
             className: String?,
             maxResults: Int,
-            results: MutableList<JSONObject>,
+            results: MutableList<JsonObject>,
     ) {
         fun matches(node: AccessibilityNodeInfo): Boolean {
             val id = node.viewIdResourceName?.trim().orEmpty()
@@ -1055,10 +1058,10 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             return true
         }
 
-        fun nodeToJson(node: AccessibilityNodeInfo, index: Int): JSONObject {
+        fun nodeToJson(node: AccessibilityNodeInfo, index: Int): JsonObject {
             val bounds = Rect()
             node.getBoundsInScreen(bounds)
-            return JSONObject().apply {
+            return buildJsonObject {
                 put("index", index)
                 put("resource_id", node.viewIdResourceName ?: "")
                 put("class", node.className?.toString() ?: "")
@@ -1287,13 +1290,11 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         val packageName = root?.packageName?.toString() ?: "unknown"
         val activityClass = root?.className?.toString() ?: "unknown"
 
-        return JSONObject()
-                .apply {
-                    put("package_name", packageName)
-                    put("activity_class", activityClass)
-                    put("timestamp", System.currentTimeMillis())
-                }
-                .toString()
+        return buildJsonObject {
+            put("package_name", packageName)
+            put("activity_class", activityClass)
+            put("timestamp", System.currentTimeMillis())
+        }.toString()
     }
 
     suspend fun clickElement(

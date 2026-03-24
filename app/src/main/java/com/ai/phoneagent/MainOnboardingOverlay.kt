@@ -1,6 +1,5 @@
 package com.ai.phoneagent
 
-import android.content.Context
 import android.os.Build
 import android.text.Html
 import android.view.Gravity
@@ -67,9 +66,11 @@ import androidx.core.view.GravityCompat
 import androidx.core.view.WindowCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
+import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 
 class MainOnboardingOverlay(
     private val activity: AppCompatActivity,
+    private val appPrefs: AppPreferencesRepository,
 ) {
     enum class FlowMode {
         ONBOARDING,
@@ -94,12 +95,8 @@ class MainOnboardingOverlay(
     companion object {
         private const val REQ_RECORD_AUDIO = 101
         private const val REQ_SHIZUKU_PERMISSION = 2026
-        private const val PREFS_NAME = "app_prefs"
-        private const val KEY_USER_AGREEMENT_ACCEPTED = "user_agreement_accepted"
-        private const val KEY_PERMISSION_GUIDE_SHOWN = "perm_guide_shown"
     }
 
-    private val prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val drawerLayout = activity.findViewById<DrawerLayout>(R.id.drawerLayout)
     private val hostRoot = activity.findViewById<ComposeView>(R.id.onboardingHost)
 
@@ -122,7 +119,7 @@ class MainOnboardingOverlay(
                             when (currentStep) {
                                 Step.WELCOME -> currentStep = Step.AGREEMENT
                                 Step.AGREEMENT -> {
-                                    prefs.edit().putBoolean(KEY_USER_AGREEMENT_ACCEPTED, true).apply()
+                                    appPrefs.setUserAgreementAcceptedBlocking(true)
                                     markPermissionGuideShown()
                                     refreshPermissionUi()
                                     currentStep = Step.PERMISSION
@@ -150,8 +147,8 @@ class MainOnboardingOverlay(
     }
 
     fun showPermissionOnlyIfNeeded() {
-        if (!prefs.getBoolean(KEY_USER_AGREEMENT_ACCEPTED, false)) return
-        if (prefs.getBoolean(KEY_PERMISSION_GUIDE_SHOWN, false)) return
+        if (!appPrefs.getUserAgreementAcceptedBlocking()) return
+        if (appPrefs.getPermGuideShownBlocking()) return
         flowMode = FlowMode.PERMISSION_ONLY
         showOverlay(Step.PERMISSION)
     }
@@ -195,7 +192,7 @@ class MainOnboardingOverlay(
     }
 
     private fun markPermissionGuideShown() {
-        prefs.edit().putBoolean(KEY_PERMISSION_GUIDE_SHOWN, true).apply()
+        appPrefs.setPermGuideShownBlocking(true)
     }
 
     private fun refreshPermissionUi() {

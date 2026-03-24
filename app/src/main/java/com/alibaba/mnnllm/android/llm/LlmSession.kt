@@ -2,7 +2,8 @@ package com.alibaba.mnnllm.android.llm
 
 import android.util.Pair as AndroidPair
 import java.io.File
-import org.json.JSONObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 class LlmSession(
     private val configPath: String,
@@ -23,10 +24,10 @@ class LlmSession(
         val mergedConfig =
             runCatching { configFile.readText(Charsets.UTF_8) }.getOrDefault("{}")
         val extraConfig =
-            JSONObject()
-                .put("keep_history", keepHistory)
-                .put("mmap_dir", "")
-                .toString()
+            buildJsonObject {
+                put("keep_history", keepHistory)
+                put("mmap_dir", "")
+            }.toString()
 
         val ptr =
             initNative(

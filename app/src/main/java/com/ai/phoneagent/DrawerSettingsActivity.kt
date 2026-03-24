@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
+import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ModelScopeModelDownloader
 import com.ai.phoneagent.system.applyMaterialCloseTransition
@@ -31,6 +32,7 @@ import com.ai.phoneagent.ui.settings.DrawerSettingsScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.koin.android.ext.android.inject
 
 class DrawerSettingsActivity : AppCompatActivity() {
 
@@ -39,16 +41,7 @@ class DrawerSettingsActivity : AppCompatActivity() {
         ModelApi,
     }
 
-    private val prefs by lazy { getSharedPreferences("app_prefs", MODE_PRIVATE) }
-
-    private val apiLastCheckKeyPref = "api_last_check_key"
-    private val apiLastCheckOkPref = "api_last_check_ok"
-    private val apiLastCheckTimePref = "api_last_check_time"
-    private val apiLastCheckSigPref = "api_last_check_sig"
-    private val apiUseThirdPartyPref = "api_use_third_party"
-    private val apiThirdPartyBaseUrlPref = "api_third_party_base_url"
-    private val apiThirdPartyModelPref = "api_third_party_model"
-    private val apiUseLocalModelPref = "api_use_local_model"
+    private val prefs by inject<AppPreferencesRepository>()
 
     private var remoteApiOk: Boolean? = null
     private var remoteApiChecking: Boolean = false
@@ -180,7 +173,7 @@ class DrawerSettingsActivity : AppCompatActivity() {
                                 },
                                 onUseLocalModelChange = { checked ->
                                     useLocalModel = checked
-                                    prefs.edit().putBoolean(apiUseLocalModelPref, checked).apply()
+                                    lifecycleScope.launch { prefs.setApiUseLocalModel(checked) }
                                     if (checked && !localModelReady) {
                                         Toast.makeText(
                                             this@DrawerSettingsActivity,
@@ -254,23 +247,23 @@ class DrawerSettingsActivity : AppCompatActivity() {
     }
 
     private fun restoreSettings() {
-        val saved = prefs.getString("api_key", "").orEmpty()
+        val saved = prefs.getApiKeyBlocking()
         apiInputTag = saved
         apiInputText = maskKey(saved)
-        useThirdPartyApi = prefs.getBoolean(apiUseThirdPartyPref, false)
-        useLocalModel = prefs.getBoolean(apiUseLocalModelPref, false)
-        apiBaseUrlText = prefs.getString(apiThirdPartyBaseUrlPref, AutoGlmClient.DEFAULT_BASE_URL).orEmpty()
-        apiModelText = prefs.getString(apiThirdPartyModelPref, AutoGlmClient.DEFAULT_MODEL).orEmpty()
+        useThirdPartyApi = prefs.getApiUseThirdPartyBlocking()
+        useLocalModel = prefs.getApiUseLocalModelBlocking()
+        apiBaseUrlText = prefs.getApiThirdPartyBaseUrlBlocking().ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
+        apiModelText = prefs.getApiThirdPartyModelBlocking().ifBlank { AutoGlmClient.DEFAULT_MODEL }
 
-        val lastSig = prefs.getString(apiLastCheckSigPref, "").orEmpty()
+        val lastSig = prefs.getApiLastCheckSigBlocking()
         val currentSig =
             apiConfigSignature(
                 apiKey = saved,
                 baseUrl = resolveApiBaseUrl(),
                 model = resolveApiModel(),
             )
-        if (saved.isNotBlank() && prefs.contains(apiLastCheckOkPref) && lastSig == currentSig) {
-            remoteApiOk = prefs.getBoolean(apiLastCheckOkPref, false)
+        if (saved.isNotBlank() && prefs.hasApiLastCheckOkBlocking() && lastSig == currentSig) {
+            remoteApiOk = prefs.getApiLastCheckOkBlocking()
             remoteApiChecking = false
             lastCheckedApiKey = saved
             apiStatusText =
@@ -311,7 +304,7 @@ class DrawerSettingsActivity : AppCompatActivity() {
     private fun resolveApiKeyFromInput(): String {
         val displayed = apiInputText
         val tagKey = apiInputTag.trim()
-        val savedKey = prefs.getString("api_key", "").orEmpty().trim()
+        val savedKey = prefs.getApiKeyBlocking().trim()
         return when {
             tagKey.isNotBlank() && displayed == maskKey(tagKey) -> tagKey
             savedKey.isNotBlank() && displayed == maskKey(savedKey) -> savedKey
@@ -341,20 +334,16 @@ class DrawerSettingsActivity : AppCompatActivity() {
         remoteApiOk = null
         remoteApiChecking = false
         lastCheckedApiKey = ""
-        val editor =
-            prefs.edit()
-                .remove(apiLastCheckSigPref)
-                .remove(apiLastCheckKeyPref)
-                .remove(apiLastCheckOkPref)
-                .remove(apiLastCheckTimePref)
-                .putBoolean(apiUseThirdPartyPref, useThirdPartyApi)
-                .putBoolean(apiUseLocalModelPref, useLocalModel)
-                .putString(apiThirdPartyBaseUrlPref, apiBaseUrlText.trim())
-                .putString(apiThirdPartyModelPref, apiModelText.trim())
-        if (clearApiValue) {
-            editor.remove("api_key")
+        lifecycleScope.launch {
+            prefs.writeApiConfig(
+                removeApiKey = clearApiValue,
+                useThirdParty = useThirdPartyApi,
+                useLocalModel = useLocalModel,
+                thirdPartyBaseUrl = apiBaseUrlText.trim(),
+                thirdPartyModel = apiModelText.trim(),
+                clearCheckResults = true,
+            )
         }
-        editor.apply()
         apiStatusText = getString(R.string.m3t_sidebar_api_not_checked)
         updateStatusText()
     }
@@ -382,7 +371,7 @@ class DrawerSettingsActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.settings_api_key_required, Toast.LENGTH_SHORT).show()
             return
         }
-        prefs.edit().putString("api_key", key).apply()
+        lifecycleScope.launch { prefs.setApiKey(key) }
         apiInputTag = key
         apiInputText = maskKey(key)
         val baseUrl = resolveApiBaseUrl()
@@ -466,13 +455,13 @@ class DrawerSettingsActivity : AppCompatActivity() {
                         R.string.settings_api_failed
                     },
                 )
-            prefs.edit()
-                .putString("api_key", key.trim())
-                .putString(apiLastCheckKeyPref, key.trim())
-                .putBoolean(apiLastCheckOkPref, result.ok)
-                .putLong(apiLastCheckTimePref, System.currentTimeMillis())
-                .putString(apiLastCheckSigPref, apiConfigSignature(key.trim(), normalizedBaseUrl, model))
-                .apply()
+            prefs.writeApiConfig(
+                apiKey = key.trim(),
+                lastCheckKey = key.trim(),
+                lastCheckOk = result.ok,
+                lastCheckTime = System.currentTimeMillis(),
+                lastCheckSig = apiConfigSignature(key.trim(), normalizedBaseUrl, model),
+            )
             if (!result.ok && force) {
                 Toast.makeText(
                     this@DrawerSettingsActivity,

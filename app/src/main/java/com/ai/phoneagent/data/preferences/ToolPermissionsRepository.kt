@@ -7,6 +7,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 
 private val Context.toolPermissionsDataStore by preferencesDataStore(name = "tool_permissions")
 
@@ -63,4 +64,12 @@ class ToolPermissionsRepository(
             prefs.remove(Keys.toolKey(toolName))
         }
     }
+
+    fun getMasterSwitchBlocking(): String = runBlocking { getMasterSwitch() }
+    fun setMasterSwitchBlocking(value: String) = runBlocking { setMasterSwitch(value) }
+    fun getToolPermissionBlocking(toolName: String): String? = runBlocking { getToolPermission(toolName) }
+    fun setToolPermissionBlocking(toolName: String, value: String) = runBlocking {
+        setToolPermission(toolName, value)
+    }
+    fun removeToolPermissionBlocking(toolName: String) = runBlocking { removeToolPermission(toolName) }
 }

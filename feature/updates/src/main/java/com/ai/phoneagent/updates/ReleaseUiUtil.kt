@@ -10,7 +10,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
-import retrofit2.HttpException
 
 object ReleaseUiUtil {
     private data class MirrorSite(
@@ -145,16 +144,6 @@ object ReleaseUiUtil {
     }
 
     fun formatError(t: Throwable): String {
-        val http = t as? HttpException
-        if (http != null) {
-            val code = http.code()
-            return when (code) {
-                401, 403 -> "访问 GitHub 失败($code)：可能触发限流，或缺少有效 token。"
-                404 -> "仓库或 Release 不存在(404)。"
-                else -> "网络错误：HTTP $code"
-            }
-        }
-
         val msg = t.message?.trim().orEmpty()
         val m = Regex("HTTP\\s+(\\d{3})").find(msg)
         if (m != null) {

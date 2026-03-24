@@ -7,6 +7,7 @@
 package com.ai.phoneagent
 
 import android.content.Context
+import com.ai.phoneagent.data.preferences.VirtualDisplayConfigRepository
 
 /**
  * 虚拟屏配置管理器 — 集中管理分辨率预设、DPI、16像素对齐等参数。
@@ -17,11 +18,9 @@ import android.content.Context
  * - 分辨率预设：480P / 720P / 1080P
  * - 16像素对齐（`align16`）：避免视频编码器 / GPU 黑边问题
  * - DPI 范围校验：72–640
- * - 持久化存储到 SharedPreferences
+ * - 持久化存储到 DataStore
  */
 object VirtualDisplayConfig {
-
-    private const val PREFS_NAME = "virtual_display_config"
 
     // ─── 分辨率预设 ───
     const val RES_480P = "480P"
@@ -79,80 +78,79 @@ object VirtualDisplayConfig {
     //  读取 / 写入
     // ════════════════════════════════════════════
 
-    private fun prefs(context: Context) =
-            context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private fun repository(context: Context): VirtualDisplayConfigRepository =
+        VirtualDisplayConfigRepository(context.applicationContext)
 
     /** 获取当前分辨率预设 */
     fun getResolutionPreset(context: Context): String {
-        return prefs(context)
-                .getString(KEY_RESOLUTION_PRESET, DEFAULT_RESOLUTION)
-                .orEmpty()
-                .ifEmpty { DEFAULT_RESOLUTION }
-                .takeIf { it in RESOLUTION_PRESETS }
-                ?: DEFAULT_RESOLUTION
+        return repository(context).getResolutionPresetBlocking()
+            .ifEmpty { DEFAULT_RESOLUTION }
+            .takeIf { it in RESOLUTION_PRESETS }
+            ?: DEFAULT_RESOLUTION
     }
 
     /** 设置分辨率预设（同时更新宽高缓存） */
     fun setResolutionPreset(context: Context, preset: String) {
         val safe = preset.takeIf { it in RESOLUTION_PRESETS } ?: DEFAULT_RESOLUTION
         val (w, h) = presetToSize(safe)
-        prefs(context)
-                .edit()
-                .putString(KEY_RESOLUTION_PRESET, safe)
-                .putInt(KEY_WIDTH, w)
-                .putInt(KEY_HEIGHT, h)
-                .apply()
+        val repo = repository(context)
+        repo.setResolutionPresetBlocking(safe)
+        repo.setVirtualDisplayWidthBlocking(w)
+        repo.setVirtualDisplayHeightBlocking(h)
     }
 
     /** 获取 DPI（带范围校验） */
     fun getDpi(context: Context): Int {
-        return prefs(context).getInt(KEY_DPI, DEFAULT_DPI).takeIf { it in DPI_MIN..DPI_MAX }
-                ?: DEFAULT_DPI
+        return repository(context)
+            .getVirtualDisplayDpiBlocking()
+            .takeIf { it in DPI_MIN..DPI_MAX }
+            ?: DEFAULT_DPI
     }
 
     /** 设置 DPI（带范围校验） */
     fun setDpi(context: Context, dpi: Int) {
         val safe = dpi.takeIf { it in DPI_MIN..DPI_MAX } ?: DEFAULT_DPI
-        prefs(context).edit().putInt(KEY_DPI, safe).apply()
+        repository(context).setVirtualDisplayDpiBlocking(safe)
     }
 
     /** 获取虚拟屏宽高（已 16 对齐）。 如果 SP 中有缓存值且合法，直接返回；否则从预设计算。 */
     fun getSize(context: Context): Pair<Int, Int> {
-        val p = prefs(context)
-        val cachedW = p.getInt(KEY_WIDTH, 0)
-        val cachedH = p.getInt(KEY_HEIGHT, 0)
+        val repo = repository(context)
+        val cachedW = repo.getVirtualDisplayWidthBlocking()
+        val cachedH = repo.getVirtualDisplayHeightBlocking()
         if (cachedW > 0 && cachedH > 0) return cachedW to cachedH
         // 从预设计算并缓存
         val preset = getResolutionPreset(context)
         val (w, h) = presetToSize(preset)
-        p.edit().putInt(KEY_WIDTH, w).putInt(KEY_HEIGHT, h).apply()
+        repo.setVirtualDisplayWidthBlocking(w)
+        repo.setVirtualDisplayHeightBlocking(h)
         return w to h
     }
 
     /** 保存执行模式选择（虚拟屏 / 前台） */
     fun setUseVirtualDisplay(context: Context, value: Boolean) {
-        prefs(context).edit().putBoolean(KEY_USE_VIRTUAL_DISPLAY, value).apply()
+        repository(context).setUseVirtualDisplayBlocking(value)
     }
 
     /** 读取执行模式选择 */
     fun getUseVirtualDisplay(context: Context): Boolean {
-        return prefs(context).getBoolean(KEY_USE_VIRTUAL_DISPLAY, false)
+        return repository(context).getUseVirtualDisplayBlocking()
     }
 
     fun getUseShizukuInteraction(context: Context): Boolean {
-        return prefs(context).getBoolean(KEY_USE_SHIZUKU_INTERACTION, false)
+        return repository(context).getUseShizukuInteractionBlocking()
     }
 
     fun setUseShizukuInteraction(context: Context, value: Boolean) {
-        prefs(context).edit().putBoolean(KEY_USE_SHIZUKU_INTERACTION, value).apply()
+        repository(context).setUseShizukuInteractionBlocking(value)
     }
 
     fun getAutoApproveAutomation(context: Context): Boolean {
-        return prefs(context).getBoolean(KEY_AUTO_APPROVE_AUTOMATION, false)
+        return repository(context).getAutoApproveAutomationBlocking()
     }
 
     fun setAutoApproveAutomation(context: Context, value: Boolean) {
-        prefs(context).edit().putBoolean(KEY_AUTO_APPROVE_AUTOMATION, value).apply()
+        repository(context).setAutoApproveAutomationBlocking(value)
     }
 
     fun summary(context: Context): String {

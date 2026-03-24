@@ -1,13 +1,18 @@
 package com.ai.phoneagent.core.prompt
 
 import android.content.Context
+import com.ai.phoneagent.core.common.AppJson
 import com.ai.phoneagent.core.common.VersionComparator
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 
 object MainChatPromptRepository {
 
@@ -107,18 +112,18 @@ object MainChatPromptRepository {
     }
 
     private fun parseSnapshot(rawJson: String): PromptSnapshot? {
-        val obj = runCatching { JSONObject(rawJson) }.getOrNull() ?: return null
-        val version = obj.optString("version").trim()
-        val prompt = obj.optString("prompt").trim()
+        val obj = runCatching { AppJson.parseToJsonElement(rawJson).jsonObject }.getOrNull() ?: return null
+        val version = obj["version"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val prompt = obj["prompt"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         if (version.isBlank() || prompt.isBlank()) return null
         return PromptSnapshot(version = version, prompt = prompt)
     }
 
     private fun snapshotToJson(snapshot: PromptSnapshot): String {
-        val obj = JSONObject()
-        obj.put("version", snapshot.version)
-        obj.put("prompt", snapshot.prompt)
-        return obj.toString(2)
+        return buildJsonObject {
+            put("version", snapshot.version)
+            put("prompt", snapshot.prompt)
+        }.toString()
     }
 
     private fun saveSnapshot(context: Context, snapshot: PromptSnapshot) {

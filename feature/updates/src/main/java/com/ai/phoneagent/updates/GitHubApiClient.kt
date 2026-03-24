@@ -1,15 +1,19 @@
 package com.ai.phoneagent.updates
 
+import com.ai.phoneagent.core.common.AppJson
 import com.ai.phoneagent.feature.updates.BuildConfig
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 object GitHubApiClient {
-    private const val BASE_URL = "https://api.github.com/"
+    private const val BASE_URL = "https://api.github.com"
 
     private fun buildAuthHeader(token: String): String? {
         val t = token.trim()
@@ -50,15 +54,17 @@ object GitHubApiClient {
             .build()
     }
 
-    private val retrofit: Retrofit by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-    }
-
-    val releaseService: GitHubReleaseService by lazy {
-        retrofit.create(GitHubReleaseService::class.java)
-    }
+    suspend fun listReleases(owner: String, repo: String, page: Int, perPage: Int): List<GitHubRelease> =
+        withContext(Dispatchers.IO) {
+            val url = "$BASE_URL/repos/$owner/$repo/releases?page=$page&per_page=$perPage"
+            val request = Request.Builder().url(url).get().build()
+            okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw IOException("HTTP ${response.code} fetching releases")
+                }
+                val body = response.body?.string()
+                    ?: throw IOException("Empty response body")
+                AppJson.decodeFromString<List<GitHubRelease>>(body)
+            }
+        }
 }

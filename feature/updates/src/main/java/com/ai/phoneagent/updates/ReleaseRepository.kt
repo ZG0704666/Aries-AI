@@ -4,11 +4,9 @@ class ReleaseRepository(
     private val owner: String = UpdateConfig.REPO_OWNER,
     private val repo: String = UpdateConfig.REPO_NAME,
 ) {
-    private val service = GitHubApiClient.releaseService
-
     suspend fun fetchReleasePage(page: Int, perPage: Int): Result<List<ReleaseEntry>> {
         return runCatching {
-            val releases = service.listReleases(owner = owner, repo = repo, page = page, perPage = perPage)
+            val releases = GitHubApiClient.listReleases(owner = owner, repo = repo, page = page, perPage = perPage)
             releases
                 .asSequence()
                 .filter { !it.draft }

@@ -25,6 +25,7 @@ import com.ai.phoneagent.core.executor.ActionExecutor
 import com.ai.phoneagent.core.parser.ActionParser
 import com.ai.phoneagent.core.templates.PromptTemplates
 import com.ai.phoneagent.core.utils.ActionUtils
+import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
 import com.ai.phoneagent.net.LocalMnnInferenceEngine
@@ -66,6 +67,7 @@ class UiAutomationAgent(
     // Tap+Type 合并执行状态
     private var lastActionWasTap = false
     private var lastTapAction: ParsedAgentAction? = null
+    private val appPreferencesRepository by lazy { AppPreferencesRepository(appContext.applicationContext) }
 
     private fun hasNonEmptyDesc(action: ParsedAgentAction): Boolean {
         val desc = action.fields["desc"] ?: action.fields["description"]
@@ -1135,8 +1137,7 @@ class UiAutomationAgent(
     ): kotlin.Result<String> {
         val maxAttempts = (config.maxModelRetries + 1).coerceAtLeast(1)
         var lastErr: Throwable? = null
-        val appPrefs = appContext.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        val useLocalModel = appPrefs.getBoolean("api_use_local_model", false)
+        val useLocalModel = appPreferencesRepository.getApiUseLocalModelBlocking()
 
         if (useLocalModel && !ModelScopeModelDownloader.isQwen35ModelReady(appContext)) {
             return kotlin.Result.failure(

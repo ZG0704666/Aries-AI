@@ -49,6 +49,8 @@ import com.ai.phoneagent.core.config.AgentConfiguration
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
 import com.ai.phoneagent.core.tools.AIToolHandler
 import com.ai.phoneagent.core.tools.ToolRegistration
+import com.ai.phoneagent.data.preferences.AppPreferencesRepository
+import com.ai.phoneagent.data.preferences.AutomationResultsRepository
 import com.ai.phoneagent.databinding.ActivityAutomationBinding
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ModelScopeModelDownloader
@@ -57,6 +59,7 @@ import com.ai.phoneagent.system.applyMaterialCloseTransition
 import com.ai.phoneagent.ui.automation.AutomationControlScreen
 import com.ai.phoneagent.ui.automation.AutomationStatusTone
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import org.koin.android.ext.android.inject
 import rikka.shizuku.Shizuku
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
@@ -77,6 +80,9 @@ class AutomationActivityNew : AppCompatActivity() {
         const val EXTRA_KEEP_MAIN_ON_TOP = "keep_main_on_top"
         private const val SHIZUKU_PERMISSION_REQUEST_CODE = 2026
     }
+
+    private val appPrefsRepository by inject<AppPreferencesRepository>()
+    private val automationResultsRepository by inject<AutomationResultsRepository>()
 
     private data class RuntimeConnectionState(
             val accessibilityEnabled: Boolean,
@@ -131,13 +137,7 @@ class AutomationActivityNew : AppCompatActivity() {
     private var composeStopButtonEnabled by mutableStateOf(false)
     private var composeIsListening by mutableStateOf(false)
 
-    // 运行结果保存相关
-    private val PREFS_NAME = "automation_results"
-    private val KEY_LAST_RESULT_SUCCESS = "last_result_success"
-    private val KEY_LAST_RESULT_MESSAGE = "last_result_message"
-    private val KEY_LAST_RESULT_STEPS = "last_result_steps"
-    private val KEY_LAST_RESULT_TIME = "last_result_time"
-    private val KEY_LAST_LOG = "last_log"
+    // 运行结果保存相关（key constants kept for reference, logic moved to AutomationResultsRepository）
     private val apiUseThirdPartyPref = "api_use_third_party"
     private val apiUseLocalModelPref = "api_use_local_model"
     private val apiThirdPartyBaseUrlPref = "api_third_party_base_url"
@@ -571,30 +571,30 @@ class AutomationActivityNew : AppCompatActivity() {
 
     /** 保存运行结果到本地 */
     private fun saveRunResult(success: Boolean, message: String, steps: Int, logText: String) {
-        try {
-            val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            prefs.edit().apply {
-                putBoolean(KEY_LAST_RESULT_SUCCESS, success)
-                putString(KEY_LAST_RESULT_MESSAGE, message)
-                putInt(KEY_LAST_RESULT_STEPS, steps)
-                putLong(KEY_LAST_RESULT_TIME, System.currentTimeMillis())
-                putString(KEY_LAST_LOG, logText)
-                apply()
+        lifecycleScope.launch {
+            runCatching {
+                automationResultsRepository.saveResult(
+                    success = success,
+                    message = message,
+                    steps = steps,
+                    time = System.currentTimeMillis(),
+                    log = logText,
+                )
+            }.onFailure { e ->
+                Log.e("AutomationActivityNew", "保存运行结果失败: ${e.message}", e)
             }
-        } catch (e: Exception) {
-            Log.e("AutomationActivityNew", "保存运行结果失败: ${e.message}", e)
         }
     }
 
     /** 恢复上一次运行结果 */
     private fun restoreLastRunResult() {
         try {
-            val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            val success = prefs.getBoolean(KEY_LAST_RESULT_SUCCESS, false)
-            val message = prefs.getString(KEY_LAST_RESULT_MESSAGE, "") ?: ""
-            val steps = prefs.getInt(KEY_LAST_RESULT_STEPS, 0)
-            val time = prefs.getLong(KEY_LAST_RESULT_TIME, 0L)
-            val logText = prefs.getString(KEY_LAST_LOG, "") ?: ""
+            val result = automationResultsRepository.getLastResultBlocking()
+            val success = result.success
+            val message = result.message
+            val steps = result.steps
+            val time = result.time
+            val logText = result.log
 
             // 只显示24小时内的结果
             if (time > 0 && System.currentTimeMillis() - time < 24 * 60 * 60 * 1000) {
@@ -675,11 +675,12 @@ class AutomationActivityNew : AppCompatActivity() {
 
     /** 清除保存的运行结果 */
     private fun clearLastRunResult() {
-        try {
-            val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            prefs.edit().clear().apply()
-        } catch (e: Exception) {
-            Log.e("AutomationActivityNew", "清除运行结果失败: ${e.message}", e)
+        lifecycleScope.launch {
+            runCatching {
+                automationResultsRepository.clearAll()
+            }.onFailure { e ->
+                Log.e("AutomationActivityNew", "清除运行结果失败: ${e.message}", e)
+            }
         }
     }
 
@@ -894,8 +895,7 @@ class AutomationActivityNew : AppCompatActivity() {
 
         val baseUrl = resolveApiBaseUrl()
         val model = resolveAutomationModel()
-        val useThirdPartyApi =
-                getSharedPreferences("app_prefs", MODE_PRIVATE).getBoolean(apiUseThirdPartyPref, false)
+        val useThirdPartyApi = appPrefsRepository.getApiUseThirdPartyBlocking()
         val useShizukuInteraction = composeUseShizukuInteraction
         var allowAccessibilityPendingConnection = false
         if (useShizukuInteraction) {
@@ -1406,36 +1406,31 @@ class AutomationActivityNew : AppCompatActivity() {
 
     /** 获取API Key */
     private fun getApiKey(): String {
-        // 从SharedPreferences读取
-        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-        val key = prefs.getString("api_key", "") ?: ""
+        val key = appPrefsRepository.getApiKeyBlocking()
         if (key.isNotBlank()) return key
-        return prefs.getString("autoglm_api_key", "") ?: ""
+        return appPrefsRepository.getAutoglmApiKeyBlocking()
     }
 
     private fun isLocalModelEnabled(): Boolean {
-        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-        return prefs.getBoolean(apiUseLocalModelPref, false)
+        return appPrefsRepository.getApiUseLocalModelBlocking()
     }
 
     private fun resolveApiBaseUrl(): String {
-        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-        val useThirdParty = prefs.getBoolean(apiUseThirdPartyPref, false)
-        val useLocalModel = prefs.getBoolean(apiUseLocalModelPref, false)
+        val useThirdParty = appPrefsRepository.getApiUseThirdPartyBlocking()
+        val useLocalModel = appPrefsRepository.getApiUseLocalModelBlocking()
         if (useLocalModel) return AutoGlmClient.DEFAULT_BASE_URL
         if (!useThirdParty) return AutoGlmClient.DEFAULT_BASE_URL
-        val rawUrl = prefs.getString(apiThirdPartyBaseUrlPref, "")?.trim().orEmpty()
+        val rawUrl = appPrefsRepository.getApiThirdPartyBaseUrlBlocking().trim()
         return rawUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
     }
 
     private fun resolveAutomationModel(): String {
-        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-        val useLocalModel = prefs.getBoolean(apiUseLocalModelPref, false)
-        val useThirdParty = prefs.getBoolean(apiUseThirdPartyPref, false)
+        val useLocalModel = appPrefsRepository.getApiUseLocalModelBlocking()
+        val useThirdParty = appPrefsRepository.getApiUseThirdPartyBlocking()
         if (useLocalModel) return ModelScopeModelDownloader.QWEN35_MODEL_NAME
         if (!useThirdParty) return AutoGlmClient.PHONE_MODEL
 
-        val rawModel = prefs.getString(apiThirdPartyModelPref, "")?.trim().orEmpty()
+        val rawModel = appPrefsRepository.getApiThirdPartyModelBlocking().trim()
         return rawModel.ifBlank { AutoGlmClient.DEFAULT_MODEL }
     }
 
