@@ -83,6 +83,23 @@ key/key
 .tmp_material_113.zip
 tmp_onboarding_check.png
 
+# Local planning / scratch workspace files
+.sisyphus/
+.qoder/
+nul
+
+# Local test artifacts / temporary outputs
+build.log
+*.tmp
+*.temp
+test-output/
+playwright-report/
+allure-results/
+allure-report/
+coverage/
+*.profraw
+*.profdata
+
 # Lighthouse reports (local performance profiling artifacts)
 Aries-site/lighthouse-*.report.html
 Aries-site/lighthouse-*.report.json

@@ -633,10 +633,10 @@
         const iconUrl = `${APP_ICON_BASE}${domain}.ico`;
 
         el.innerHTML = `
-          <div class="app-icon-wrapper" aria-hidden="true">
-            <img src="${iconUrl}" alt="${name}" width="44" height="44" loading="lazy" decoding="async" onerror="this.onerror=null;this.style.display='none'">
+          <div class="app-icon-wrapper w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm overflow-hidden flex-shrink-0">
+            <img src="${iconUrl}" alt="${name}" class="w-4 h-4 sm:w-5 sm:h-5 object-contain" onerror="this.onerror=null;this.style.display='none'">
           </div>
-          <span class="app-name">${name}</span>
+          <span class="font-medium">${name}</span>
         `;
         trackEl.appendChild(el);
       }
@@ -647,52 +647,27 @@
       trackEl.insertAdjacentHTML('beforeend', copy);
     }
 
-    function expandBaseWidth(trackEl, minWidth) {
-      let safety = 0;
-      while (trackEl.scrollWidth < minWidth && safety < 12) {
-        duplicateOnce(trackEl);
-        safety++;
-      }
-    }
-
     function initMarquee(wrapperId, items, direction) {
       const wrapper = document.getElementById(wrapperId);
       if (!wrapper) return;
       const track = wrapper.querySelector('.marquee-track');
       if (!track) return;
 
-      let lastWidth = 0;
-
-      function rebuild(force = false) {
-        const width = Math.round(wrapper.getBoundingClientRect().width);
-        if (!width) return;
-        if (!force && Math.abs(width - lastWidth) < 2) return;
-
-        lastWidth = width;
+      function rebuild() {
         buildBase(track, items);
-        expandBaseWidth(track, width + 60);
-
-        const segmentHtml = track.innerHTML;
-        track.innerHTML = segmentHtml + segmentHtml;
+        let safety = 0;
+        while (track.scrollWidth < window.innerWidth + 60 && safety < 12) {
+          duplicateOnce(track);
+          safety++;
+        }
+        duplicateOnce(track);
 
         track.classList.remove('marquee-left', 'marquee-right');
         track.classList.add(direction < 0 ? 'marquee-left' : 'marquee-right');
       }
 
-      const scheduleRebuild = debounce(() => {
-        rebuild(false);
-      }, 150);
-
-      if ('ResizeObserver' in window) {
-        const resizeObserver = new ResizeObserver(() => {
-          scheduleRebuild();
-        });
-        resizeObserver.observe(wrapper);
-      } else {
-        window.addEventListener('resize', scheduleRebuild, { passive: true });
-      }
-
-      rebuild(true);
+      rebuild();
+      window.addEventListener('resize', debounce(rebuild, 150));
     }
 
     initMarquee('marquee-row-1', appsRow1, -1);
@@ -725,11 +700,7 @@
     );
 
     elements.forEach((el, index) => {
-      if (el.closest('#cases')) {
-        el.style.transitionDelay = '';
-      } else {
-        el.style.transitionDelay = `${index * 0.1}s`;
-      }
+      el.style.transitionDelay = `${index * 0.1}s`;
       observer.observe(el);
     });
   }

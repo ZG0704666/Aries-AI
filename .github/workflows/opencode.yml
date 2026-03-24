@@ -40,8 +40,9 @@ jobs:
       - name: Run opencode
         uses: anomalyco/opencode/github@latest
         env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ALIBABA_CODING_PLAN_API_KEY: ${{ secrets.ALIBABA_CODING_PLAN_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          model: alibaba-coding-plan/qwen3.5-plus
+          model: openai-direct/gpt-5.4-mini
           use_github_token: true
