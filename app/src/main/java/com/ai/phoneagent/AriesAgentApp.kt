@@ -21,6 +21,14 @@ import android.app.Application
 import android.content.Context
 import android.os.Build
 import androidx.appcompat.app.AppCompatDelegate
+import com.ai.phoneagent.di.appModule
+import com.ai.phoneagent.di.dataModule
+import com.ai.phoneagent.di.networkModule
+import com.ai.phoneagent.di.uiModule
+import org.koin.android.ext.koin.androidContext
+import org.koin.android.ext.koin.androidLogger
+import org.koin.core.context.startKoin
+import org.koin.core.logger.Level
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 
 /**
@@ -60,6 +68,13 @@ class AriesAgentApp : Application() {
 
         // 初始化全局上下文
         AppState.init(this)
+
+        // 初始化 Koin 依赖注入框架
+        startKoin {
+            androidLogger(if (android.util.Log.isLoggable("Koin", android.util.Log.DEBUG)) Level.DEBUG else Level.ERROR)
+            androidContext(this@AriesAgentApp)
+            modules(appModule, dataModule, networkModule, uiModule)
+        }
 
         // 初始化 HiddenApiBypass（虚拟屏创建必需）
         try {
