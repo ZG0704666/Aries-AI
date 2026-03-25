@@ -72,6 +72,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ai.phoneagent.R
+import com.ai.phoneagent.ui.components.InfoTooltip
 
 private enum class SettingsEntryType {
     Appearance,
@@ -300,7 +301,7 @@ fun DrawerModelApiConfigScreen(
                 ModelApiSectionCard {
                     SectionIntro(
                         title = stringResource(R.string.settings_model_api_summary_title),
-                        subtitle = stringResource(R.string.settings_model_api_summary_subtitle),
+                        tooltipText = stringResource(R.string.settings_model_api_summary_subtitle),
                     )
 
                     Spacer(modifier = Modifier.height(spacingMd))
@@ -322,17 +323,16 @@ fun DrawerModelApiConfigScreen(
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = modeTitle,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Text(
-                                text = modeDescription,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = modeTitle,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Spacer(modifier = Modifier.width(dimensionResource(R.dimen.m3t_spacing_xs)))
+                                InfoTooltip(tooltipText = modeDescription)
+                            }
                         }
                         StatusBadge(
                             text = apiStatus,
@@ -347,7 +347,7 @@ fun DrawerModelApiConfigScreen(
                 ModelApiSectionCard {
                     SectionIntro(
                         title = stringResource(R.string.settings_model_api_remote_title),
-                        subtitle = stringResource(R.string.settings_model_api_remote_subtitle),
+                        tooltipText = stringResource(R.string.settings_model_api_remote_subtitle),
                     )
 
                     Spacer(modifier = Modifier.height(spacingMd))
@@ -392,7 +392,7 @@ fun DrawerModelApiConfigScreen(
 
                     DetailSwitchRow(
                         title = stringResource(R.string.m3t_sidebar_third_party_api),
-                        summary = stringResource(R.string.settings_model_api_third_party_switch_subtitle),
+                        tooltipText = stringResource(R.string.settings_model_api_third_party_switch_subtitle),
                         checked = useThirdPartyApi,
                         onCheckedChange = onUseThirdPartyChange,
                     )
@@ -429,14 +429,14 @@ fun DrawerModelApiConfigScreen(
                 ModelApiSectionCard {
                     SectionIntro(
                         title = stringResource(R.string.settings_model_api_local_title),
-                        subtitle = stringResource(R.string.settings_model_api_local_subtitle),
+                        tooltipText = stringResource(R.string.settings_model_api_local_subtitle),
                     )
 
                     Spacer(modifier = Modifier.height(spacingMd))
 
                     DetailSwitchRow(
                         title = stringResource(R.string.m3t_sidebar_local_model_mode),
-                        summary = stringResource(R.string.settings_model_api_local_switch_subtitle),
+                        tooltipText = stringResource(R.string.settings_model_api_local_switch_subtitle),
                         checked = useLocalModel,
                         onCheckedChange = onUseLocalModelChange,
                     )
@@ -459,7 +459,7 @@ fun DrawerModelApiConfigScreen(
                 ModelApiSectionCard {
                     SectionIntro(
                         title = stringResource(R.string.settings_model_api_action_title),
-                        subtitle = stringResource(R.string.settings_model_api_action_subtitle),
+                        tooltipText = stringResource(R.string.settings_model_api_action_subtitle),
                     )
 
                     Spacer(modifier = Modifier.height(spacingMd))
@@ -521,19 +521,28 @@ private fun ModelApiSectionCard(
 @Composable
 private fun SectionIntro(
     title: String,
-    subtitle: String,
+    subtitle: String? = null,
+    tooltipText: String? = null,
 ) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleLarge,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurface,
-    )
-    Text(
-        text = subtitle,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        if (tooltipText != null) {
+            Spacer(modifier = Modifier.width(dimensionResource(R.dimen.m3t_spacing_xs)))
+            InfoTooltip(tooltipText = tooltipText)
+        }
+    }
+    if (subtitle != null) {
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 @Composable
@@ -589,28 +598,38 @@ private fun FilledInputField(
 @Composable
 private fun DetailSwitchRow(
     title: String,
-    summary: String,
+    summary: String? = null,
+    tooltipText: String? = null,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(spacingSm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                text = summary,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
+                )
+                if (tooltipText != null) {
+                    Spacer(modifier = Modifier.width(spacingXs))
+                    InfoTooltip(tooltipText = tooltipText)
+                }
+            }
+            if (summary != null) {
+                Text(
+                    text = summary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }

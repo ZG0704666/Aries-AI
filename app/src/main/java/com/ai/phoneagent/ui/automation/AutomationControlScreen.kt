@@ -73,6 +73,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.ai.phoneagent.R
+import com.ai.phoneagent.ui.components.InfoTooltip
 
 enum class AutomationStatusTone {
     Ready,
@@ -233,7 +234,7 @@ fun AutomationControlScreen(
                 AutomationSectionCard {
                     SectionHeading(
                         title = stringResource(R.string.automation_execution_mode_label),
-                        subtitle = stringResource(R.string.automation_console_mode_subtitle),
+                        tooltipText = stringResource(R.string.automation_console_mode_subtitle),
                     )
                     Spacer(modifier = Modifier.height(spacingMd))
 
@@ -241,13 +242,13 @@ fun AutomationControlScreen(
                         AutomationModeOption(
                             selected = !isBackgroundMode,
                             title = stringResource(R.string.automation_execution_front_mode),
-                            summary = stringResource(R.string.automation_mode_description_front),
+                            tooltipText = stringResource(R.string.automation_mode_description_front),
                             onClick = { if (isBackgroundMode) onExecutionModeChange(false) },
                         )
                         AutomationModeOption(
                             selected = isBackgroundMode,
                             title = stringResource(R.string.automation_execution_background_mode),
-                            summary = stringResource(R.string.automation_mode_description_background),
+                            tooltipText = stringResource(R.string.automation_mode_description_background),
                             onClick = { if (!isBackgroundMode) onExecutionModeChange(true) },
                         )
                     }
@@ -293,14 +294,14 @@ fun AutomationControlScreen(
 
                     AutomationSwitchRow(
                         title = stringResource(R.string.automation_shizuku_mode_label),
-                        summary = stringResource(R.string.automation_console_shizuku_subtitle),
+                        tooltipText = stringResource(R.string.automation_console_shizuku_subtitle),
                         checked = useShizukuInteraction,
                         onCheckedChange = onShizukuModeChange,
                     )
                     Spacer(modifier = Modifier.height(spacingSm))
                     AutomationSwitchRow(
                         title = stringResource(R.string.automation_auto_approve_label),
-                        summary = stringResource(R.string.automation_console_auto_approve_subtitle),
+                        tooltipText = stringResource(R.string.automation_console_auto_approve_subtitle),
                         checked = autoApprove,
                         onCheckedChange = onAutoApproveChange,
                     )
@@ -311,7 +312,7 @@ fun AutomationControlScreen(
                 AutomationSectionCard {
                     SectionHeading(
                         title = stringResource(R.string.automation_task_confirm_label),
-                        subtitle = stringResource(R.string.automation_console_task_subtitle),
+                        tooltipText = stringResource(R.string.automation_console_task_subtitle),
                     )
                     Spacer(modifier = Modifier.height(spacingMd))
 
@@ -414,7 +415,7 @@ fun AutomationControlScreen(
                 AutomationSectionCard {
                     SectionHeading(
                         title = stringResource(R.string.automation_console_controls_title),
-                        subtitle = stringResource(R.string.automation_console_controls_subtitle),
+                        tooltipText = stringResource(R.string.automation_console_controls_subtitle),
                     )
                     Spacer(modifier = Modifier.height(spacingMd))
 
@@ -463,17 +464,16 @@ fun AutomationControlScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.automation_log_system_label),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.Medium,
-                            )
-                            Text(
-                                text = stringResource(R.string.automation_console_log_subtitle),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = stringResource(R.string.automation_log_system_label),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                Spacer(modifier = Modifier.width(spacingXs))
+                                InfoTooltip(tooltipText = stringResource(R.string.automation_console_log_subtitle))
+                            }
                         }
                         FilledTonalButton(onClick = onCopyLog) {
                             Text(stringResource(R.string.common_copy))
@@ -556,13 +556,20 @@ private fun AutomationSectionCard(
 private fun SectionHeading(
     title: String,
     subtitle: String? = null,
+    tooltipText: String? = null,
 ) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleLarge,
-        color = MaterialTheme.colorScheme.onSurface,
-        fontWeight = FontWeight.Medium,
-    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Medium,
+        )
+        if (tooltipText != null) {
+            Spacer(modifier = Modifier.width(dimensionResource(R.dimen.m3t_spacing_xs)))
+            InfoTooltip(tooltipText = tooltipText)
+        }
+    }
     if (subtitle != null) {
         Text(
             text = subtitle,
@@ -648,7 +655,8 @@ private fun AutomationInfoRow(
 private fun AutomationModeOption(
     selected: Boolean,
     title: String,
-    summary: String,
+    summary: String? = null,
+    tooltipText: String? = null,
     onClick: () -> Unit,
 ) {
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
@@ -704,17 +712,25 @@ private fun AutomationModeOption(
                     .padding(spacingMd),
             verticalArrangement = Arrangement.spacedBy(spacingXs),
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = animatedTitleColor,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                text = summary,
-                style = MaterialTheme.typography.bodySmall,
-                color = animatedSummaryColor,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = animatedTitleColor,
+                    fontWeight = FontWeight.Medium,
+                )
+                if (tooltipText != null) {
+                    Spacer(modifier = Modifier.width(spacingXs))
+                    InfoTooltip(tooltipText = tooltipText)
+                }
+            }
+            if (summary != null) {
+                Text(
+                    text = summary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = animatedSummaryColor,
+                )
+            }
             AnimatedVisibility(
                 visible = selected,
                 enter =
@@ -737,7 +753,8 @@ private fun AutomationModeOption(
 @Composable
 private fun AutomationSwitchRow(
     title: String,
-    summary: String,
+    summary: String? = null,
+    tooltipText: String? = null,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
@@ -747,17 +764,25 @@ private fun AutomationSwitchRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                text = summary,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
+                )
+                if (tooltipText != null) {
+                    Spacer(modifier = Modifier.width(dimensionResource(R.dimen.m3t_spacing_xs)))
+                    InfoTooltip(tooltipText = tooltipText)
+                }
+            }
+            if (summary != null) {
+                Text(
+                    text = summary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }

@@ -13,6 +13,7 @@
     <string name="about_checking_updates">检查中...</string>
     <string name="about_changelog">更新日志</string>
     <string name="about_source_code">Source Code</string>
+    <string name="about_source_code_short">GitHub 仓库</string>
     <string name="about_source_code_url">https://github.com/ZG0704666/Aries-AI</string>
     <string name="about_feedback">问题反馈</string>
     <string name="about_feedback_desc">通过邮件提交问题与建议</string>
@@ -22,6 +23,7 @@
     <string name="about_action_licenses_desc">查看第三方组件许可证</string>
     <string name="about_open_source_licenses">开源许可声明</string>
     <string name="about_website">访问官网</string>
+    <string name="about_website_short">官方网站</string>
     <string name="about_website_domain">aries-agent.com</string>
     <string name="about_website_url">https://aries-agent.com/</string>
     <string name="about_developer_info">开发者信息</string>
@@ -29,6 +31,7 @@
     <string name="about_developer_alias">xuanyu.xyla</string>
     <string name="about_contact">联系我们：zhangyongqi@njit.edu.cn</string>
     <string name="about_contact_title">联系支持</string>
+    <string name="about_contact_short">发送邮件</string>
     <string name="about_contact_subtitle">zhangyongqi@njit.edu.cn</string>
     <string name="about_contact_copied">邮箱已复制到剪贴板</string>
     <string name="about_thanks">感谢使用 Aries AI</string>

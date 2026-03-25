@@ -234,7 +234,7 @@ private fun AboutInfoCard(promptVersionText: String) {
         ) {
             Text(
                 text = stringResource(R.string.about_runtime_info_title),
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Medium,
             )
@@ -285,7 +285,8 @@ private fun AboutActionsCard(
             AboutActionRow(
                 icon = { Icon(Lucide.Code, contentDescription = null) },
                 title = stringResource(R.string.about_source_code),
-                supporting = stringResource(R.string.about_source_code_url),
+                supporting = stringResource(R.string.about_source_code_short),
+                tooltipText = stringResource(R.string.about_source_code_url),
                 onClick = onOpenSourceCode,
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -317,7 +318,8 @@ private fun AboutActionsCard(
             AboutActionRow(
                 icon = { Icon(Lucide.Globe, contentDescription = null) },
                 title = stringResource(R.string.about_website),
-                supporting = stringResource(R.string.about_website_domain),
+                supporting = stringResource(R.string.about_website_short),
+                tooltipText = stringResource(R.string.about_website_domain),
                 onClick = onOpenWebsite,
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -325,7 +327,8 @@ private fun AboutActionsCard(
             AboutActionRow(
                 icon = { Icon(Lucide.Mail, contentDescription = null) },
                 title = stringResource(R.string.about_contact_title),
-                supporting = stringResource(R.string.about_contact_subtitle),
+                supporting = stringResource(R.string.about_contact_short),
+                tooltipText = stringResource(R.string.about_contact_subtitle),
                 onClick = onCopyContact,
             )
         }
@@ -337,6 +340,7 @@ private fun AboutActionRow(
     icon: @Composable () -> Unit,
     title: String,
     supporting: String,
+    tooltipText: String? = null,
     onClick: () -> Unit,
 ) {
     val spacingSm = dimensionResource(DesignSystemR.dimen.m3t_spacing_sm)
@@ -373,13 +377,19 @@ private fun AboutActionRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                text = supporting,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = supporting,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (tooltipText != null) {
+                    Spacer(modifier = Modifier.width(dimensionResource(DesignSystemR.dimen.m3t_spacing_xs)))
+                    com.ai.phoneagent.feature.settings.ui.components.InfoTooltip(tooltipText = tooltipText)
+                }
+            }
         }
 
         Icon(
