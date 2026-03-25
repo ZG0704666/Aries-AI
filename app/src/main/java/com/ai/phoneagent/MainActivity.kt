@@ -169,12 +169,14 @@ import com.ai.phoneagent.data.local.StoredMessageRecord
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
 import com.ai.phoneagent.data.preferences.MainUiPreferencesRepository
+import com.ai.phoneagent.data.preferences.ThemeMode
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import com.ai.phoneagent.ui.drawer.ConversationDrawer
 import com.ai.phoneagent.ui.drawer.DrawerConversationUiItem
 import com.ai.phoneagent.ui.history.ConversationHistoryDialog
 import com.ai.phoneagent.ui.history.ConversationHistoryItemUi
-import com.ai.phoneagent.ui.messages.ConversationTranscript
 import com.ai.phoneagent.ui.messages.TranscriptAutomationUi
 import com.ai.phoneagent.ui.messages.TranscriptMessageUi
 import com.ai.phoneagent.viewmodel.ChatViewModel
@@ -669,7 +671,23 @@ class MainActivity : AppCompatActivity() {
             }
 
         setContent {
-            AriesMaterialTheme {
+            val themeModeStr by appPrefsRepository.themeModeFlow.collectAsState(initial = "system")
+            val amoledDark by appPrefsRepository.amoledDarkEnabledFlow.collectAsState(initial = false)
+            val dynamicColor by appPrefsRepository.dynamicColorEnabledFlow.collectAsState(initial = true)
+            val fontScale by appPrefsRepository.chatFontScaleFlow.collectAsState(initial = 1.0f)
+
+            val themeMode = when (themeModeStr.lowercase()) {
+                "light" -> ThemeMode.LIGHT
+                "dark" -> ThemeMode.DARK
+                else -> ThemeMode.SYSTEM
+            }
+
+            AriesMaterialTheme(
+                themeMode = themeMode,
+                amoledDark = amoledDark,
+                dynamicColor = dynamicColor,
+                fontScale = fontScale,
+            ) {
                 val navController = rememberNavController()
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val composeScope = rememberCoroutineScope()
@@ -947,7 +965,7 @@ class MainActivity : AppCompatActivity() {
                 thinking = thinking.ifBlank { null },
                 thinkingDurationMs = null,
                 isUser = false,
-                attachments = emptyList(),
+                attachments = persistentListOf(),
                 isAutomation = false,
                 copyText = answer,
                 retryText = retryText,
@@ -992,7 +1010,8 @@ class MainActivity : AppCompatActivity() {
                         .orEmpty()
                         .map { attachment ->
                             attachment.fileName.ifBlank { File(attachment.filePath).name.ifBlank { attachment.filePath } }
-                        },
+                        }
+                        .toImmutableList(),
                 isAutomation = false,
                 copyText = message.content.trim(),
                 retryText = message.content.trim(),
@@ -1051,7 +1070,7 @@ class MainActivity : AppCompatActivity() {
             thinking = thinking,
             thinkingDurationMs = message.thinkingDurationMs,
             isUser = false,
-            attachments = emptyList(),
+            attachments = persistentListOf(),
             isAutomation = isAutomationMessage,
             automation = automationUi,
             copyText = displayBody,
@@ -1135,7 +1154,7 @@ class MainActivity : AppCompatActivity() {
         return TranscriptAutomationUi(
             command = command,
             status = status,
-            logs = logs,
+            logs = logs.toImmutableList(),
             actionLabel = actionLabel,
             actionEnabled = actionEnabled,
             isDestructive = isDestructive,

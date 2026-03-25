@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import com.composables.icons.lucide.Lucide
@@ -48,6 +50,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,7 +74,14 @@ import com.ai.phoneagent.helper.AutomationMessageParser
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 
+private val DESC_DO_REGEX = Regex("""desc\s*=\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
+private val DESC_JSON_REGEX = Regex("""\"desc\"\s*:\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
+private val DESCRIPTION_JSON_REGEX = Regex("""\"description\"\s*:\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
+
+@Immutable
 data class TranscriptMessageUi(
     val conversationId: Long,
     val messageIndex: Int,
@@ -80,7 +90,7 @@ data class TranscriptMessageUi(
     val body: String,
     val thinking: String?,
     val isUser: Boolean,
-    val attachments: List<String>,
+    val attachments: ImmutableList<String>,
     val isAutomation: Boolean,
     val automation: TranscriptAutomationUi? = null,
     val copyText: String,
@@ -89,10 +99,11 @@ data class TranscriptMessageUi(
     val thinkingDurationMs: Long? = null,
 )
 
+@Immutable
 data class TranscriptAutomationUi(
     val command: String,
     val status: String,
-    val logs: List<String>,
+    val logs: ImmutableList<String>,
     val actionLabel: String?,
     val actionEnabled: Boolean,
     val isDestructive: Boolean,
@@ -100,28 +111,22 @@ data class TranscriptAutomationUi(
     val autoCollapseLogs: Boolean = false,
 )
 
-@Composable
-fun ConversationTranscript(
-    items: List<TranscriptMessageUi>,
+fun LazyListScope.conversationTranscriptItems(
+    items: ImmutableList<TranscriptMessageUi>,
     onCopyMessage: (TranscriptMessageUi) -> Unit,
     onRetryMessage: (TranscriptMessageUi) -> Unit,
     onAutomationAction: (TranscriptMessageUi) -> Unit,
     thinkingExpandedByDefault: Boolean,
-    modifier: Modifier = Modifier,
     onEditMessage: (TranscriptMessageUi) -> Unit = {},
 ) {
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = spacingMd),
-        verticalArrangement = Arrangement.spacedBy(spacingSm),
-    ) {
-        if (items.isEmpty()) {
+    if (items.isEmpty()) {
+        item(key = "transcript_empty_hint", contentType = "empty_hint") {
+            val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+            val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = spacingMd),
                 shape = MaterialTheme.shapes.extraLarge,
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 1.dp,
@@ -147,10 +152,28 @@ fun ConversationTranscript(
                     )
                 }
             }
-            return@Column
         }
+        return
+    }
 
-        items.forEach { item ->
+    items(
+        items = items,
+        key = { it.id },
+        contentType = {
+            when {
+                it.isUser -> "user_message"
+                it.automation != null -> "automation_message"
+                !it.thinking.isNullOrBlank() -> "thinking_section"
+                else -> "assistant_message"
+            }
+        },
+    ) { item ->
+        val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = spacingSm / 2),
+        ) {
             if (item.isUser) {
                 UserMessageBubble(
                     item = item,
@@ -715,11 +738,13 @@ private fun AutomationMessageCard(
     onAutomationAction: (TranscriptMessageUi) -> Unit,
 ) {
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val chipIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
-    val logBlocks = buildAutomationLogBlocks(automation.logs)
-    var expanded by rememberSaveable(item.id) {
+     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+     val chipIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
+     val logBlocks = remember(automation.logs.size, automation.logs.lastOrNull()) {
+         buildAutomationLogBlocks(automation.logs)
+     }
+     var expanded by rememberSaveable(item.id) {
         mutableStateOf(item.isStreaming || automation.actionEnabled)
     }
     var previousAutoCollapseFlag by rememberSaveable(item.id) {
@@ -962,38 +987,38 @@ private fun buildAutomationLogBlocks(logs: List<String>): List<AutomationLogBloc
 }
 
 private fun extractDescFromOutputLine(normalizedLine: String): String? {
-    val payload =
-        when {
-            normalizedLine.startsWith("输出：") -> normalizedLine.substringAfter("输出：").trim()
-            normalizedLine.startsWith("修复输出：") -> normalizedLine.substringAfter("修复输出：").trim()
-            else -> return null
-        }
-    if (payload.isBlank()) return null
-
-    val descFromDo =
-        Regex("""desc\s*=\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
-            .find(payload)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.trim()
-    if (!descFromDo.isNullOrBlank()) return descFromDo
-
-    val descFromJson =
-        Regex("""\"desc\"\s*:\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
-            .find(payload)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.trim()
-    if (!descFromJson.isNullOrBlank()) return descFromJson
-
-    val descriptionFromJson =
-        Regex("""\"description\"\s*:\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
-            .find(payload)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.trim()
-    return descriptionFromJson?.takeIf { it.isNotBlank() }
-}
+     val payload =
+         when {
+             normalizedLine.startsWith("输出：") -> normalizedLine.substringAfter("输出：").trim()
+             normalizedLine.startsWith("修复输出：") -> normalizedLine.substringAfter("修复输出：").trim()
+             else -> return null
+         }
+     if (payload.isBlank()) return null
+ 
+     val descFromDo =
+         DESC_DO_REGEX
+             .find(payload)
+             ?.groupValues
+             ?.getOrNull(1)
+             ?.trim()
+     if (!descFromDo.isNullOrBlank()) return descFromDo
+ 
+     val descFromJson =
+         DESC_JSON_REGEX
+             .find(payload)
+             ?.groupValues
+             ?.getOrNull(1)
+             ?.trim()
+     if (!descFromJson.isNullOrBlank()) return descFromJson
+ 
+     val descriptionFromJson =
+         DESCRIPTION_JSON_REGEX
+             .find(payload)
+             ?.groupValues
+             ?.getOrNull(1)
+             ?.trim()
+     return descriptionFromJson?.takeIf { it.isNotBlank() }
+ }
 
 private fun parseActionChip(actionText: String): AutomationActionChipUi {
     val normalized = actionText.lowercase()

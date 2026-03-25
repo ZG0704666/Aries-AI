@@ -19,6 +19,7 @@ coil = "2.6.0"
 markdownRenderer = "0.27.0"
 mockk = "1.13.10"
 turbine = "1.1.0"
+immutableCollections = "0.3.7"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -52,6 +53,7 @@ compose-icons-lucide = { module = "com.composables:icons-lucide-android", versio
 multiplatform-markdown-renderer = { module = "com.mikepenz:multiplatform-markdown-renderer-m3", version.ref = "markdownRenderer" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
+kotlinx-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version.ref = "immutableCollections" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

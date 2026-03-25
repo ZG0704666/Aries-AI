@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,15 +50,18 @@ import androidx.navigation.NavHostController
 import com.ai.phoneagent.R
 import com.ai.phoneagent.navigation.Routes
 
+@Immutable
 sealed interface DrawerConversationUiItem {
     val stableKey: String
 
+    @Immutable
     data class Header(
         val label: String
     ) : DrawerConversationUiItem {
         override val stableKey: String = "header:$label"
     }
 
+    @Immutable
     data class Conversation(
         val conversationId: Long,
         val title: String,
