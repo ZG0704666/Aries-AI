@@ -911,29 +911,26 @@ private fun AutomationMessageCard(
     onAutomationAction: (TranscriptMessageUi) -> Unit,
 ) {
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-     val chipIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
-     val logBlocks = remember(automation.logs.size, automation.logs.lastOrNull()) {
-         buildAutomationLogBlocks(automation.logs)
-     }
-     var expanded by rememberSaveable(item.id) {
-        mutableStateOf(item.isStreaming || automation.actionEnabled)
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val chipIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
+    val logBlocks = remember(automation.logs.size, automation.logs.lastOrNull()) {
+        buildAutomationLogBlocks(automation.logs)
     }
-    var previousAutoCollapseFlag by rememberSaveable(item.id) {
-        mutableStateOf(automation.autoCollapseLogs)
-    }
-    LaunchedEffect(item.id, automation.autoCollapseLogs) {
-        if (!previousAutoCollapseFlag && automation.autoCollapseLogs) {
-            expanded = false
+    val actionDescription =
+        remember(logBlocks) {
+            logBlocks.firstNotNullOfOrNull { block ->
+                block.summaryText?.takeIf { !block.fromThinking && it.isNotBlank() }
+            }
         }
-        previousAutoCollapseFlag = automation.autoCollapseLogs
-    }
-    val arrowRotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-        label = "automationArrowRotation",
-    )
+    val actionChips =
+        remember(logBlocks) {
+            logBlocks
+                .asSequence()
+                .filter { !it.fromThinking }
+                .flatMap { it.actionChips.asSequence() }
+                .toList()
+        }
     val (statusContainerColor, statusContentColor) = resolveAutomationStatusColors(
         status = automation.status,
         isDestructive = automation.isDestructive,
@@ -948,7 +945,6 @@ private fun AutomationMessageCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .animateContentSize()
                 .padding(spacingMd),
             verticalArrangement = Arrangement.spacedBy(spacingSm),
         ) {
@@ -957,13 +953,6 @@ private fun AutomationMessageCard(
                 horizontalArrangement = Arrangement.spacedBy(spacingSm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = stringResource(R.string.automation_card_title),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                )
                 Surface(
                     shape = CircleShape,
                     color = statusContainerColor,
@@ -976,86 +965,31 @@ private fun AutomationMessageCard(
                         modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
                     )
                 }
-                IconButton(
-                    onClick = { expanded = !expanded },
-                    modifier = Modifier.size(dimensionResource(R.dimen.m3t_message_action_button_size)),
-                ) {
-                    Icon(
-                        imageVector = Lucide.ChevronDown,
-                        contentDescription =
-                            if (expanded) {
-                                stringResource(R.string.automation_scene_collapse)
-                            } else {
-                                stringResource(R.string.automation_scene_expand)
-                            },
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier =
-                            Modifier
-                                .size(chipIconSize)
-                                .graphicsLayer {
-                                    rotationZ = arrowRotation
-                                },
-                    )
-                }
+                Text(
+                    text = automation.command,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
+                )
             }
 
-            AnimatedVisibility(
-                visible = expanded,
-                enter = fadeIn(animationSpec = tween(180)) + expandVertically(animationSpec = tween(240, easing = FastOutSlowInEasing)),
-                exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(animationSpec = tween(200, easing = FastOutSlowInEasing)),
-            ) {
+            actionDescription?.let { desc ->
+                Text(
+                    text = desc,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            if (actionChips.isNotEmpty()) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(spacingSm),
                 ) {
-                    Surface(
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingSm),
-                            verticalArrangement = Arrangement.spacedBy(spacingSm),
-                        ) {
-                            Text(
-                                text = automation.command,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.Medium,
-                            )
-                        }
-                    }
-
-                    if (logBlocks.isNotEmpty()) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(spacingXs),
-                        ) {
-                            logBlocks.forEach { block ->
-                                Surface(
-                                    shape = MaterialTheme.shapes.large,
-                                    color = MaterialTheme.colorScheme.secondaryContainer,
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingSm),
-                                        verticalArrangement = Arrangement.spacedBy(spacingSm),
-                                    ) {
-                                        val summaryText = block.summaryText
-                                        if (!summaryText.isNullOrBlank()) {
-                                            Text(
-                                                text = summaryText,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            )
-                                        }
-                                        if (block.actionChips.isNotEmpty()) {
-                                            AutomationActionChips(
-                                                chips = block.actionChips,
-                                                iconSize = chipIconSize,
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    AutomationActionChips(
+                        chips = actionChips,
+                        iconSize = chipIconSize,
+                    )
                 }
             }
 
@@ -1090,6 +1024,7 @@ private data class AutomationActionChipUi(
 
 private data class AutomationLogBlockUi(
     val summaryText: String?,
+    val fromThinking: Boolean,
     val actionChips: List<AutomationActionChipUi> = emptyList(),
 )
 
@@ -1153,6 +1088,7 @@ private fun buildAutomationLogBlocks(logs: List<String>): List<AutomationLogBloc
         .map { block ->
             AutomationLogBlockUi(
                 summaryText = block.summaryText,
+                fromThinking = block.fromThinking,
                 actionChips = block.actionChips.toList(),
             )
         }
