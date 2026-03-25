@@ -3,6 +3,7 @@ package com.ai.phoneagent.data.preferences
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -34,6 +35,16 @@ class AppPreferencesRepository(
         val legacyConversationsJson = stringPreferencesKey("conversations_json")
         val legacyActiveConversationId = longPreferencesKey("active_conversation_id")
         val qwenPendingDownloadIds = stringSetPreferencesKey("qwen_pending_download_ids")
+        
+        // ─── Appearance preferences ──────────────────────────────────────────
+        val themeMode = stringPreferencesKey("theme_mode")
+        val amoledDarkEnabled = booleanPreferencesKey("amoled_dark_enabled")
+        val dynamicColorEnabled = booleanPreferencesKey("dynamic_color_enabled")
+        val chatFontScale = floatPreferencesKey("chat_font_scale")
+        val chatFontFamily = stringPreferencesKey("chat_font_family")
+        val codeAutoWrap = booleanPreferencesKey("code_auto_wrap")
+        val codeLineNumbers = booleanPreferencesKey("code_line_numbers")
+        val codeAutoCollapse = booleanPreferencesKey("code_auto_collapse")
     }
 
     val apiKeyFlow: Flow<String> =
@@ -84,6 +95,46 @@ class AppPreferencesRepository(
     val qwenPendingDownloadIdsFlow: Flow<Set<String>> =
         context.appPreferencesDataStore.data.map { prefs ->
             prefs[Keys.qwenPendingDownloadIds] ?: emptySet()
+        }
+
+    val themeModeFlow: Flow<String> =
+        context.appPreferencesDataStore.data.map { prefs ->
+            prefs[Keys.themeMode] ?: "system"
+        }
+
+    val amoledDarkEnabledFlow: Flow<Boolean> =
+        context.appPreferencesDataStore.data.map { prefs ->
+            prefs[Keys.amoledDarkEnabled] ?: false
+        }
+
+    val dynamicColorEnabledFlow: Flow<Boolean> =
+        context.appPreferencesDataStore.data.map { prefs ->
+            prefs[Keys.dynamicColorEnabled] ?: true
+        }
+
+    val chatFontScaleFlow: Flow<Float> =
+        context.appPreferencesDataStore.data.map { prefs ->
+            prefs[Keys.chatFontScale] ?: 1.0f
+        }
+
+    val chatFontFamilyFlow: Flow<String> =
+        context.appPreferencesDataStore.data.map { prefs ->
+            prefs[Keys.chatFontFamily] ?: "default"
+        }
+
+    val codeAutoWrapFlow: Flow<Boolean> =
+        context.appPreferencesDataStore.data.map { prefs ->
+            prefs[Keys.codeAutoWrap] ?: true
+        }
+
+    val codeLineNumbersFlow: Flow<Boolean> =
+        context.appPreferencesDataStore.data.map { prefs ->
+            prefs[Keys.codeLineNumbers] ?: false
+        }
+
+    val codeAutoCollapseFlow: Flow<Boolean> =
+        context.appPreferencesDataStore.data.map { prefs ->
+            prefs[Keys.codeAutoCollapse] ?: false
         }
 
     suspend fun getApiKey(): String {
@@ -244,6 +295,94 @@ class AppPreferencesRepository(
         }
     }
 
+    suspend fun getThemeMode(): String {
+        val prefs = context.appPreferencesDataStore.data.first()
+        return prefs[Keys.themeMode] ?: "system"
+    }
+
+    suspend fun setThemeMode(value: String) {
+        context.appPreferencesDataStore.edit { prefs ->
+            prefs[Keys.themeMode] = value
+        }
+    }
+
+    suspend fun getAmoledDarkEnabled(): Boolean {
+        val prefs = context.appPreferencesDataStore.data.first()
+        return prefs[Keys.amoledDarkEnabled] ?: false
+    }
+
+    suspend fun setAmoledDarkEnabled(value: Boolean) {
+        context.appPreferencesDataStore.edit { prefs ->
+            prefs[Keys.amoledDarkEnabled] = value
+        }
+    }
+
+    suspend fun getDynamicColorEnabled(): Boolean {
+        val prefs = context.appPreferencesDataStore.data.first()
+        return prefs[Keys.dynamicColorEnabled] ?: true
+    }
+
+    suspend fun setDynamicColorEnabled(value: Boolean) {
+        context.appPreferencesDataStore.edit { prefs ->
+            prefs[Keys.dynamicColorEnabled] = value
+        }
+    }
+
+    suspend fun getChatFontScale(): Float {
+        val prefs = context.appPreferencesDataStore.data.first()
+        return prefs[Keys.chatFontScale] ?: 1.0f
+    }
+
+    suspend fun setChatFontScale(value: Float) {
+        context.appPreferencesDataStore.edit { prefs ->
+            prefs[Keys.chatFontScale] = value
+        }
+    }
+
+    suspend fun getChatFontFamily(): String {
+        val prefs = context.appPreferencesDataStore.data.first()
+        return prefs[Keys.chatFontFamily] ?: "default"
+    }
+
+    suspend fun setChatFontFamily(value: String) {
+        context.appPreferencesDataStore.edit { prefs ->
+            prefs[Keys.chatFontFamily] = value
+        }
+    }
+
+    suspend fun getCodeAutoWrap(): Boolean {
+        val prefs = context.appPreferencesDataStore.data.first()
+        return prefs[Keys.codeAutoWrap] ?: true
+    }
+
+    suspend fun setCodeAutoWrap(value: Boolean) {
+        context.appPreferencesDataStore.edit { prefs ->
+            prefs[Keys.codeAutoWrap] = value
+        }
+    }
+
+    suspend fun getCodeLineNumbers(): Boolean {
+        val prefs = context.appPreferencesDataStore.data.first()
+        return prefs[Keys.codeLineNumbers] ?: false
+    }
+
+    suspend fun setCodeLineNumbers(value: Boolean) {
+        context.appPreferencesDataStore.edit { prefs ->
+            prefs[Keys.codeLineNumbers] = value
+        }
+    }
+
+    suspend fun getCodeAutoCollapse(): Boolean {
+        val prefs = context.appPreferencesDataStore.data.first()
+        return prefs[Keys.codeAutoCollapse] ?: false
+    }
+
+    suspend fun setCodeAutoCollapse(value: Boolean) {
+        context.appPreferencesDataStore.edit { prefs ->
+            prefs[Keys.codeAutoCollapse] = value
+        }
+    }
+
     // ─── Blocking helpers for non-coroutine call sites ───────────────────────
 
     /** Blocking snapshot of the entire prefs — use only from non-suspend call sites. */
@@ -359,4 +498,24 @@ class AppPreferencesRepository(
 
     fun setUserAgreementAcceptedBlocking(value: Boolean) = runBlocking { setUserAgreementAccepted(value) }
     fun setPermGuideShownBlocking(value: Boolean) = runBlocking { setPermGuideShown(value) }
+
+    fun getThemeModeBlocking(): String = runBlocking { getThemeMode() }
+    fun setThemeModeBlocking(value: String) = runBlocking { setThemeMode(value) }
+    fun getAmoledDarkEnabledBlocking(): Boolean = runBlocking { getAmoledDarkEnabled() }
+    fun setAmoledDarkEnabledBlocking(value: Boolean) = runBlocking { setAmoledDarkEnabled(value) }
+    fun getDynamicColorEnabledBlocking(): Boolean = runBlocking { getDynamicColorEnabled() }
+    fun setDynamicColorEnabledBlocking(value: Boolean) = runBlocking { setDynamicColorEnabled(value) }
+    fun getChatFontScaleBlocking(): Float = runBlocking { getChatFontScale() }
+    fun setChatFontScaleBlocking(value: Float) = runBlocking { setChatFontScale(value) }
+    fun getChatFontFamilyBlocking(): String = runBlocking { getChatFontFamily() }
+    fun setChatFontFamilyBlocking(value: String) = runBlocking { setChatFontFamily(value) }
+    fun getCodeAutoWrapBlocking(): Boolean = runBlocking { getCodeAutoWrap() }
+    fun setCodeAutoWrapBlocking(value: Boolean) = runBlocking { setCodeAutoWrap(value) }
+    fun getCodeLineNumbersBlocking(): Boolean = runBlocking { getCodeLineNumbers() }
+    fun setCodeLineNumbersBlocking(value: Boolean) = runBlocking { setCodeLineNumbers(value) }
+    fun getCodeAutoCollapseBlocking(): Boolean = runBlocking { getCodeAutoCollapse() }
+    fun setCodeAutoCollapseBlocking(value: Boolean) = runBlocking { setCodeAutoCollapse(value) }
 }
+
+/** Canonical definition lives in core/designsystem; re-exported here for convenience. */
+typealias ThemeMode = com.ai.phoneagent.core.designsystem.theme.ThemeMode
