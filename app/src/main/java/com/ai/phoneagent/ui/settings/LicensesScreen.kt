@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import com.ai.phoneagent.core.designsystem.theme.AriesSettingsSectionHeader
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
@@ -84,47 +85,42 @@ fun LicensesScreen(navController: NavController) {
             modifier = Modifier.fillMaxSize().padding(innerPadding),
             contentPadding = PaddingValues(horizontal = spacingLg, vertical = spacingLg),
             verticalArrangement = Arrangement.spacedBy(spacingMd),
-        ) {
-            items(licenses, key = { it.name }) { item ->
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = MaterialTheme.shapes.large,
-                ) {
-                    ListItem(
-                        colors =
-                            ListItemDefaults.colors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                            ),
-                        headlineContent = {
-                            Text(
-                                text = item.name,
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                text = item.description,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                        trailingContent = {
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                shape = MaterialTheme.shapes.small,
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.m3t_license_format, item.license),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingSm),
-                                )
-                            }
-                        },
-                    )
-                }
-            }
+         ) {
+             items(licenses, key = { it.name }) { item ->
+                 ListItem(
+                     colors =
+                         ListItemDefaults.colors(
+                             containerColor = MaterialTheme.colorScheme.background,
+                         ),
+                     headlineContent = {
+                         Text(
+                             text = item.name,
+                             style = MaterialTheme.typography.titleSmall,
+                             color = MaterialTheme.colorScheme.onSurface,
+                         )
+                     },
+                     supportingContent = {
+                         Text(
+                             text = item.description,
+                             style = MaterialTheme.typography.bodySmall,
+                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                         )
+                     },
+                     trailingContent = {
+                         Surface(
+                             color = MaterialTheme.colorScheme.surfaceVariant,
+                             shape = MaterialTheme.shapes.small,
+                         ) {
+                             Text(
+                                 text = stringResource(R.string.m3t_license_format, item.license),
+                                 style = MaterialTheme.typography.labelSmall,
+                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                 modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingSm),
+                             )
+                         }
+                     },
+                 )
+             }
         }
     }
 }
