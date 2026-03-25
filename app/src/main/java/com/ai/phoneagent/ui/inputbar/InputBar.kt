@@ -9,11 +9,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.SmartToy
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Keyboard
+import com.composables.icons.lucide.Mic
+import com.composables.icons.lucide.Plus
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -149,7 +148,7 @@ fun InputBar(
                                 .size(32.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Keyboard,
+                                imageVector = Lucide.Keyboard,
                                 contentDescription = "切换键盘",
                                 tint = colorTextSecondary,
                                 modifier = Modifier.size(24.dp)
@@ -177,7 +176,7 @@ fun InputBar(
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Mic,
+                                imageVector = Lucide.Mic,
                                 contentDescription = "语音输入",
                                 tint = colorTextSecondary,
                                 modifier = Modifier.size(24.dp)
@@ -215,7 +214,7 @@ fun InputBar(
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Add,
+                                imageVector = Lucide.Plus,
                                 contentDescription = "附件",
                                 tint = colorTextSecondary,
                                 modifier = Modifier.size(24.dp)

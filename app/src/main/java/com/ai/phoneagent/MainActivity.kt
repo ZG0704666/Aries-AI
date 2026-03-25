@@ -70,7 +70,6 @@ import android.util.LruCache
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnticipateInterpolator
@@ -93,15 +92,10 @@ import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.view.GravityCompat
-import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.drawerlayout.widget.DrawerLayout
 import androidx.appcompat.widget.ActionMenuView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import com.ai.phoneagent.databinding.ActivityMainBinding
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
 import com.ai.phoneagent.net.LocalMnnInferenceEngine
@@ -129,18 +123,17 @@ import android.text.Html
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AudioFile
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.ScreenshotMonitor
-import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Icon
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Music2
+import com.composables.icons.lucide.FileText
+import com.composables.icons.lucide.Camera
+import com.composables.icons.lucide.Monitor
+import com.composables.icons.lucide.Video
+import com.composables.icons.lucide.Image as LucideImage
 import androidx.compose.material3.Text
 import com.ai.phoneagent.core.automation.ActivityAutomationInstructionGateway
 import com.ai.phoneagent.core.automation.AutomationLogBridge
@@ -165,7 +158,6 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -189,6 +181,11 @@ import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.ui.topbar.MainTopBar
 import com.ai.phoneagent.navigation.AriesNavGraph
 import com.ai.phoneagent.navigation.Routes
+import com.ai.phoneagent.ui.home.HomeScreen
+import com.ai.phoneagent.viewmodel.AutomationViewModel
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DrawerState
+import androidx.compose.material3.rememberDrawerState
 import java.io.InputStream
 import kotlinx.coroutines.runBlocking
 import androidx.navigation.NavHostController
@@ -412,8 +409,15 @@ class MainActivity : AppCompatActivity() {
             val messageIndex: Int,
     )
 
-    private lateinit var binding: ActivityMainBinding
     private lateinit var onboardingOverlay: MainOnboardingOverlay
+    private val drawerStateHolder = mutableStateOf<DrawerState?>(null)
+    private var composeScopeHolder: kotlinx.coroutines.CoroutineScope? = null
+    private val scrollToBottomSignalState = mutableStateOf(0L)
+    private val transcriptAnimationKeyState = mutableStateOf(0L)
+    private val homeContentAlphaState = mutableStateOf(1f)
+    private val homeContentScaleState = mutableStateOf(1f)
+    private val showHistoryDialogState = mutableStateOf(false)
+    private lateinit var overlayPermissionLauncher: ActivityResultLauncher<Intent>
 
     private val appPrefsRepository by inject<AppPreferencesRepository>()
     private val floatingChatPrefs by inject<FloatingChatPreferencesRepository>()
@@ -449,12 +453,6 @@ class MainActivity : AppCompatActivity() {
     private var voiceSessionSeed: Long = 0L
     @Volatile private var activeVoiceSessionId: Long = 0L
 
-    // 滑动手势相关
-    private var swipeStartX = 0f
-    private var swipeStartY = 0f
-    private var swipeTracking = false
-    private var originalContentTopPadding = 0
-    
     // 小窗模式相关
     private var isAnimatingToMiniWindow = false
     private val OVERLAY_PERMISSION_REQUEST_CODE = 1234
@@ -564,7 +562,6 @@ class MainActivity : AppCompatActivity() {
     private var useLocalModel: Boolean = false
     private var apiBaseUrl: String = AutoGlmClient.DEFAULT_BASE_URL
     private var apiModel: String = AutoGlmClient.DEFAULT_MODEL
-    private lateinit var drawerPanel: View
     private val navControllerState = mutableStateOf<NavHostController?>(null)
     private val routeNavigationActionState = mutableStateOf<((String) -> Unit)?>(null)
     private val pendingQwenDownloadIds = linkedSetOf<Long>()
@@ -579,9 +576,7 @@ class MainActivity : AppCompatActivity() {
                 uiPreferencesRepository.setActiveConversationId(activeConversationId)
             }
         }
-        if (::drawerPanel.isInitialized) {
-            refreshDrawerConversationItems()
-        }
+        refreshDrawerConversationItems()
     }
 
     private fun tryRestoreConversations(): Boolean {
@@ -607,9 +602,7 @@ class MainActivity : AppCompatActivity() {
             activeConversation = conversations.firstOrNull { it.id == activeId } ?: conversations.firstOrNull()
 
             activeConversation?.let { renderConversation(it) }
-            if (::drawerPanel.isInitialized) {
-                refreshDrawerConversationItems()
-            }
+            refreshDrawerConversationItems()
             true
         } catch (_: Exception) {
             false
@@ -660,13 +653,30 @@ class MainActivity : AppCompatActivity() {
 
         super.onCreate(savedInstanceState)
 
-        binding = ActivityMainBinding.inflate(layoutInflater)
+        onboardingOverlay = MainOnboardingOverlay(
+            activity = this,
+            appPrefs = appPrefsRepository,
+        )
+
+        overlayPermissionLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+                if (Settings.canDrawOverlays(this)) {
+                    Toast.makeText(this, "悬浮窗权限已授予", Toast.LENGTH_SHORT).show()
+                    enterMiniWindowMode()
+                } else {
+                    Toast.makeText(this, "需要悬浮窗权限才能使用小窗模式", Toast.LENGTH_SHORT).show()
+                }
+            }
 
         setContent {
             AriesMaterialTheme {
                 val navController = rememberNavController()
+                val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+                val composeScope = rememberCoroutineScope()
                 DisposableEffect(navController) {
                     navControllerState.value = navController
+                    drawerStateHolder.value = drawerState
+                    composeScopeHolder = composeScope
                     routeNavigationActionState.value = { route ->
                         if (navController.currentDestination?.route != route) {
                             navController.navigate(route) {
@@ -678,6 +688,12 @@ class MainActivity : AppCompatActivity() {
                         if (navControllerState.value === navController) {
                             navControllerState.value = null
                         }
+                        if (drawerStateHolder.value === drawerState) {
+                            drawerStateHolder.value = null
+                        }
+                        if (composeScopeHolder === composeScope) {
+                            composeScopeHolder = null
+                        }
                         routeNavigationActionState.value = null
                     }
                 }
@@ -685,21 +701,133 @@ class MainActivity : AppCompatActivity() {
                 AriesNavGraph(
                     navController = navController,
                     homeContent = {
-                        AndroidView(
-                            modifier = Modifier.fillMaxSize(),
-                            factory = { binding.root },
+                        HomeScreen(
+                            drawerState = drawerState,
+                            drawerGesturesEnabled = !onboardingOverlay.isShowing(),
+                            statusText = statusTextState.value,
+                            statusVisible = statusVisibleState.value,
+                            onToggleStatus = { statusVisibleState.value = !statusVisibleState.value },
+                            onOpenDrawer = {
+                                if (!onboardingOverlay.isShowing()) {
+                                    vibrateLight()
+                                    hideKeyboard()
+                                    composeScope.launch { drawerState.open() }
+                                }
+                            },
+                            onNewChat = {
+                                vibrateLight()
+                                startNewChat(clearUi = true)
+                            },
+                            onOpenFloatingWindow = {
+                                vibrateLight()
+                                enterMiniWindowMode()
+                            },
+                            drawerSearchQuery = drawerSearchQueryState.value,
+                            drawerItems = drawerConversationItemsState.value,
+                            drawerEmptyMessage = drawerEmptyMessageState.value,
+                            onDrawerSearchQueryChange = { query ->
+                                drawerSearchQueryState.value = query
+                                refreshDrawerConversationItems()
+                            },
+                            onDrawerConversationClick = { conversationId ->
+                                val target = conversations.firstOrNull { it.id == conversationId }
+                                if (target != null) {
+                                    activeConversation = target
+                                    renderConversation(target, animateTransition = true)
+                                    persistConversations()
+                                    composeScope.launch { drawerState.close() }
+                                }
+                            },
+                            onDrawerConversationLongClick = { conversationId ->
+                                if (deleteConversationById(conversationId, clearUiForActive = true)) {
+                                    vibrateLight()
+                                }
+                            },
+                            onDrawerSettingsClick = {
+                                vibrateLight()
+                                navigateToRoute(Routes.Settings.route, closeDrawerFirst = true)
+                            },
+                            transcriptItems =
+                                buildList {
+                                    addAll(transcriptItemsState.value)
+                                    if (streamingTranscriptConversationIdState.value == activeConversation?.id) {
+                                        streamingTranscriptItemState.value?.let { add(it) }
+                                    }
+                                },
+                            transcriptAnimationKey = transcriptAnimationKeyState.value,
+                            thinkingExpandedByDefault = thinkingExpandedByDefaultState.value,
+                            onCopyMessage = { item -> copyTranscriptMessage(item.copyText) },
+                            onRetryMessage = { item ->
+                                val retryText = item.retryText.orEmpty()
+                                if (retryText.isBlank()) {
+                                    Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    retryMessage(retryText)
+                                }
+                            },
+                            onEditMessage = { item ->
+                                if (isRequestInFlight) {
+                                    Toast.makeText(this@MainActivity, "正在生成回复，请稍后…", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    val conversation = activeConversation
+                                    if (conversation != null) {
+                                        val newText = item.body
+                                        val msgIndex = item.messageIndex
+                                        if (msgIndex in conversation.messages.indices) {
+                                            conversation.messages[msgIndex] =
+                                                conversation.messages[msgIndex].copy(content = newText)
+                                            if (msgIndex + 1 < conversation.messages.size) {
+                                                conversation.messages.subList(msgIndex + 1, conversation.messages.size).clear()
+                                            }
+                                            conversation.updatedAt = System.currentTimeMillis()
+                                            persistConversations()
+                                            renderConversation(conversation)
+                                            sendMessage(newText, resendUser = false, retryMode = true)
+                                        }
+                                    }
+                                }
+                            },
+                            onAutomationAction = { item -> handleTranscriptAutomationAction(item) },
+                            inputBarContent = { HomeInputBar() },
+                            aiNoticeText = getString(R.string.ai_generated_notice),
+                            scrollToBottomSignal = scrollToBottomSignalState.value,
+                            contentAlpha = homeContentAlphaState.value,
+                            contentScale = homeContentScaleState.value,
+                            onboardingContent = { onboardingOverlay.Render() },
+                            historyDialogContent = {
+                                if (showHistoryDialogState.value) {
+                                    ConversationHistoryDialog(
+                                        items = buildHistoryDialogItems(),
+                                        onDismiss = {
+                                            vibrateLight()
+                                            showHistoryDialogState.value = false
+                                        },
+                                        onSelect = { conversationId ->
+                                            conversations.firstOrNull { it.id == conversationId }?.let { conversation ->
+                                                activeConversation = conversation
+                                                renderConversation(conversation, animateTransition = true)
+                                                persistConversations()
+                                            }
+                                            vibrateLight()
+                                            showHistoryDialogState.value = false
+                                        },
+                                        onDelete = { conversationId ->
+                                            if (!deleteConversationById(conversationId, clearUiForActive = true)) {
+                                                return@ConversationHistoryDialog
+                                            }
+                                            if (buildHistoryDialogItems().isEmpty()) {
+                                                showHistoryDialogState.value = false
+                                            }
+                                        },
+                                    )
+                                }
+                            },
+                            onDrawerClosed = { runPendingDrawerNavigationAction() },
                         )
                     },
                 )
             }
         }
-
-        onboardingOverlay = MainOnboardingOverlay(
-            activity = this,
-            appPrefs = appPrefsRepository,
-            drawerLayout = binding.drawerLayout,
-            hostRoot = binding.onboardingHost,
-        )
 
         // 设置附件观察者（使用 ViewModel）
         setupAttachmentObservers()
@@ -711,21 +839,15 @@ class MainActivity : AppCompatActivity() {
 
         checkUserAgreement()
 
-        setupMainChrome()
-
-        setupComposeDrawer()
         restorePendingQwenDownloadIds()
         registerQwenDownloadReceiverIfNeeded()
         reconcilePendingQwenDownloads()
 
         observeUiPreferences()
-        setupMessageTranscript()
-        setupInputBar()
+        syncMessageTranscript()
         registerAutomationLogReceiverIfNeeded()
 
         restoreApiKey()
-
-        setupKeyboardListener()
 
         elevateAiBar()
 
@@ -737,6 +859,9 @@ class MainActivity : AppCompatActivity() {
 
         silentCheckUpdatesOnLaunch()
         refreshMainChatPromptOnLaunch()
+
+        // Handle automation intent extras from cold-start launch
+        handleAutomationLaunchIntent()
     }
 
     private fun refreshMainChatPromptOnLaunch() {
@@ -762,7 +887,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupEdgeToEdge() {
-        originalContentTopPadding = binding.contentRoot.paddingTop
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
@@ -772,102 +896,6 @@ class MainActivity : AppCompatActivity() {
             it.isAppearanceLightStatusBars = useLightSystemBarIcons
             it.isAppearanceLightNavigationBars = useLightSystemBarIcons
         }
-        binding.drawerLayout.fitsSystemWindows = false
-        binding.contentRoot.fitsSystemWindows = false
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.drawerLayout) { _, insets ->
-            val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
-            binding.contentRoot.setPadding(
-                binding.contentRoot.paddingLeft,
-                originalContentTopPadding + sys.top,
-                binding.contentRoot.paddingRight,
-                maxOf(sys.bottom, ime.bottom),
-            )
-            insets
-        }
-        ViewCompat.requestApplyInsets(binding.drawerLayout)
-    }
-
-    private fun setupMainChrome() {
-        binding.topBarCompose.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-        binding.topBarCompose.setContent {
-            AriesMaterialTheme {
-                MainTopBar(
-                    statusText = statusTextState.value,
-                    statusVisible = statusVisibleState.value,
-                    onToggleStatus = {
-                        statusVisibleState.value = !statusVisibleState.value
-                    },
-                    onOpenDrawer = {
-                        if (!onboardingOverlay.isShowing()) {
-                            vibrateLight()
-                            hideKeyboard()
-                            binding.drawerLayout.openDrawer(GravityCompat.START)
-                        }
-                    },
-                    onNewChat = {
-                        vibrateLight()
-                        startNewChat(clearUi = true)
-                    },
-                    onOpenFloatingWindow = {
-                        vibrateLight()
-                        enterMiniWindowMode()
-                    },
-                )
-            }
-        }
-    }
-
-    private fun setupMessageTranscript() {
-        binding.messagesCompose.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-        binding.messagesCompose.setContent {
-            AriesMaterialTheme {
-                ConversationTranscript(
-                    items =
-                        buildList {
-                            addAll(transcriptItemsState.value)
-                            if (streamingTranscriptConversationIdState.value == activeConversation?.id) {
-                                streamingTranscriptItemState.value?.let { add(it) }
-                            }
-                        },
-                    onCopyMessage = { item -> copyTranscriptMessage(item.copyText) },
-                    onRetryMessage = { item ->
-                        val retryText = item.retryText.orEmpty()
-                        if (retryText.isBlank()) {
-                            Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
-                        } else {
-                            retryMessage(retryText)
-                        }
-                    },
-                    onEditMessage = { item ->
-                        if (isRequestInFlight) {
-                            Toast.makeText(this@MainActivity, "正在生成回复，请稍后…", Toast.LENGTH_SHORT).show()
-                        } else {
-                            val conversation = activeConversation
-                            if (conversation != null) {
-                                val newText = item.body
-                                val msgIndex = item.messageIndex
-                                if (msgIndex in conversation.messages.indices) {
-                                    conversation.messages[msgIndex] =
-                                        conversation.messages[msgIndex].copy(content = newText)
-                                    if (msgIndex + 1 < conversation.messages.size) {
-                                        conversation.messages.subList(msgIndex + 1, conversation.messages.size).clear()
-                                    }
-                                    conversation.updatedAt = System.currentTimeMillis()
-                                    persistConversations()
-                                    renderConversation(conversation)
-                                    sendMessage(newText, resendUser = false, retryMode = true)
-                                }
-                            }
-                        }
-                    },
-                    onAutomationAction = { item -> handleTranscriptAutomationAction(item) },
-                    thinkingExpandedByDefault = thinkingExpandedByDefaultState.value,
-                )
-            }
-        }
-        syncMessageTranscript()
     }
 
     private fun observeUiPreferences() {
@@ -1197,70 +1225,6 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, "已复制内容", Toast.LENGTH_SHORT).show()
     }
 
-    private fun setupComposeDrawer() {
-        drawerPanel = binding.root.findViewById(R.id.drawerPanel)
-        val drawerComposeView = drawerPanel.findViewById<ComposeView>(R.id.drawerComposeView)
-        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
-
-        drawerComposeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-        drawerComposeView.setContent {
-            AriesMaterialTheme {
-                ConversationDrawer(
-                    searchQuery = drawerSearchQueryState.value,
-                    items = drawerConversationItemsState.value,
-                    emptyMessage = drawerEmptyMessageState.value,
-                    navController = navControllerState.value,
-                    onSearchQueryChange = { query ->
-                        drawerSearchQueryState.value = query
-                        refreshDrawerConversationItems()
-                    },
-                    onConversationClick = { conversationId ->
-                        val target = conversations.firstOrNull { it.id == conversationId }
-                        if (target != null) {
-                            activeConversation = target
-                            renderConversation(target, animateTransition = true)
-                            persistConversations()
-                            binding.drawerLayout.closeDrawer(GravityCompat.START)
-                        }
-                    },
-                    onConversationLongClick = { conversationId ->
-                        if (deleteConversationById(conversationId, clearUiForActive = true)) {
-                            vibrateLight()
-                        }
-                    },
-                    onSettingsClick = {
-                        vibrateLight()
-                        navigateToRoute(Routes.Settings.route, closeDrawerFirst = true)
-                    },
-                )
-            }
-        }
-
-        binding.drawerLayout.setScrimColor(ContextCompat.getColor(this, R.color.m3t_drawer_scrim))
-        binding.drawerLayout.setStatusBarBackgroundColor(Color.TRANSPARENT)
-        binding.drawerLayout.setStatusBarBackground(null)
-        binding.drawerLayout.addDrawerListener(
-            object : DrawerLayout.SimpleDrawerListener() {
-                override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
-                    isDrawerMoving = slideOffset > 0f && slideOffset < 1f
-                }
-
-                override fun onDrawerClosed(drawerView: View) {
-                    isDrawerMoving = false
-                    runPendingDrawerNavigationAction()
-                }
-
-                override fun onDrawerOpened(drawerView: View) {
-                    isDrawerMoving = false
-                    hideKeyboard()
-                }
-            },
-        )
-
-        restoreApiKey()
-        refreshDrawerConversationItems()
-    }
-
     private fun deleteConversationById(
         conversationId: Long,
         clearUiForActive: Boolean,
@@ -1347,13 +1311,12 @@ class MainActivity : AppCompatActivity() {
         revealActionAreasForMessages()
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (intent != null) {
-            setIntent(intent)
-        }
+        setIntent(intent)
         handleReturnFromFloatingWindow()
         handleAutomationOverlayReturnIntent()
+        handleAutomationLaunchIntent()
     }
 
     override fun onPause() {
@@ -1420,13 +1383,10 @@ class MainActivity : AppCompatActivity() {
 
         // 【减轻闪动】禁用过渡动画，并用轻微淡入接管首帧观感
         runCatching { overridePendingTransition(0, 0) }
-        binding.contentRoot.alpha = 0.92f
-        binding.contentRoot.post {
-            binding.contentRoot.animate().cancel()
-            binding.contentRoot.animate()
-                .alpha(1f)
-                .setDuration(120)
-                .start()
+        homeContentAlphaState.value = 0.92f
+        lifecycleScope.launch {
+            delay(120)
+            homeContentAlphaState.value = 1f
         }
 
         // 同步悬浮窗中的消息到主界面
@@ -1442,10 +1402,22 @@ class MainActivity : AppCompatActivity() {
         currentIntent.removeExtra(EXTRA_SCROLL_TO_BOTTOM)
         currentIntent.removeExtra(EXTRA_SHOW_AUTOMATION_STOP)
 
-        binding.messagesContentHost.post {
-            revealActionAreasForMessages()
-            smoothScrollToBottom()
-        }
+        revealActionAreasForMessages()
+        smoothScrollToBottom()
+    }
+
+    private fun handleAutomationLaunchIntent() {
+        val currentIntent = intent ?: return
+        val args = AutomationViewModel.extractLaunchArgsFromIntent(currentIntent) ?: return
+        // Clear consumed extras to avoid re-processing
+        currentIntent.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_TASK)
+        currentIntent.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_SOURCE)
+        currentIntent.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_AUTO_START)
+        currentIntent.removeExtra(AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY)
+        currentIntent.removeExtra(AutomationViewModel.EXTRA_KEEP_MAIN_ON_TOP)
+        // Stash args for AutomationScreen to consume when it composes
+        AutomationViewModel.pendingLaunchArgs = args
+        navigateToRoute(Routes.Automation.route)
     }
     
     /**
@@ -1951,7 +1923,7 @@ class MainActivity : AppCompatActivity() {
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:$packageName")
             )
-            startActivityForResult(intent, OVERLAY_PERMISSION_REQUEST_CODE)
+            overlayPermissionLauncher.launch(intent)
             return
         }
         
@@ -1969,7 +1941,6 @@ class MainActivity : AppCompatActivity() {
      * 使用非线性弹性曲线，平滑过渡到目标位置
      */
     private fun playCollapseToMiniWindowAnimation() {
-        val contentView = binding.contentRoot
         val displayMetrics = resources.displayMetrics
         val density = displayMetrics.density
         
@@ -2023,37 +1994,19 @@ class MainActivity : AppCompatActivity() {
         isAnimatingToMiniWindow = false
 
         runCatching {
-            contentView.animate()
-                .alpha(0.85f)
-                .scaleX(0.985f)
-                .scaleY(0.985f)
-                .setDuration(140)
-                .withEndAction {
-                    moveTaskToBack(true)
-                    contentView.alpha = 1f
-                    contentView.scaleX = 1f
-                    contentView.scaleY = 1f
-                }
-                .start()
+            homeContentAlphaState.value = 0.85f
+            homeContentScaleState.value = 0.985f
+            lifecycleScope.launch {
+                delay(140)
+                moveTaskToBack(true)
+                homeContentAlphaState.value = 1f
+                homeContentScaleState.value = 1f
+            }
         }.recoverCatching {
             moveTaskToBack(true)
         }
     }
     
-    @Suppress("DEPRECATION")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == OVERLAY_PERMISSION_REQUEST_CODE) {
-            if (Settings.canDrawOverlays(this)) {
-                Toast.makeText(this, "悬浮窗权限已授予", Toast.LENGTH_SHORT).show()
-                // 权限获取后自动进入小窗模式
-                enterMiniWindowMode()
-            } else {
-                Toast.makeText(this, "需要悬浮窗权限才能使用小窗模式", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
     override fun onRequestPermissionsResult(
             requestCode: Int,
             permissions: Array<out String>,
@@ -2108,392 +2061,21 @@ class MainActivity : AppCompatActivity() {
     private var isDrawerMoving = false
     private var pendingDrawerNavigationAction: (() -> Unit)? = null
 
-    private fun setupDrawer() = Unit
-
-    /*
-
-        val header = binding.navigationView.getHeaderView(0)
-
-        apiInput = header.findViewById<EditText>(R.id.apiInput)
-        apiStatus = header.findViewById<TextView>(R.id.apiStatus)
-        apiRemoteConfigContainer = header.findViewById<View>(R.id.apiRemoteConfigContainer)
-        apiThirdPartySwitch = header.findViewById<MaterialSwitch>(R.id.swUseThirdPartyApi)
-        localModelSwitch = header.findViewById<MaterialSwitch>(R.id.swUseLocalModel)
-        localModelSwitchRow = header.findViewById<View>(R.id.localModelSwitchRow)
-        apiThirdPartyContainer = header.findViewById<View>(R.id.apiThirdPartyContainer)
-        apiBaseUrlInput = header.findViewById<EditText>(R.id.apiBaseUrlInput)
-        apiModelInput = header.findViewById<EditText>(R.id.apiModelInput)
-        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
-
-        apiThirdPartySwitch.isChecked = prefs.getBoolean(apiUseThirdPartyPref, false)
-        apiThirdPartyContainer.visibility =
-                if (apiThirdPartySwitch.isChecked) View.VISIBLE else View.GONE
-        val savedLocalModelEnabled = prefs.getBoolean(apiUseLocalModelPref, false)
-        val initialLocalModelEnabled = savedLocalModelEnabled && localModelReady
-        if (savedLocalModelEnabled && !localModelReady) {
-            prefs.edit().putBoolean(apiUseLocalModelPref, false).apply()
-        }
-        localModelSwitch.isChecked = initialLocalModelEnabled
-        applyLocalModelUiState(initialLocalModelEnabled)
-        updateLocalModelSwitchAvailabilityUi()
-
-        apiThirdPartySwitch.setOnCheckedChangeListener { _, checked ->
-            if (suppressModelSwitchWatcher) return@setOnCheckedChangeListener
-            apiThirdPartyContainer.visibility = if (checked) View.VISIBLE else View.GONE
-            prefs.edit().putBoolean(apiUseThirdPartyPref, checked).apply()
-            apiNeedsRecheckToastShown = false
-            onApiConfigPotentiallyChanged(showNeedsCheckMessage = checked)
-        }
-        localModelSwitch.setOnCheckedChangeListener { _, checked ->
-            if (suppressModelSwitchWatcher) return@setOnCheckedChangeListener
-            prefs.edit().putBoolean(apiUseLocalModelPref, checked).apply()
-            applyLocalModelUiState(checked)
-            onApiConfigPotentiallyChanged(showNeedsCheckMessage = !checked)
-            if (checked) {
-                Toast.makeText(
-                    this,
-                    getString(R.string.m3t_sidebar_local_model_switch_to_qwen),
-                    Toast.LENGTH_SHORT
-                ).show()
-                if (!localModelReady && pendingQwenDownloadIds.isEmpty()) {
-                    Toast.makeText(
-                        this,
-                        getString(R.string.m3t_sidebar_local_model_not_ready),
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-        }
-
-        apiBaseUrlInput.setText(prefs.getString(apiThirdPartyBaseUrlPref, AutoGlmClient.DEFAULT_BASE_URL))
-        apiModelInput.setText(prefs.getString(apiThirdPartyModelPref, AutoGlmClient.DEFAULT_MODEL))
-
-        val btnCheck = header.findViewById<android.widget.Button>(R.id.btnCheckApi)
-        val btnPasteApiInput = header.findViewById<View>(R.id.btnPasteApiInput)
-        val btnDownloadQwenModel = header.findViewById<MaterialButton>(R.id.btnDownloadQwenModel)
-        qwenDownloadButton = btnDownloadQwenModel
-        updateQwenDownloadButtonState()
-
-        val btnGetApiKey = header.findViewById<View>(R.id.btnGetApiKey)
-        btnGetApiKey?.setOnClickListener {
-            runCatching {
-                val intent = android.content.Intent(
-                    android.content.Intent.ACTION_VIEW,
-                    android.net.Uri.parse("https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys")
-                )
-                startActivity(intent)
-            }
-        }
-        btnPasteApiInput?.setOnClickListener {
-            vibrateLight()
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-            val pasted =
-                    clipboard?.primaryClip
-                            ?.takeIf { it.itemCount > 0 }
-                            ?.getItemAt(0)
-                            ?.coerceToText(this)
-                            ?.toString()
-                            ?.trim()
-                            .orEmpty()
-            if (pasted.isBlank()) {
-                Toast.makeText(this, "剪贴板为空", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            apiInput.tag = ""
-            apiInput.requestFocus()
-            apiInput.setText(pasted)
-            apiInput.setSelection(apiInput.text?.length ?: 0)
-            Toast.makeText(this, "已粘贴 API Key", Toast.LENGTH_SHORT).show()
-        }
-
-        btnDownloadQwenModel?.setOnClickListener {
-            if (qwenDownloadInFlight) return@setOnClickListener
-            qwenDownloadInFlight = true
-            updateQwenDownloadButtonState()
-
-            lifecycleScope.launch {
-                val result = ModelScopeModelDownloader.enqueueQwen35Downloads(this@MainActivity)
-
-                qwenDownloadInFlight = false
-                updateQwenDownloadButtonState()
-
-                result.onSuccess { enqueueResult ->
-                    if (enqueueResult.downloadIds.isNotEmpty()) {
-                        pendingQwenDownloadIds.addAll(enqueueResult.downloadIds)
-                        persistPendingQwenDownloadIds()
-                    }
-                    refreshLocalModelReadyState()
-
-                    val message =
-                        when {
-                            enqueueResult.enqueuedCount > 0 ->
-                                getString(
-                                    R.string.m3t_sidebar_qwen_download_summary_format,
-                                    enqueueResult.enqueuedCount,
-                                    enqueueResult.skippedCount,
-                                    enqueueResult.targetDir
-                                )
-                            enqueueResult.skippedCount > 0 ->
-                                getString(R.string.m3t_sidebar_qwen_download_cached)
-                            else ->
-                                getString(R.string.m3t_sidebar_qwen_download_enqueued)
-                        }
-                    Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
-                }.onFailure { err ->
-                    updateQwenDownloadButtonState()
-                    val reason =
-                        err.message?.trim().orEmpty().ifBlank {
-                            getString(R.string.update_download_failed_unknown)
-                        }
-                    Toast.makeText(
-                        this@MainActivity,
-                        getString(R.string.m3t_sidebar_qwen_download_failed_format, reason),
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-        }
-
-        binding.drawerLayout.setScrimColor(Color.TRANSPARENT)
-        binding.drawerLayout.setStatusBarBackgroundColor(Color.TRANSPARENT)
-        binding.drawerLayout.setStatusBarBackground(null)
-        binding.navigationView.setBackgroundColor(
-            ContextCompat.getColor(this, R.color.m3t_drawer_background)
-        )
-        binding.navigationView.itemTextColor =
-                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.m3t_on_surface))
-        val isNightMode =
-                (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-                        Configuration.UI_MODE_NIGHT_YES
-        
-        binding.drawerLayout.addDrawerListener(
-                object : DrawerLayout.SimpleDrawerListener() {
-                    private var isHardwareLayerSet = false
-                    private val interpolator = android.view.animation.DecelerateInterpolator(1.2f)
-
-                    override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
-                        isDrawerMoving = slideOffset > 0 && slideOffset < 1
-                        
-                        // 使用减速插值器优化视觉曲线，使动画在开始时更轻快，结束时更柔和
-                        val t = interpolator.getInterpolation(slideOffset)
-                        
-                        if (!isHardwareLayerSet && isDrawerMoving) {
-                            binding.contentRoot.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-                            drawerView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-                            isHardwareLayerSet = true
-                        }
-
-                        val w = drawerView.width.toFloat()
-                        val density = resources.displayMetrics.density
-                        
-                        // 1. 缩放效果：主界面平滑缩小，增加空间感 (使用插值后的 t)
-                        val scale = 1f - (t * 0.12f)
-                        binding.contentRoot.scaleX = scale
-                        binding.contentRoot.scaleY = scale
-                        
-                        // 2. 透明度：主界面轻微变暗
-                        binding.contentRoot.alpha = if (isNightMode) 1f else 1f - (t * 0.3f)
-                        
-                        // 3. 位移补偿：侧边栏推开主界面的同时，保持平滑平移
-                        binding.contentRoot.translationX = w * t
-                        
-                        // 4. 圆角平滑：
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            val cornerRadius = 32f * density * t
-                            binding.contentRoot.outlineProvider = object : android.view.ViewOutlineProvider() {
-                                override fun getOutline(view: View, outline: android.graphics.Outline) {
-                                    outline.setRoundRect(0, 0, view.width, view.height, cornerRadius)
-                                }
-                            }
-                            binding.contentRoot.clipToOutline = t > 0
-                        }
-                        
-                        // 5. 侧边栏本身也平滑淡入
-                        drawerView.alpha = if (isNightMode) 1f else 0.5f + (0.5f * t)
-                    }
-
-                    override fun onDrawerClosed(drawerView: View) {
-                        isDrawerMoving = false
-                        binding.contentRoot.translationX = 0f
-                        binding.contentRoot.scaleX = 1f
-                        binding.contentRoot.scaleY = 1f
-                        binding.contentRoot.alpha = 1f
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            binding.contentRoot.clipToOutline = false
-                        }
-                        // 停止滑动后释放硬件层，节省内存
-                        binding.contentRoot.setLayerType(View.LAYER_TYPE_NONE, null)
-                        drawerView.setLayerType(View.LAYER_TYPE_NONE, null)
-                        isHardwareLayerSet = false
-                        runPendingDrawerNavigationAction()
-                    }
-
-                    override fun onDrawerOpened(drawerView: View) {
-                        hideKeyboard()
-                        // 停止滑动后释放硬件层
-                        binding.contentRoot.setLayerType(View.LAYER_TYPE_NONE, null)
-                        drawerView.setLayerType(View.LAYER_TYPE_NONE, null)
-                        isHardwareLayerSet = false
-                    }
-
-                    override fun onDrawerStateChanged(newState: Int) {
-                        // 当用户开始触摸或程序开始自动滚动时，确保键盘收起，避免布局抖动
-                        if (newState == DrawerLayout.STATE_DRAGGING) {
-                            hideKeyboard()
-                        }
-                    }
-                }
-        )
-
-        apiInput.addTextChangedListener(
-                object : TextWatcher {
-                    override fun beforeTextChanged(
-                            s: CharSequence?,
-                            start: Int,
-                            count: Int,
-                            after: Int
-                    ) {}
-
-                    override fun onTextChanged(
-                            s: CharSequence?,
-                            start: Int,
-                            before: Int,
-                            count: Int
-                    ) {}
-
-                    override fun afterTextChanged(s: Editable?) {
-                        if (suppressApiInputWatcher) return
-
-                        val displayed = s?.toString().orEmpty()
-                        val tagKey = (apiInput.tag as? String).orEmpty()
-                        val savedKey = prefs.getString("api_key", "").orEmpty()
-
-                        val isMaskedUnchanged =
-                                displayed.contains("*") && displayed == maskKey(tagKey)
-
-                        if (isMaskedUnchanged && tagKey.isNotBlank() && tagKey == savedKey) {
-                            apiNeedsRecheckToastShown = false
-                            return
-                        }
-
-                        if (displayed.isBlank()) {
-                            onApiConfigChanged(clearApiValue = true)
-                            return
-                        }
-
-                        onApiConfigPotentiallyChanged()
-                    }
-                }
-        )
-
-        val thirdPartyConfigWatcher =
-                object : TextWatcher {
-                    override fun beforeTextChanged(
-                            s: CharSequence?,
-                            start: Int,
-                            count: Int,
-                            after: Int
-                    ) {}
-
-                    override fun onTextChanged(
-                            s: CharSequence?,
-                            start: Int,
-                            before: Int,
-                            count: Int
-                    ) {}
-
-                    override fun afterTextChanged(s: Editable?) {
-                        if (suppressApiInputWatcher || !apiThirdPartySwitch.isChecked) return
-
-                        if (apiBaseUrlInput.isFocused) {
-                            prefs.edit()
-                                    .putString(apiThirdPartyBaseUrlPref, apiBaseUrlInput.text.toString().trim())
-                                    .apply()
-                        }
-                        if (apiModelInput.isFocused) {
-                            prefs.edit()
-                                    .putString(apiThirdPartyModelPref, apiModelInput.text.toString().trim())
-                                    .apply()
-                        }
-
-                        onApiConfigPotentiallyChanged()
-                    }
-                }
-        apiBaseUrlInput.addTextChangedListener(thirdPartyConfigWatcher)
-        apiModelInput.addTextChangedListener(thirdPartyConfigWatcher)
-
-        btnCheck.setOnClickListener {
-            vibrateLight()
-            val key = resolveApiKeyFromInput()
-
-            if (key.isBlank()) {
-
-                Toast.makeText(this, "请输入 API Key", Toast.LENGTH_SHORT).show()
-
-                return@setOnClickListener
-            }
-
-            prefs.edit().putString("api_key", key).apply()
-
-            apiInput.tag = key
-            suppressApiInputWatcher = true
-            apiInput.setText(maskKey(key))
-            apiInput.setSelection(apiInput.text?.length ?: 0)
-            suppressApiInputWatcher = false
-
-            val useThirdParty = apiThirdPartySwitch.isChecked
-            val baseUrlSnapshot = resolveApiBaseUrl()
-            val modelSnapshot = resolveApiModel()
-            if (useThirdParty) {
-                // 检查前先固化第三方配置，避免开关切换后读到不一致的临时状态
-                prefs.edit()
-                        .putString(apiThirdPartyBaseUrlPref, baseUrlSnapshot)
-                        .putString(apiThirdPartyModelPref, modelSnapshot)
-                        .apply()
-            }
-
-            apiNeedsRecheckToastShown = false
-
-            startApiCheck(
-                    key = key,
-                    baseUrl = baseUrlSnapshot,
-                    model = modelSnapshot,
-                    useThirdParty = useThirdParty,
-                    force = true,
-            )
-        }
-
-        binding.navigationView.setNavigationItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_automation -> {
-                    vibrateLight()
-                    navigateFromDrawer {
-                        val intent = Intent(this, AutomationActivityNew::class.java)
-                        startActivityWithMaterialForwardTransition(intent)
-                    }
-                }
-                R.id.nav_about -> {
-                    vibrateLight()
-                    navigateFromDrawer {
-                        val intent = Intent(this, AboutActivity::class.java)
-                        startActivityWithMaterialForwardTransition(intent)
-                    }
-                }
-            }
-
-            true
-        }
-    }
-    */
-
     private fun navigateFromDrawer(action: () -> Unit) {
         if (onboardingOverlay.isShowing()) return
 
         pendingDrawerNavigationAction = action
         hideKeyboard()
 
-        if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            binding.drawerLayout.closeDrawer(GravityCompat.START, false)
+        val drawerState = drawerStateHolder.value
+        if (drawerState?.isOpen == true) {
+            val scope = composeScopeHolder
+            if (scope != null) {
+                scope.launch { drawerState.close() }
+            } else {
+                // Fallback: run action directly without animation
+                runPendingDrawerNavigationAction()
+            }
         } else {
             runPendingDrawerNavigationAction()
         }
@@ -2513,7 +2095,7 @@ class MainActivity : AppCompatActivity() {
     private fun runPendingDrawerNavigationAction() {
         val pendingAction = pendingDrawerNavigationAction ?: return
         pendingDrawerNavigationAction = null
-        binding.drawerLayout.post { pendingAction.invoke() }
+        lifecycleScope.launch { pendingAction.invoke() }
     }
 
     private fun restoreApiKey() {
@@ -2883,63 +2465,57 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupInputBar() {
-        binding.inputBarCompose.apply {
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-            setContent {
-                val isDarkMode = !resources.getBoolean(R.bool.m3t_light_system_bars)
-                val inputColorScheme =
-                    if (isDarkMode) {
-                        darkColorScheme(
-                            primary = colorResource(R.color.m3t_primary),
-                            onPrimary = colorResource(R.color.m3t_on_primary),
-                            surface = colorResource(R.color.m3t_surface),
-                            surfaceVariant = colorResource(R.color.m3t_surface_container),
-                            onSurface = colorResource(R.color.m3t_on_surface),
-                            onSurfaceVariant = colorResource(R.color.m3t_on_surface_variant),
-                            error = colorResource(R.color.m3t_error),
-                        )
-                    } else {
-                        lightColorScheme(
-                            primary = colorResource(R.color.m3t_primary),
-                            onPrimary = colorResource(R.color.m3t_on_primary),
-                            surface = colorResource(R.color.m3t_surface),
-                            surfaceVariant = colorResource(R.color.m3t_surface_container),
-                            onSurface = colorResource(R.color.m3t_on_surface),
-                            onSurfaceVariant = colorResource(R.color.m3t_on_surface_variant),
-                            error = colorResource(R.color.m3t_error),
+    @Composable
+    private fun HomeInputBar() {
+        val isDarkMode = !resources.getBoolean(R.bool.m3t_light_system_bars)
+        val inputColorScheme =
+            if (isDarkMode) {
+                darkColorScheme(
+                    primary = colorResource(R.color.m3t_primary),
+                    onPrimary = colorResource(R.color.m3t_on_primary),
+                    surface = colorResource(R.color.m3t_surface),
+                    surfaceVariant = colorResource(R.color.m3t_surface_container),
+                    onSurface = colorResource(R.color.m3t_on_surface),
+                    onSurfaceVariant = colorResource(R.color.m3t_on_surface_variant),
+                    error = colorResource(R.color.m3t_error),
+                )
+            } else {
+                lightColorScheme(
+                    primary = colorResource(R.color.m3t_primary),
+                    onPrimary = colorResource(R.color.m3t_on_primary),
+                    surface = colorResource(R.color.m3t_surface),
+                    surfaceVariant = colorResource(R.color.m3t_surface_container),
+                    onSurface = colorResource(R.color.m3t_on_surface),
+                    onSurfaceVariant = colorResource(R.color.m3t_on_surface_variant),
+                    error = colorResource(R.color.m3t_error),
+                )
+            }
+
+        MaterialTheme(colorScheme = inputColorScheme) {
+            val text by remember { inputTextState }
+            val state by remember { inputBarState }
+            val amplitude by remember { voiceAmplitudeState }
+            val agentModeEnabled by remember { agentModeEnabledState }
+            val attachments by chatViewModel.attachments.collectAsState()
+            val attachmentSelectorVisible by chatViewModel.attachmentSelectorVisible.collectAsState()
+
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (attachments.isNotEmpty()) {
+                        com.ai.phoneagent.ui.components.AttachmentPreviewList(
+                            attachments = attachments,
+                            attachmentManager = chatViewModel.getAttachmentManager(),
+                            onInsertReference = { attachment ->
+                                val reference = chatViewModel.createAttachmentReference(attachment)
+                                inputTextState.value = inputTextState.value + "\n" + reference
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
                         )
                     }
 
-                MaterialTheme(colorScheme = inputColorScheme) {
-                    val text by remember { inputTextState }
-                    val state by remember { inputBarState }
-                    val amplitude by remember { voiceAmplitudeState }
-                    val agentModeEnabled by remember { agentModeEnabledState }
-                    
-                    // 监听附件状态
-                    val attachments by chatViewModel.attachments.collectAsState()
-                    val attachmentSelectorVisible by chatViewModel.attachmentSelectorVisible.collectAsState()
-
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            // 附件预览列表
-                            if (attachments.isNotEmpty()) {
-                                com.ai.phoneagent.ui.components.AttachmentPreviewList(
-                                    attachments = attachments,
-                                    attachmentManager = chatViewModel.getAttachmentManager(),
-                                    onInsertReference = { attachment ->
-                                        val reference = chatViewModel.createAttachmentReference(attachment)
-                                        inputTextState.value = inputTextState.value + "\n" + reference
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-                            
-                            // 原始的 InputBar
-                            InputBar(
+                    InputBar(
                         state = state,
                         text = text,
                         onTextChange = { inputTextState.value = it },
@@ -2960,7 +2536,7 @@ class MainActivity : AppCompatActivity() {
                                     val dispatchResult =
                                         ActivityAutomationInstructionGateway.dispatchManual(
                                             context = this@MainActivity,
-                                            instruction = t
+                                            instruction = t,
                                         )
                                     if (dispatchResult.success) {
                                         inputTextState.value = ""
@@ -2968,13 +2544,13 @@ class MainActivity : AppCompatActivity() {
                                         Toast.makeText(
                                             this@MainActivity,
                                             "Agent 模式已激活，任务已转交自动化",
-                                            Toast.LENGTH_SHORT
+                                            Toast.LENGTH_SHORT,
                                         ).show()
                                     } else {
                                         Toast.makeText(
                                             this@MainActivity,
                                             dispatchResult.message,
-                                            Toast.LENGTH_SHORT
+                                            Toast.LENGTH_SHORT,
                                         ).show()
                                     }
                                 } else {
@@ -3008,9 +2584,7 @@ class MainActivity : AppCompatActivity() {
                             stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
                         },
                         onAttachmentClick = {
-                            // 点击加号时添加200ms震动反馈
                             vibrateMedium()
-                            // 显示附件选择器
                             chatViewModel.toggleAttachmentSelector()
                         },
                         agentModeEnabled = agentModeEnabled,
@@ -3019,7 +2593,7 @@ class MainActivity : AppCompatActivity() {
                             Toast.makeText(
                                 this@MainActivity,
                                 if (enabled) "Agent 模式已激活" else "Agent 模式未激活",
-                                Toast.LENGTH_SHORT
+                                Toast.LENGTH_SHORT,
                             ).show()
                         },
                         onModelSelect = {
@@ -3050,41 +2624,15 @@ class MainActivity : AppCompatActivity() {
                                     vibrateLight()
                                 }
                             }
-                        }
+                        },
                     )
-                        }
-                        
-                        // 附件选择器面板（覆盖在底部）
-                        com.ai.phoneagent.ui.components.AttachmentSelectorPanel(
-                            visible = attachmentSelectorVisible,
-                            attachmentManager = chatViewModel.getAttachmentManager(),
-                            onDismiss = { chatViewModel.hideAttachmentSelector() }
-                        )
-                    }
                 }
-            }
-        }
 
-        binding.floatingInputLayer.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            syncFloatingInputPadding()
-        }
-        binding.floatingInputLayer.post {
-            syncFloatingInputPadding()
-        }
-    }
-
-    private fun syncFloatingInputPadding() {
-        val extraBottomPadding =
-            binding.floatingInputLayer.height + resources.getDimensionPixelSize(R.dimen.m3t_spacing_md)
-        binding.messagesContentHost.setPadding(
-            binding.messagesContentHost.paddingLeft,
-            binding.messagesContentHost.paddingTop,
-            binding.messagesContentHost.paddingRight,
-            extraBottomPadding,
-        )
-        if (shouldAutoFollowBottom(extraBottomPadding * 2)) {
-            binding.scrollArea.post {
-                binding.scrollArea.smoothScrollTo(0, binding.messagesContentHost.bottom)
+                com.ai.phoneagent.ui.components.AttachmentSelectorPanel(
+                    visible = attachmentSelectorVisible,
+                    attachmentManager = chatViewModel.getAttachmentManager(),
+                    onDismiss = { chatViewModel.hideAttachmentSelector() },
+                )
             }
         }
     }
@@ -3093,76 +2641,13 @@ class MainActivity : AppCompatActivity() {
         return activeConversation?.messages?.any { !it.isUser && it.content.isNotBlank() } == true
     }
 
-    private fun shouldAutoFollowBottom(thresholdPx: Int = 0): Boolean {
-        if (!hasAssistantOutputInActiveConversation()) return false
-        val distanceToBottom =
-            binding.messagesContentHost.bottom - (binding.scrollArea.scrollY + binding.scrollArea.height)
-        return distanceToBottom <= thresholdPx.coerceAtLeast(0)
-    }
-
     private fun hideKeyboard() {
         val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.hideSoftInputFromWindow(binding.inputBarCompose.windowToken, 0)
-        binding.inputBarCompose.clearFocus()
+        imm.hideSoftInputFromWindow(currentFocus?.windowToken, 0)
+        currentFocus?.clearFocus()
     }
 
     private fun elevateAiBar() = Unit
-
-    private fun setupKeyboardListener() {
-
-        val root = binding.drawerLayout
-        val content = binding.contentRoot
-
-        val initialLeft = content.paddingLeft
-        val initialTop = content.paddingTop
-        val initialRight = content.paddingRight
-        val initialBottom = content.paddingBottom
-
-        var lastImeVisible = false
-
-        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
-            val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
-            val bottomInset = if (ime.bottom > sys.bottom) ime.bottom else sys.bottom
-
-            content.setPadding(
-                    initialLeft,
-                    initialTop + sys.top,
-                    initialRight,
-                    initialBottom + bottomInset
-            )
-
-            val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-            if (imeVisible && !lastImeVisible && shouldAutoFollowBottom(resources.getDimensionPixelSize(R.dimen.m3t_spacing_xxl))) {
-                binding.scrollArea.post {
-                    binding.scrollArea.smoothScrollTo(0, binding.messagesContentHost.height)
-                }
-            }
-            lastImeVisible = imeVisible
-
-            insets
-        }
-
-        val nav = drawerPanel
-        val navInitialLeft = nav.paddingLeft
-        val navInitialTop = nav.paddingTop
-        val navInitialRight = nav.paddingRight
-        val navInitialBottom = nav.paddingBottom
-
-        ViewCompat.setOnApplyWindowInsetsListener(nav) { v, insets ->
-            val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(
-                    navInitialLeft,
-                    navInitialTop + sys.top,
-                    navInitialRight,
-                    navInitialBottom + sys.bottom
-            )
-            insets
-        }
-
-        ViewCompat.requestApplyInsets(root)
-        ViewCompat.requestApplyInsets(nav)
-    }
 
     private fun startNewChat(clearUi: Boolean) {
         // 防止启动多个重复的空会话
@@ -3178,34 +2663,13 @@ class MainActivity : AppCompatActivity() {
         clearStreamingTranscript()
         
         if (clearUi) {
-            // 逐步缩小收敛一气呵成向上收缩：不再只是平移，而是带有一种“消失”的速度感
-            binding.messagesContentHost.animate()
-                .translationY(-1000f) // 冲刺距离加大，一气呵成
-                .scaleX(0.6f)         // 收缩更明显
-                .scaleY(0.6f)
-                .alpha(0f)            // 融入背景
-                .setDuration(400)      // 稍微加快，更显果断
-                .setInterpolator(AccelerateInterpolator(1.8f)) // 纯加速，无回弹
-                .withEndAction {
-                    resetAutomationPanelRuntimeState()
-                    syncMessageTranscript(c)
-                    
-                    // 状态瞬间回位
-                    binding.messagesContentHost.translationY = 0f
-                    binding.messagesContentHost.scaleX = 1f
-                    binding.messagesContentHost.scaleY = 1f
-                    
-                    // 新对话界面原地极其自然地透出来
-                    binding.messagesContentHost.animate()
-                        .alpha(1.0f)
-                        .setDuration(500)
-                        .setInterpolator(DecelerateInterpolator())
-                        .start()
-                }
-                .start()
+            transcriptAnimationKeyState.value = System.currentTimeMillis()
+            resetAutomationPanelRuntimeState()
+            syncMessageTranscript(c)
         } else {
             syncMessageTranscript(c)
         }
+        smoothScrollToBottom()
         persistConversations()
     }
 
@@ -3231,41 +2695,15 @@ class MainActivity : AppCompatActivity() {
         animateTransition: Boolean = false,
     ) {
         resetAutomationPanelRuntimeState()
-        fun scrollToConversationBottom() {
-            binding.messagesContentHost.post {
-                binding.scrollArea.smoothScrollTo(
-                    0,
-                    binding.messagesContentHost.height,
-                )
-            }
-        }
-
         if (!animateTransition) {
             syncMessageTranscript(conversation)
-            scrollToConversationBottom()
+            smoothScrollToBottom()
             return
         }
 
-        binding.messagesContentHost.animate().cancel()
-        binding.messagesContentHost.animate()
-            .translationY(-32f)
-            .alpha(0f)
-            .setDuration(160)
-            .setInterpolator(AccelerateInterpolator(1.2f))
-            .withEndAction {
-                syncMessageTranscript(conversation)
-                binding.messagesContentHost.translationY = 24f
-                binding.messagesContentHost.animate()
-                    .translationY(0f)
-                    .alpha(1f)
-                    .setDuration(220)
-                    .setInterpolator(DecelerateInterpolator())
-                    .withEndAction {
-                        scrollToConversationBottom()
-                    }
-                    .start()
-            }
-            .start()
+        transcriptAnimationKeyState.value = System.currentTimeMillis()
+        syncMessageTranscript(conversation)
+        smoothScrollToBottom()
     }
 
     private fun extractAutomationInstruction(rawAnswer: String): Pair<String, String?> {
@@ -3665,21 +3103,6 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
-    /**
-     * 重试按钮轻量 loading 态：禁用点击、弱化透明度、切换文案。
-     */
-    private fun setRetryButtonLoadingState(retryButton: View?, isLoading: Boolean) {
-        val button = retryButton ?: return
-        button.isEnabled = !isLoading
-        button.alpha = if (isLoading) 0.65f else 1f
-
-        val retryTextView = button.findViewById<TextView?>(R.id.tv_retry_text)
-        retryTextView?.text = if (isLoading) getString(R.string.retrying) else getString(R.string.retry)
-
-        val retryIconView = button.findViewById<ImageView?>(R.id.iv_retry_icon)
-        retryIconView?.alpha = if (isLoading) 0.6f else 1f
-    }
-
     private fun clearAutomationAutoConfirm(messageRef: AutomationMessageRef? = null) {
         var resolvedRef: AutomationMessageRef? = null
         if (messageRef != null) {
@@ -3917,9 +3340,7 @@ class MainActivity : AppCompatActivity() {
      * 丝滑滚动到底部
      */
     private fun smoothScrollToBottom() {
-        binding.messagesContentHost.post {
-            binding.scrollArea.smoothScrollTo(0, binding.messagesContentHost.height)
-        }
+        scrollToBottomSignalState.value = System.currentTimeMillis()
     }
 
     /**
@@ -4230,100 +3651,34 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showHistoryDialog() {
-        val displayed =
-            conversations
-                .filter { it.messages.isNotEmpty() }
-                .sortedByDescending { it.updatedAt }
-                .toMutableList()
-        if (displayed.isEmpty()) {
+        if (buildHistoryDialogItems().isEmpty()) {
             Toast.makeText(this, getString(R.string.history_empty), Toast.LENGTH_SHORT).show()
             return
         }
+        showHistoryDialogState.value = true
+    }
 
-        val dialog = Dialog(this)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        val displayedState =
-            mutableStateListOf<ConversationHistoryItemUi>().apply {
-                addAll(
-                    displayed.map { conversation ->
-                        val lastMessage = conversation.messages.lastOrNull()
-                        val previewRaw =
-                            if (lastMessage?.isUser == false) {
-                                parseStoredAiContent(lastMessage.content).second
-                            } else {
-                                lastMessage?.content.orEmpty()
-                            }
-                        ConversationHistoryItemUi(
-                            id = conversation.id,
-                            title =
-                                conversation.title.ifBlank {
-                                    getString(R.string.history_new_chat)
-                                },
-                            preview = previewRaw.replace('\n', ' ').trim(),
-                        )
+    private fun buildHistoryDialogItems(): List<ConversationHistoryItemUi> {
+        return conversations
+            .filter { it.messages.isNotEmpty() }
+            .sortedByDescending { it.updatedAt }
+            .map { conversation ->
+                val lastMessage = conversation.messages.lastOrNull()
+                val previewRaw =
+                    if (lastMessage?.isUser == false) {
+                        parseStoredAiContent(lastMessage.content).second
+                    } else {
+                        lastMessage?.content.orEmpty()
                     }
+                ConversationHistoryItemUi(
+                    id = conversation.id,
+                    title =
+                        conversation.title.ifBlank {
+                            getString(R.string.history_new_chat)
+                        },
+                    preview = previewRaw.replace('\n', ' ').trim(),
                 )
             }
-
-        val composeView =
-            ComposeView(this).apply {
-                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-                setContent {
-                    AriesMaterialTheme {
-                        ConversationHistoryDialog(
-                            items = displayedState,
-                            onDismiss = {
-                                vibrateLight()
-                                dialog.dismiss()
-                            },
-                            onSelect = { conversationId ->
-                                conversations.firstOrNull { it.id == conversationId }?.let { conversation ->
-                                    activeConversation = conversation
-                                    renderConversation(conversation, animateTransition = true)
-                                    persistConversations()
-                                }
-                                vibrateLight()
-                                dialog.dismiss()
-                            },
-                            onDelete = { conversationId ->
-                                if (!deleteConversationById(conversationId, clearUiForActive = true)) {
-                                    return@ConversationHistoryDialog
-                                }
-                                displayedState.removeAll { it.id == conversationId }
-                                if (displayedState.isEmpty()) {
-                                    dialog.dismiss()
-                                }
-                            },
-                        )
-                    }
-                }
-            }
-
-        dialog.setContentView(
-            composeView,
-            ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            ),
-        )
-
-        dialog.window?.let { window ->
-            window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            window.setLayout(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT
-            )
-            window.setDimAmount(0f)
-            window.setFlags(
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            )
-            val params = window.attributes
-            params.windowAnimations = 0
-            window.attributes = params
-        }
-
-        dialog.show()
     }
 
     private fun attachAnimatedRing(target: View, strokeDp: Float) {
@@ -4623,46 +3978,6 @@ class MainActivity : AppCompatActivity() {
                 }
         )
     }
-    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        if (onboardingOverlay.isShowing()) {
-            swipeTracking = false
-            return super.dispatchTouchEvent(ev)
-        }
-
-        val density = resources.displayMetrics.density
-        val touchSlop = 12 * density
-        val swipeThreshold = 80 * density
-        
-        when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                swipeStartX = ev.rawX
-                swipeStartY = ev.rawY
-                swipeTracking = true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                if (!swipeTracking) return super.dispatchTouchEvent(ev)
-                
-                val dx = ev.rawX - swipeStartX
-                val dy = ev.rawY - swipeStartY
-                
-                // 检测水平右滑动作
-                if (dx > touchSlop && Math.abs(dx) > Math.abs(dy) * 1.5f) {
-                    val isOpen = binding.drawerLayout.isDrawerOpen(GravityCompat.START)
-                    
-                    // 右滑距离超过阈值，打开侧边栏
-                    if (!isOpen && dx > swipeThreshold) {
-                        binding.drawerLayout.openDrawer(GravityCompat.START, true)
-                        swipeTracking = false
-                    }
-                }
-            }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                swipeTracking = false
-            }
-        }
-        return super.dispatchTouchEvent(ev)
-    }
-
     override fun onStop() {
 
         super.onStop()

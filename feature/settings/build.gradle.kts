@@ -14,7 +14,6 @@ android {
 
     buildFeatures {
         buildConfig = false
-        viewBinding = true
         compose = true
     }
 
@@ -43,10 +42,11 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.activity.compose)
+    
+    // Lucide Icons
+    implementation(libs.compose.icons.lucide)
 
-    implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     

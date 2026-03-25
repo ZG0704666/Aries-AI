@@ -18,11 +18,15 @@
 package com.ai.phoneagent.di
 
 import com.ai.phoneagent.net.AutoGlmClient
+import coil.ImageLoader
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.logging.HttpLoggingInterceptor
 import com.ai.phoneagent.BuildConfig
+import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 import java.util.concurrent.TimeUnit
 
@@ -68,6 +72,27 @@ val networkModule = module {
 
     // AutoGlmClient is a Kotlin object (singleton); bind it so it can be injected or mocked in tests.
     single { AutoGlmClient }
+
+    /**
+     * Coil ImageLoader singleton for Compose image loading.
+     * Configured with memory and disk caching for efficient attachment thumbnail loading.
+     */
+    single<ImageLoader> {
+        ImageLoader.Builder(androidContext())
+            .crossfade(true)
+            .memoryCache {
+                MemoryCache.Builder(androidContext())
+                    .maxSizePercent(0.25)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(androidContext().cacheDir.resolve("image_cache"))
+                    .maxSizePercent(0.02)
+                    .build()
+            }
+            .build()
+    }
 
     // TODO(T7): Add factory for OpenAICompatibleProvider once runtime-param strategy is finalized:
     // factory { (apiKey: String, baseUrl: String, modelName: String) ->

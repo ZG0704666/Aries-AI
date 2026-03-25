@@ -8,10 +8,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.navArgument
+import com.ai.phoneagent.ui.automation.AutomationScreen
+import com.ai.phoneagent.ui.onboarding.OnboardingRoute
+import com.ai.phoneagent.ui.settings.SettingsRoute
+import com.ai.phoneagent.ui.settings.AboutRoute
+import com.ai.phoneagent.ui.settings.LicensesScreen
+import com.ai.phoneagent.ui.settings.PermissionGuideScreen
+import com.ai.phoneagent.ui.settings.UserAgreementScreen
+import com.ai.phoneagent.ui.updates.UpdateHistoryScreen
 
 @Composable
 fun AriesNavGraph(
@@ -30,12 +40,35 @@ fun AriesNavGraph(
         startDestination = Routes.Home.route,
     ) {
         composable(Routes.Home.route) { homeContent() }
-        composable(Routes.Settings.route) { PlaceholderRouteScreen() }
-        composable(Routes.About.route) { PlaceholderRouteScreen() }
-        composable(Routes.Automation.route) { PlaceholderRouteScreen() }
-        composable(Routes.UpdateHistory.route) { PlaceholderRouteScreen() }
-        composable(Routes.PermissionGuide.route) { PlaceholderRouteScreen() }
-        composable(Routes.Onboarding.route) { PlaceholderRouteScreen() }
+        composable(Routes.Settings.route) { SettingsRoute(navController = navController) }
+        composable(Routes.About.route) { AboutRoute(navController = navController) }
+        composable(Routes.Automation.route) { AutomationScreen(navController = navController) }
+        composable(Routes.UpdateHistory.route) { UpdateHistoryScreen(navController = navController) }
+        composable(Routes.PermissionGuide.route) { PermissionGuideScreen(navController = navController) }
+        composable(Routes.UserAgreement.route) { UserAgreementScreen(navController = navController) }
+        composable(Routes.Licenses.route) { LicensesScreen(navController = navController) }
+        composable(Routes.Onboarding.route) {
+            OnboardingRoute(
+                navController = navController,
+                flow = null,
+            )
+        }
+        composable(
+            route = Routes.Onboarding.routeWithOptionalFlow,
+            arguments =
+                listOf(
+                    navArgument(Routes.Onboarding.FLOW_ARG) {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = Routes.Onboarding.FLOW_ONBOARDING
+                    },
+                ),
+        ) { entry ->
+            OnboardingRoute(
+                navController = navController,
+                flow = entry.arguments?.getString(Routes.Onboarding.FLOW_ARG),
+            )
+        }
     }
 }
 

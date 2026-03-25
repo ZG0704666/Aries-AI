@@ -1,253 +1,194 @@
 package com.ai.phoneagent
 
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
-import android.os.Build
-import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.widget.FrameLayout
-import android.widget.TextView
-import androidx.annotation.StringRes
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.isVisible
-import androidx.core.view.updatePadding
-import com.google.android.material.bottomsheet.BottomSheetBehavior
-import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import com.google.android.material.button.MaterialButton
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import com.composables.icons.lucide.Accessibility
+import com.composables.icons.lucide.ExternalLink
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Mic
+import com.composables.icons.lucide.Shield
 
-class PermissionBottomSheet : BottomSheetDialogFragment() {
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PermissionBottomSheet(
+    onDismissRequest: () -> Unit,
+    permissionUiState: MainOnboardingOverlay.PermissionUiState,
+    onOpenAccessibility: () -> Unit,
+    onOpenOverlay: () -> Unit,
+    onOpenMic: () -> Unit,
+    onGuideAll: () -> Unit,
+    onDone: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    companion object {
-        const val TAG = "PermissionBottomSheet"
-        private const val REQ_RECORD_AUDIO = 101
-        private const val REQ_SHIZUKU_PERMISSION = 2026
-    }
-
-    private var tvAccStatus: TextView? = null
-    private var tvOverlayStatus: TextView? = null
-    private var tvMicStatus: TextView? = null
-
-    private var btnAcc: MaterialButton? = null
-    private var btnOverlay: MaterialButton? = null
-    private var btnMic: MaterialButton? = null
-    private var btnGuide: MaterialButton? = null
-    private var btnDone: MaterialButton? = null
-
-    private var headerContainer: View? = null
-    private var actionContainer: View? = null
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.RoundedBottomSheetDialog)
-    }
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        return inflater.inflate(R.layout.sheet_permissions, container, false)
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
-        headerContainer = view.findViewById(R.id.permissionSheetHeader)
-        actionContainer = view.findViewById(R.id.permissionSheetActions)
-
-        tvAccStatus = view.findViewById(R.id.tvPermAccStatus)
-        tvOverlayStatus = view.findViewById(R.id.tvPermOverlayStatus)
-        tvMicStatus = view.findViewById(R.id.tvPermMicStatus)
-
-        btnAcc = view.findViewById(R.id.btnPermAcc)
-        btnOverlay = view.findViewById(R.id.btnPermOverlay)
-        btnMic = view.findViewById(R.id.btnPermMic)
-        btnGuide = view.findViewById(R.id.btnPermGuide)
-        btnDone = view.findViewById(R.id.btnPermDone)
-
-
-        btnAcc?.setOnClickListener { openAccessibilitySettings() }
-        btnOverlay?.setOnClickListener { openOverlaySettings() }
-        btnMic?.setOnClickListener { requestMicPermission() }
-        btnGuide?.setOnClickListener { guideAll() }
-        btnDone?.setOnClickListener { dismissAllowingStateLoss() }
-
-        applyWindowInsets(view)
-        updateUi()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        updateUi()
-    }
-
-    override fun onStart() {
-        super.onStart()
-        configureFullscreenSheet()
-    }
-
-    override fun onDestroyView() {
-        tvAccStatus = null
-        tvOverlayStatus = null
-        tvMicStatus = null
-        btnAcc = null
-        btnOverlay = null
-        btnMic = null
-        btnGuide = null
-        btnDone = null
-        headerContainer = null
-        actionContainer = null
-        super.onDestroyView()
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.extraLarge,
     ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQ_RECORD_AUDIO) {
-            updateUi()
-        }
+        PermissionBottomSheetContent(
+            permissionUiState = permissionUiState,
+            onOpenAccessibility = onOpenAccessibility,
+            onOpenOverlay = onOpenOverlay,
+            onOpenMic = onOpenMic,
+            onGuideAll = onGuideAll,
+            onDone = onDone,
+        )
     }
+}
 
-    private fun configureFullscreenSheet() {
-        val sheetDialog = dialog as? BottomSheetDialog ?: return
-        val window = sheetDialog.window ?: return
+@Composable
+fun PermissionBottomSheetContent(
+    permissionUiState: MainOnboardingOverlay.PermissionUiState,
+    onOpenAccessibility: () -> Unit,
+    onOpenOverlay: () -> Unit,
+    onOpenMic: () -> Unit,
+    onGuideAll: () -> Unit,
+    onDone: () -> Unit,
+) {
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
+    val buttonHeight = dimensionResource(R.dimen.m3t_button_height)
+    val compactButtonHeight = dimensionResource(R.dimen.m3t_compact_button_height)
 
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-        window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-
-        val systemBarColor = ContextCompat.getColor(requireContext(), R.color.m3t_drawer_background)
-        val useLightSystemBarIcons = resources.getBoolean(R.bool.m3t_light_system_bars)
-        window.statusBarColor = systemBarColor
-        window.navigationBarColor = systemBarColor
-        WindowCompat.getInsetsController(window, window.decorView)?.let {
-            it.isAppearanceLightStatusBars = useLightSystemBarIcons
-            it.isAppearanceLightNavigationBars = useLightSystemBarIcons
-        }
-
-        val bottomSheet =
-            sheetDialog.findViewById<FrameLayout>(com.google.android.material.R.id.design_bottom_sheet)
-                ?: return
-
-        bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
-            height = ViewGroup.LayoutParams.MATCH_PARENT
-        }
-        bottomSheet.setBackgroundColor(Color.TRANSPARENT)
-        bottomSheet.requestLayout()
-
-        sheetDialog.behavior.apply {
-            skipCollapsed = true
-            isHideable = true
-            isDraggable = true
-            state = BottomSheetBehavior.STATE_EXPANDED
-        }
-    }
-
-    private fun applyWindowInsets(root: View) {
-        val header = headerContainer ?: return
-        val actions = actionContainer ?: return
-
-        val rootStart = root.paddingStart
-        val rootEnd = root.paddingEnd
-        val headerTop = header.paddingTop
-        val actionsBottom = actions.paddingBottom
-
-        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            root.updatePadding(left = rootStart + systemBars.left, right = rootEnd + systemBars.right)
-            header.updatePadding(top = headerTop + systemBars.top)
-            actions.updatePadding(bottom = actionsBottom + systemBars.bottom)
-            insets
-        }
-        ViewCompat.requestApplyInsets(root)
-    }
-
-    private fun updateUi() {
-        val hostActivity = activity as? AppCompatActivity ?: return
-        val ctx = context ?: return
-
-        val accOk = PermissionSetupSupport.isAccessibilityEnabled(ctx)
-        updatePermissionRow(tvAccStatus, btnAcc, accOk, R.string.perm_sheet_action_enable)
-
-        val overlayOk = PermissionSetupSupport.hasOverlayPermission(ctx)
-        updatePermissionRow(tvOverlayStatus, btnOverlay, overlayOk, R.string.perm_sheet_action_settings)
-
-        val micOk =
-            ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.RECORD_AUDIO) ==
-                android.content.pm.PackageManager.PERMISSION_GRANTED
-        updatePermissionRow(tvMicStatus, btnMic, micOk, R.string.perm_sheet_action_grant)
-
-        val allOk = accOk && overlayOk && micOk
-        btnGuide?.text =
-            getString(
-                if (allOk) {
-                    R.string.perm_sheet_primary_action_ready
-                } else {
-                    R.string.perm_sheet_primary_action
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacingXl, vertical = spacingLg),
+        verticalArrangement = Arrangement.spacedBy(spacingMd),
+    ) {
+        Text(
+            text = stringResource(R.string.perm_sheet_title),
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Surface(
+            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
+            shape = MaterialTheme.shapes.large,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(spacingLg),
+                horizontalArrangement = Arrangement.spacedBy(spacingMd),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), shape = CircleShape) {
+                    Box(modifier = Modifier.padding(spacingSm), contentAlignment = Alignment.Center) {
+                        Icon(Lucide.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                    }
                 }
-            )
-        btnDone?.isVisible = !allOk
-    }
-
-    private fun updatePermissionRow(
-        statusView: TextView?,
-        actionButton: MaterialButton?,
-        ready: Boolean,
-        @StringRes pendingActionText: Int
-    ) {
-        val hostActivity = activity as? AppCompatActivity ?: return
-        if (statusView == null || actionButton == null) return
-        PermissionSetupSupport.updatePermissionRow(
-            activity = hostActivity,
-            statusView = statusView,
-            actionButton = actionButton,
-            ready = ready,
-            pendingActionText = pendingActionText,
-        )
-    }
-
-    private fun openAccessibilitySettings() {
-        val hostActivity = activity as? AppCompatActivity ?: return
-        PermissionSetupSupport.openAccessibilitySettings(hostActivity)
-    }
-
-    private fun openOverlaySettings() {
-        val hostActivity = activity as? AppCompatActivity ?: return
-        PermissionSetupSupport.openOverlaySettings(hostActivity)
-    }
-
-    private fun requestMicPermission() {
-        val ctx = context ?: return
-        val granted =
-            ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.RECORD_AUDIO) ==
-                android.content.pm.PackageManager.PERMISSION_GRANTED
-        if (granted) {
-            updateUi()
-            return
+                Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
+                    Text(
+                        text = stringResource(R.string.perm_sheet_shizuku_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        text = stringResource(R.string.perm_sheet_shizuku_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+            }
         }
-        requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), REQ_RECORD_AUDIO)
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)),
+            shape = MaterialTheme.shapes.large,
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                PermissionRow(Lucide.Accessibility, stringResource(R.string.perm_sheet_accessibility_title), stringResource(R.string.perm_sheet_accessibility_desc), permissionUiState.accessibilityReady, stringResource(R.string.perm_sheet_action_enable), onOpenAccessibility, compactButtonHeight)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                PermissionRow(Lucide.ExternalLink, stringResource(R.string.perm_sheet_overlay_title), stringResource(R.string.perm_sheet_overlay_desc), permissionUiState.overlayReady, stringResource(R.string.perm_sheet_action_settings), onOpenOverlay, compactButtonHeight)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                PermissionRow(Lucide.Mic, stringResource(R.string.perm_sheet_microphone_title), stringResource(R.string.perm_sheet_microphone_desc), permissionUiState.microphoneReady, stringResource(R.string.perm_sheet_action_grant), onOpenMic, compactButtonHeight)
+            }
+        }
+
+        Button(
+            onClick = onGuideAll,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(buttonHeight),
+        ) {
+            Text(stringResource(if (permissionUiState.allReady) R.string.perm_sheet_primary_action_ready else R.string.perm_sheet_primary_action))
+        }
+
+        if (!permissionUiState.allReady) {
+            FilledTonalButton(
+                onClick = onDone,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(buttonHeight)
+                    .navigationBarsPadding(),
+            ) {
+                Text(stringResource(R.string.perm_sheet_secondary_action))
+            }
+        } else {
+            Spacer(modifier = Modifier.navigationBarsPadding())
+        }
     }
+}
 
-    private fun guideAll() {
-        val hostActivity = activity as? AppCompatActivity ?: return
-        val ctx = context ?: return
+@Composable
+private fun PermissionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    ready: Boolean,
+    pendingAction: String,
+    onAction: () -> Unit,
+    buttonHeight: Dp,
+) {
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
 
-        PermissionSetupSupport.guideAll(
-            activity = hostActivity,
-            requestShizukuPermissionCode = REQ_SHIZUKU_PERMISSION,
-            requestMicPermission = { requestMicPermission() },
-            onReady = { dismissAllowingStateLoss() },
-            onUiRefresh = { updateUi() },
-        )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(spacingLg),
+        horizontalArrangement = Arrangement.spacedBy(spacingMd),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f), shape = CircleShape) {
+            Box(modifier = Modifier.padding(spacingSm), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacingSm),
+        ) {
+            Text(text = title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+            Text(text = description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = stringResource(if (ready) R.string.perm_sheet_status_ready else R.string.perm_sheet_status_pending),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        FilledTonalButton(
+            onClick = onAction,
+            enabled = !ready,
+            modifier = Modifier.height(buttonHeight),
+        ) {
+            Text(if (ready) stringResource(R.string.perm_sheet_action_ready) else pendingAction)
+        }
     }
 }

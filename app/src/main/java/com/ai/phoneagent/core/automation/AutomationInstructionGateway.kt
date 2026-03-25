@@ -3,9 +3,10 @@ package com.ai.phoneagent.core.automation
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import com.ai.phoneagent.AutomationActivityNew
+import com.ai.phoneagent.MainActivity
 import com.ai.phoneagent.system.applyMaterialOpenTransition
 import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
+import com.ai.phoneagent.viewmodel.AutomationViewModel
 
 data class AutomationInstructionRequest(
     val instruction: String,
@@ -91,16 +92,16 @@ object ActivityAutomationInstructionGateway : AutomationInstructionGateway {
     }
 
     fun buildIntent(context: Context, request: AutomationInstructionRequest): Intent {
-        return Intent(context, AutomationActivityNew::class.java).apply {
+        return Intent(context, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             if (request.keepMainOnTop) {
                 addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
             }
-            putExtra(AutomationActivityNew.EXTRA_AUTOMATION_TASK, request.instruction.trim())
-            putExtra(AutomationActivityNew.EXTRA_AUTOMATION_SOURCE, request.source.wireValue)
-            putExtra(AutomationActivityNew.EXTRA_AUTOMATION_AUTO_START, request.autoStart)
-            putExtra(AutomationActivityNew.EXTRA_FORCE_TOP_ON_ENTRY, request.forceTopOnEntry)
-            putExtra(AutomationActivityNew.EXTRA_KEEP_MAIN_ON_TOP, request.keepMainOnTop)
+            putExtra(AutomationViewModel.EXTRA_AUTOMATION_TASK, request.instruction.trim())
+            putExtra(AutomationViewModel.EXTRA_AUTOMATION_SOURCE, request.source.wireValue)
+            putExtra(AutomationViewModel.EXTRA_AUTOMATION_AUTO_START, request.autoStart)
+            putExtra(AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY, request.forceTopOnEntry)
+            putExtra(AutomationViewModel.EXTRA_KEEP_MAIN_ON_TOP, request.keepMainOnTop)
         }
     }
 }

@@ -14,10 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Chat
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.DeleteOutline
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.X
+import com.composables.icons.lucide.MessageCircle
+import com.composables.icons.lucide.Trash2
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -97,7 +97,7 @@ fun ConversationHistoryDialog(
                     )
                     IconButton(onClick = onDismiss) {
                         Icon(
-                            imageVector = Icons.Outlined.Close,
+                            imageVector = Lucide.X,
                             contentDescription = stringResource(R.string.action_close),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -152,7 +152,7 @@ private fun ConversationHistoryRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Outlined.Chat,
+                imageVector = Lucide.MessageCircle,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(dimensionResource(R.dimen.m3t_about_row_icon_size)),
@@ -182,7 +182,7 @@ private fun ConversationHistoryRow(
 
             IconButton(onClick = onDelete) {
                 Icon(
-                    imageVector = Icons.Outlined.DeleteOutline,
+                    imageVector = Lucide.Trash2,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

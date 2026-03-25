@@ -34,15 +34,15 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.KeyboardVoice
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.SettingsAccessibility
-import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.material.icons.outlined.StopCircle
-import androidx.compose.material.icons.outlined.Tune
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.WandSparkles
+import com.composables.icons.lucide.Mic
+import com.composables.icons.lucide.RefreshCw
+import com.composables.icons.lucide.Accessibility
+import com.composables.icons.lucide.Shield
+import com.composables.icons.lucide.CircleStop
+import com.composables.icons.lucide.SlidersHorizontal
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -160,16 +160,16 @@ fun AutomationControlScreen(
                 title = { Text(stringResource(R.string.automation_toolbar_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.about_back),
-                        )
-                    }
+                         Icon(
+                             imageVector = Lucide.ArrowLeft,
+                             contentDescription = stringResource(R.string.about_back),
+                         )
+                     }
                 },
                 actions = {
                     IconButton(onClick = onRefreshStatus) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.automation_refresh_status))
-                    }
+                         Icon(Lucide.RefreshCw, contentDescription = stringResource(R.string.automation_refresh_status))
+                     }
                 },
                 colors =
                     TopAppBarDefaults.topAppBarColors(
@@ -208,22 +208,22 @@ fun AutomationControlScreen(
                         horizontalArrangement = Arrangement.spacedBy(spacingSm),
                     ) {
                         FilledTonalButton(
-                            onClick = onOpenAccessibility,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.Outlined.SettingsAccessibility, contentDescription = null)
-                            Spacer(modifier = Modifier.width(spacingXs))
-                            Text(stringResource(R.string.automation_open_accessibility))
-                        }
+                             onClick = onOpenAccessibility,
+                             modifier = Modifier.weight(1f),
+                         ) {
+                             Icon(Lucide.Accessibility, contentDescription = null)
+                             Spacer(modifier = Modifier.width(spacingXs))
+                             Text(stringResource(R.string.automation_open_accessibility))
+                         }
                         AnimatedVisibility(visible = showShizukuAuthorize, modifier = Modifier.weight(1f)) {
                             FilledTonalButton(
-                                onClick = onAuthorizeShizuku,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Icon(Icons.Outlined.Shield, contentDescription = null)
-                                Spacer(modifier = Modifier.width(spacingXs))
-                                Text(stringResource(R.string.automation_one_tap_shizuku_authorize))
-                            }
+                                 onClick = onAuthorizeShizuku,
+                                 modifier = Modifier.fillMaxWidth(),
+                             ) {
+                                 Icon(Lucide.Shield, contentDescription = null)
+                                 Spacer(modifier = Modifier.width(spacingXs))
+                                 Text(stringResource(R.string.automation_one_tap_shizuku_authorize))
+                             }
                         }
                     }
                 }
@@ -345,18 +345,18 @@ fun AutomationControlScreen(
                             shape = MaterialTheme.shapes.large,
                         )
                         FilledTonalIconButton(
-                            onClick = onVoiceTask,
-                            modifier =
-                                Modifier
-                                    .size(dimensionResource(R.dimen.m3t_automation_voice_button_size))
-                                    .graphicsLayer {
-                                        scaleX = if (isListening) voiceScale else 1f
-                                        scaleY = if (isListening) voiceScale else 1f
-                                        alpha = if (isListening) voiceAlpha else 1f
-                                    },
-                        ) {
-                            Icon(Icons.Outlined.KeyboardVoice, contentDescription = null)
-                        }
+                             onClick = onVoiceTask,
+                             modifier =
+                                 Modifier
+                                     .size(dimensionResource(R.dimen.m3t_automation_voice_button_size))
+                                     .graphicsLayer {
+                                         scaleX = if (isListening) voiceScale else 1f
+                                         scaleY = if (isListening) voiceScale else 1f
+                                         alpha = if (isListening) voiceAlpha else 1f
+                                     },
+                         ) {
+                             Icon(Lucide.Mic, contentDescription = null)
+                         }
                     }
 
                     Spacer(modifier = Modifier.height(spacingMd))
@@ -380,10 +380,10 @@ fun AutomationControlScreen(
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Outlined.AutoAwesome,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.secondary,
-                                    )
+                                         imageVector = Lucide.WandSparkles,
+                                         contentDescription = null,
+                                         tint = MaterialTheme.colorScheme.secondary,
+                                     )
                                 }
                             }
                             Column(modifier = Modifier.weight(1f)) {
@@ -424,9 +424,9 @@ fun AutomationControlScreen(
                         modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_button_height)),
                     ) {
                         Icon(
-                            imageVector = if (startButtonTerminateStyle) Icons.Outlined.StopCircle else Icons.Outlined.Tune,
-                            contentDescription = null,
-                        )
+                             imageVector = if (startButtonTerminateStyle) Lucide.CircleStop else Lucide.SlidersHorizontal,
+                             contentDescription = null,
+                         )
                         Spacer(modifier = Modifier.width(spacingSm))
                         Text(startButtonText)
                     }

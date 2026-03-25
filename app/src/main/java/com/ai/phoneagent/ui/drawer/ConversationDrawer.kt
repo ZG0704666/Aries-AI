@@ -19,10 +19,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.rounded.Search
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Search
+import com.composables.icons.lucide.Settings
+import com.composables.icons.lucide.Trash2
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -98,7 +98,7 @@ fun ConversationDrawer(
             shape = MaterialTheme.shapes.large,
             leadingIcon = {
                 Icon(
-                    imageVector = Icons.Rounded.Search,
+                    imageVector = Lucide.Search,
                     contentDescription = null,
                 )
             },
@@ -189,7 +189,7 @@ fun ConversationDrawer(
                 horizontalArrangement = Arrangement.spacedBy(spacingMd),
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Settings,
+                    imageVector = Lucide.Settings,
                     contentDescription = null,
                     modifier = Modifier.size(spacingXl),
                 )
@@ -282,7 +282,7 @@ private fun DrawerConversationRow(
                 text = { Text(text = stringResource(R.string.drawer_delete_conversation)) },
                 leadingIcon = {
                     Icon(
-                        imageVector = Icons.Outlined.DeleteOutline,
+                        imageVector = Lucide.Trash2,
                         contentDescription = null,
                     )
                 },

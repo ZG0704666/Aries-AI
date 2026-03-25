@@ -31,6 +31,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import com.ai.phoneagent.core.utils.DisplayUtils
 import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
+import com.ai.phoneagent.viewmodel.AutomationViewModel
 
 object AutomationOverlay {
 
@@ -115,12 +116,13 @@ object AutomationOverlay {
                         putExtra(MainActivity.EXTRA_SHOW_AUTOMATION_STOP, true)
                     }
                 } else {
-                    Intent(appCtx, AutomationActivityNew::class.java).apply {
+                    Intent(appCtx, MainActivity::class.java).apply {
                         addFlags(
                             Intent.FLAG_ACTIVITY_NEW_TASK or
                                 Intent.FLAG_ACTIVITY_SINGLE_TOP or
                                 Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                         )
+                        putExtra(AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY, true)
                     }
                 }
             appCtx.startActivityWithMaterialForwardTransition(i)

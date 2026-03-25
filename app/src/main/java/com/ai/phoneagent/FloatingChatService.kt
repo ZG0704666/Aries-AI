@@ -67,6 +67,7 @@ import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
 import com.ai.phoneagent.net.LocalMnnInferenceEngine
 import com.ai.phoneagent.net.ModelScopeModelDownloader
+import com.ai.phoneagent.viewmodel.AutomationViewModel
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.*
 import org.koin.android.ext.android.inject
@@ -1991,11 +1992,11 @@ class FloatingChatService : Service() {
         // 关闭悬浮窗
         closeWindow()
 
-        // 跳转到 AutomationActivityNew
+        // 跳转到 MainActivity（自动化路由）
         val intent =
-                Intent(this, AutomationActivityNew::class.java).apply {
+                Intent(this, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    putExtra(AutomationActivityNew.EXTRA_FORCE_TOP_ON_ENTRY, true)
+                    putExtra(AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY, true)
                 }
         startActivity(intent)
     }

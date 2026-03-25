@@ -439,7 +439,7 @@ object StreamRenderHelper {
             textView.text = ""
             return
         }
-        MarkdownRenderer.getInstance(textView.context).render(textView, content)
+        textView.text = SimpleMarkdownRenderer.render(content)
     }
 
     private fun sanitizeFlushTail(tail: String): String {

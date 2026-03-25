@@ -29,14 +29,14 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.Lightbulb
-import androidx.compose.material.icons.outlined.Refresh
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Copy
+import com.composables.icons.lucide.Check
+import com.composables.icons.lucide.X
+import com.composables.icons.lucide.Pencil
+import com.composables.icons.lucide.ChevronDown
+import com.composables.icons.lucide.Lightbulb
+import com.composables.icons.lucide.RefreshCw
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -68,6 +68,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ai.phoneagent.R
 import com.ai.phoneagent.helper.AutomationMessageParser
+import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.m3.markdownColor
+import com.mikepenz.markdown.m3.markdownTypography
 
 data class TranscriptMessageUi(
     val conversationId: Long,
@@ -128,7 +131,7 @@ fun ConversationTranscript(
                     verticalArrangement = Arrangement.spacedBy(spacingSm),
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Lightbulb,
+                        imageVector = Lucide.Lightbulb,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                     )
@@ -250,7 +253,7 @@ private fun UserMessageBubble(
                         buttonSize = actionButtonSize,
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Check,
+                            imageVector = Lucide.Check,
                             contentDescription = stringResource(R.string.automation_confirm),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(actionIconSize),
@@ -264,7 +267,7 @@ private fun UserMessageBubble(
                         buttonSize = actionButtonSize,
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Close,
+                            imageVector = Lucide.X,
                             contentDescription = stringResource(R.string.action_cancel),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(actionIconSize),
@@ -276,7 +279,7 @@ private fun UserMessageBubble(
                         buttonSize = actionButtonSize,
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.ContentCopy,
+                            imageVector = Lucide.Copy,
                             contentDescription = stringResource(R.string.common_copy),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(actionIconSize),
@@ -287,7 +290,7 @@ private fun UserMessageBubble(
                         buttonSize = actionButtonSize,
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Refresh,
+                            imageVector = Lucide.RefreshCw,
                             contentDescription = stringResource(R.string.retry),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(actionIconSize),
@@ -298,7 +301,7 @@ private fun UserMessageBubble(
                         buttonSize = actionButtonSize,
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Edit,
+                            imageVector = Lucide.Pencil,
                             contentDescription = stringResource(R.string.common_edit),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(actionIconSize),
@@ -403,10 +406,10 @@ private fun AssistantMessageBlock(
                 tonalElevation = if (item.isStreaming) 2.dp else 1.dp,
             ) {
                 SelectionContainer {
-                    Text(
-                        text = item.body,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onBackground,
+                    Markdown(
+                        content = item.body,
+                        colors = markdownColor(),
+                        typography = markdownTypography(),
                         modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingMd),
                     )
                 }
@@ -427,7 +430,7 @@ private fun AssistantMessageBlock(
                         buttonSize = actionButtonSize,
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.ContentCopy,
+                            imageVector = Lucide.Copy,
                             contentDescription = stringResource(R.string.common_copy),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(actionIconSize),
@@ -440,7 +443,7 @@ private fun AssistantMessageBlock(
                         buttonSize = actionButtonSize,
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Refresh,
+                            imageVector = Lucide.RefreshCw,
                             contentDescription = stringResource(R.string.retry),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(actionIconSize),
@@ -601,10 +604,10 @@ private fun ThinkingSection(
                     exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(animationSpec = tween(200, easing = FastOutSlowInEasing)),
                 ) {
                     SelectionContainer {
-                        Text(
-                            text = thinking,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        Markdown(
+                            content = thinking,
+                            colors = markdownColor(),
+                            typography = markdownTypography(),
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -691,7 +694,7 @@ private fun ThinkingHeaderRow(
             onClick = onToggle,
         ) {
             Icon(
-                imageVector = Icons.Outlined.KeyboardArrowDown,
+                imageVector = Lucide.ChevronDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier =
@@ -780,7 +783,7 @@ private fun AutomationMessageCard(
                     modifier = Modifier.size(dimensionResource(R.dimen.m3t_message_action_button_size)),
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.KeyboardArrowDown,
+                        imageVector = Lucide.ChevronDown,
                         contentDescription =
                             if (expanded) {
                                 stringResource(R.string.automation_scene_collapse)

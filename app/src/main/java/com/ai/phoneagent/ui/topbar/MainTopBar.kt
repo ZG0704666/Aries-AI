@@ -5,7 +5,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -98,7 +97,7 @@ fun MainTopBar(
                         actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         titleContentColor = MaterialTheme.colorScheme.onSurface,
                     ),
-                windowInsets = WindowInsets(0, 0, 0, 0),
+                // Use default TopAppBarDefaults.windowInsets (status bars)
             )
 
             AnimatedVisibility(

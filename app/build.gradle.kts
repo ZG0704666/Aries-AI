@@ -83,14 +83,8 @@ android {
     }
 
     buildFeatures {
-        viewBinding = true
         buildConfig = true
         compose = true
-    }
-
-    composeOptions {
-        // 与 Compose BOM 兼容的编译器扩展版本
-        kotlinCompilerExtensionVersion = "1.5.3"
     }
 
     packaging {
@@ -131,9 +125,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
-    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    implementation("androidx.recyclerview:recyclerview:1.3.2")
 
     // 协程
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
@@ -145,19 +137,6 @@ dependencies {
 
     // 后台任务（便于自动化/定时流程）
     implementation("androidx.work:work-runtime-ktx:2.9.1")
-    
-    // Markdown 渲染
-    implementation("io.noties.markwon:core:4.6.2")
-    implementation("io.noties.markwon:ext-strikethrough:4.6.2")
-    implementation("io.noties.markwon:ext-tables:4.6.2")
-    implementation("io.noties.markwon:syntax-highlight:4.6.2")
-
-    // 显式添加单一版本的 annotations，供 Kotlin/Markwon 等使用
-    implementation("org.jetbrains:annotations:23.0.0")
-
-    configurations.configureEach {
-        resolutionStrategy.force("org.jetbrains:annotations:23.0.0")
-    }
 
     testImplementation(libs.junit)
     testImplementation("org.json:json:20240303")
@@ -169,9 +148,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.activity.compose)
-    implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.compose.runtime.livedata)
     debugImplementation(libs.androidx.compose.ui.tooling)

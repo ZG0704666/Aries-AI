@@ -31,12 +31,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.KeyboardVoice
-import androidx.compose.material.icons.outlined.SettingsAccessibility
-import androidx.compose.material.icons.outlined.Shield
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Shield
+import com.composables.icons.lucide.Accessibility
+import com.composables.icons.lucide.ExternalLink
+import com.composables.icons.lucide.Mic
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -54,25 +53,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.Dp
 import androidx.core.content.ContextCompat
-import androidx.core.view.GravityCompat
 import androidx.core.view.WindowCompat
-import androidx.drawerlayout.widget.DrawerLayout
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 
 class MainOnboardingOverlay(
     private val activity: AppCompatActivity,
     private val appPrefs: AppPreferencesRepository,
-    private val drawerLayout: DrawerLayout,
-    private val hostRoot: ComposeView,
 ) {
     enum class FlowMode {
         ONBOARDING,
@@ -104,39 +97,37 @@ class MainOnboardingOverlay(
     private var currentStep by mutableStateOf(Step.WELCOME)
     private var permissionUiState by mutableStateOf(readPermissionUiState())
 
-    init {
-        hostRoot.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-        hostRoot.setContent {
-            AriesMaterialTheme {
-                if (overlayVisible) {
-                    MainOnboardingOverlayScreen(
-                        flowMode = flowMode,
-                        currentStep = currentStep,
-                        agreementHtml = activity.getString(R.string.user_agreement_content),
-                        permissionUiState = permissionUiState,
-                        onNext = {
-                            when (currentStep) {
-                                Step.WELCOME -> currentStep = Step.AGREEMENT
-                                Step.AGREEMENT -> {
-                                    appPrefs.setUserAgreementAcceptedBlocking(true)
-                                    markPermissionGuideShown()
-                                    refreshPermissionUi()
-                                    currentStep = Step.PERMISSION
-                                }
-                                Step.PERMISSION -> Unit
+    init { setupBackBehavior() }
+
+    @Composable
+    fun Render() {
+        AriesMaterialTheme {
+            if (overlayVisible) {
+                MainOnboardingOverlayScreen(
+                    flowMode = flowMode,
+                    currentStep = currentStep,
+                    agreementHtml = activity.getString(R.string.user_agreement_content),
+                    permissionUiState = permissionUiState,
+                    onNext = {
+                        when (currentStep) {
+                            Step.WELCOME -> currentStep = Step.AGREEMENT
+                            Step.AGREEMENT -> {
+                                appPrefs.setUserAgreementAcceptedBlocking(true)
+                                markPermissionGuideShown()
+                                refreshPermissionUi()
+                                currentStep = Step.PERMISSION
                             }
-                        },
-                        onOpenAccessibility = { openAccessibilitySettings() },
-                        onOpenOverlay = { openOverlaySettings() },
-                        onOpenMic = { requestMicPermission() },
-                        onGuideAll = { guideAll() },
-                        onDone = { hideOverlay() },
-                    )
-                }
+                            Step.PERMISSION -> Unit
+                        }
+                    },
+                    onOpenAccessibility = { openAccessibilitySettings() },
+                    onOpenOverlay = { openOverlaySettings() },
+                    onOpenMic = { requestMicPermission() },
+                    onGuideAll = { guideAll() },
+                    onDone = { hideOverlay() },
+                )
             }
         }
-        hostRoot.visibility = View.GONE
-        setupBackBehavior()
     }
 
     fun showOnboarding() {
@@ -169,12 +160,8 @@ class MainOnboardingOverlay(
     fun isShowing(): Boolean = overlayVisible
 
     private fun showOverlay(initialStep: Step) {
-        closeDrawerIfOpen(immediate = true)
         overlayVisible = true
         currentStep = initialStep
-        hostRoot.visibility = View.VISIBLE
-        hostRoot.bringToFront()
-        drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
         applyOverlaySystemBars()
         if (initialStep == Step.PERMISSION) {
             markPermissionGuideShown()
@@ -184,9 +171,6 @@ class MainOnboardingOverlay(
 
     private fun hideOverlay() {
         overlayVisible = false
-        hostRoot.visibility = View.GONE
-        drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
-        closeDrawerIfOpen(immediate = true)
         restoreMainSystemBars()
     }
 
@@ -212,7 +196,6 @@ class MainOnboardingOverlay(
             activity,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    if (closeDrawerIfOpen()) return
                     if (!overlayVisible) {
                         isEnabled = false
                         activity.onBackPressedDispatcher.onBackPressed()
@@ -234,12 +217,6 @@ class MainOnboardingOverlay(
                 }
             },
         )
-    }
-
-    private fun closeDrawerIfOpen(immediate: Boolean = false): Boolean {
-        if (!drawerLayout.isDrawerOpen(GravityCompat.START)) return false
-        drawerLayout.closeDrawer(GravityCompat.START, !immediate)
-        return true
     }
 
     private fun applyOverlaySystemBars() {
@@ -543,7 +520,7 @@ private fun PermissionPanel(
                 ) {
                     Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), shape = CircleShape) {
                         Box(modifier = Modifier.padding(spacingSm), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Outlined.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                            Icon(Lucide.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                         }
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
@@ -568,11 +545,11 @@ private fun PermissionPanel(
                 shape = MaterialTheme.shapes.large,
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    PermissionRow(Icons.Outlined.SettingsAccessibility, stringResource(R.string.perm_sheet_accessibility_title), stringResource(R.string.perm_sheet_accessibility_desc), permissionUiState.accessibilityReady, stringResource(R.string.perm_sheet_action_enable), onOpenAccessibility, compactButtonHeight)
+                    PermissionRow(Lucide.Accessibility, stringResource(R.string.perm_sheet_accessibility_title), stringResource(R.string.perm_sheet_accessibility_desc), permissionUiState.accessibilityReady, stringResource(R.string.perm_sheet_action_enable), onOpenAccessibility, compactButtonHeight)
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    PermissionRow(Icons.AutoMirrored.Outlined.OpenInNew, stringResource(R.string.perm_sheet_overlay_title), stringResource(R.string.perm_sheet_overlay_desc), permissionUiState.overlayReady, stringResource(R.string.perm_sheet_action_settings), onOpenOverlay, compactButtonHeight)
+                    PermissionRow(Lucide.ExternalLink, stringResource(R.string.perm_sheet_overlay_title), stringResource(R.string.perm_sheet_overlay_desc), permissionUiState.overlayReady, stringResource(R.string.perm_sheet_action_settings), onOpenOverlay, compactButtonHeight)
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    PermissionRow(Icons.Outlined.KeyboardVoice, stringResource(R.string.perm_sheet_microphone_title), stringResource(R.string.perm_sheet_microphone_desc), permissionUiState.microphoneReady, stringResource(R.string.perm_sheet_action_grant), onOpenMic, compactButtonHeight)
+                    PermissionRow(Lucide.Mic, stringResource(R.string.perm_sheet_microphone_title), stringResource(R.string.perm_sheet_microphone_desc), permissionUiState.microphoneReady, stringResource(R.string.perm_sheet_action_grant), onOpenMic, compactButtonHeight)
                 }
             }
 

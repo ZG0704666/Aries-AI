@@ -15,7 +15,6 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
-import com.ai.phoneagent.AutomationActivityNew
 import com.ai.phoneagent.R
 import java.util.concurrent.atomic.AtomicInteger
 

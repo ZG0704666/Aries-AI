@@ -57,18 +57,6 @@
         </service>
 
         <activity
-            android:name=".AutomationActivityNew"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
-            android:windowSoftInputMode="adjustResize" />
-
-        <activity
-            android:name=".DrawerSettingsActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-
-        <activity
             android:name=".LaunchProxyActivity"
             android:exported="false"
             android:theme="@style/Theme.TransparentLaunch"
@@ -114,11 +102,6 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-
-        <activity
-            android:name=".updates.UpdateHistoryActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
 
         <!-- Shizuku Provider - 虚拟屏核心依赖 -->
         <provider

@@ -1,82 +1,11 @@
 package com.ai.phoneagent.helper
 
-import android.content.Context
 import android.graphics.Typeface
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.RelativeSizeSpan
 import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
-import android.widget.TextView
-import io.noties.markwon.Markwon
-import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
-import io.noties.markwon.ext.tables.TablePlugin
-import io.noties.markwon.syntax.Prism4jThemeDarkula
-import io.noties.markwon.syntax.SyntaxHighlightPlugin
-import io.noties.prism4j.Prism4j
-import io.noties.prism4j.annotations.PrismBundle
-
-/**
- * Aries AI 的 Markdown 渲染器
- * 
- * 支持实时流式渲染，包括：
- * - 标题
- * - 粗体/斜体
- * - 代码块（带语法高亮）
- * - 行内代码
- * - 列表
- * - 表格
- * - 删除线
- */
-@PrismBundle(includeAll = true)
-class MarkdownRenderer(context: Context) {
-
-    private val markwon: Markwon
-    
-    init {
-        val prism4j = Prism4j(GrammarLocatorDef())
-        
-        markwon = Markwon.builder(context)
-            .usePlugin(StrikethroughPlugin.create())
-            .usePlugin(TablePlugin.create(context))
-            .usePlugin(SyntaxHighlightPlugin.create(prism4j, Prism4jThemeDarkula.create()))
-            .build()
-    }
-
-    /**
-     * 渲染 Markdown 文本到 TextView
-     */
-    fun render(textView: TextView, markdown: String) {
-        markwon.setMarkdown(textView, markdown)
-    }
-
-    /**
-     * 将 Markdown 转换为 Spanned
-     */
-    fun toSpanned(markdown: String): Spanned {
-        return markwon.toMarkdown(markdown)
-    }
-
-    /**
-     * 增量渲染（用于流式输出）
-     * 返回处理后的 Spanned 对象
-     */
-    fun renderIncremental(currentText: String, newDelta: String): Spanned {
-        val fullText = currentText + newDelta
-        return markwon.toMarkdown(fullText)
-    }
-    
-    companion object {
-        @Volatile
-        private var instance: MarkdownRenderer? = null
-        
-        fun getInstance(context: Context): MarkdownRenderer {
-            return instance ?: synchronized(this) {
-                instance ?: MarkdownRenderer(context.applicationContext).also { instance = it }
-            }
-        }
-    }
-}
 
 /**
  * 简单的 Markdown 渲染器（不依赖外部库，作为后备方案）
@@ -354,15 +283,4 @@ object SimpleMarkdownRenderer {
     }
 }
 
-/**
- * Prism4j 语法定义定位器
- */
-class GrammarLocatorDef : io.noties.prism4j.GrammarLocator {
-    override fun grammar(prism4j: Prism4j, language: String): io.noties.prism4j.Prism4j.Grammar? {
-        return null // 使用默认语法
-    }
 
-    override fun languages(): MutableSet<String> {
-        return mutableSetOf()
-    }
-}

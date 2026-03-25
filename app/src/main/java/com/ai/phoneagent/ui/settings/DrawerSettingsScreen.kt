@@ -29,17 +29,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Cloud
-import androidx.compose.material.icons.outlined.ContentPaste
-import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Key
-import androidx.compose.material.icons.outlined.Memory
-import androidx.compose.material.icons.outlined.Sync
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.ExternalLink
+import com.composables.icons.lucide.CircleCheck
+import com.composables.icons.lucide.Cloud
+import com.composables.icons.lucide.Clipboard
+import com.composables.icons.lucide.Download
+import com.composables.icons.lucide.Info
+import com.composables.icons.lucide.KeyRound
+import com.composables.icons.lucide.Cpu
+import com.composables.icons.lucide.RotateCw
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -144,7 +144,7 @@ fun DrawerSettingsScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Lucide.ArrowLeft,
                             contentDescription = stringResource(R.string.about_back),
                         )
                     }
@@ -274,7 +274,7 @@ fun DrawerModelApiConfigScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Lucide.ArrowLeft,
                             contentDescription = stringResource(R.string.about_back),
                         )
                     }
@@ -315,7 +315,7 @@ fun DrawerModelApiConfigScreen(
                             color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
                         ) {
                             Icon(
-                                imageVector = if (useLocalModel) Icons.Outlined.Memory else Icons.Outlined.Cloud,
+                                imageVector = if (useLocalModel) Lucide.Cpu else Lucide.Cloud,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.padding(spacingSm),
@@ -358,7 +358,7 @@ fun DrawerModelApiConfigScreen(
                         label = stringResource(R.string.m3t_sidebar_api_hint),
                         placeholder = stringResource(R.string.settings_model_api_key_placeholder),
                         leadingIcon = {
-                            Icon(Icons.Outlined.Key, contentDescription = null)
+                            Icon(Lucide.KeyRound, contentDescription = null)
                         },
                     )
 
@@ -372,7 +372,7 @@ fun DrawerModelApiConfigScreen(
                             onClick = onPasteApi,
                             modifier = Modifier.weight(1f).height(compactButtonHeight),
                         ) {
-                            Icon(Icons.Outlined.ContentPaste, contentDescription = null)
+                            Icon(Lucide.Clipboard, contentDescription = null)
                             Spacer(modifier = Modifier.width(spacingSm))
                             Text(stringResource(R.string.m3t_sidebar_api_paste))
                         }
@@ -380,7 +380,7 @@ fun DrawerModelApiConfigScreen(
                             onClick = onOpenApiKeyPage,
                             modifier = Modifier.weight(1f).height(compactButtonHeight),
                         ) {
-                            Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null)
+                            Icon(Lucide.ExternalLink, contentDescription = null)
                             Spacer(modifier = Modifier.width(spacingSm))
                             Text(stringResource(R.string.settings_model_api_get_key_short))
                         }
@@ -411,14 +411,14 @@ fun DrawerModelApiConfigScreen(
                                 onValueChange = onApiBaseUrlChange,
                                 label = stringResource(R.string.drawer_api_base_url_label),
                                 placeholder = stringResource(R.string.drawer_api_base_url_hint),
-                                leadingIcon = { Icon(Icons.Outlined.Cloud, contentDescription = null) },
+                                leadingIcon = { Icon(Lucide.Cloud, contentDescription = null) },
                             )
                             FilledInputField(
                                 value = apiModel,
                                 onValueChange = onApiModelChange,
                                 label = stringResource(R.string.drawer_api_model_label),
                                 placeholder = stringResource(R.string.drawer_api_model_hint),
-                                leadingIcon = { Icon(Icons.Outlined.CheckCircle, contentDescription = null) },
+                                leadingIcon = { Icon(Lucide.CircleCheck, contentDescription = null) },
                             )
                         }
                     }
@@ -448,7 +448,7 @@ fun DrawerModelApiConfigScreen(
                         enabled = qwenButtonEnabled,
                         modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
                     ) {
-                        Icon(Icons.Outlined.Download, contentDescription = null)
+                        Icon(Lucide.Download, contentDescription = null)
                         Spacer(modifier = Modifier.width(spacingSm))
                         Text(qwenButtonText)
                     }
@@ -468,7 +468,7 @@ fun DrawerModelApiConfigScreen(
                         onClick = onCheckApi,
                         modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
                     ) {
-                        Icon(Icons.Outlined.Sync, contentDescription = null)
+                        Icon(Lucide.RotateCw, contentDescription = null)
                         Spacer(modifier = Modifier.width(spacingSm))
                         Text(stringResource(R.string.m3t_sidebar_check_connection))
                     }
@@ -647,7 +647,7 @@ private fun SettingsEntryRow(
             ) {
                 if (entry.type == SettingsEntryType.About) {
                     Icon(
-                        imageVector = Icons.Outlined.Info,
+                        imageVector = Lucide.Info,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(spacingSm),

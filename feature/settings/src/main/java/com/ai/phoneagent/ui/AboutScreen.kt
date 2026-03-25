@@ -16,18 +16,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.BugReport
-import androidx.compose.material.icons.outlined.Code
-import androidx.compose.material.icons.outlined.ContactMail
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material.icons.outlined.ListAlt
-import androidx.compose.material.icons.outlined.ManageHistory
-import androidx.compose.material.icons.outlined.Policy
-import androidx.compose.material.icons.outlined.Update
+import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.Bug
+import com.composables.icons.lucide.ChevronRight
+import com.composables.icons.lucide.Code
+import com.composables.icons.lucide.Globe
+import com.composables.icons.lucide.History
+import com.composables.icons.lucide.Info
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Mail
+import com.composables.icons.lucide.RefreshCw
+import com.composables.icons.lucide.ScrollText
+import com.composables.icons.lucide.Shield
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -81,7 +81,7 @@ fun AboutScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Lucide.ArrowLeft,
                             contentDescription = stringResource(R.string.about_back),
                         )
                     }
@@ -190,7 +190,7 @@ private fun AboutHeroCard(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Outlined.Info,
+                        imageVector = Lucide.Info,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(dimensionResource(DesignSystemR.dimen.m3t_spacing_xxl)),
@@ -267,7 +267,7 @@ private fun AboutActionsCard(
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(vertical = spacingSm)) {
             AboutActionRow(
-                icon = { Icon(Icons.Outlined.Update, contentDescription = null) },
+                icon = { Icon(Lucide.RefreshCw, contentDescription = null) },
                 title = checkUpdateButtonText,
                 supporting = stringResource(R.string.about_action_check_updates_desc),
                 onClick = onCheckUpdate,
@@ -275,7 +275,7 @@ private fun AboutActionsCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             AboutActionRow(
-                icon = { Icon(Icons.Outlined.ManageHistory, contentDescription = null) },
+                icon = { Icon(Lucide.History, contentDescription = null) },
                 title = stringResource(R.string.about_changelog),
                 supporting = stringResource(R.string.about_action_changelog_desc),
                 onClick = onOpenChangelog,
@@ -283,7 +283,7 @@ private fun AboutActionsCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             AboutActionRow(
-                icon = { Icon(Icons.Outlined.Code, contentDescription = null) },
+                icon = { Icon(Lucide.Code, contentDescription = null) },
                 title = stringResource(R.string.about_source_code),
                 supporting = stringResource(R.string.about_source_code_url),
                 onClick = onOpenSourceCode,
@@ -291,7 +291,7 @@ private fun AboutActionsCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             AboutActionRow(
-                icon = { Icon(Icons.Outlined.BugReport, contentDescription = null) },
+                icon = { Icon(Lucide.Bug, contentDescription = null) },
                 title = stringResource(R.string.about_feedback),
                 supporting = stringResource(R.string.about_feedback_desc),
                 onClick = onCopyContact,
@@ -299,7 +299,7 @@ private fun AboutActionsCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             AboutActionRow(
-                icon = { Icon(Icons.Outlined.Policy, contentDescription = null) },
+                icon = { Icon(Lucide.Shield, contentDescription = null) },
                 title = stringResource(R.string.user_agreement_title),
                 supporting = stringResource(R.string.about_action_policy_desc),
                 onClick = onOpenUserAgreement,
@@ -307,7 +307,7 @@ private fun AboutActionsCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             AboutActionRow(
-                icon = { Icon(Icons.Outlined.ListAlt, contentDescription = null) },
+                icon = { Icon(Lucide.ScrollText, contentDescription = null) },
                 title = stringResource(R.string.about_open_source_licenses),
                 supporting = stringResource(R.string.about_action_licenses_desc),
                 onClick = onOpenLicenses,
@@ -315,7 +315,7 @@ private fun AboutActionsCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             AboutActionRow(
-                icon = { Icon(Icons.Outlined.Language, contentDescription = null) },
+                icon = { Icon(Lucide.Globe, contentDescription = null) },
                 title = stringResource(R.string.about_website),
                 supporting = stringResource(R.string.about_website_domain),
                 onClick = onOpenWebsite,
@@ -323,7 +323,7 @@ private fun AboutActionsCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             AboutActionRow(
-                icon = { Icon(Icons.Outlined.ContactMail, contentDescription = null) },
+                icon = { Icon(Lucide.Mail, contentDescription = null) },
                 title = stringResource(R.string.about_contact_title),
                 supporting = stringResource(R.string.about_contact_subtitle),
                 onClick = onCopyContact,
@@ -383,7 +383,7 @@ private fun AboutActionRow(
         }
 
         Icon(
-            imageVector = Icons.Outlined.KeyboardArrowRight,
+            imageVector = Lucide.ChevronRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(dimensionResource(DesignSystemR.dimen.m3t_about_row_icon_size)),
