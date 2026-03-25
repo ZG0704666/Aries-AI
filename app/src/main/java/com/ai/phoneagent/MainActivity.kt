@@ -2507,173 +2507,148 @@ class MainActivity : AppCompatActivity() {
 
     @Composable
     private fun HomeInputBar() {
-        val isDarkMode = !resources.getBoolean(R.bool.m3t_light_system_bars)
-        val inputColorScheme =
-            if (isDarkMode) {
-                darkColorScheme(
-                    primary = colorResource(R.color.m3t_primary),
-                    onPrimary = colorResource(R.color.m3t_on_primary),
-                    surface = colorResource(R.color.m3t_surface),
-                    surfaceVariant = colorResource(R.color.m3t_surface_container),
-                    onSurface = colorResource(R.color.m3t_on_surface),
-                    onSurfaceVariant = colorResource(R.color.m3t_on_surface_variant),
-                    error = colorResource(R.color.m3t_error),
-                )
-            } else {
-                lightColorScheme(
-                    primary = colorResource(R.color.m3t_primary),
-                    onPrimary = colorResource(R.color.m3t_on_primary),
-                    surface = colorResource(R.color.m3t_surface),
-                    surfaceVariant = colorResource(R.color.m3t_surface_container),
-                    onSurface = colorResource(R.color.m3t_on_surface),
-                    onSurfaceVariant = colorResource(R.color.m3t_on_surface_variant),
-                    error = colorResource(R.color.m3t_error),
-                )
-            }
+        val text by remember { inputTextState }
+        val state by remember { inputBarState }
+        val amplitude by remember { voiceAmplitudeState }
+        val agentModeEnabled by remember { agentModeEnabledState }
+        val attachments by chatViewModel.attachments.collectAsState()
+        val attachmentSelectorVisible by chatViewModel.attachmentSelectorVisible.collectAsState()
 
-        MaterialTheme(colorScheme = inputColorScheme) {
-            val text by remember { inputTextState }
-            val state by remember { inputBarState }
-            val amplitude by remember { voiceAmplitudeState }
-            val agentModeEnabled by remember { agentModeEnabledState }
-            val attachments by chatViewModel.attachments.collectAsState()
-            val attachmentSelectorVisible by chatViewModel.attachmentSelectorVisible.collectAsState()
-
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    if (attachments.isNotEmpty()) {
-                        com.ai.phoneagent.ui.components.AttachmentPreviewList(
-                            attachments = attachments,
-                            attachmentManager = chatViewModel.getAttachmentManager(),
-                            onInsertReference = { attachment ->
-                                val reference = chatViewModel.createAttachmentReference(attachment)
-                                inputTextState.value = inputTextState.value + "\n" + reference
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                        )
-                    }
-
-                    InputBar(
-                        state = state,
-                        text = text,
-                        onTextChange = { inputTextState.value = it },
-                        onSend = {
-                            vibrateLight()
-                            if (state is InputState.Generating) {
-                                if (!shouldStopGeneration) {
-                                    shouldStopGeneration = true
-                                    runCatching { AutoGlmClient.cancelActiveStream() }
-                                    Toast.makeText(this@MainActivity, "已请求终止生成", Toast.LENGTH_SHORT).show()
-                                }
-                                return@InputBar
-                            }
-                            val t = inputTextState.value.trim()
-                            if (t.isNotBlank() || chatViewModel.attachments.value.isNotEmpty()) {
-                                hideKeyboard()
-                                if (agentModeEnabled) {
-                                    val dispatchResult =
-                                        ActivityAutomationInstructionGateway.dispatchManual(
-                                            context = this@MainActivity,
-                                            instruction = t,
-                                        )
-                                    if (dispatchResult.success) {
-                                        inputTextState.value = ""
-                                        chatViewModel.clearAttachments()
-                                        Toast.makeText(
-                                            this@MainActivity,
-                                            "Agent 模式已激活，任务已转交自动化",
-                                            Toast.LENGTH_SHORT,
-                                        ).show()
-                                    } else {
-                                        Toast.makeText(
-                                            this@MainActivity,
-                                            dispatchResult.message,
-                                            Toast.LENGTH_SHORT,
-                                        ).show()
-                                    }
-                                } else {
-                                    sendMessage(t)
-                                    inputTextState.value = ""
-                                    chatViewModel.clearAttachments()
-                                }
-                            } else {
-                                Toast.makeText(this@MainActivity, "请输入内容或添加附件", Toast.LENGTH_SHORT).show()
-                            }
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (attachments.isNotEmpty()) {
+                    com.ai.phoneagent.ui.components.AttachmentPreviewList(
+                        attachments = attachments,
+                        attachmentManager = chatViewModel.getAttachmentManager(),
+                        onInsertReference = { attachment ->
+                            val reference = chatViewModel.createAttachmentReference(attachment)
+                            inputTextState.value = inputTextState.value + "\n" + reference
                         },
-                        onVoiceStart = {
-                            vibrateLight()
-                            val sessionId = beginVoiceSession()
-                            ensureAudioPermission {
-                                if (!isVoiceSessionActive(sessionId)) return@ensureAudioPermission
-                                inputBarState.value = InputState.VoiceRecording()
-                                startLocalVoiceInput(sessionId)
-                            }
-                        },
-                        onVoiceEnd = {
-                            vibrateLight()
-                            val sessionId = activeVoiceSessionId
-                            inputBarState.value = InputState.Idle
-                            stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
-                        },
-                        onVoiceCancel = {
-                            vibrateLight()
-                            val sessionId = activeVoiceSessionId
-                            inputBarState.value = InputState.Idle
-                            stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
-                        },
-                        onAttachmentClick = {
-                            vibrateMedium()
-                            chatViewModel.toggleAttachmentSelector()
-                        },
-                        agentModeEnabled = agentModeEnabled,
-                        onAgentToggle = { enabled ->
-                            agentModeEnabledState.value = enabled
-                            Toast.makeText(
-                                this@MainActivity,
-                                if (enabled) "Agent 模式已激活" else "Agent 模式未激活",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        },
-                        onModelSelect = {
-                            Toast.makeText(this@MainActivity, "模型选择器已打开", Toast.LENGTH_SHORT).show()
-                        },
-                        onModeChange = { isVoice ->
-                            vibrateLight()
-                            val currentState = inputBarState.value
-                            if (currentState is InputState.VoiceRecording || currentState is InputState.VoiceRecognizing) {
-                                stopVoiceInputAnimation()
-                                if (inputTextState.value.startsWith("正在语音输入")) {
-                                    inputTextState.value = savedInputText
-                                }
-                                val sessionId = activeVoiceSessionId
-                                stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
-                            }
-                            inputBarState.value = if (isVoice) InputState.VoiceIdle else InputState.Idle
-                            if (isVoice) {
-                                hideKeyboard()
-                            }
-                        },
-                        voiceAmplitude = amplitude,
-                        onUpdateCancelState = { isCancelling ->
-                            val current = inputBarState.value
-                            if (current is InputState.VoiceRecording) {
-                                if (current.isCancelling != isCancelling) {
-                                    inputBarState.value = current.copy(isCancelling = isCancelling)
-                                    vibrateLight()
-                                }
-                            }
-                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                     )
                 }
 
-                com.ai.phoneagent.ui.components.AttachmentSelectorPanel(
-                    visible = attachmentSelectorVisible,
-                    attachmentManager = chatViewModel.getAttachmentManager(),
-                    onDismiss = { chatViewModel.hideAttachmentSelector() },
+                InputBar(
+                    state = state,
+                    text = text,
+                    onTextChange = { inputTextState.value = it },
+                    onSend = {
+                        vibrateLight()
+                        if (state is InputState.Generating) {
+                            if (!shouldStopGeneration) {
+                                shouldStopGeneration = true
+                                runCatching { AutoGlmClient.cancelActiveStream() }
+                                Toast.makeText(this@MainActivity, "已请求终止生成", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            return@InputBar
+                        }
+                        val t = inputTextState.value.trim()
+                        if (t.isNotBlank() || chatViewModel.attachments.value.isNotEmpty()) {
+                            hideKeyboard()
+                            if (agentModeEnabled) {
+                                val dispatchResult =
+                                    ActivityAutomationInstructionGateway.dispatchManual(
+                                        context = this@MainActivity,
+                                        instruction = t,
+                                    )
+                                if (dispatchResult.success) {
+                                    inputTextState.value = ""
+                                    chatViewModel.clearAttachments()
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "Agent 模式已激活，任务已转交自动化",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                } else {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        dispatchResult.message,
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                            } else {
+                                sendMessage(t)
+                                inputTextState.value = ""
+                                chatViewModel.clearAttachments()
+                            }
+                        } else {
+                            Toast.makeText(this@MainActivity, "请输入内容或添加附件", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onVoiceStart = {
+                        vibrateLight()
+                        val sessionId = beginVoiceSession()
+                        ensureAudioPermission {
+                            if (!isVoiceSessionActive(sessionId)) return@ensureAudioPermission
+                            inputBarState.value = InputState.VoiceRecording()
+                            startLocalVoiceInput(sessionId)
+                        }
+                    },
+                    onVoiceEnd = {
+                        vibrateLight()
+                        val sessionId = activeVoiceSessionId
+                        inputBarState.value = InputState.Idle
+                        stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
+                    },
+                    onVoiceCancel = {
+                        vibrateLight()
+                        val sessionId = activeVoiceSessionId
+                        inputBarState.value = InputState.Idle
+                        stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
+                    },
+                    onAttachmentClick = {
+                        vibrateMedium()
+                        chatViewModel.toggleAttachmentSelector()
+                    },
+                    agentModeEnabled = agentModeEnabled,
+                    onAgentToggle = { enabled ->
+                        agentModeEnabledState.value = enabled
+                        Toast.makeText(
+                            this@MainActivity,
+                            if (enabled) "Agent 模式已激活" else "Agent 模式未激活",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    },
+                    onModelSelect = {
+                        Toast.makeText(this@MainActivity, "模型选择器已打开", Toast.LENGTH_SHORT).show()
+                    },
+                    onModeChange = { isVoice ->
+                        vibrateLight()
+                        val currentState = inputBarState.value
+                        if (currentState is InputState.VoiceRecording || currentState is InputState.VoiceRecognizing) {
+                            stopVoiceInputAnimation()
+                            if (inputTextState.value.startsWith("正在语音输入")) {
+                                inputTextState.value = savedInputText
+                            }
+                            val sessionId = activeVoiceSessionId
+                            stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
+                        }
+                        inputBarState.value = if (isVoice) InputState.VoiceIdle else InputState.Idle
+                        if (isVoice) {
+                            hideKeyboard()
+                        }
+                    },
+                    voiceAmplitude = amplitude,
+                    onUpdateCancelState = { isCancelling ->
+                        val current = inputBarState.value
+                        if (current is InputState.VoiceRecording) {
+                            if (current.isCancelling != isCancelling) {
+                                inputBarState.value = current.copy(isCancelling = isCancelling)
+                                vibrateLight()
+                            }
+                        }
+                    },
                 )
             }
+
+            com.ai.phoneagent.ui.components.AttachmentSelectorPanel(
+                visible = attachmentSelectorVisible,
+                attachmentManager = chatViewModel.getAttachmentManager(),
+                onDismiss = { chatViewModel.hideAttachmentSelector() },
+            )
         }
     }
 
