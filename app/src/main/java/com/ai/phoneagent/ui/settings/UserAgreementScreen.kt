@@ -8,7 +8,6 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,7 +55,6 @@ fun UserAgreementScreen(navController: NavController) {
                     TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background,
                     ),
-                modifier = Modifier.statusBarsPadding(),
             )
         },
     ) { innerPadding ->

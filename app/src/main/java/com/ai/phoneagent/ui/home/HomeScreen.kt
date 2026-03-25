@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -27,9 +29,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import com.ai.phoneagent.R
@@ -80,6 +88,9 @@ fun HomeScreen(
     val dialogPadding = dimensionResource(R.dimen.m3t_dialog_padding)
     val spacingXxxs = dimensionResource(R.dimen.m3t_spacing_xxxs)
     val scrollState = rememberScrollState()
+    val density = LocalDensity.current
+    var bottomOverlayHeightPx by remember { mutableIntStateOf(0) }
+    val bottomOverlayPadding = with(density) { bottomOverlayHeightPx.toDp() }
 
     LaunchedEffect(scrollToBottomSignal) {
         if (scrollToBottomSignal > 0L) {
@@ -175,12 +186,15 @@ fun HomeScreen(
                                 onEditMessage = onEditMessage,
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(bottomOverlayPadding))
                     }
 
                     Column(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
+                            .onSizeChanged { bottomOverlayHeightPx = it.height }
                             .padding(bottom = spacingXxxs),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {

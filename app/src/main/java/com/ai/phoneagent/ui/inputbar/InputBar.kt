@@ -74,7 +74,11 @@ fun InputBar(
     val isVoiceMode = state is InputState.VoiceIdle || showVoiceOverlay
     val isGenerating = state is InputState.Generating
 
-    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth(),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
         // 语音输入时的波形显示区域 - 直接嵌入在输入栏上方，不遮挡全屏
         AnimatedVisibility(
             visible = showVoiceOverlay,
