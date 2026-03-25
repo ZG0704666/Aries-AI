@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,8 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
@@ -29,7 +28,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -43,10 +44,10 @@ import androidx.compose.ui.res.dimensionResource
 import com.ai.phoneagent.R
 import com.ai.phoneagent.ui.drawer.ConversationDrawer
 import com.ai.phoneagent.ui.drawer.DrawerConversationUiItem
-import com.ai.phoneagent.ui.messages.ConversationTranscript
 import com.ai.phoneagent.ui.messages.TranscriptMessageUi
+import com.ai.phoneagent.ui.messages.conversationTranscriptItems
 import com.ai.phoneagent.ui.topbar.MainTopBar
-import kotlinx.coroutines.launch
+import kotlinx.collections.immutable.toImmutableList
 
 @Composable
 fun HomeScreen(
@@ -82,21 +83,48 @@ fun HomeScreen(
     onDrawerClosed: () -> Unit = {},
 ) {
     val drawerWidth = dimensionResource(R.dimen.m3t_drawer_width)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
     val dialogPadding = dimensionResource(R.dimen.m3t_dialog_padding)
     val spacingXxxs = dimensionResource(R.dimen.m3t_spacing_xxxs)
-    val scrollState = rememberScrollState()
     val density = LocalDensity.current
     var bottomOverlayHeightPx by remember { mutableIntStateOf(0) }
     val bottomOverlayPadding = with(density) { bottomOverlayHeightPx.toDp() }
+    val transcriptConversationId = remember(transcriptItems, transcriptAnimationKey) {
+        transcriptItems.lastOrNull()?.conversationId ?: transcriptAnimationKey
+    }
+    val lazyListState = key(transcriptConversationId) { rememberLazyListState() }
+    val isAtBottom by remember(lazyListState) {
+        derivedStateOf {
+            lazyListState.firstVisibleItemIndex == 0 && lazyListState.firstVisibleItemScrollOffset < 50
+        }
+    }
+    val lazyTranscriptItems = remember(transcriptItems) {
+        transcriptItems.asReversed().toImmutableList()
+    }
 
-    LaunchedEffect(scrollToBottomSignal) {
-        if (scrollToBottomSignal > 0L) {
-            launch {
-                scrollState.animateScrollTo(scrollState.maxValue)
-            }
+    LaunchedEffect(transcriptConversationId) {
+        lazyListState.scrollToItem(0)
+    }
+
+    LaunchedEffect(scrollToBottomSignal, transcriptConversationId, isAtBottom) {
+        if (scrollToBottomSignal > 0L && isAtBottom) {
+            lazyListState.animateScrollToItem(0)
+        }
+    }
+
+    LaunchedEffect(
+        transcriptConversationId,
+        transcriptItems.size,
+        transcriptItems.lastOrNull()?.id,
+        transcriptItems.lastOrNull()?.isStreaming,
+        transcriptItems.lastOrNull()?.body?.length,
+        isAtBottom,
+    ) {
+        if (isAtBottom &&
+            (lazyListState.firstVisibleItemIndex > 0 || lazyListState.firstVisibleItemScrollOffset > 0)
+        ) {
+            lazyListState.animateScrollToItem(0)
         }
     }
 
@@ -162,23 +190,28 @@ fun HomeScreen(
                         .padding(paddingValues)
                         .imePadding(),
                 ) {
-                    Column(
+                    AnimatedContent(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = spacingMd)
-                            .padding(top = spacingXxxs)
-                            .verticalScroll(scrollState),
-                        verticalArrangement = Arrangement.spacedBy(spacingXxxs),
+                            .padding(top = spacingXxxs),
+                        targetState = transcriptAnimationKey,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(160))
+                        },
+                        label = "conversationSwitch",
                     ) {
-                        AnimatedContent(
-                            targetState = transcriptAnimationKey,
-                            transitionSpec = {
-                                fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(160))
-                            },
-                            label = "conversationSwitch",
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            state = lazyListState,
+                            reverseLayout = true,
                         ) {
-                            ConversationTranscript(
-                                items = transcriptItems,
+                            item(key = "bottom_overlay_spacer", contentType = "bottom_spacer") {
+                                Spacer(modifier = Modifier.height(bottomOverlayPadding))
+                            }
+
+                            conversationTranscriptItems(
+                                items = lazyTranscriptItems,
                                 onCopyMessage = onCopyMessage,
                                 onRetryMessage = onRetryMessage,
                                 onAutomationAction = onAutomationAction,
@@ -186,8 +219,6 @@ fun HomeScreen(
                                 onEditMessage = onEditMessage,
                             )
                         }
-
-                        Spacer(modifier = Modifier.height(bottomOverlayPadding))
                     }
 
                     Column(
