@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import com.ai.phoneagent.core.designsystem.R
 
 /**
@@ -28,6 +29,7 @@ import com.ai.phoneagent.core.designsystem.R
  * @param amoledDark   When true and dark is active, forces pure-black backgrounds.
  * @param dynamicColor When true (Android 12+), uses Material You dynamic color.
  * @param fontScale    Multiplier applied to all Material 3 type-scale font sizes.
+ * @param fontFamily   Font family applied to all Material 3 text styles.
  * @param content      Composable content within this theme.
  */
 @Composable
@@ -36,6 +38,7 @@ fun AriesMaterialTheme(
     amoledDark: Boolean = false,
     dynamicColor: Boolean = true,
     fontScale: Float = 1.0f,
+    fontFamily: FontFamily = FontFamily.Default,
     content: @Composable () -> Unit,
 ) {
     // 1. Resolve dark/light from themeMode
@@ -130,29 +133,26 @@ fun AriesMaterialTheme(
             extraLarge = RoundedCornerShape(dimensionResource(R.dimen.m3t_radius_xl)),
         )
 
-    // 4. Font scale: multiply all M3 type-scale TextStyle fontSizes
+    // 4. Font scale + font family: update all M3 type-scale TextStyles
     val baseTypography = Typography()
-    val typography: Typography = if (fontScale == 1.0f) {
-        baseTypography
-    } else {
+    val typography: Typography =
         Typography(
-            displayLarge = baseTypography.displayLarge.scaledBy(fontScale),
-            displayMedium = baseTypography.displayMedium.scaledBy(fontScale),
-            displaySmall = baseTypography.displaySmall.scaledBy(fontScale),
-            headlineLarge = baseTypography.headlineLarge.scaledBy(fontScale),
-            headlineMedium = baseTypography.headlineMedium.scaledBy(fontScale),
-            headlineSmall = baseTypography.headlineSmall.scaledBy(fontScale),
-            titleLarge = baseTypography.titleLarge.scaledBy(fontScale),
-            titleMedium = baseTypography.titleMedium.scaledBy(fontScale),
-            titleSmall = baseTypography.titleSmall.scaledBy(fontScale),
-            bodyLarge = baseTypography.bodyLarge.scaledBy(fontScale),
-            bodyMedium = baseTypography.bodyMedium.scaledBy(fontScale),
-            bodySmall = baseTypography.bodySmall.scaledBy(fontScale),
-            labelLarge = baseTypography.labelLarge.scaledBy(fontScale),
-            labelMedium = baseTypography.labelMedium.scaledBy(fontScale),
-            labelSmall = baseTypography.labelSmall.scaledBy(fontScale),
+            displayLarge = baseTypography.displayLarge.scaledBy(fontScale).withFontFamily(fontFamily),
+            displayMedium = baseTypography.displayMedium.scaledBy(fontScale).withFontFamily(fontFamily),
+            displaySmall = baseTypography.displaySmall.scaledBy(fontScale).withFontFamily(fontFamily),
+            headlineLarge = baseTypography.headlineLarge.scaledBy(fontScale).withFontFamily(fontFamily),
+            headlineMedium = baseTypography.headlineMedium.scaledBy(fontScale).withFontFamily(fontFamily),
+            headlineSmall = baseTypography.headlineSmall.scaledBy(fontScale).withFontFamily(fontFamily),
+            titleLarge = baseTypography.titleLarge.scaledBy(fontScale).withFontFamily(fontFamily),
+            titleMedium = baseTypography.titleMedium.scaledBy(fontScale).withFontFamily(fontFamily),
+            titleSmall = baseTypography.titleSmall.scaledBy(fontScale).withFontFamily(fontFamily),
+            bodyLarge = baseTypography.bodyLarge.scaledBy(fontScale).withFontFamily(fontFamily),
+            bodyMedium = baseTypography.bodyMedium.scaledBy(fontScale).withFontFamily(fontFamily),
+            bodySmall = baseTypography.bodySmall.scaledBy(fontScale).withFontFamily(fontFamily),
+            labelLarge = baseTypography.labelLarge.scaledBy(fontScale).withFontFamily(fontFamily),
+            labelMedium = baseTypography.labelMedium.scaledBy(fontScale).withFontFamily(fontFamily),
+            labelSmall = baseTypography.labelSmall.scaledBy(fontScale).withFontFamily(fontFamily),
         )
-    }
 
     MaterialTheme(
         colorScheme = colorScheme,
@@ -164,3 +164,6 @@ fun AriesMaterialTheme(
 
 private fun TextStyle.scaledBy(factor: Float): TextStyle =
     copy(fontSize = fontSize * factor)
+
+private fun TextStyle.withFontFamily(fontFamily: FontFamily): TextStyle =
+    copy(fontFamily = fontFamily)

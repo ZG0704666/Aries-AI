@@ -44,6 +44,7 @@ import androidx.compose.ui.res.dimensionResource
 import com.ai.phoneagent.R
 import com.ai.phoneagent.ui.drawer.ConversationDrawer
 import com.ai.phoneagent.ui.drawer.DrawerConversationUiItem
+import com.ai.phoneagent.ui.messages.CodeBlockPrefs
 import com.ai.phoneagent.ui.messages.TranscriptMessageUi
 import com.ai.phoneagent.ui.messages.conversationTranscriptItems
 import com.ai.phoneagent.ui.topbar.MainTopBar
@@ -69,6 +70,7 @@ fun HomeScreen(
     transcriptItems: List<TranscriptMessageUi>,
     transcriptAnimationKey: Long,
     thinkingExpandedByDefault: Boolean,
+    codeBlockPrefs: CodeBlockPrefs = CodeBlockPrefs(),
     onCopyMessage: (TranscriptMessageUi) -> Unit,
     onRetryMessage: (TranscriptMessageUi) -> Unit,
     onEditMessage: (TranscriptMessageUi) -> Unit,
@@ -217,6 +219,7 @@ fun HomeScreen(
                                 onAutomationAction = onAutomationAction,
                                 thinkingExpandedByDefault = thinkingExpandedByDefault,
                                 onEditMessage = onEditMessage,
+                                codeBlockPrefs = codeBlockPrefs,
                             )
                         }
                     }

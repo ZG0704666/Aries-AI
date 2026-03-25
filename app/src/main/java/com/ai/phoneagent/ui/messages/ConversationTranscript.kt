@@ -50,8 +50,10 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -80,6 +82,28 @@ import kotlinx.collections.immutable.toImmutableList
 private val DESC_DO_REGEX = Regex("""desc\s*=\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
 private val DESC_JSON_REGEX = Regex("""\"desc\"\s*:\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
 private val DESCRIPTION_JSON_REGEX = Regex("""\"description\"\s*:\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
+private val FENCED_CODE_BLOCK_REGEX = Regex("(?s)```([\\w+-]*)\\n(.*?)```")
+private const val CODE_BLOCK_COLLAPSE_LINE_THRESHOLD = 10
+
+@Immutable
+data class CodeBlockPrefs(
+    val autoWrap: Boolean = true,
+    val lineNumbers: Boolean = false,
+    val autoCollapse: Boolean = false,
+)
+
+val LocalCodeBlockPrefs = compositionLocalOf { CodeBlockPrefs() }
+
+private sealed interface MessageBodySegment {
+    data class MarkdownText(
+        val content: String,
+    ) : MessageBodySegment
+
+    data class CodeFence(
+        val language: String?,
+        val content: String,
+    ) : MessageBodySegment
+}
 
 @Immutable
 data class TranscriptMessageUi(
@@ -118,6 +142,7 @@ fun LazyListScope.conversationTranscriptItems(
     onAutomationAction: (TranscriptMessageUi) -> Unit,
     thinkingExpandedByDefault: Boolean,
     onEditMessage: (TranscriptMessageUi) -> Unit = {},
+    codeBlockPrefs: CodeBlockPrefs = CodeBlockPrefs(),
 ) {
     if (items.isEmpty()) {
         item(key = "transcript_empty_hint", contentType = "empty_hint") {
@@ -182,13 +207,15 @@ fun LazyListScope.conversationTranscriptItems(
                     onEditMessage = onEditMessage,
                 )
             } else {
-                AssistantMessageBlock(
-                    item = item,
-                    thinkingExpandedByDefault = thinkingExpandedByDefault,
-                    onCopyMessage = onCopyMessage,
-                    onRetryMessage = onRetryMessage,
-                    onAutomationAction = onAutomationAction,
-                )
+                CompositionLocalProvider(LocalCodeBlockPrefs provides codeBlockPrefs) {
+                    AssistantMessageBlock(
+                        item = item,
+                        thinkingExpandedByDefault = thinkingExpandedByDefault,
+                        onCopyMessage = onCopyMessage,
+                        onRetryMessage = onRetryMessage,
+                        onAutomationAction = onAutomationAction,
+                    )
+                }
             }
         }
     }
@@ -376,6 +403,7 @@ private fun AssistantMessageBlock(
     val actionGap = dimensionResource(R.dimen.m3t_message_action_gap)
     val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
+    val codeBlockPrefs = LocalCodeBlockPrefs.current
 
     Column(
         modifier = Modifier
@@ -423,18 +451,39 @@ private fun AssistantMessageBlock(
                 onAutomationAction = onAutomationAction,
             )
         } else if (item.body.isNotBlank()) {
+            val bodySegments = remember(item.body) { parseMessageBodySegments(item.body) }
             Surface(
                 shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = if (item.isStreaming) 2.dp else 1.dp,
             ) {
-                SelectionContainer {
-                    Markdown(
-                        content = item.body,
-                        colors = markdownColor(),
-                        typography = markdownTypography(),
-                        modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingMd),
-                    )
+                Column(
+                    modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingMd),
+                    verticalArrangement = Arrangement.spacedBy(spacingSm),
+                ) {
+                    bodySegments.forEachIndexed { index, segment ->
+                        when (segment) {
+                            is MessageBodySegment.MarkdownText -> {
+                                SelectionContainer {
+                                    Markdown(
+                                        content = segment.content,
+                                        colors = markdownColor(),
+                                        typography = markdownTypography(),
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                            }
+
+                            is MessageBodySegment.CodeFence -> {
+                                CodeBlockSegment(
+                                    language = segment.language,
+                                    code = segment.content,
+                                    blockKey = "${item.id}-code-$index",
+                                    prefs = codeBlockPrefs,
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -473,6 +522,130 @@ private fun AssistantMessageBlock(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+private fun parseMessageBodySegments(content: String): List<MessageBodySegment> {
+    val segments = mutableListOf<MessageBodySegment>()
+    var cursor = 0
+
+    FENCED_CODE_BLOCK_REGEX.findAll(content).forEach { match ->
+        val start = match.range.first
+        if (start > cursor) {
+            val markdown = content.substring(cursor, start)
+            if (markdown.isNotBlank()) {
+                segments += MessageBodySegment.MarkdownText(markdown)
+            }
+        }
+
+        val language = match.groupValues[1].trim().ifBlank { null }
+        val code = match.groupValues[2].trimEnd('\n', '\r')
+        segments += MessageBodySegment.CodeFence(language = language, content = code)
+        cursor = match.range.last + 1
+    }
+
+    if (cursor < content.length) {
+        val markdownTail = content.substring(cursor)
+        if (markdownTail.isNotBlank()) {
+            segments += MessageBodySegment.MarkdownText(markdownTail)
+        }
+    }
+
+    return if (segments.isEmpty()) {
+        listOf(MessageBodySegment.MarkdownText(content))
+    } else {
+        segments
+    }
+}
+
+@Composable
+private fun CodeBlockSegment(
+    language: String?,
+    code: String,
+    blockKey: String,
+    prefs: CodeBlockPrefs,
+) {
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val lines = remember(code) { if (code.isEmpty()) listOf("") else code.split('\n') }
+    val lineNumberWidth = remember(lines.size) { lines.size.toString().length }
+    val canCollapse = prefs.autoCollapse && lines.size > CODE_BLOCK_COLLAPSE_LINE_THRESHOLD
+    var expanded by rememberSaveable(blockKey, prefs.autoCollapse, code) {
+        mutableStateOf(!canCollapse)
+    }
+    val visibleLines = if (expanded) lines else lines.take(CODE_BLOCK_COLLAPSE_LINE_THRESHOLD)
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(spacingXs),
+    ) {
+        SelectionContainer {
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacingSm, vertical = spacingSm),
+                    verticalArrangement = Arrangement.spacedBy(spacingXs),
+                ) {
+                    if (!language.isNullOrBlank()) {
+                        Text(
+                            text = language,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    visibleLines.forEachIndexed { index, line ->
+                        if (prefs.lineNumbers) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(spacingSm),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Text(
+                                    text = (index + 1).toString().padStart(lineNumberWidth, ' ') + "|",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    text = line.ifEmpty { " " },
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    softWrap = prefs.autoWrap,
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = line.ifEmpty { " " },
+                                modifier = Modifier.fillMaxWidth(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                softWrap = prefs.autoWrap,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (canCollapse) {
+            Button(
+                onClick = { expanded = !expanded },
+                colors = ButtonDefaults.filledTonalButtonColors(),
+            ) {
+                Text(
+                    text =
+                        if (expanded) {
+                            stringResource(R.string.automation_scene_collapse)
+                        } else {
+                            stringResource(R.string.automation_scene_expand)
+                        },
+                )
             }
         }
     }

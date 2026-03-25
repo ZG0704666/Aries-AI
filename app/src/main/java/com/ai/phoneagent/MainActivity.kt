@@ -156,6 +156,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.activity.result.ActivityResultLauncher
@@ -169,8 +170,8 @@ import com.ai.phoneagent.data.local.StoredMessageRecord
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
 import com.ai.phoneagent.data.preferences.MainUiPreferencesRepository
-import com.ai.phoneagent.data.preferences.ThemeMode
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
+import com.ai.phoneagent.core.designsystem.theme.ThemeMode
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import com.ai.phoneagent.ui.drawer.ConversationDrawer
@@ -179,6 +180,7 @@ import com.ai.phoneagent.ui.history.ConversationHistoryDialog
 import com.ai.phoneagent.ui.history.ConversationHistoryItemUi
 import com.ai.phoneagent.ui.messages.TranscriptAutomationUi
 import com.ai.phoneagent.ui.messages.TranscriptMessageUi
+import com.ai.phoneagent.ui.messages.CodeBlockPrefs
 import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.ui.topbar.MainTopBar
 import com.ai.phoneagent.navigation.AriesNavGraph
@@ -675,18 +677,36 @@ class MainActivity : AppCompatActivity() {
             val amoledDark by appPrefsRepository.amoledDarkEnabledFlow.collectAsState(initial = false)
             val dynamicColor by appPrefsRepository.dynamicColorEnabledFlow.collectAsState(initial = true)
             val fontScale by appPrefsRepository.chatFontScaleFlow.collectAsState(initial = 1.0f)
+            val fontFamilyRaw by appPrefsRepository.chatFontFamilyFlow.collectAsState(initial = "default")
+            val codeAutoWrap by appPrefsRepository.codeAutoWrapFlow.collectAsState(initial = true)
+            val codeLineNumbers by appPrefsRepository.codeLineNumbersFlow.collectAsState(initial = false)
+            val codeAutoCollapse by appPrefsRepository.codeAutoCollapseFlow.collectAsState(initial = false)
 
             val themeMode = when (themeModeStr.lowercase()) {
                 "light" -> ThemeMode.LIGHT
                 "dark" -> ThemeMode.DARK
                 else -> ThemeMode.SYSTEM
             }
+            val resolvedFontFamily =
+                when (fontFamilyRaw.lowercase()) {
+                    "sans_serif" -> FontFamily.SansSerif
+                    "serif" -> FontFamily.Serif
+                    "monospace" -> FontFamily.Monospace
+                    else -> FontFamily.Default
+                }
+            val codeBlockPrefs =
+                CodeBlockPrefs(
+                    autoWrap = codeAutoWrap,
+                    lineNumbers = codeLineNumbers,
+                    autoCollapse = codeAutoCollapse,
+                )
 
             AriesMaterialTheme(
                 themeMode = themeMode,
                 amoledDark = amoledDark,
                 dynamicColor = dynamicColor,
                 fontScale = fontScale,
+                fontFamily = resolvedFontFamily,
             ) {
                 val navController = rememberNavController()
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -774,6 +794,7 @@ class MainActivity : AppCompatActivity() {
                                 },
                             transcriptAnimationKey = transcriptAnimationKeyState.value,
                             thinkingExpandedByDefault = thinkingExpandedByDefaultState.value,
+                            codeBlockPrefs = codeBlockPrefs,
                             onCopyMessage = { item -> copyTranscriptMessage(item.copyText) },
                             onRetryMessage = { item ->
                                 val retryText = item.retryText.orEmpty()
