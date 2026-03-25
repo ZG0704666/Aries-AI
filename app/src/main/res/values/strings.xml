@@ -318,4 +318,27 @@
     <string name="top_bar_floating_window">打开悬浮窗</string>
     <string name="message_thinking_duration_format">思考了 %1$.1f 秒</string>
     <string name="message_thinking_in_progress">思考中</string>
+
+    <!-- Appearance Settings -->
+    <string name="settings_appearance_title">外观</string>
+    <string name="settings_appearance_theme_mode">主题模式</string>
+    <string name="settings_appearance_theme_system">跟随系统</string>
+    <string name="settings_appearance_theme_light">亮色</string>
+    <string name="settings_appearance_theme_dark">暗色</string>
+    <string name="settings_appearance_amoled">AMOLED 纯黑</string>
+    <string name="settings_appearance_dynamic_color">动态取色</string>
+    <string name="settings_appearance_font_size">聊天字体大小</string>
+    <string name="settings_appearance_font_size_small">小</string>
+    <string name="settings_appearance_font_size_default">默认</string>
+    <string name="settings_appearance_font_size_large">大</string>
+    <string name="settings_appearance_font_size_xlarge">超大</string>
+    <string name="settings_appearance_font_family">字体</string>
+    <string name="settings_appearance_font_default">默认</string>
+    <string name="settings_appearance_font_sans_serif">无衬线</string>
+    <string name="settings_appearance_font_serif">衬线</string>
+    <string name="settings_appearance_font_monospace">等宽</string>
+    <string name="settings_appearance_code_section">代码块</string>
+    <string name="settings_appearance_code_auto_wrap">自动换行</string>
+    <string name="settings_appearance_code_line_numbers">显示行号</string>
+    <string name="settings_appearance_code_auto_collapse">自动折叠</string>
 </resources>
