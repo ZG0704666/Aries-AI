@@ -1,5 +1,6 @@
 package com.ai.phoneagent.ui.settings
 
+import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -71,7 +72,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import com.ai.phoneagent.R
+import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
+import com.ai.phoneagent.core.designsystem.theme.AriesSettingsNavigationItem
+import com.ai.phoneagent.core.designsystem.theme.AriesSettingsSectionHeader
+import com.ai.phoneagent.core.designsystem.theme.ThemeMode
 import com.ai.phoneagent.ui.components.InfoTooltip
 
 private enum class SettingsEntryType {
@@ -164,14 +170,15 @@ fun DrawerSettingsScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
                     .navigationBarsPadding(),
-            contentPadding = PaddingValues(start = spacingLg, top = spacingSm, end = spacingLg, bottom = spacingXl),
-            verticalArrangement = Arrangement.spacedBy(spacingSm),
+            contentPadding = PaddingValues(top = spacingSm, bottom = spacingXl),
         ) {
             item {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacingLg, vertical = spacingSm),
                     singleLine = true,
                     leadingIcon = {
                         Icon(
@@ -184,18 +191,49 @@ fun DrawerSettingsScreen(
                 )
             }
 
-            items(filteredEntries, key = { it.type.name }) { entry ->
-                SettingsEntryRow(
-                    entry = entry,
-                    onClick = {
-                        when (entry.type) {
-                            SettingsEntryType.Appearance -> onOpenAppearance()
-                            SettingsEntryType.ModelApi -> onOpenModelApi()
-                            SettingsEntryType.Automation -> onOpenAutomation()
-                            SettingsEntryType.About -> onOpenAbout()
+            val groupedEntries = filteredEntries.groupBy {
+                when (it.type) {
+                    SettingsEntryType.Appearance -> "界面"
+                    SettingsEntryType.ModelApi, SettingsEntryType.Automation -> "AI 设置"
+                    SettingsEntryType.About -> "关于"
+                }
+            }
+
+            groupedEntries.forEach { (header, groupEntries) ->
+                if (searchQuery.isBlank()) {
+                    item(key = "header_$header") {
+                        AriesSettingsSectionHeader(title = header)
+                    }
+                }
+                items(groupEntries, key = { it.type.name }) { entry ->
+                    AriesSettingsNavigationItem(
+                        headlineText = entry.title,
+                        supportingText = entry.subtitle,
+                        onClick = {
+                            when (entry.type) {
+                                SettingsEntryType.Appearance -> onOpenAppearance()
+                                SettingsEntryType.ModelApi -> onOpenModelApi()
+                                SettingsEntryType.Automation -> onOpenAutomation()
+                                SettingsEntryType.About -> onOpenAbout()
+                            }
+                        },
+                        leadingIcon = {
+                            if (entry.type == SettingsEntryType.About) {
+                                Icon(
+                                    imageVector = Lucide.Info,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            } else {
+                                Icon(
+                                    painter = painterResource(resolveEntryIcon(entry.type)),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
-                    },
-                )
+                    )
+                }
             }
 
             if (filteredEntries.isEmpty()) {
@@ -204,7 +242,7 @@ fun DrawerSettingsScreen(
                         text = stringResource(R.string.settings_search_empty),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = spacingMd),
+                        modifier = Modifier.padding(horizontal = spacingLg, vertical = spacingMd),
                     )
                 }
             }
@@ -635,101 +673,6 @@ private fun DetailSwitchRow(
     }
 }
 
-@Composable
-private fun SettingsEntryRow(
-    entry: SettingsEntryUi,
-    onClick: () -> Unit,
-) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val iconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.large,
-        tonalElevation = 1.dp,
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onClick)
-                    .padding(horizontal = spacingMd, vertical = spacingMd),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacingMd),
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-            ) {
-                if (entry.type == SettingsEntryType.About) {
-                    Icon(
-                        imageVector = Lucide.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(spacingSm),
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(resolveEntryIcon(entry.type)),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(spacingSm),
-                    )
-                }
-            }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(spacingSm),
-            ) {
-                Text(
-                    text = entry.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = entry.subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            Icon(
-                painter = painterResource(R.drawable.ic_arrow_back_24),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(iconSize).graphicsLayer { rotationZ = 180f },
-            )
-        }
-    }
-}
-
-@Composable
-private fun SwitchRow(
-    title: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-        Spacer(modifier = Modifier.width(dimensionResource(R.dimen.m3t_spacing_sm)))
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-}
-
 private fun resolveEntryIcon(type: SettingsEntryType): Int =
     when (type) {
         SettingsEntryType.Appearance -> R.drawable.palette_24px
@@ -737,3 +680,31 @@ private fun resolveEntryIcon(type: SettingsEntryType): Int =
         SettingsEntryType.Automation -> R.drawable.ic_settings_24
         SettingsEntryType.About -> R.drawable.ic_settings_24
     }
+
+@Preview(name = "DrawerSettingsScreen - Light", showBackground = true)
+@Composable
+private fun DrawerSettingsScreenLightPreview() {
+    AriesMaterialTheme(themeMode = ThemeMode.LIGHT) {
+        DrawerSettingsScreen(
+            onBack = {},
+            onOpenAppearance = {},
+            onOpenModelApi = {},
+            onOpenAutomation = {},
+            onOpenAbout = {},
+        )
+    }
+}
+
+@Preview(name = "DrawerSettingsScreen - Dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun DrawerSettingsScreenDarkPreview() {
+    AriesMaterialTheme(themeMode = ThemeMode.DARK) {
+        DrawerSettingsScreen(
+            onBack = {},
+            onOpenAppearance = {},
+            onOpenModelApi = {},
+            onOpenAutomation = {},
+            onOpenAbout = {},
+        )
+    }
+}
