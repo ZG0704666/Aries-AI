@@ -17,8 +17,9 @@
  */
 package com.ai.phoneagent.di
 
-import com.ai.phoneagent.viewmodel.ChatViewModel
+import com.ai.phoneagent.viewmodel.AppearanceViewModel
 import com.ai.phoneagent.viewmodel.AutomationViewModel
+import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.viewmodel.SettingsViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
@@ -38,6 +39,7 @@ val uiModule = module {
     viewModel { ChatViewModel(get()) }
     viewModel { AutomationViewModel(get(), get(), get()) }
     viewModel { SettingsViewModel(get(), get()) }
+    viewModel { AppearanceViewModel(get(), get()) }
     viewModel { com.ai.phoneagent.viewmodel.AboutViewModel(get(), com.ai.phoneagent.updates.ReleaseRepository()) }
     viewModel { com.ai.phoneagent.viewmodel.UpdateHistoryViewModel(get(), com.ai.phoneagent.updates.ReleaseRepository()) }
 }

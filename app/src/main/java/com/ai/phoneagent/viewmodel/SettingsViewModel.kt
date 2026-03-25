@@ -26,6 +26,9 @@ class SettingsViewModel(
     enum class SettingsPage {
         Home,
         ModelApi,
+        Appearance,
+        About,
+        Automation,
     }
 
     private var remoteApiOk: Boolean? = null
@@ -128,6 +131,11 @@ class SettingsViewModel(
     fun openHomePage() {
         pageTransitionForward = false
         currentPage = SettingsPage.Home
+    }
+
+    fun navigateTo(page: SettingsPage) {
+        pageTransitionForward = page != SettingsPage.Home
+        currentPage = page
     }
 
     fun onApiInputChanged(value: String) {
