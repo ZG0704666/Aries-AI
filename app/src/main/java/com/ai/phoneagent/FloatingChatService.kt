@@ -103,6 +103,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.setViewTreeLifecycleOwner
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
@@ -963,7 +964,7 @@ class FloatingChatService : LifecycleService() {
             }
         }
         floatingView = composeView
-        composeView.setTag(androidx.lifecycle.runtime.R.id.view_tree_lifecycle_owner, this)
+        composeView.setViewTreeLifecycleOwner(this)
         windowManager.addView(floatingView, layoutParams)
         isViewAdded = true
     }
