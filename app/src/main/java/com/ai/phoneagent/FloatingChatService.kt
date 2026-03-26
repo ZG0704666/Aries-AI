@@ -85,7 +85,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.onFocusChanged
@@ -2001,7 +2000,7 @@ private fun FloatingAiBubble(text: String, isStreaming: Boolean = false) {
     val mainContent = match?.groupValues?.getOrNull(2)?.trim().orEmpty().ifBlank {
         if (match == null) text else ""
     }
-    val thinkExpandedState = rememberSaveable(text) { mutableStateOf(false) }
+    val thinkExpandedState = remember(text) { mutableStateOf(false) }
 
     Column(
             modifier = Modifier.fillMaxWidth(),
