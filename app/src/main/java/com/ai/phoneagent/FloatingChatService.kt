@@ -23,7 +23,6 @@ import android.app.ActivityOptions
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -57,12 +56,22 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
+import androidx.lifecycle.LifecycleService
 import com.ai.phoneagent.helper.StreamRenderHelper
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
+import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
+import com.ai.phoneagent.core.designsystem.theme.ThemeMode
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
 import com.ai.phoneagent.net.LocalMnnInferenceEngine
@@ -73,7 +82,7 @@ import kotlinx.coroutines.*
 import org.koin.android.ext.android.inject
 
 /** 悬浮聊天窗口服务 提供小窗模式的聊天界面和虚拟屏工具箱模式 */
-class FloatingChatService : Service() {
+class FloatingChatService : LifecycleService() {
 
     private val appPrefsRepository by inject<AppPreferencesRepository>()
     private val floatingChatPrefs by inject<FloatingChatPreferencesRepository>()
@@ -228,6 +237,7 @@ class FloatingChatService : Service() {
     private val binder = LocalBinder()
     private lateinit var windowManager: WindowManager
     private var floatingView: View? = null
+    private var floatingContentView: View? = null
     private var isViewAdded = false
 
     // 协程作用域
@@ -330,7 +340,10 @@ class FloatingChatService : Service() {
         fun getService(): FloatingChatService = this@FloatingChatService
     }
 
-    override fun onBind(intent: Intent?): IBinder = binder
+    override fun onBind(intent: Intent): IBinder {
+        super.onBind(intent)
+        return binder
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -813,10 +826,52 @@ class FloatingChatService : Service() {
 
     // 显示聊天窗口（原有逻辑）
     private fun showChatWindow() {
-        val themedContext = ContextThemeWrapper(this, R.style.Theme_PhoneAgent)
-        val inflater = LayoutInflater.from(themedContext)
-        floatingView = inflater.inflate(R.layout.floating_chat_window, null)
-        setupFloatingView()
+        val composeView = ComposeView(this).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            setContent {
+                val themeModeStr by
+                        appPrefsRepository.themeModeFlow.collectAsState(
+                                initial = appPrefsRepository.getThemeModeBlocking()
+                        )
+                val amoledDark by
+                        appPrefsRepository.amoledDarkEnabledFlow.collectAsState(
+                                initial = appPrefsRepository.getAmoledDarkEnabledBlocking()
+                        )
+                val dynamicColor by
+                        appPrefsRepository.dynamicColorEnabledFlow.collectAsState(
+                                initial = appPrefsRepository.getDynamicColorEnabledBlocking()
+                        )
+                val themeMode =
+                        when (themeModeStr.lowercase()) {
+                            "light" -> ThemeMode.LIGHT
+                            "dark" -> ThemeMode.DARK
+                            else -> ThemeMode.SYSTEM
+                        }
+
+                AriesMaterialTheme(
+                        themeMode = themeMode,
+                        amoledDark = amoledDark,
+                        dynamicColor = dynamicColor,
+                ) {
+                    AndroidView(
+                            factory = { context ->
+                                val themedContext =
+                                        ContextThemeWrapper(context, R.style.Theme_PhoneAgent)
+                                LayoutInflater.from(themedContext)
+                                        .inflate(R.layout.floating_chat_window, null)
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                            update = { contentView ->
+                                if (floatingContentView !== contentView) {
+                                    floatingContentView = contentView
+                                    setupFloatingView(contentView)
+                                }
+                            }
+                    )
+                }
+            }
+        }
+        floatingView = composeView
         windowManager.addView(floatingView, layoutParams)
         isViewAdded = true
     }
@@ -866,8 +921,7 @@ class FloatingChatService : Service() {
         }
     }
 
-    private fun setupFloatingView() {
-        val view = floatingView ?: return
+    private fun setupFloatingView(view: View) {
 
         // 标题栏拖动
         val titleBar = view.findViewById<View>(R.id.floatingTitleBar)
@@ -1150,7 +1204,7 @@ class FloatingChatService : Service() {
 
         serviceScope.launch {
             // 准备流式渲染视图
-            val container = floatingView?.findViewById<LinearLayout>(R.id.messagesContainer)
+            val container = floatingContentView?.findViewById<LinearLayout>(R.id.messagesContainer)
             if (container != null) {
                 withContext(Dispatchers.Main) {
                     // 使用 Theme.PhoneAgent 包装 Context，防止 Context 引起的崩溃
@@ -1203,7 +1257,7 @@ class FloatingChatService : Service() {
                     }
 
                     // 滚动到底部
-                    floatingView
+                    floatingContentView
                             ?.findViewById<ScrollView>(R.id.scrollArea)
                             ?.fullScroll(View.FOCUS_DOWN)
                 }
@@ -1229,7 +1283,7 @@ class FloatingChatService : Service() {
                                         delta,
                                         serviceScope
                                     ) {
-                                        floatingView
+                                        floatingContentView
                                             ?.findViewById<ScrollView>(R.id.scrollArea)
                                             ?.fullScroll(View.FOCUS_DOWN)
                                     }
@@ -1246,7 +1300,7 @@ class FloatingChatService : Service() {
                                         serviceScope,
                                         this@FloatingChatService,
                                         onScroll = {
-                                            floatingView
+                                            floatingContentView
                                                 ?.findViewById<ScrollView>(R.id.scrollArea)
                                                 ?.fullScroll(View.FOCUS_DOWN)
                                         },
@@ -1281,9 +1335,9 @@ class FloatingChatService : Service() {
                                         delta,
                                         serviceScope
                                     ) {
-                                        floatingView
-                                            ?.findViewById<ScrollView>(R.id.scrollArea)
-                                            ?.fullScroll(View.FOCUS_DOWN)
+                    floatingContentView
+                            ?.findViewById<ScrollView>(R.id.scrollArea)
+                            ?.fullScroll(View.FOCUS_DOWN)
                                     }
                                 }
                             }
@@ -1395,7 +1449,8 @@ class FloatingChatService : Service() {
         // 在悬浮窗也准备一个气泡跟随主界面
         Handler(Looper.getMainLooper()).post {
             val container =
-                    floatingView?.findViewById<LinearLayout>(R.id.messagesContainer) ?: return@post
+                    floatingContentView?.findViewById<LinearLayout>(R.id.messagesContainer)
+                            ?: return@post
             // 使用主题包装
             val contextWrapper =
                     ContextThemeWrapper(this@FloatingChatService, R.style.Theme_PhoneAgent)
@@ -1412,7 +1467,7 @@ class FloatingChatService : Service() {
             StreamRenderHelper.initThinkingState(vh, getStreamingPendingTitle())
             currentStreamViewHolder = vh
 
-            floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
+            floatingContentView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
         }
     }
 
@@ -1420,7 +1475,7 @@ class FloatingChatService : Service() {
         val vh = currentStreamViewHolder ?: return
         Handler(Looper.getMainLooper()).post {
             StreamRenderHelper.processReasoningDelta(vh, delta, serviceScope) {
-                floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
+                floatingContentView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
             }
         }
     }
@@ -1435,7 +1490,7 @@ class FloatingChatService : Service() {
                     serviceScope,
                     this@FloatingChatService,
                     onScroll = {
-                        floatingView
+                        floatingContentView
                                 ?.findViewById<ScrollView>(R.id.scrollArea)
                                 ?.fullScroll(View.FOCUS_DOWN)
                     },
@@ -1538,7 +1593,7 @@ class FloatingChatService : Service() {
     }
 
     private fun updateMessagesUI() {
-        val container = floatingView?.findViewById<LinearLayout>(R.id.messagesContainer) ?: return
+        val container = floatingContentView?.findViewById<LinearLayout>(R.id.messagesContainer) ?: return
         container.removeAllViews()
         val contextWrapper = ContextThemeWrapper(this@FloatingChatService, R.style.Theme_PhoneAgent)
         val inflater = LayoutInflater.from(contextWrapper)
@@ -1645,8 +1700,8 @@ class FloatingChatService : Service() {
         }
 
         // 滚动到底部
-        floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.post {
-            floatingView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
+        floatingContentView?.findViewById<ScrollView>(R.id.scrollArea)?.post {
+            floatingContentView?.findViewById<ScrollView>(R.id.scrollArea)?.fullScroll(View.FOCUS_DOWN)
         }
     }
 
@@ -1728,6 +1783,7 @@ class FloatingChatService : Service() {
                 // ignore
             }
             floatingView = null
+            floatingContentView = null
         }
         // 隐藏工具箱视图
         if (isViewAdded && toolboxView != null) {
