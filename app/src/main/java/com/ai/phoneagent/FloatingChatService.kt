@@ -38,9 +38,7 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
-import android.view.ContextThemeWrapper
 import android.view.Gravity
-import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -48,25 +46,34 @@ import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.view.animation.PathInterpolator
-import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -79,12 +86,19 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.pointer.consumeAllChanges
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
@@ -101,6 +115,7 @@ import com.ai.phoneagent.viewmodel.AutomationViewModel
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.*
 import org.koin.android.ext.android.inject
+import kotlin.math.roundToInt
 
 /** 悬浮聊天窗口服务 提供小窗模式的聊天界面和虚拟屏工具箱模式 */
 class FloatingChatService : LifecycleService() {
@@ -858,6 +873,7 @@ class FloatingChatService : LifecycleService() {
 
     // 显示聊天窗口（原有逻辑）
     private fun showChatWindow() {
+        updateMessagesUI()
         val composeView = ComposeView(this).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
@@ -888,39 +904,46 @@ class FloatingChatService : LifecycleService() {
                     val listState = rememberLazyListState()
                     val messages = _floatingMessages
 
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        AndroidView(
-                                factory = { context ->
-                                    val themedContext =
-                                            ContextThemeWrapper(context, R.style.Theme_PhoneAgent)
-                                    LayoutInflater.from(themedContext)
-                                            .inflate(R.layout.floating_chat_window, null)
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        FloatingTitleBar(
+                                onFullscreen = {
+                                    setFocusable(false)
+                                    expandToFullScreen()
                                 },
-                                modifier = Modifier.fillMaxSize(),
-                                update = { contentView ->
-                                    contentView.findViewById<View>(R.id.scrollArea)?.visibility =
-                                            View.GONE
-                                    if (floatingContentView !== contentView) {
-                                        floatingContentView = contentView
-                                        setupFloatingView(contentView)
-                                    }
-                                }
+                                onClose = { closeWindow() },
+                                modifier =
+                                        Modifier.fillMaxWidth()
+                                                .background(MaterialTheme.colorScheme.surfaceContainer)
+                                                .pointerInput(Unit) {
+                                                    detectDragGestures(
+                                                            onDrag = { change, dragAmount ->
+                                                                change.consumeAllChanges()
+                                                                val p =
+                                                                        this@FloatingChatService
+                                                                                .layoutParams
+                                                                                ?: return@detectDragGestures
+                                                                p.x += dragAmount.x.roundToInt()
+                                                                p.y += dragAmount.y.roundToInt()
+                                                                floatingView?.let {
+                                                                    windowManager.updateViewLayout(it, p)
+                                                                }
+                                                                windowX = p.x
+                                                                windowY = p.y
+                                                            },
+                                                            onDragEnd = { saveWindowState() }
+                                                    )
+                                                }
                         )
 
                         LazyColumn(
                                 state = listState,
-                                modifier =
-                                        Modifier.fillMaxSize()
-                                                .padding(start = 8.dp, end = 8.dp, top = 40.dp, bottom = 54.dp),
+                                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
                                 contentPadding = PaddingValues(vertical = 8.dp),
                         ) {
                             items(messages) { msg ->
-                                if (msg.isUser) {
-                                    FloatingUserBubble(msg.text)
-                                } else {
-                                    FloatingAiBubble(msg.text, msg.isStreaming)
-                                }
+                                if (msg.isUser) FloatingUserBubble(msg.text)
+                                else FloatingAiBubble(msg.text, msg.isStreaming)
                             }
                         }
 
@@ -929,6 +952,13 @@ class FloatingChatService : LifecycleService() {
                                 listState.animateScrollToItem(messages.lastIndex)
                             }
                         }
+
+                        FloatingInputBar(
+                                onSend = { text -> sendUserMessage(text) },
+                                onFocused = { setFocusable(true) },
+                                onUnfocused = { setFocusable(false) },
+                                modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
             }
@@ -981,96 +1011,6 @@ class FloatingChatService : LifecycleService() {
             }
             start()
         }
-    }
-
-    private fun setupFloatingView(view: View) {
-
-        // 标题栏拖动
-        val titleBar = view.findViewById<View>(R.id.floatingTitleBar)
-        setupDragBehavior(titleBar)
-
-        // 全屏按钮
-        val btnFullscreen = view.findViewById<ImageButton>(R.id.btnFullscreen)
-        btnFullscreen?.setOnClickListener {
-            setFocusable(false)
-            expandToFullScreen()
-        }
-
-        // 返回主页按钮
-        val btnHome = view.findViewById<ImageButton>(R.id.btnHome)
-        btnHome?.setOnClickListener {
-            setFocusable(false)
-            expandToFullScreen()
-        }
-
-        // 关闭按钮
-        val btnClose = view.findViewById<ImageButton>(R.id.btnClose)
-        btnClose?.setOnClickListener { closeWindow() }
-
-        // 输入框 - 优化键盘呼出响应速度
-        val inputMessage = view.findViewById<EditText>(R.id.inputMessage)
-        if (inputMessage == null) {
-            Log.e(TAG, "Floating window layout missing required view: inputMessage")
-            return
-        }
-
-        // 预先设置为可聚焦模式，避免延迟
-        inputMessage.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_DOWN) {
-                // 立即切换为可聚焦模式
-                setFocusable(true)
-
-                // 关键：切换窗口 flags 后，显式让 EditText 获取焦点并拉起键盘
-                inputMessage.isFocusableInTouchMode = true
-                inputMessage.requestFocus()
-                inputMessage.post {
-                    runCatching {
-                        val imm =
-                                getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                        imm.showSoftInput(inputMessage, InputMethodManager.SHOW_IMPLICIT)
-                    }
-                }
-            }
-            false // 继续传递事件
-        }
-
-        inputMessage.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) {
-                // 确保键盘弹出
-                mainHandler.postDelayed(
-                        {
-                            val imm =
-                                    getSystemService(Context.INPUT_METHOD_SERVICE) as
-                                            InputMethodManager
-                            imm.showSoftInput(inputMessage, InputMethodManager.SHOW_IMPLICIT)
-                        },
-                        50
-                )
-            }
-        }
-
-        // 发送按钮
-        val btnSend = view.findViewById<ImageButton>(R.id.btnSend)
-        btnSend?.setOnClickListener {
-            val text = inputMessage.text.toString().trim()
-            if (text.isNotEmpty()) {
-                sendUserMessage(text, inputMessage)
-            }
-        }
-
-        // 监听回车键发送
-        inputMessage.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEND) {
-                val text = inputMessage.text.toString().trim()
-                if (text.isNotEmpty()) {
-                    sendUserMessage(text, inputMessage)
-                }
-                true
-            } else false
-        }
-
-        // 更新消息列表
-        updateMessagesUI()
     }
 
     private fun openAppFromFloating(allowProxy: Boolean) {
@@ -1215,14 +1155,9 @@ class FloatingChatService : LifecycleService() {
     }
 
     /** 发送用户消息并获取 AI 回复 */
-    private fun sendUserMessage(text: String, inputMessage: EditText) {
+    private fun sendUserMessage(text: String) {
         // 添加用户消息
         addMessage("我: $text", isUser = true)
-        inputMessage.setText("")
-
-        // 隐藏键盘
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.hideSoftInputFromWindow(inputMessage.windowToken, 0)
 
         // 已移除: addMessage("Aries: 思考中...", isUser = false, isThinking = true)
 
@@ -1911,6 +1846,132 @@ class FloatingChatService : LifecycleService() {
                                                 (windowHeight * displayMetrics.density).toInt()
                                 )
                         )
+    }
+}
+
+@Composable
+private fun FloatingTitleBar(
+        onFullscreen: () -> Unit,
+        onClose: () -> Unit,
+        modifier: Modifier = Modifier,
+) {
+    Row(
+            modifier = modifier.height(40.dp).padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+                text = "Aries",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+        )
+        IconButton(onClick = onFullscreen, modifier = Modifier.size(32.dp)) {
+            Icon(
+                    painter = painterResource(id = R.drawable.ic_fullscreen_24),
+                    contentDescription = "展开",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+            )
+        }
+        IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
+            Icon(
+                    painter = painterResource(id = R.drawable.ic_close_24),
+                    contentDescription = "关闭",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun FloatingInputBar(
+        onSend: (String) -> Unit,
+        onFocused: () -> Unit,
+        onUnfocused: () -> Unit,
+        modifier: Modifier = Modifier,
+) {
+    var text by remember { mutableStateOf("") }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+
+    Row(
+            modifier =
+                    modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BasicTextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier = Modifier.weight(1f).onFocusChanged { state ->
+                    if (state.isFocused) onFocused() else onUnfocused()
+                },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(
+                        onSend = {
+                            if (text.isNotBlank()) {
+                                onSend(text.trim())
+                                text = ""
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                            }
+                        }
+                ),
+                decorationBox = { innerTextField ->
+                    Box(
+                            modifier =
+                                    Modifier.fillMaxWidth()
+                                            .background(
+                                                    color =
+                                                            MaterialTheme
+                                                                    .colorScheme
+                                                                    .surfaceContainerHighest,
+                                                    shape = MaterialTheme.shapes.small,
+                                            )
+                                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        if (text.isEmpty()) {
+                            Text(
+                                    text = "发消息...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        innerTextField()
+                    }
+                },
+                textStyle =
+                        MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurface
+                        ),
+                singleLine = false,
+                maxLines = 4,
+        )
+
+        Spacer(modifier = Modifier.width(4.dp))
+
+        IconButton(
+                onClick = {
+                    if (text.isNotBlank()) {
+                        onSend(text.trim())
+                        text = ""
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                    }
+                },
+                modifier = Modifier.size(36.dp),
+                enabled = text.isNotBlank(),
+        ) {
+            Icon(
+                    painter = painterResource(id = R.drawable.ic_send_24),
+                    contentDescription = "发送",
+                    tint =
+                            if (text.isNotBlank()) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 
