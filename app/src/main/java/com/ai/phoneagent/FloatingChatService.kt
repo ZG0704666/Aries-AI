@@ -273,7 +273,6 @@ class FloatingChatService : LifecycleService() {
     private val binder = LocalBinder()
     private lateinit var windowManager: WindowManager
     private var floatingView: View? = null
-    private var floatingContentView: View? = null
     private var isViewAdded = false
 
     // 协程作用域
@@ -1528,7 +1527,6 @@ class FloatingChatService : LifecycleService() {
                 // ignore
             }
             floatingView = null
-            floatingContentView = null
         }
         // 隐藏工具箱视图
         if (isViewAdded && toolboxView != null) {
