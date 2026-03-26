@@ -963,6 +963,7 @@ class FloatingChatService : LifecycleService() {
             }
         }
         floatingView = composeView
+        composeView.setTag(androidx.lifecycle.runtime.R.id.view_tree_lifecycle_owner, this)
         windowManager.addView(floatingView, layoutParams)
         isViewAdded = true
     }
