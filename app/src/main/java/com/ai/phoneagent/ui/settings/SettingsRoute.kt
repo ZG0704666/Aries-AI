@@ -386,7 +386,6 @@ private fun SettingsAboutContent(
 @Composable
 private fun SettingsAutomationContent(
     onBack: () -> Unit,
-    viewModel: AutomationViewModel = koinViewModel(),
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -397,6 +396,12 @@ private fun SettingsAutomationContent(
         }
         ctx as? android.app.Activity
     }
+    // Scope to Activity so it shares the same instance as AutomationScreen
+    val activityOwner = hostActivity as? androidx.lifecycle.ViewModelStoreOwner
+    val viewModel: AutomationViewModel = koinViewModel(
+        viewModelStoreOwner = activityOwner
+            ?: androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner.current!!,
+    )
 
     val audioPermissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->

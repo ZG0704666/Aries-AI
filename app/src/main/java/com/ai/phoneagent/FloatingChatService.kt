@@ -103,6 +103,10 @@ import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
@@ -118,7 +122,11 @@ import org.koin.android.ext.android.inject
 import kotlin.math.roundToInt
 
 /** 悬浮聊天窗口服务 提供小窗模式的聊天界面和虚拟屏工具箱模式 */
-class FloatingChatService : LifecycleService() {
+class FloatingChatService : LifecycleService(), SavedStateRegistryOwner {
+
+    private val savedStateRegistryController = SavedStateRegistryController.create(this)
+    override val savedStateRegistry: SavedStateRegistry
+        get() = savedStateRegistryController.savedStateRegistry
 
     private val appPrefsRepository by inject<AppPreferencesRepository>()
     private val floatingChatPrefs by inject<FloatingChatPreferencesRepository>()
@@ -392,6 +400,8 @@ class FloatingChatService : LifecycleService() {
     }
 
     override fun onCreate() {
+        savedStateRegistryController.performAttach()
+        savedStateRegistryController.performRestore(null)
         super.onCreate()
         instance = this
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -903,7 +913,11 @@ class FloatingChatService : LifecycleService() {
                     val listState = rememberLazyListState()
                     val messages = _floatingMessages
 
-                    Column(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                            modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surface)
+                    ) {
                         FloatingTitleBar(
                                 onFullscreen = {
                                     setFocusable(false)
@@ -964,6 +978,7 @@ class FloatingChatService : LifecycleService() {
         }
         floatingView = composeView
         composeView.setViewTreeLifecycleOwner(this)
+        composeView.setViewTreeSavedStateRegistryOwner(this)
         windowManager.addView(floatingView, layoutParams)
         isViewAdded = true
     }

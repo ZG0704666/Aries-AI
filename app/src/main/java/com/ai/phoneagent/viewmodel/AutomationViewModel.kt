@@ -105,6 +105,7 @@ class AutomationViewModel(
         val automationSource: String? = null,
         val automationAutoStart: Boolean = false,
         val keepMainOnTop: Boolean = false,
+        val popBackImmediately: Boolean = false,
     )
 
     private val appContext: Context = application.applicationContext

@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -41,6 +43,7 @@ import com.composables.icons.lucide.Lightbulb
 import com.composables.icons.lucide.RefreshCw
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -133,6 +136,11 @@ data class TranscriptAutomationUi(
     val isDestructive: Boolean,
     val confirmInstruction: String?,
     val autoCollapseLogs: Boolean = false,
+    val retryInstruction: String? = null,
+    val secondaryActionLabel: String? = null,
+    val secondaryActionEnabled: Boolean = false,
+    /** 当系统未就绪时为 true，secondaryActionLabel 是"去开启"按钮 */
+    val openSetupAction: Boolean = false,
 )
 
 fun LazyListScope.conversationTranscriptItems(
@@ -238,9 +246,15 @@ private fun UserMessageBubble(
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
     var isEditing by remember { mutableStateOf(false) }
     var editText by remember(item.body) { mutableStateOf(item.body) }
+    var showActions by remember(item.id) { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+            ) { showActions = !showActions },
         horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.spacedBy(spacingSm),
     ) {
@@ -286,7 +300,17 @@ private fun UserMessageBubble(
             }
         }
 
-        if (!item.isStreaming && item.attachments.isEmpty()) {
+        AnimatedVisibility(
+            visible = (showActions || isEditing) && !item.isStreaming && item.attachments.isEmpty(),
+            enter = fadeIn(animationSpec = tween(150)) + expandVertically(
+                expandFrom = Alignment.Top,
+                animationSpec = tween(200, easing = FastOutSlowInEasing),
+            ),
+            exit = fadeOut(animationSpec = tween(100)) + shrinkVertically(
+                shrinkTowards = Alignment.Top,
+                animationSpec = tween(150, easing = FastOutSlowInEasing),
+            ),
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(actionGap, Alignment.End),
@@ -796,8 +820,14 @@ private fun ThinkingSection(
 
                 AnimatedVisibility(
                     visible = bodyVisible,
-                    enter = fadeIn(animationSpec = tween(180)) + expandVertically(animationSpec = tween(240, easing = FastOutSlowInEasing)),
-                    exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(animationSpec = tween(200, easing = FastOutSlowInEasing)),
+                    enter = fadeIn(animationSpec = tween(180)) + expandVertically(
+                        expandFrom = Alignment.Top,
+                        animationSpec = tween(240, easing = FastOutSlowInEasing),
+                    ),
+                    exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(
+                        shrinkTowards = Alignment.Top,
+                        animationSpec = tween(200, easing = FastOutSlowInEasing),
+                    ),
                 ) {
                     SelectionContainer {
                         Markdown(
@@ -993,24 +1023,40 @@ private fun AutomationMessageCard(
                 }
             }
 
-            automation.actionLabel?.let { label ->
-                Button(
-                    onClick = { onAutomationAction(item) },
+            if (automation.actionLabel != null || automation.secondaryActionLabel != null) {
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = automation.actionEnabled,
-                    colors =
-                        if (automation.isDestructive) {
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                disabledContainerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.64f),
-                                disabledContentColor = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.84f),
-                            )
-                        } else {
-                            ButtonDefaults.filledTonalButtonColors()
-                        },
+                    horizontalArrangement = Arrangement.spacedBy(spacingSm),
                 ) {
-                    Text(text = label)
+                    automation.actionLabel?.let { label ->
+                        Button(
+                            onClick = { onAutomationAction(item) },
+                            modifier = Modifier.weight(1f),
+                            enabled = automation.actionEnabled,
+                            colors =
+                                if (automation.isDestructive) {
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                        disabledContainerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.64f),
+                                        disabledContentColor = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.84f),
+                                    )
+                                } else {
+                                    ButtonDefaults.filledTonalButtonColors()
+                                },
+                        ) {
+                            Text(text = label)
+                        }
+                    }
+                    automation.secondaryActionLabel?.let { label ->
+                        FilledTonalButton(
+                            onClick = { onAutomationAction(item) },
+                            modifier = if (automation.actionLabel != null) Modifier.weight(1f) else Modifier.fillMaxWidth(),
+                            enabled = automation.secondaryActionEnabled,
+                        ) {
+                            Text(text = label)
+                        }
+                    }
                 }
             }
         }

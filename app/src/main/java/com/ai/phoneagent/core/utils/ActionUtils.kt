@@ -53,7 +53,7 @@ object ActionUtils {
     /** 估算历史消息的token数量 */
     fun estimateHistoryTokens(
             messages: List<com.ai.phoneagent.net.ChatRequestMessage>,
-            imageTokenEstimate: Int = 1500
+            imageTokenEstimate: Int = 8000
     ): Int {
         var total = 0
         for (msg in messages) {

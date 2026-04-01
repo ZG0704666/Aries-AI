@@ -145,8 +145,9 @@ data class AgentConfiguration(
      *
      * 用于做本地的"上下文裁剪/摘要"策略（避免请求过大导致延迟与费用上升）。
      * 适当增加以容纳更长的对话历史。
+     * 注意：autoglm-phone 模型最大上下文为 25480 tokens，此值应小于该限制。
      */
-    val maxContextTokens: Int = 30000,
+    val maxContextTokens: Int = 20000,
     
     /**
      * UI 树最大字符数。

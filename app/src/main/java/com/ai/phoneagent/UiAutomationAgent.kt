@@ -25,6 +25,9 @@ import com.ai.phoneagent.core.executor.ActionExecutor
 import com.ai.phoneagent.core.parser.ActionParser
 import com.ai.phoneagent.core.templates.PromptTemplates
 import com.ai.phoneagent.core.utils.ActionUtils
+import com.ai.phoneagent.data.model.ChatContent
+import com.ai.phoneagent.data.model.ContentPart
+import com.ai.phoneagent.data.model.ImageUrl
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
@@ -308,21 +311,20 @@ class UiAutomationAgent(
                     }
 
             // 构建消息内容
-            val userContent: Any =
+            val userContent: ChatContent =
                     if (screenshot != null) {
-                        listOf(
-                                mapOf(
-                                        "type" to "image_url",
-                                        "image_url" to
-                                                mapOf(
-                                                        "url" to
-                                                                "data:${screenshot.mimeType};base64,${screenshot.base64Png}"
+                        ChatContent.Multimodal(
+                                listOf(
+                                        ContentPart.ImageUrlPart(
+                                                ImageUrl(
+                                                        "data:${screenshot.mimeType};base64,${screenshot.base64Png}"
                                                 )
-                                ),
-                                mapOf("type" to "text", "text" to userMsg)
+                                        ),
+                                        ContentPart.TextPart(userMsg)
+                                )
                         )
                     } else {
-                        userMsg
+                        ChatContent.Text(userMsg)
                     }
 
             // 修剪历史
@@ -1200,11 +1202,16 @@ class UiAutomationAgent(
         // 移除图片只保留文本
         for (i in history.indices) {
             val msg = history[i]
-            if (msg.content is List<*>) {
-                @Suppress("UNCHECKED_CAST") val content = msg.content as List<Map<String, Any>>
-                val textOnly = content.filter { it["type"] == "text" }
-                if (textOnly.isNotEmpty()) {
-                    history[i] = ChatRequestMessage(role = msg.role, content = textOnly)
+            val content = msg.content
+            if (content is ChatContent.Multimodal) {
+                val textParts = content.parts.filterIsInstance<ContentPart.TextPart>()
+                if (textParts.isNotEmpty()) {
+                    val combinedText = textParts.joinToString("\n") { it.text }
+                    history[i] =
+                            ChatRequestMessage(
+                                    role = msg.role,
+                                    content = ChatContent.Text(combinedText)
+                            )
                 }
             }
         }

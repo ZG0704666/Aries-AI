@@ -7,8 +7,11 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,6 +41,7 @@ fun MainTopBar(
     onOpenDrawer: () -> Unit,
     onNewChat: () -> Unit,
     onOpenFloatingWindow: () -> Unit,
+    modelName: String = "",
 ) {
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
@@ -56,16 +60,26 @@ fun MainTopBar(
         ) {
             TopAppBar(
                 title = {
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        style =
-                            TextStyle(
-                                fontSize = 20.sp,
-                                lineHeight = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            ),
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(R.string.app_name),
+                            style =
+                                TextStyle(
+                                    fontSize = 20.sp,
+                                    lineHeight = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                ),
+                        )
+                        if (modelName.isNotBlank()) {
+                            Spacer(modifier = Modifier.width(dimensionResource(R.dimen.m3t_spacing_sm)))
+                            Text(
+                                text = "· $modelName",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {

@@ -60,6 +60,7 @@ fun HomeScreen(
     onOpenDrawer: () -> Unit,
     onNewChat: () -> Unit,
     onOpenFloatingWindow: () -> Unit,
+    modelName: String = "",
     drawerSearchQuery: String,
     drawerItems: List<DrawerConversationUiItem>,
     drawerEmptyMessage: String,
@@ -183,6 +184,7 @@ fun HomeScreen(
                         onOpenDrawer = onOpenDrawer,
                         onNewChat = onNewChat,
                         onOpenFloatingWindow = onOpenFloatingWindow,
+                        modelName = modelName,
                     )
                 },
             ) { paddingValues: PaddingValues ->

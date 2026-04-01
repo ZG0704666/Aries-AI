@@ -24,6 +24,8 @@
     <string name="automation_terminate">终止任务</string>
     <string name="automation_terminating">终止中...</string>
     <string name="automation_terminate_requested">已请求终止任务</string>
+    <string name="automation_done">已执行</string>
+    <string name="automation_retry">重试</string>
     <string name="automation_start_now">立即开始</string>
     <string name="automation_not_ready_short">未就绪</string>
     <string name="automation_confirm_hint">检测到自动化任务，请点击确认按钮执行</string>
@@ -34,6 +36,9 @@
     <string name="automation_scene_confirmed">需求已确认</string>
     <string name="automation_scene_rejected">需求已拒绝</string>
     <string name="automation_scene_not_ready">系统未就绪</string>
+    <string name="automation_setup_go_enable">去开启</string>
+    <string name="automation_setup_enable_accessibility">一键开启无障碍</string>
+    <string name="automation_setup_accessibility_enabled">已通过 Shizuku 自动开启无障碍服务</string>
     <string name="automation_scene_running">执行中</string>
     <string name="automation_scene_finished">已结束</string>
     <string name="automation_scene_waiting">等待执行日志...</string>

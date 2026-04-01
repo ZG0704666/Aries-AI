@@ -643,7 +643,8 @@ object VirtualScreenPreviewOverlay {
                                             topMargin = dp(HEADER_HEIGHT_DP)
                                             bottomMargin = dp(CONTROL_BAR_HEIGHT_DP)
                                         }
-                        isOpaque = false
+                        isOpaque = true
+                        setBackgroundColor(android.graphics.Color.BLACK)
                     }
             tv.surfaceTextureListener =
                     object : TextureView.SurfaceTextureListener {

@@ -136,6 +136,7 @@ import com.composables.icons.lucide.Video
 import com.composables.icons.lucide.Image as LucideImage
 import androidx.compose.material3.Text
 import com.ai.phoneagent.core.automation.ActivityAutomationInstructionGateway
+import com.ai.phoneagent.core.automation.AutomationInstructionRequest
 import com.ai.phoneagent.core.automation.AutomationLogBridge
 import com.ai.phoneagent.core.prompt.MainChatPromptRepository
 import com.ai.phoneagent.ui.inputbar.InputState
@@ -736,14 +737,32 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
+                // 在 AriesNavGraph 外读取所有需要追踪的 Compose state，
+                // 确保这些 state 变化时能触发当前 composable scope 的重组，
+                // 从而将最新值传入 homeContent lambda。
+                val currentTranscriptItems = transcriptItemsState.value
+                val currentStreamingConvId = streamingTranscriptConversationIdState.value
+                val currentStreamingItem = streamingTranscriptItemState.value
+                val currentTranscriptAnimKey = transcriptAnimationKeyState.value
+                val currentStatusText = statusTextState.value
+                val currentStatusVisible = statusVisibleState.value
+                val currentDrawerSearchQuery = drawerSearchQueryState.value
+                val currentDrawerItems = drawerConversationItemsState.value
+                val currentDrawerEmptyMessage = drawerEmptyMessageState.value
+                val currentThinkingExpanded = thinkingExpandedByDefaultState.value
+                val currentScrollSignal = scrollToBottomSignalState.value
+                val currentContentAlpha = homeContentAlphaState.value
+                val currentContentScale = homeContentScaleState.value
+                val currentShowHistoryDialog = showHistoryDialogState.value
+
                 AriesNavGraph(
                     navController = navController,
                     homeContent = {
                         HomeScreen(
                             drawerState = drawerState,
                             drawerGesturesEnabled = !onboardingOverlay.isShowing(),
-                            statusText = statusTextState.value,
-                            statusVisible = statusVisibleState.value,
+                            statusText = currentStatusText,
+                            statusVisible = currentStatusVisible,
                             onToggleStatus = { statusVisibleState.value = !statusVisibleState.value },
                             onOpenDrawer = {
                                 if (!onboardingOverlay.isShowing()) {
@@ -754,15 +773,17 @@ class MainActivity : AppCompatActivity() {
                             },
                             onNewChat = {
                                 vibrateLight()
+                                composeScope.launch { drawerState.close() }
                                 startNewChat(clearUi = true)
                             },
                             onOpenFloatingWindow = {
                                 vibrateLight()
                                 enterMiniWindowMode()
                             },
-                            drawerSearchQuery = drawerSearchQueryState.value,
-                            drawerItems = drawerConversationItemsState.value,
-                            drawerEmptyMessage = drawerEmptyMessageState.value,
+                            modelName = getDisplayNameForModel(resolveApiModel()),
+                            drawerSearchQuery = currentDrawerSearchQuery,
+                            drawerItems = currentDrawerItems,
+                            drawerEmptyMessage = currentDrawerEmptyMessage,
                             onDrawerSearchQueryChange = { query ->
                                 drawerSearchQueryState.value = query
                                 refreshDrawerConversationItems()
@@ -787,13 +808,13 @@ class MainActivity : AppCompatActivity() {
                             },
                             transcriptItems =
                                 buildList {
-                                    addAll(transcriptItemsState.value)
-                                    if (streamingTranscriptConversationIdState.value == activeConversation?.id) {
-                                        streamingTranscriptItemState.value?.let { add(it) }
+                                    addAll(currentTranscriptItems)
+                                    if (currentStreamingConvId == activeConversation?.id) {
+                                        currentStreamingItem?.let { add(it) }
                                     }
                                 },
-                            transcriptAnimationKey = transcriptAnimationKeyState.value,
-                            thinkingExpandedByDefault = thinkingExpandedByDefaultState.value,
+                            transcriptAnimationKey = currentTranscriptAnimKey,
+                            thinkingExpandedByDefault = currentThinkingExpanded,
                             codeBlockPrefs = codeBlockPrefs,
                             onCopyMessage = { item -> copyTranscriptMessage(item.copyText) },
                             onRetryMessage = { item ->
@@ -829,12 +850,12 @@ class MainActivity : AppCompatActivity() {
                             onAutomationAction = { item -> handleTranscriptAutomationAction(item) },
                             inputBarContent = { HomeInputBar() },
                             aiNoticeText = getString(R.string.ai_generated_notice),
-                            scrollToBottomSignal = scrollToBottomSignalState.value,
-                            contentAlpha = homeContentAlphaState.value,
-                            contentScale = homeContentScaleState.value,
+                            scrollToBottomSignal = currentScrollSignal,
+                            contentAlpha = currentContentAlpha,
+                            contentScale = currentContentScale,
                             onboardingContent = { onboardingOverlay.Render() },
                             historyDialogContent = {
-                                if (showHistoryDialogState.value) {
+                                if (currentShowHistoryDialog) {
                                     ConversationHistoryDialog(
                                         items = buildHistoryDialogItems(),
                                         onDismiss = {
@@ -1128,6 +1149,10 @@ class MainActivity : AppCompatActivity() {
         val actionEnabled: Boolean
         val isDestructive: Boolean
         val confirmInstruction: String?
+        var retryInstruction: String? = null
+        var secondaryActionLabel: String? = null
+        var secondaryActionEnabled = false
+        var openSetupAction = false
 
         when {
             hasRejected -> {
@@ -1137,10 +1162,14 @@ class MainActivity : AppCompatActivity() {
                 confirmInstruction = null
             }
             hasConfirmed && hasTerminalLog -> {
-                actionLabel = getString(R.string.automation_confirmed)
+                // 已完成：显示「已执行」(disabled) + 「重试」(enabled)
+                actionLabel = getString(R.string.automation_done)
                 actionEnabled = false
                 isDestructive = false
                 confirmInstruction = null
+                retryInstruction = command
+                secondaryActionLabel = getString(R.string.automation_retry)
+                secondaryActionEnabled = true
             }
             hasConfirmed -> {
                 actionLabel =
@@ -1165,10 +1194,29 @@ class MainActivity : AppCompatActivity() {
                 confirmInstruction = command
             }
             else -> {
-                actionLabel = null
-                actionEnabled = false
-                isDestructive = false
-                confirmInstruction = null
+                // 系统未就绪：显示"去开启"按钮引导用户开启权限
+                val readyState = resolveAutomationReadyState()
+                if (!readyState.ready) {
+                    val shizukuConnected = ShizukuBridge.pingBinder()
+                    val shizukuGranted = if (shizukuConnected) ShizukuBridge.hasPermission() else false
+                    val btnLabel = if (shizukuConnected && shizukuGranted) {
+                        getString(R.string.automation_setup_enable_accessibility)
+                    } else {
+                        getString(R.string.automation_setup_go_enable)
+                    }
+                    actionLabel = null
+                    actionEnabled = false
+                    isDestructive = false
+                    confirmInstruction = null
+                    secondaryActionLabel = btnLabel
+                    secondaryActionEnabled = true
+                    openSetupAction = true
+                } else {
+                    actionLabel = null
+                    actionEnabled = false
+                    isDestructive = false
+                    confirmInstruction = null
+                }
             }
         }
 
@@ -1181,6 +1229,10 @@ class MainActivity : AppCompatActivity() {
             isDestructive = isDestructive,
             confirmInstruction = confirmInstruction,
             autoCollapseLogs = isNormalFinished,
+            retryInstruction = retryInstruction,
+            secondaryActionLabel = secondaryActionLabel,
+            secondaryActionEnabled = secondaryActionEnabled,
+            openSetupAction = openSetupAction,
         )
     }
 
@@ -1208,7 +1260,32 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleTranscriptAutomationAction(item: TranscriptMessageUi) {
         val automation = item.automation ?: return
-        if (!item.isAutomation || !automation.actionEnabled) return
+        if (!item.isAutomation || (!automation.actionEnabled && !automation.secondaryActionEnabled)) return
+
+        // 处理"去开启"/"一键开启无障碍"按钮（系统未就绪时）
+        if (automation.openSetupAction) {
+            val shizukuConnected = ShizukuBridge.pingBinder()
+            val shizukuGranted = if (shizukuConnected) ShizukuBridge.hasPermission() else false
+            if (shizukuConnected && shizukuGranted) {
+                lifecycleScope.launch(Dispatchers.IO) {
+                    runCatching {
+                        val serviceId = "$packageName/${PhoneAgentAccessibilityService::class.java.name}"
+                        ShizukuBridge.execResultArgs(
+                            listOf("settings", "put", "secure", "enabled_accessibility_services", serviceId),
+                        )
+                        ShizukuBridge.execResultArgs(
+                            listOf("settings", "put", "secure", "accessibility_enabled", "1"),
+                        )
+                    }
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, getString(R.string.automation_setup_accessibility_enabled), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } else {
+                navigateToRoute(Routes.Automation.route)
+            }
+            return
+        }
 
         val messageRef = AutomationMessageRef(item.conversationId, item.messageIndex)
         if (!automation.confirmInstruction.isNullOrBlank()) {
@@ -1223,20 +1300,38 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
-            val dispatchResult =
-                ActivityAutomationInstructionGateway.dispatchFromAdvancedAi(
-                    context = this,
-                    instruction = automation.confirmInstruction,
-                )
-            if (dispatchResult.success) {
-                markAutomationCommandConfirmed(automation.confirmInstruction, messageRef)
-            } else {
+            // 从主页面直接启动自动化，不跳转到控制台
+            markAutomationCommandConfirmed(automation.confirmInstruction, messageRef)
+            AutomationViewModel.pendingLaunchArgs = AutomationViewModel.LaunchArgs(
+                automationTask = automation.confirmInstruction,
+                automationSource = AutomationInstructionRequest.Source.ADVANCED_AI.wireValue,
+                automationAutoStart = true,
+                keepMainOnTop = true,
+                popBackImmediately = true,
+            )
+            navigateToRoute(Routes.Automation.route)
+            return
+        }
+
+        // 重试操作：重新执行上一次的自动化命令
+        if (automation.retryInstruction != null) {
+            val readyState = resolveAutomationReadyState()
+            if (!readyState.ready) {
                 Toast.makeText(
                     this,
-                    getString(R.string.automation_dispatch_failed, dispatchResult.message),
-                    Toast.LENGTH_SHORT,
+                    resolveAutomationNotReadyToast(readyState.reason),
+                    Toast.LENGTH_LONG,
                 ).show()
+                return
             }
+            AutomationViewModel.pendingLaunchArgs = AutomationViewModel.LaunchArgs(
+                automationTask = automation.retryInstruction,
+                automationSource = AutomationInstructionRequest.Source.ADVANCED_AI.wireValue,
+                automationAutoStart = true,
+                keepMainOnTop = true,
+                popBackImmediately = true,
+            )
+            navigateToRoute(Routes.Automation.route)
             return
         }
 
@@ -2403,6 +2498,15 @@ class MainActivity : AppCompatActivity() {
         return apiModel.trim().ifBlank { AutoGlmClient.DEFAULT_MODEL }
     }
 
+    /** 获取用于显示的模型名称（简化版） */
+    private fun getDisplayNameForModel(model: String): String {
+        return when {
+            model.contains("autoglm-phone", ignoreCase = true) -> "AutoGLM"
+            model.length > 20 -> model.take(20) + "…"
+            else -> model
+        }
+    }
+
     private fun apiConfigSignature(
             apiKey: String,
             baseUrl: String,
@@ -2542,7 +2646,6 @@ class MainActivity : AppCompatActivity() {
                                 runCatching { AutoGlmClient.cancelActiveStream() }
                                 Toast.makeText(this@MainActivity, "已请求终止生成", Toast.LENGTH_SHORT).show()
                             }
-                        } else {
                             return@InputBar
                         }
                         val t = inputTextState.value.trim()
@@ -2667,7 +2770,13 @@ class MainActivity : AppCompatActivity() {
     private fun startNewChat(clearUi: Boolean) {
         // 防止启动多个重复的空会话
         if (isAlreadyInNewChat()) {
-            Toast.makeText(this, "您已处于新对话中！", Toast.LENGTH_SHORT).show()
+            // 已在新对话中，仅刷新UI状态提供视觉反馈
+            if (clearUi) {
+                transcriptAnimationKeyState.value = System.currentTimeMillis()
+                resetAutomationPanelRuntimeState()
+                syncMessageTranscript(activeConversation!!)
+            }
+            smoothScrollToBottom()
             return
         }
 
@@ -2676,7 +2785,8 @@ class MainActivity : AppCompatActivity() {
         conversations.add(0, c)
         activeConversation = c
         clearStreamingTranscript()
-        
+        refreshDrawerConversationItems()
+
         if (clearUi) {
             transcriptAnimationKeyState.value = System.currentTimeMillis()
             resetAutomationPanelRuntimeState()

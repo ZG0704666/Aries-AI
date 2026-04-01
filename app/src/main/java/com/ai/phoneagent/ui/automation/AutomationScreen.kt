@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.navigation.NavHostController
 import com.ai.phoneagent.viewmodel.AutomationViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -23,11 +24,15 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun AutomationScreen(
     navController: NavHostController,
-    viewModel: AutomationViewModel = koinViewModel(),
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val hostActivity = remember(context) { context.findActivity() }
+    // Scope ViewModel to Activity so it survives nav pop (agent keeps running in background)
+    val activityOwner = hostActivity as? androidx.lifecycle.ViewModelStoreOwner
+    val viewModel: AutomationViewModel = koinViewModel(
+        viewModelStoreOwner = activityOwner ?: LocalViewModelStoreOwner.current!!,
+    )
 
     val audioPermissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -46,6 +51,9 @@ fun AutomationScreen(
         AutomationViewModel.pendingLaunchArgs?.let { args ->
             AutomationViewModel.pendingLaunchArgs = null
             viewModel.consumeLaunchArgs(args)
+            if (args.popBackImmediately) {
+                navController.popBackStack()
+            }
         }
     }
 
