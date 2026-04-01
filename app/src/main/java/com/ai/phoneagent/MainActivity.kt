@@ -737,27 +737,27 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                // 在 AriesNavGraph 外读取所有需要追踪的 Compose state，
-                // 确保这些 state 变化时能触发当前 composable scope 的重组，
-                // 从而将最新值传入 homeContent lambda。
-                val currentTranscriptItems = transcriptItemsState.value
-                val currentStreamingConvId = streamingTranscriptConversationIdState.value
-                val currentStreamingItem = streamingTranscriptItemState.value
-                val currentTranscriptAnimKey = transcriptAnimationKeyState.value
-                val currentStatusText = statusTextState.value
-                val currentStatusVisible = statusVisibleState.value
-                val currentDrawerSearchQuery = drawerSearchQueryState.value
-                val currentDrawerItems = drawerConversationItemsState.value
-                val currentDrawerEmptyMessage = drawerEmptyMessageState.value
-                val currentThinkingExpanded = thinkingExpandedByDefaultState.value
-                val currentScrollSignal = scrollToBottomSignalState.value
-                val currentContentAlpha = homeContentAlphaState.value
-                val currentContentScale = homeContentScaleState.value
-                val currentShowHistoryDialog = showHistoryDialogState.value
-
                 AriesNavGraph(
                     navController = navController,
                     homeContent = {
+                        // 在 homeContent lambda 内部读取所有 state，
+                        // 这样读取发生在 NavHost composable 的 recomposition scope 内，
+                        // state 变化时 NavHost 会正确追踪并触发重组。
+                        val currentTranscriptItems = transcriptItemsState.value
+                        val currentStreamingConvId = streamingTranscriptConversationIdState.value
+                        val currentStreamingItem = streamingTranscriptItemState.value
+                        val currentTranscriptAnimKey = transcriptAnimationKeyState.value
+                        val currentStatusText = statusTextState.value
+                        val currentStatusVisible = statusVisibleState.value
+                        val currentDrawerSearchQuery = drawerSearchQueryState.value
+                        val currentDrawerItems = drawerConversationItemsState.value
+                        val currentDrawerEmptyMessage = drawerEmptyMessageState.value
+                        val currentThinkingExpanded = thinkingExpandedByDefaultState.value
+                        val currentScrollSignal = scrollToBottomSignalState.value
+                        val currentContentAlpha = homeContentAlphaState.value
+                        val currentContentScale = homeContentScaleState.value
+                        val currentShowHistoryDialog = showHistoryDialogState.value
+
                         HomeScreen(
                             drawerState = drawerState,
                             drawerGesturesEnabled = !onboardingOverlay.isShowing(),

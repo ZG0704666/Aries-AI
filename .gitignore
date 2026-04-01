@@ -63,6 +63,7 @@ nul
 build.log
 *.tmp
 *.temp
+logcat*.txt
 test-output/
 playwright-report/
 allure-results/

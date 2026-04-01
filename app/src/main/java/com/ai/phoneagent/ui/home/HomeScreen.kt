@@ -1,10 +1,7 @@
 package com.ai.phoneagent.ui.home
 
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -93,42 +90,8 @@ fun HomeScreen(
     val density = LocalDensity.current
     var bottomOverlayHeightPx by remember { mutableIntStateOf(0) }
     val bottomOverlayPadding = with(density) { bottomOverlayHeightPx.toDp() }
-    val transcriptConversationId = remember(transcriptItems, transcriptAnimationKey) {
-        transcriptItems.lastOrNull()?.conversationId ?: transcriptAnimationKey
-    }
-    val lazyListState = key(transcriptConversationId) { rememberLazyListState() }
-    val isAtBottom by remember(lazyListState) {
-        derivedStateOf {
-            lazyListState.firstVisibleItemIndex == 0 && lazyListState.firstVisibleItemScrollOffset < 50
-        }
-    }
     val lazyTranscriptItems = remember(transcriptItems) {
         transcriptItems.asReversed().toImmutableList()
-    }
-
-    LaunchedEffect(transcriptConversationId) {
-        lazyListState.scrollToItem(0)
-    }
-
-    LaunchedEffect(scrollToBottomSignal, transcriptConversationId, isAtBottom) {
-        if (scrollToBottomSignal > 0L && isAtBottom) {
-            lazyListState.animateScrollToItem(0)
-        }
-    }
-
-    LaunchedEffect(
-        transcriptConversationId,
-        transcriptItems.size,
-        transcriptItems.lastOrNull()?.id,
-        transcriptItems.lastOrNull()?.isStreaming,
-        transcriptItems.lastOrNull()?.body?.length,
-        isAtBottom,
-    ) {
-        if (isAtBottom &&
-            (lazyListState.firstVisibleItemIndex > 0 || lazyListState.firstVisibleItemScrollOffset > 0)
-        ) {
-            lazyListState.animateScrollToItem(0)
-        }
     }
 
     LaunchedEffect(drawerState.currentValue) {
@@ -194,20 +157,55 @@ fun HomeScreen(
                         .padding(paddingValues)
                         .imePadding(),
                 ) {
-                    AnimatedContent(
+                    Crossfade(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = spacingMd)
                             .padding(top = spacingXxxs),
                         targetState = transcriptAnimationKey,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(160))
-                        },
+                        animationSpec = tween(200),
                         label = "conversationSwitch",
-                    ) {
+                    ) { animKey ->
+                        val conversationId = remember(lazyTranscriptItems, animKey) {
+                            lazyTranscriptItems.firstOrNull()?.conversationId ?: animKey
+                        }
+                        val listState = key(conversationId) { rememberLazyListState() }
+                        val atBottom by remember(listState) {
+                            derivedStateOf {
+                                listState.firstVisibleItemIndex == 0 &&
+                                    listState.firstVisibleItemScrollOffset < 50
+                            }
+                        }
+
+                        LaunchedEffect(conversationId) {
+                            listState.scrollToItem(0)
+                        }
+
+                        LaunchedEffect(scrollToBottomSignal, conversationId, atBottom) {
+                            if (scrollToBottomSignal > 0L && atBottom) {
+                                listState.animateScrollToItem(0)
+                            }
+                        }
+
+                        LaunchedEffect(
+                            conversationId,
+                            transcriptItems.size,
+                            transcriptItems.lastOrNull()?.id,
+                            transcriptItems.lastOrNull()?.isStreaming,
+                            transcriptItems.lastOrNull()?.body?.length,
+                            atBottom,
+                        ) {
+                            if (atBottom &&
+                                (listState.firstVisibleItemIndex > 0 ||
+                                    listState.firstVisibleItemScrollOffset > 0)
+                            ) {
+                                listState.animateScrollToItem(0)
+                            }
+                        }
+
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            state = lazyListState,
+                            state = listState,
                             reverseLayout = true,
                         ) {
                             item(key = "bottom_overlay_spacer", contentType = "bottom_spacer") {
