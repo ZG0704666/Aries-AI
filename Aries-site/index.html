@@ -579,8 +579,24 @@
             position: relative;
             width: 100%;
             overflow: hidden;
-            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
-            -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+            mask-image: linear-gradient(to right,
+                    transparent 0%,
+                    rgba(0, 0, 0, 0.3) 5%,
+                    rgba(0, 0, 0, 0.8) 10%,
+                    black 15%,
+                    black 85%,
+                    rgba(0, 0, 0, 0.8) 90%,
+                    rgba(0, 0, 0, 0.3) 95%,
+                    transparent 100%);
+            -webkit-mask-image: linear-gradient(to right,
+                    transparent 0%,
+                    rgba(0, 0, 0, 0.3) 5%,
+                    rgba(0, 0, 0, 0.8) 10%,
+                    black 15%,
+                    black 85%,
+                    rgba(0, 0, 0, 0.8) 90%,
+                    rgba(0, 0, 0, 0.3) 95%,
+                    transparent 100%);
             padding: 10px 0;
         }
 
@@ -594,11 +610,15 @@
         }
 
         .marquee-track.marquee-left {
-            animation: marqueeLeft 18s linear infinite;
+            animation: marqueeLeft 25s linear infinite;
         }
 
         .marquee-track.marquee-right {
-            animation: marqueeRight 18s linear infinite;
+            animation: marqueeRight 25s linear infinite;
+        }
+
+        .marquee-wrapper:hover .marquee-track {
+            animation-play-state: paused;
         }
 
         @keyframes marqueeLeft {
@@ -827,13 +847,13 @@
         .section-title::after {
             content: '';
             position: absolute;
-            bottom: -10px;
+            bottom: -12px;
             left: 50%;
             transform: translateX(-50%);
-            width: 50px;
-            height: 4px;
-            border-radius: 2px;
-            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            width: 32px;
+            height: 3px;
+            border-radius: 99px;
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.7), rgba(139, 92, 246, 0.7));
         }
 
         .text-gradient-flow {
@@ -2135,9 +2155,10 @@
                 <!-- Case 1 -->
                 <div class="glass-card p-6 rounded-2xl group cursor-pointer reveal-on-scroll card-hover-lift">
                     <div
-                        class="w-12 sm:w-14 h-12 sm:h-14 bg-blue-600/10 border border-blue-500/30 rounded-xl flex items-center justify-center mb-4 sm:mb-5 shadow-lg shadow-blue-500/10 group-hover:scale-105 transition duration-300">
-                        <svg class="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        class="w-12 sm:w-14 h-12 sm:h-14 bg-slate-500/5 border border-slate-500/20 rounded-xl flex items-center justify-center mb-4 sm:mb-5 group-hover:bg-slate-500/10 transition duration-300">
+                        <svg class="w-6 h-6 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                                 d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                     </div>
@@ -2150,9 +2171,10 @@
                 <!-- Case 2 -->
                 <div class="glass-card p-6 rounded-2xl group cursor-pointer reveal-on-scroll card-hover-lift">
                     <div
-                        class="w-12 sm:w-14 h-12 sm:h-14 bg-blue-600/10 border border-blue-500/30 rounded-xl flex items-center justify-center mb-4 sm:mb-5 shadow-lg shadow-blue-500/10 group-hover:scale-105 transition duration-300">
-                        <svg class="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        class="w-12 sm:w-14 h-12 sm:h-14 bg-blue-500/5 border border-blue-500/20 rounded-xl flex items-center justify-center mb-4 sm:mb-5 group-hover:bg-blue-500/10 transition duration-300">
+                        <svg class="w-6 h-6 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                                 d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                         </svg>
                     </div>
@@ -2165,10 +2187,11 @@
                 <!-- Case 3 -->
                 <div class="glass-card p-6 rounded-2xl group cursor-pointer reveal-on-scroll card-hover-lift">
                     <div
-                        class="w-12 sm:w-14 h-12 sm:h-14 bg-blue-600/10 border border-blue-500/30 rounded-xl flex items-center justify-center mb-4 sm:mb-5 shadow-lg shadow-blue-500/10 group-hover:scale-105 transition duration-300">
-                        <svg class="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1m2 1V2.5M20 7a2 2 0 012-2H8a2 2 0 012 2v10a2 2 0 01-2 2h8a2 2 0 002-2V7z" />
+                        class="w-12 sm:w-14 h-12 sm:h-14 bg-purple-500/5 border border-purple-500/20 rounded-xl flex items-center justify-center mb-4 sm:mb-5 group-hover:bg-purple-500/10 transition duration-300">
+                        <svg class="w-6 h-6 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                         </svg>
                     </div>
                     <h3 class="text-base sm:text-lg font-bold mb-2 dark:text-white text-gray-900">社交互动</h3>
@@ -2196,7 +2219,7 @@
                 <h2 class="text-2xl font-bold text-center mb-4 dark:text-white text-gray-900 section-title relative">
                     适配100+款主流应用
                     <span
-                        class="block mx-auto mt-3 h-[3px] w-20 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 shadow-[0_0_18px_rgba(99,102,241,0.35)]"></span>
+                        class="block mx-auto mt-3 h-[3px] w-8 rounded-full bg-gradient-to-r from-blue-500/70 via-purple-500/70 to-purple-500/70"></span>
                 </h2>
                 <p class="text-center dark:text-gray-300 text-gray-700 mb-12 mt-6 text-sm">覆盖社交、购物、出行、娱乐全场景生态</p>
 
@@ -2224,7 +2247,13 @@
                 <div class="glass-card p-8 rounded-2xl">
                     <h3 class="text-lg font-bold text-blue-500 mb-5 flex items-center">
                         <span
-                            class="w-8 h-8 bg-blue-500/10 rounded-full flex items-center justify-center mr-3 text-sm border border-blue-500/20">🚀</span>
+                            class="w-8 h-8 bg-slate-500/5 border border-slate-500/20 rounded-full flex items-center justify-center mr-3">
+                            <svg class="w-4 h-4 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </span>
                         最新版本特性
                     </h3>
                     <div class="space-y-5">
@@ -2243,7 +2272,15 @@
                 <div class="glass-card p-8 rounded-2xl">
                     <h3 class="text-lg font-bold text-purple-500 mb-5 flex items-center">
                         <span
-                            class="w-8 h-8 bg-purple-500/10 rounded-full flex items-center justify-center mr-3 text-sm border border-purple-500/20">🔧</span>
+                            class="w-8 h-8 bg-slate-500/5 border border-slate-500/20 rounded-full flex items-center justify-center mr-3">
+                            <svg class="w-4 h-4 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </span>
                         未来计划
                     </h3>
                     <div class="space-y-5">
@@ -2271,7 +2308,7 @@
                 <button id="qq-link"
                     class="inline-flex items-center gap-2 hover:opacity-90 transition glass-card px-4 py-2 rounded-full">
                     <span
-                        class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-black/5 border dark:border-white/10 border-black/10">
+                        class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-gray-100/50 border dark:border-white/10 border-gray-200/80">
                         <svg class="w-4 h-4 dark:text-white text-gray-800" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                             aria-hidden="true">
@@ -2285,7 +2322,7 @@
                 <a class="inline-flex items-center gap-2 hover:opacity-90 transition glass-card px-4 py-2 rounded-full"
                     href="https://github.com/ZG0704666/Phone-Agent-project" target="_blank" rel="noreferrer">
                     <span
-                        class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-black/5 border dark:border-white/10 border-black/10">
+                        class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-gray-100/50 border dark:border-white/10 border-gray-200/80">
                         <svg class="w-4 h-4 dark:text-white text-gray-800" viewBox="0 0 24 24" fill="currentColor"
                             aria-hidden="true">
                             <path
@@ -2296,9 +2333,9 @@
                 </a>
 
                 <a class="inline-flex items-center gap-2 hover:opacity-90 transition glass-card px-4 py-2 rounded-full"
-                    href="mailto:zhangyongqi@njit.edu.cn">
+                    href="mailto:contact@aries-agent.com">
                     <span
-                        class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-black/5 border dark:border-white/10 border-black/10">
+                        class="w-8 h-8 rounded-xl flex items-center justify-center dark:bg-white/5 bg-gray-100/50 border dark:border-white/10 border-gray-200/80">
                         <svg class="w-4 h-4 dark:text-white text-gray-800" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                             aria-hidden="true">
@@ -2306,7 +2343,7 @@
                             <path d="M4 8l8 5 8-5" />
                         </svg>
                     </span>
-                    <span>zhangyongqi@njit.edu.cn</span>
+                    <span>contact@aries-agent.com</span>
                 </a>
 
 
@@ -2464,8 +2501,10 @@
                     class="text-xs text-slate-500 dark:text-slate-400 pt-4 border-t border-gray-100 dark:border-white/5 space-y-2">
                     <p class="font-bold mb-1 text-slate-700 dark:text-slate-300">联系我们</p>
                     <p>QQ群：746439473</p>
-                    <p>GitHub 讨论区</p>
-                    <p class="truncate">zhangyongqi@njit.edu.cn</p>
+                    <a href="https://github.com/ZG0704666/Phone-Agent-project" target="_blank" rel="noreferrer"
+                        class="hover:text-blue-500 transition">GitHub 讨论区</a>
+                    <a href="mailto:contact@aries-agent.com"
+                        class="truncate hover:text-blue-500 transition block">contact@aries-agent.com</a>
                     <p class="pt-2 opacity-50">© 2026 Aries AI Project</p>
                 </div>
             </div>
