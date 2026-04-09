@@ -19,7 +19,10 @@ package com.ai.phoneagent.helper
 
 import android.content.Context
 import android.view.View
+import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
+import android.webkit.WebView
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.ai.phoneagent.R
@@ -35,10 +38,10 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Aries AI 流式渲染助手
  *
- * 特点：
- * 1. 思考中：显示"思考中"，实时展示思考过程
- * 2. 已思考：思考结束后显示"已思考 (用时 X 秒)"
- * 3. 平滑打字机动画，避免界面抖动
+ * 核心改进：使用 WebView 进行实时流式渲染
+ * 1. 流式阶段：WebView 实时渲染 markdown（代码块、公式、表格等即时可见）
+ * 2. 思考中：SimpleMarkdownRenderer 渲染思考过程（轻量级足够）
+ * 3. 完成后：WebView 最终渲染（含 mermaid 图表等）
  */
 object StreamRenderHelper {
 
@@ -49,18 +52,20 @@ object StreamRenderHelper {
         val thinkingIndicator: TextView,
         val thinkingContentArea: View,
         val messageContent: TextView,
+        val messageContentContainer: FrameLayout,
         val authorName: TextView,
         val actionArea: View,
         val retryButton: View?,
-        val copyButton: View?
+        val copyButton: View?,
+        var messageWebView: WebView? = null
     )
 
-    // 文本动画器（支持 Markdown 渲染）
+    // 思考区域的文本动画器（轻量级，仅用于思考文本）
     private class TextAnimator(
         textView: TextView,
         private val scope: CoroutineScope,
         private val onUpdate: () -> Unit,
-        val useMarkdown: Boolean = false  // 添加 val 使其可访问
+        val useMarkdown: Boolean = false
     ) {
         private val viewRef = WeakReference(textView)
         private val textBuilder = StringBuilder()
@@ -71,8 +76,8 @@ object StreamRenderHelper {
             synchronized(textBuilder) {
                 textBuilder.append(delta)
             }
-            
-            // 立即更新显示（不等待动画循环）
+
+            // 立即更新显示
             val view = viewRef.get()
             if (view != null) {
                 val currentText = synchronized(textBuilder) { textBuilder.toString() }
@@ -83,7 +88,7 @@ object StreamRenderHelper {
                 }
                 displayedLength = currentText.length
             }
-            
+
             startAnimation()
         }
 
@@ -111,7 +116,7 @@ object StreamRenderHelper {
                 displayedLength = textBuilder.length
             }
         }
-        
+
         fun clear() {
             job?.cancel()
             synchronized(textBuilder) {
@@ -131,7 +136,6 @@ object StreamRenderHelper {
                     val targetLen = target.length
 
                     if (displayedLength >= targetLen) {
-                        // 再检查一次，防止并发问题
                         if (synchronized(textBuilder) { textBuilder.length } == targetLen) {
                             break
                         }
@@ -140,7 +144,6 @@ object StreamRenderHelper {
 
                     val view = viewRef.get() ?: break
 
-                    // 计算步长（堆积多时加速）
                     val remaining = targetLen - displayedLength
                     val step = when {
                         remaining > 100 -> 15
@@ -151,15 +154,14 @@ object StreamRenderHelper {
 
                     val nextLen = (displayedLength + step).coerceAtMost(targetLen)
                     val displayText = target.substring(0, nextLen)
-                    
-                    // 应用 Markdown 渲染
+
                     if (useMarkdown) {
                         view.text = SimpleMarkdownRenderer.render(displayText)
                     } else {
                         view.text = displayText
                     }
                     displayedLength = nextLen
-                    
+
                     view.post { onUpdate() }
                     delay(16L)
                 }
@@ -184,6 +186,12 @@ object StreamRenderHelper {
     private val parsers = ConcurrentHashMap<Int, AriesStreamParser>()
     private var thinkingStartTime = 0L
 
+    // 流式 WebView 状态
+    private val streamWebViews = ConcurrentHashMap<Int, WebView>()
+    private val streamWebViewReady = ConcurrentHashMap<Int, Boolean>()
+    private val streamAnswerBuffers = ConcurrentHashMap<Int, StringBuilder>()
+    private val pendingDeltas = ConcurrentHashMap<Int, MutableList<String>>()
+
     fun bindViews(aiView: View): ViewHolder {
         return ViewHolder(
             thinkingLayout = aiView.findViewById(R.id.thinking_layout),
@@ -192,6 +200,7 @@ object StreamRenderHelper {
             thinkingIndicator = aiView.findViewById(R.id.thinking_indicator_text),
             thinkingContentArea = aiView.findViewById(R.id.thinking_content_area),
             messageContent = aiView.findViewById(R.id.message_content),
+            messageContentContainer = aiView.findViewById(R.id.message_content_container),
             authorName = aiView.findViewById(R.id.ai_author_name),
             actionArea = aiView.findViewById(R.id.action_area),
             retryButton = aiView.findViewById(R.id.btn_retry),
@@ -204,21 +213,25 @@ object StreamRenderHelper {
      */
     fun initThinkingState(vh: ViewHolder) {
         val viewId = vh.hashCode()
-        
-        // 1. 先清理旧资源（包括清除缓存的 animators）
+
+        // 1. 先清理旧资源
         cleanup(vh)
-        
-        // 2. 强制清空 UI（防止 animator 缓存问题）
+
+        // 2. 强制清空 UI
         vh.thinkingText.text = ""
         vh.messageContent.text = ""
-        
+
         // 3. 记录开始时间
         thinkingStartTime = System.currentTimeMillis()
-        
+
         // 4. 初始化新的解析器
         parsers[viewId] = AriesStreamParser()
-        
-        // 5. 设置 UI 状态
+
+        // 5. 初始化流式回答缓冲区
+        streamAnswerBuffers[viewId] = StringBuilder()
+        pendingDeltas[viewId] = mutableListOf()
+
+        // 6. 设置 UI 状态
         vh.authorName.visibility = View.VISIBLE
         vh.thinkingLayout.visibility = View.VISIBLE
         vh.thinkingLayout.alpha = 1f
@@ -227,12 +240,12 @@ object StreamRenderHelper {
         // 显示"思考中"
         val headerTitle = vh.thinkingHeader.getChildAt(0) as? TextView
         headerTitle?.text = "思考中"
-        
+
         // 思考区域初始展开
         vh.thinkingText.visibility = View.VISIBLE
         vh.thinkingContentArea.visibility = View.VISIBLE
         vh.thinkingIndicator.text = " ⌄"
-        
+
         // 设置折叠逻辑（只设置一次）
         if (vh.thinkingHeader.tag != "listener_set") {
             var expanded = true
@@ -257,11 +270,9 @@ object StreamRenderHelper {
         useMarkdown: Boolean = false
     ): TextAnimator {
         val id = textView.hashCode()
-        
-        // 检查现有 animator
+
         val existing = animators[id]
         if (existing != null) {
-            // 如果 useMarkdown 参数不匹配，先移除旧的，创建新的
             if (existing.useMarkdown != useMarkdown) {
                 existing.stop()
                 animators.remove(id)
@@ -269,16 +280,66 @@ object StreamRenderHelper {
                 return existing
             }
         }
-        
-        // 创建新的 animator
+
         val newAnimator = TextAnimator(textView, scope, onScroll, useMarkdown)
         animators[id] = newAnimator
         return newAnimator
     }
 
     /**
+     * 确保流式 WebView 已创建并准备就绪
+     */
+    private fun ensureStreamWebView(vh: ViewHolder, context: Context, onScroll: () -> Unit) {
+        val viewId = vh.hashCode()
+        if (streamWebViews.containsKey(viewId)) return
+
+        val manager = MarkdownWebViewManager.getInstance(context)
+        var webViewRef: WebView? = null
+
+        val webView = manager.createWebView(
+            context = context,
+            onHeightChanged = { heightPx ->
+                webViewRef?.let { wv ->
+                    val lp = wv.layoutParams
+                    if (lp != null && lp.height != heightPx) {
+                        lp.height = heightPx
+                        wv.layoutParams = lp
+                    }
+                }
+                onScroll()
+            },
+            onReady = {
+                streamWebViewReady[viewId] = true
+                // 发送积攒的 pending deltas
+                val pending = pendingDeltas[viewId]
+                if (pending != null && pending.isNotEmpty()) {
+                    webViewRef?.let { wv ->
+                        for (delta in pending) {
+                            manager.appendStreamDelta(wv, delta)
+                        }
+                        pending.clear()
+                    }
+                }
+            }
+        )
+        webViewRef = webView
+
+        val lp = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
+        )
+        webView.layoutParams = lp
+
+        // 隐藏 TextView，显示 WebView
+        vh.messageContent.visibility = View.GONE
+        vh.messageContentContainer.addView(webView)
+        vh.messageWebView = webView
+        streamWebViews[viewId] = webView
+        streamWebViewReady[viewId] = false
+    }
+
+    /**
      * 处理 reasoning_content 增量（来自 API 的思考字段）
-     * 注意：此方法专门处理 API 返回的 reasoning_content 字段，直接追加到思考区域
      */
     fun processReasoningDelta(
         vh: ViewHolder,
@@ -287,27 +348,25 @@ object StreamRenderHelper {
         onScroll: () -> Unit
     ) {
         if (delta.isEmpty()) return
-        
+
         // 强制确保思考区域可见并展开
         vh.thinkingLayout.visibility = View.VISIBLE
         vh.thinkingLayout.alpha = 1f
         vh.thinkingText.visibility = View.VISIBLE
         vh.thinkingContentArea.visibility = View.VISIBLE
-        
+
         val parser = getParser(vh)
         parser.processReasoningDelta(delta)
-        
-        // 追加到思考区域，使用 Markdown 渲染
+
+        // 追加到思考区域，使用 SimpleMarkdownRenderer（思考区域够用）
         val animator = getAnimator(vh.thinkingText, coroutineScope, onScroll, useMarkdown = true)
         animator.append(delta)
-        
-        // 立即刷新显示（调试用）
+
         vh.thinkingText.post { onScroll() }
     }
 
     /**
-     * 处理 content 增量
-     * 注意：此方法处理 API 返回的 content 字段，会智能解析其中的思考/回答标签
+     * 处理 content 增量 - 使用 WebView 实时流式渲染
      */
     fun processContentDelta(
         vh: ViewHolder,
@@ -315,31 +374,68 @@ object StreamRenderHelper {
         coroutineScope: CoroutineScope,
         context: Context,
         onScroll: () -> Unit,
-        onPhaseChange: (Boolean) -> Unit  // true = 进入回答阶段
+        onPhaseChange: (Boolean) -> Unit
     ) {
         if (delta.isEmpty()) return
 
-        // 直接采用模型 content 流：不对实时流做标签拆分，避免“先解析后显示”导致正文丢失。
-        val answerAnimator = getAnimator(vh.messageContent, coroutineScope, onScroll, useMarkdown = true)
-        val isFirstAnswerChunk = answerAnimator.getText().isEmpty()
-        if (isFirstAnswerChunk) {
-            onPhaseChange(true)
+        val viewId = vh.hashCode()
+        val parser = getParser(vh)
+        val chunks = parser.processContentDelta(delta)
+
+        for (chunk in chunks) {
+            when (chunk.type) {
+                AriesStreamParser.ChunkType.THINKING -> {
+                    // 确保思考区域可见并展开（如果在思考中）
+                    val headerTitle = vh.thinkingHeader.getChildAt(0) as? TextView
+                    if (headerTitle?.text == "思考中") {
+                        vh.thinkingLayout.visibility = View.VISIBLE
+                        vh.thinkingLayout.alpha = 1f
+                        vh.thinkingText.visibility = View.VISIBLE
+                        vh.thinkingContentArea.visibility = View.VISIBLE
+                    }
+
+                    val animator = getAnimator(vh.thinkingText, coroutineScope, onScroll, useMarkdown = true)
+                    animator.append(chunk.content)
+                    vh.thinkingText.post { onScroll() }
+                }
+                AriesStreamParser.ChunkType.CONTROL -> {
+                    if (chunk.content == "ANSWER_START" || chunk.content == "THINKING_END") {
+                        onPhaseChange(true)
+                    }
+                }
+                AriesStreamParser.ChunkType.ANSWER -> {
+                    if (chunk.content.isEmpty()) continue
+
+                    val buffer = streamAnswerBuffers.getOrPut(viewId) { StringBuilder() }
+                    val isFirstChunk = buffer.isEmpty()
+                    buffer.append(chunk.content)
+
+                    if (isFirstChunk) {
+                        onPhaseChange(true)
+                        ensureStreamWebView(vh, context, onScroll)
+                    }
+
+                    val webView = streamWebViews[viewId]
+                    val isReady = streamWebViewReady[viewId] == true
+                    if (webView != null && isReady) {
+                        MarkdownWebViewManager.getInstance(context).appendStreamDelta(webView, chunk.content)
+                    } else {
+                        pendingDeltas.getOrPut(viewId) { mutableListOf() }.add(chunk.content)
+                    }
+                }
+            }
         }
-        answerAnimator.append(delta)
     }
 
     /**
      * 从"思考中"过渡到"已思考"
      */
     fun transitionToAnswer(vh: ViewHolder) {
-        // 计算思考耗时
         val elapsed = (System.currentTimeMillis() - thinkingStartTime) / 1000
-        
-        // 更新标题
+
         val headerTitle = vh.thinkingHeader.getChildAt(0) as? TextView
         headerTitle?.text = "已思考 (用时 ${elapsed} 秒)"
-        
-        // 思考区域变淡
+
         vh.thinkingLayout.animate()
             .alpha(0.85f)
             .setDuration(300)
@@ -351,9 +447,10 @@ object StreamRenderHelper {
      * 标记完成
      */
     fun markCompleted(vh: ViewHolder, timeCostSec: Long) {
+        val viewId = vh.hashCode()
         val headerTitle = vh.thinkingHeader.getChildAt(0) as? TextView
         headerTitle?.text = "已思考 (用时 ${timeCostSec} 秒)"
-        
+
         // 显示操作按钮
         vh.actionArea.visibility = View.VISIBLE
         vh.actionArea.alpha = 0f
@@ -361,38 +458,50 @@ object StreamRenderHelper {
             .alpha(1f)
             .setDuration(300)
             .start()
-        
-        // 停止动画，确保完整显示
+
+        // 停止思考动画
         val thinkingAnimator = animators[vh.thinkingText.hashCode()]
-        val answerAnimator = animators[vh.messageContent.hashCode()]
         thinkingAnimator?.stop()
-        answerAnimator?.stop()
+
         // 刷新解析器缓冲
-        val flushedChunks = parsers[vh.hashCode()]?.flush().orEmpty()
+        val flushedChunks = parsers[viewId]?.flush().orEmpty()
         val extraThinking = StringBuilder()
-        val extraAnswer = StringBuilder()
         for (chunk in flushedChunks) {
             when (chunk.type) {
                 AriesStreamParser.ChunkType.THINKING -> extraThinking.append(chunk.content)
-                AriesStreamParser.ChunkType.ANSWER -> extraAnswer.append(chunk.content)
+                AriesStreamParser.ChunkType.ANSWER -> Unit
                 AriesStreamParser.ChunkType.CONTROL -> Unit
             }
         }
 
         val extraThinkingStr = sanitizeFlushTail(extraThinking.toString())
-        val extraAnswerStr = sanitizeFlushTail(extraAnswer.toString())
         if (extraThinkingStr.isNotEmpty()) thinkingAnimator?.appendRaw(extraThinkingStr)
-        if (extraAnswerStr.isNotEmpty()) answerAnimator?.appendRaw(extraAnswerStr)
 
         val thinkingRaw = thinkingAnimator?.getText() ?: extraThinkingStr
-        val answerRaw = answerAnimator?.getText() ?: extraAnswerStr
+        val answerRaw = streamAnswerBuffers[viewId]?.toString() ?: ""
+
         vh.thinkingLayout.visibility = if (thinkingRaw.isBlank()) View.GONE else View.VISIBLE
         if (thinkingRaw.isNotBlank()) {
             applyMarkdownToHistory(vh.thinkingText, thinkingRaw)
         }
-        if (answerRaw.isNotBlank()) {
-            applyMarkdownToHistory(vh.messageContent, answerRaw)
+
+        // 通知 WebView 流式结束，做最终渲染
+        val webView = streamWebViews[viewId]
+        if (webView != null && answerRaw.isNotBlank()) {
+            val manager = MarkdownWebViewManager.getInstance(webView.context)
+            manager.finishStream(webView)
+        } else if (answerRaw.isNotBlank()) {
+            // 没有 WebView（理论上不该发生），回退到旧逻辑
+            if (MarkdownWebViewManager.shouldUseWebView(answerRaw)) {
+                upgradeToWebView(vh, answerRaw, vh.messageContent.context)
+            } else {
+                applyMarkdownToHistory(vh.messageContent, answerRaw)
+            }
         }
+
+        // 清理流式状态（但保留 WebView 引用以便后续操作）
+        streamWebViewReady.remove(viewId)
+        pendingDeltas.remove(viewId)
     }
 
     /**
@@ -408,8 +517,9 @@ object StreamRenderHelper {
      * 获取回答文本
      */
     fun getAnswerText(vh: ViewHolder): String {
-        val animatorText = animators[vh.messageContent.hashCode()]?.getText().orEmpty()
-        if (animatorText.isNotBlank()) return animatorText
+        val viewId = vh.hashCode()
+        val bufferText = streamAnswerBuffers[viewId]?.toString().orEmpty()
+        if (bufferText.isNotBlank()) return bufferText
         return vh.messageContent.text?.toString().orEmpty()
     }
 
@@ -417,22 +527,35 @@ object StreamRenderHelper {
      * 清理资源
      */
     fun cleanup(vh: ViewHolder) {
+        val viewId = vh.hashCode()
         val thinkingId = vh.thinkingText.hashCode()
         val contentId = vh.messageContent.hashCode()
-        
+
         // 停止并清空 animator
         animators[thinkingId]?.clear()
         animators[contentId]?.clear()
-        
+
         // 移除缓存
         animators.remove(thinkingId)
         animators.remove(contentId)
-        parsers.remove(vh.hashCode())
+        parsers.remove(viewId)
+
+        // 清理流式状态
+        streamWebViews.remove(viewId)
+        streamWebViewReady.remove(viewId)
+        streamAnswerBuffers.remove(viewId)
+        pendingDeltas.remove(viewId)
+
+        // 清理 WebView
+        vh.messageWebView?.let { wv ->
+            (wv.parent as? ViewGroup)?.removeView(wv)
+            MarkdownWebViewManager.getInstance(wv.context).destroyWebView(wv)
+        }
+        vh.messageWebView = null
     }
-    
+
     /**
      * 为历史消息应用 Markdown 渲染
-     * 用于加载历史对话时渲染已保存的消息
      */
     fun applyMarkdownToHistory(textView: TextView, content: String) {
         if (content.isBlank()) {
@@ -440,6 +563,83 @@ object StreamRenderHelper {
             return
         }
         MarkdownRenderer.getInstance(textView.context).render(textView, content)
+    }
+
+    /**
+     * 为历史消息应用 Markdown 渲染（含 WebView 升级支持）
+     */
+    fun applyMarkdownToHistory(textView: TextView, container: FrameLayout, content: String) {
+        if (content.isBlank()) {
+            textView.text = ""
+            return
+        }
+        if (MarkdownWebViewManager.shouldUseWebView(content)) {
+            val manager = MarkdownWebViewManager.getInstance(textView.context)
+            var webViewRef: WebView? = null
+            val webView = manager.createWebView(
+                context = textView.context,
+                onHeightChanged = { heightPx ->
+                    webViewRef?.let { wv ->
+                        val lp = wv.layoutParams
+                        if (lp != null && lp.height != heightPx) {
+                            lp.height = heightPx
+                            wv.layoutParams = lp
+                        }
+                    }
+                },
+                onReady = {
+                    webViewRef?.let { wv -> manager.renderContent(wv, content) }
+                }
+            )
+            webViewRef = webView
+            val lp = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+            webView.layoutParams = lp
+            textView.visibility = View.GONE
+            container.addView(webView)
+        } else {
+            MarkdownRenderer.getInstance(textView.context).render(textView, content)
+        }
+    }
+
+    /**
+     * 将 message_content 区域升级为 WebView 渲染
+     */
+    private fun upgradeToWebView(vh: ViewHolder, markdown: String, context: Context) {
+        if (vh.messageWebView != null) return
+        val manager = MarkdownWebViewManager.getInstance(context)
+        var webViewRef: WebView? = null
+
+        val webView = manager.createWebView(
+            context = context,
+            onHeightChanged = { heightPx ->
+                webViewRef?.let { wv ->
+                    val lp = wv.layoutParams
+                    if (lp != null && lp.height != heightPx) {
+                        lp.height = heightPx
+                        wv.layoutParams = lp
+                    }
+                }
+            },
+            onReady = {
+                webViewRef?.let { wv ->
+                    manager.renderContent(wv, markdown)
+                }
+            }
+        )
+        webViewRef = webView
+
+        val lp = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
+        )
+        webView.layoutParams = lp
+
+        vh.messageContent.visibility = View.GONE
+        vh.messageContentContainer.addView(webView)
+        vh.messageWebView = webView
     }
 
     private fun sanitizeFlushTail(tail: String): String {

@@ -61,6 +61,7 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
+import com.ai.phoneagent.helper.MarkdownWebViewManager
 import com.ai.phoneagent.helper.StreamRenderHelper
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
@@ -1331,8 +1332,13 @@ class FloatingChatService : Service() {
                 }
 
                 if (!streamOk && contentSb.isEmpty()) {
-                    vh?.messageContent?.text = "连接超时或服务遇到问题，请点击重试。"
-                    vh?.messageContent?.setTextColor(m3Color(R.color.m3t_error))
+                    if (vh?.messageWebView != null) {
+                        MarkdownWebViewManager.getInstance(this@FloatingChatService)
+                            .renderContent(vh.messageWebView!!, "连接超时或服务遇到问题，请点击重试。")
+                    } else {
+                        vh?.messageContent?.text = "连接超时或服务遇到问题，请点击重试。"
+                        vh?.messageContent?.setTextColor(m3Color(R.color.m3t_error))
+                    }
                 }
 
                 // 获取解析后的内容
@@ -1347,7 +1353,12 @@ class FloatingChatService : Service() {
                             else -> "请求失败"
                         }
                 if (vh != null && renderedAnswer.isBlank() && answerContent.isNotBlank() && streamOk) {
-                    StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, answerContent)
+                    if (vh.messageWebView != null) {
+                        MarkdownWebViewManager.getInstance(this@FloatingChatService)
+                            .renderContent(vh.messageWebView!!, answerContent)
+                    } else {
+                        StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, vh.messageContentContainer, answerContent)
+                    }
                 }
 
                 val persistText =
@@ -1619,7 +1630,7 @@ class FloatingChatService : Service() {
                 vh.thinkingLayout.visibility = View.GONE
             }
 
-            StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, realContent)
+            StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, vh.messageContentContainer, realContent)
             vh.actionArea.visibility = View.VISIBLE
             vh.retryButton?.visibility = View.VISIBLE // 修复：小窗模式下显示重试按钮
             vh.retryButton?.setOnClickListener {

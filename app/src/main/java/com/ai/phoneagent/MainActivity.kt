@@ -86,6 +86,7 @@ import android.widget.ImageView
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.EditText
+import com.ai.phoneagent.helper.MarkdownWebViewManager
 import com.ai.phoneagent.helper.StreamRenderHelper
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -3089,7 +3090,10 @@ class MainActivity : AppCompatActivity() {
                     val cm =
                             getSystemService(android.content.Context.CLIPBOARD_SERVICE) as
                                     android.content.ClipboardManager
-                    val clip = android.content.ClipData.newPlainText("AI Reply", vh.messageContent.text)
+                    val copyText = StreamRenderHelper.getAnswerText(vh).ifBlank {
+                        vh.messageContent.text?.toString().orEmpty()
+                    }
+                    val clip = android.content.ClipData.newPlainText("AI Reply", copyText)
                     cm.setPrimaryClip(clip)
                     Toast.makeText(this@MainActivity, "已复制内容", Toast.LENGTH_SHORT).show()
                 }
@@ -3262,7 +3266,14 @@ class MainActivity : AppCompatActivity() {
                     }
                     if (!streamOk || shouldStopGeneration) {
                         // 如果失败或被停止，直接显示消息
-                        vh.messageContent.text = finalContent
+                        if (vh.messageWebView != null) {
+                            // WebView 已创建，用它显示
+                            MarkdownWebViewManager.getInstance(this@MainActivity)
+                                .renderContent(vh.messageWebView!!, finalContent)
+                        } else {
+                            vh.messageContent.visibility = View.VISIBLE
+                            vh.messageContent.text = finalContent
+                        }
                     }
                 }
 
@@ -3281,7 +3292,12 @@ class MainActivity : AppCompatActivity() {
                     if (renderedAnswerRaw.isNotBlank()) renderedAnswerRaw else fallbackAnswerRaw
                 if (renderedAnswerRaw.isBlank() && answerContentRaw.isNotBlank() && streamOk && !shouldStopGeneration) {
                     runOnUiThread {
-                        StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, answerContentRaw)
+                        if (vh.messageWebView != null) {
+                            MarkdownWebViewManager.getInstance(this@MainActivity)
+                                .renderContent(vh.messageWebView!!, answerContentRaw)
+                        } else {
+                            StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, vh.messageContentContainer, answerContentRaw)
+                        }
                     }
                 }
                 val (answerContent, markerInAnswer) =
@@ -3291,7 +3307,12 @@ class MainActivity : AppCompatActivity() {
 
                 if (answerContent != answerContentRaw) {
                     runOnUiThread {
-                        StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, answerContent)
+                        if (vh.messageWebView != null) {
+                            MarkdownWebViewManager.getInstance(this@MainActivity)
+                                .renderContent(vh.messageWebView!!, answerContent)
+                        } else {
+                            StreamRenderHelper.applyMarkdownToHistory(vh.messageContent, vh.messageContentContainer, answerContent)
+                        }
                     }
                 }
 
@@ -4091,6 +4112,7 @@ class MainActivity : AppCompatActivity() {
         val thinkingText = view.findViewById<TextView>(R.id.thinking_text)
         val thinkingIndicator = view.findViewById<TextView>(R.id.thinking_indicator_text)
         val messageContent = view.findViewById<TextView>(R.id.message_content)
+        val messageContentContainer = view.findViewById<android.widget.FrameLayout>(R.id.message_content_container)
         val authorName = view.findViewById<TextView>(R.id.ai_author_name)
         val btnConfirm = view.findViewById<View?>(R.id.btn_confirm)
         val tvConfirmText = view.findViewById<TextView?>(R.id.tv_confirm_text)
@@ -4207,7 +4229,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             if (messageContent.visibility == View.VISIBLE) {
-                StreamRenderHelper.applyMarkdownToHistory(messageContent, realContent)
+                StreamRenderHelper.applyMarkdownToHistory(messageContent, messageContentContainer, realContent)
             }
             view.findViewById<View>(R.id.action_area).visibility = View.VISIBLE
 
