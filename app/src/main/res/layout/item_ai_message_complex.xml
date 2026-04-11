@@ -107,6 +107,14 @@
         </LinearLayout>
     </LinearLayout>
 
+    <!-- Compose-based Markdown 渲染 (替代旧 TextView) -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/message_content_compose"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="@dimen/m3t_spacing_xs" />
+
+    <!-- 保留旧 TextView 作为 fallback，默认隐藏 -->
     <TextView
         android:id="@+id/message_content"
         android:layout_width="match_parent"
@@ -114,7 +122,8 @@
         android:lineSpacingMultiplier="1.5"
         android:paddingTop="@dimen/m3t_spacing_xs"
         android:textAppearance="@style/TextAppearance.M3t.Chat.Message"
-        android:textIsSelectable="true" />
+        android:textIsSelectable="true"
+        android:visibility="gone" />
 
     <LinearLayout
         android:id="@+id/automation_panel"

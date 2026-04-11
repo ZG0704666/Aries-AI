@@ -139,11 +139,26 @@ dependencies {
     // 后台任务（便于自动化/定时流程）
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     
-    // Markdown 渲染
+    // Markdown 渲染 (Markwon – 旧渲染器，保留兼容)
     implementation("io.noties.markwon:core:4.6.2")
     implementation("io.noties.markwon:ext-strikethrough:4.6.2")
     implementation("io.noties.markwon:ext-tables:4.6.2")
     implementation("io.noties.markwon:syntax-highlight:4.6.2")
+
+    // Markdown 渲染 (intellij-markdown – 新 Compose AST 渲染器)
+    implementation("org.jetbrains:markdown:0.7.3")
+
+    // HTML 解析 (SimpleHtmlBlock)
+    implementation("org.jsoup:jsoup:1.18.1")
+
+    // LaTeX 数学公式渲染
+    implementation("ru.noties:jlatexmath-android:0.2.0")
+
+    // 图片加载 (Markdown 图片 + ZoomableAsyncImage)
+    implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // Compose Foundation (InlineTextContent / selection)
+    implementation("androidx.compose.foundation:foundation")
 
     // 显式添加单一版本的 annotations，供 Kotlin/Markwon 等使用
     implementation("org.jetbrains:annotations:23.0.0")

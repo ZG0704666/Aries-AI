@@ -3067,6 +3067,17 @@ class MainActivity : AppCompatActivity() {
                 binding.messagesContainer.addView(aiView)
                 val vh = StreamRenderHelper.bindViews(aiView)
                 StreamRenderHelper.initThinkingState(vh)
+
+                // 初始化 Compose 渲染（用于流式 Markdown 输出）
+                val composeView = vh.messageContentCompose
+                if (composeView != null) {
+                    val isDark = isDarkThemeActive()
+                    val stateKey = composeView.hashCode()
+                    StreamRenderHelper.setupComposeView(composeView, stateKey, isDark)
+                    vh.messageContent.visibility = View.GONE
+                    composeView.visibility = View.VISIBLE
+                }
+
                 val tvModelName = aiView.findViewById<TextView>(R.id.tv_model_name)
                 if (resolvedModel.isNotBlank()) {
                     tvModelName.text = resolvedModel
@@ -3089,7 +3100,8 @@ class MainActivity : AppCompatActivity() {
                     val cm =
                             getSystemService(android.content.Context.CLIPBOARD_SERVICE) as
                                     android.content.ClipboardManager
-                    val clip = android.content.ClipData.newPlainText("AI Reply", vh.messageContent.text)
+                    val answerText = StreamRenderHelper.getAnswerText(vh)
+                    val clip = android.content.ClipData.newPlainText("AI Reply", answerText)
                     cm.setPrimaryClip(clip)
                     Toast.makeText(this@MainActivity, "已复制内容", Toast.LENGTH_SHORT).show()
                 }
@@ -4091,6 +4103,7 @@ class MainActivity : AppCompatActivity() {
         val thinkingText = view.findViewById<TextView>(R.id.thinking_text)
         val thinkingIndicator = view.findViewById<TextView>(R.id.thinking_indicator_text)
         val messageContent = view.findViewById<TextView>(R.id.message_content)
+        val messageContentCompose = view.findViewById<androidx.compose.ui.platform.ComposeView>(R.id.message_content_compose)
         val authorName = view.findViewById<TextView>(R.id.ai_author_name)
         val btnConfirm = view.findViewById<View?>(R.id.btn_confirm)
         val tvConfirmText = view.findViewById<TextView?>(R.id.tv_confirm_text)
@@ -4173,6 +4186,7 @@ class MainActivity : AppCompatActivity() {
 
         if (!automationCommandText.isNullOrBlank()) {
             messageContent.visibility = View.GONE
+            messageContentCompose?.visibility = View.GONE
             automationPanel.visibility = View.VISIBLE
             configureAutomationPanel(
                 command = automationCommandText,
@@ -4193,7 +4207,9 @@ class MainActivity : AppCompatActivity() {
                 activeAutomationPanelConfirmTextView = tvConfirmText
             }
         } else {
-            messageContent.visibility = View.VISIBLE
+            // 使用 ComposeView 渲染 Markdown
+            messageContent.visibility = View.GONE
+            messageContentCompose?.visibility = View.VISIBLE
             automationPanel.visibility = View.GONE
         }
         
@@ -4206,7 +4222,11 @@ class MainActivity : AppCompatActivity() {
                     thinkingHeader.performClick()
                 }
             }
-            if (messageContent.visibility == View.VISIBLE) {
+            // 使用 Compose 渲染正文 Markdown
+            if (messageContentCompose?.visibility == View.VISIBLE && messageContentCompose != null) {
+                val isDark = isDarkThemeActive()
+                StreamRenderHelper.applyMarkdownToComposeView(messageContentCompose, realContent, isDark)
+            } else if (messageContent.visibility == View.VISIBLE) {
                 StreamRenderHelper.applyMarkdownToHistory(messageContent, realContent)
             }
             view.findViewById<View>(R.id.action_area).visibility = View.VISIBLE
@@ -4267,29 +4287,47 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             
-            // 2. 播放正文打字机
-            val sb = StringBuilder()
-            val chunkSize = 2 // 正文稍微慢一点，更像打字
-            var index = 0
-            while (index < realContent.length) {
-                val end = minOf(index + chunkSize, realContent.length)
-                val chunk = realContent.substring(index, end)
-                sb.append(chunk)
-                messageContent.text = sb.toString()
-                index = end
+            // 2. 播放正文打字机 (使用 Compose 渲染)
+            if (messageContentCompose != null) {
+                val isDark = isDarkThemeActive()
+                val stateKey = messageContentCompose.hashCode()
+                val state = StreamRenderHelper.getOrCreateComposeState(stateKey)
+                StreamRenderHelper.setupComposeView(messageContentCompose, stateKey, isDark)
                 
-                smoothScrollToBottom()
-                
-                // 根据标点调整节奏
-                val lastChar = chunk.lastOrNull() ?: ' '
-                val d = when (lastChar) {
-                    '。', '！', '？', '\n' -> 50L
-                    '，', '；' -> 30L
-                    else -> 10L // 默认很快，丝滑
+                val sb = StringBuilder()
+                val chunkSize = 5
+                var index = 0
+                while (index < realContent.length) {
+                    val end = minOf(index + chunkSize, realContent.length)
+                    sb.append(realContent.substring(index, end))
+                    state.value = sb.toString()
+                    index = end
+                    smoothScrollToBottom()
+                    delay(8L)
                 }
-                delay(d)
+                state.value = realContent
+            } else {
+                // Fallback: 旧 TextView 打字机
+                val sb = StringBuilder()
+                val chunkSize = 2
+                var index = 0
+                while (index < realContent.length) {
+                    val end = minOf(index + chunkSize, realContent.length)
+                    val chunk = realContent.substring(index, end)
+                    sb.append(chunk)
+                    messageContent.text = sb.toString()
+                    index = end
+                    smoothScrollToBottom()
+                    val lastChar = chunk.lastOrNull() ?: ' '
+                    val d = when (lastChar) {
+                        '。', '！', '？', '\n' -> 50L
+                        '，', '；' -> 30L
+                        else -> 10L
+                    }
+                    delay(d)
+                }
+                messageContent.text = realContent
             }
-            messageContent.text = realContent
             
             // 动画结束后显示底部操作栏（分割线+复制/重试）
             val actionArea = view.findViewById<View>(R.id.action_area)
@@ -4336,6 +4374,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
+    /**
+     * 判断当前是否为暗色主题
+     */
+    private fun isDarkThemeActive(): Boolean {
+        return (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
+    }
+
     /**
      * 丝滑滚动到底部
      */
@@ -4809,6 +4855,7 @@ class MainActivity : AppCompatActivity() {
         val view = layoutInflater.inflate(R.layout.item_ai_message_complex, binding.messagesContainer, false)
         val authorName = view.findViewById<TextView>(R.id.ai_author_name)
         val messageContent = view.findViewById<TextView>(R.id.message_content)
+        val messageContentCompose = view.findViewById<androidx.compose.ui.platform.ComposeView?>(R.id.message_content_compose)
         val thinkingLayout = view.findViewById<View>(R.id.thinking_layout)
         val actionArea = view.findViewById<View>(R.id.action_area)
 
@@ -4817,6 +4864,9 @@ class MainActivity : AppCompatActivity() {
         thinkingLayout.visibility = View.GONE
         actionArea.visibility = View.GONE
 
+        // "正在思考" 使用旧 TextView，隐藏 ComposeView
+        messageContentCompose?.visibility = View.GONE
+        messageContent.visibility = View.VISIBLE
         messageContent.text = "正在思考"
         messageContent.setTextColor(ContextCompat.getColor(this, R.color.m3t_thinking_text))
 

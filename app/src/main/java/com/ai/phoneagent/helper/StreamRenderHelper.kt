@@ -22,8 +22,15 @@ import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import com.ai.phoneagent.R
 import com.ai.phoneagent.core.utils.ThinkingTags
+import com.ai.phoneagent.ui.markdown.MarkdownBlock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -49,6 +56,7 @@ object StreamRenderHelper {
         val thinkingIndicator: TextView,
         val thinkingContentArea: View,
         val messageContent: TextView,
+        val messageContentCompose: ComposeView?,
         val authorName: TextView,
         val actionArea: View,
         val retryButton: View?,
@@ -184,6 +192,30 @@ object StreamRenderHelper {
     private val parsers = ConcurrentHashMap<Int, AriesStreamParser>()
     private var thinkingStartTime = 0L
 
+    // Compose 状态 – 用于驱动 ComposeView 内的 MarkdownBlock
+    private val composeContentStates = ConcurrentHashMap<Int, androidx.compose.runtime.MutableState<String>>()
+
+    /**
+     * 获取或创建 Compose 内容状态
+     */
+    fun getOrCreateComposeState(viewId: Int): androidx.compose.runtime.MutableState<String> {
+        return composeContentStates.getOrPut(viewId) { mutableStateOf("") }
+    }
+
+    /**
+     * 初始化 ComposeView 渲染
+     */
+    fun setupComposeView(composeView: ComposeView, stateKey: Int, isDarkTheme: Boolean) {
+        composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        val contentState = getOrCreateComposeState(stateKey)
+        composeView.setContent {
+            val colorScheme = if (isDarkTheme) darkColorScheme() else lightColorScheme()
+            MaterialTheme(colorScheme = colorScheme) {
+                MarkdownBlock(content = contentState.value)
+            }
+        }
+    }
+
     fun bindViews(aiView: View): ViewHolder {
         return ViewHolder(
             thinkingLayout = aiView.findViewById(R.id.thinking_layout),
@@ -192,6 +224,7 @@ object StreamRenderHelper {
             thinkingIndicator = aiView.findViewById(R.id.thinking_indicator_text),
             thinkingContentArea = aiView.findViewById(R.id.thinking_content_area),
             messageContent = aiView.findViewById(R.id.message_content),
+            messageContentCompose = aiView.findViewById(R.id.message_content_compose),
             authorName = aiView.findViewById(R.id.ai_author_name),
             actionArea = aiView.findViewById(R.id.action_area),
             retryButton = aiView.findViewById(R.id.btn_retry),
@@ -319,7 +352,26 @@ object StreamRenderHelper {
     ) {
         if (delta.isEmpty()) return
 
-        // 直接采用模型 content 流：不对实时流做标签拆分，避免“先解析后显示”导致正文丢失。
+        // 优先使用 Compose 渲染
+        val composeView = vh.messageContentCompose
+        if (composeView != null) {
+            val stateKey = composeView.hashCode()
+            val state = getOrCreateComposeState(stateKey)
+            val isFirstChunk = state.value.isEmpty()
+            if (isFirstChunk) {
+                // 首个 chunk 时必须 setup ComposeView，否则 setContent 未调用就是空壳
+                val isDarkTheme = (context.resources.configuration.uiMode and
+                    android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                    android.content.res.Configuration.UI_MODE_NIGHT_YES
+                setupComposeView(composeView, stateKey, isDarkTheme)
+                onPhaseChange(true)
+            }
+            state.value = state.value + delta
+            composeView.post { onScroll() }
+            return
+        }
+
+        // Fallback: 旧的 TextView 动画器
         val answerAnimator = getAnimator(vh.messageContent, coroutineScope, onScroll, useMarkdown = true)
         val isFirstAnswerChunk = answerAnimator.getText().isEmpty()
         if (isFirstAnswerChunk) {
@@ -382,16 +434,29 @@ object StreamRenderHelper {
         val extraThinkingStr = sanitizeFlushTail(extraThinking.toString())
         val extraAnswerStr = sanitizeFlushTail(extraAnswer.toString())
         if (extraThinkingStr.isNotEmpty()) thinkingAnimator?.appendRaw(extraThinkingStr)
-        if (extraAnswerStr.isNotEmpty()) answerAnimator?.appendRaw(extraAnswerStr)
 
         val thinkingRaw = thinkingAnimator?.getText() ?: extraThinkingStr
-        val answerRaw = answerAnimator?.getText() ?: extraAnswerStr
         vh.thinkingLayout.visibility = if (thinkingRaw.isBlank()) View.GONE else View.VISIBLE
         if (thinkingRaw.isNotBlank()) {
             applyMarkdownToHistory(vh.thinkingText, thinkingRaw)
         }
-        if (answerRaw.isNotBlank()) {
-            applyMarkdownToHistory(vh.messageContent, answerRaw)
+
+        // Compose 渲染路径
+        val composeView = vh.messageContentCompose
+        if (composeView != null) {
+            val stateKey = composeView.hashCode()
+            val state = composeContentStates[stateKey]
+            if (extraAnswerStr.isNotEmpty() && state != null) {
+                state.value = state.value + extraAnswerStr
+            }
+            // Compose 自动响应 state 变化，无需额外操作
+        } else {
+            // 旧 TextView 路径
+            if (extraAnswerStr.isNotEmpty()) answerAnimator?.appendRaw(extraAnswerStr)
+            val answerRaw = answerAnimator?.getText() ?: extraAnswerStr
+            if (answerRaw.isNotBlank()) {
+                applyMarkdownToHistory(vh.messageContent, answerRaw)
+            }
         }
     }
 
@@ -408,6 +473,13 @@ object StreamRenderHelper {
      * 获取回答文本
      */
     fun getAnswerText(vh: ViewHolder): String {
+        // 优先从 Compose 状态获取
+        val composeView = vh.messageContentCompose
+        if (composeView != null) {
+            val state = composeContentStates[composeView.hashCode()]
+            if (state != null && state.value.isNotBlank()) return state.value
+        }
+        // Fallback: 旧 TextView
         val animatorText = animators[vh.messageContent.hashCode()]?.getText().orEmpty()
         if (animatorText.isNotBlank()) return animatorText
         return vh.messageContent.text?.toString().orEmpty()
@@ -428,6 +500,12 @@ object StreamRenderHelper {
         animators.remove(thinkingId)
         animators.remove(contentId)
         parsers.remove(vh.hashCode())
+
+        // 清理 Compose 状态
+        val composeView = vh.messageContentCompose
+        if (composeView != null) {
+            composeContentStates.remove(composeView.hashCode())
+        }
     }
     
     /**
@@ -440,6 +518,26 @@ object StreamRenderHelper {
             return
         }
         MarkdownRenderer.getInstance(textView.context).render(textView, content)
+    }
+
+    /**
+     * 为历史消息设置 Compose Markdown 渲染
+     * 用于 ComposeView 方式渲染
+     */
+    fun applyMarkdownToComposeView(
+        composeView: ComposeView,
+        content: String,
+        isDarkTheme: Boolean
+    ) {
+        if (content.isBlank()) {
+            composeView.visibility = View.GONE
+            return
+        }
+        composeView.visibility = View.VISIBLE
+        val stateKey = composeView.hashCode()
+        val state = getOrCreateComposeState(stateKey)
+        state.value = content
+        setupComposeView(composeView, stateKey, isDarkTheme)
     }
 
     private fun sanitizeFlushTail(tail: String): String {

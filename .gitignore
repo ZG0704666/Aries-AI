@@ -23,7 +23,7 @@ release/
 *.bak*
 *.log
 **/logs/
-/temp/
+/temp
 .tmp_material_113/
 .tmp_material_113.zip
 .trae/documents/
@@ -54,3 +54,6 @@ key/key
 # Local performance profiling artifacts
 Aries-site/lighthouse-*.report.html
 Aries-site/lighthouse-*.report.json
+
+/.agents
+skills-lock.json
