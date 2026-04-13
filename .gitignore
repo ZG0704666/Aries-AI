@@ -45,6 +45,9 @@ app/src/main/assets/sherpa-models/**
 !app/src/main/assets/sherpa-models/.keep
 !app/src/main/assets/sherpa-models/README.md
 
+# Local latex library source clone (using Maven dependency instead)
+/latex/
+
 # Local tool configs and secrets
 .opencode/
 AGENTS.md

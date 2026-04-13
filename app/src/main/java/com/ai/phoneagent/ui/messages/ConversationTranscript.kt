@@ -79,6 +79,13 @@ import com.ai.phoneagent.helper.AutomationMessageParser
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
+import androidx.compose.foundation.isSystemInDarkTheme
+import com.mikepenz.markdown.compose.components.markdownComponents
+import com.mikepenz.markdown.compose.elements.highlightedCodeBlock
+import com.mikepenz.markdown.compose.elements.highlightedCodeFence
+import com.hrm.latex.renderer.Latex
+import com.hrm.latex.renderer.model.LatexConfig
+import androidx.compose.ui.text.font.FontFamily
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
@@ -86,6 +93,10 @@ private val DESC_DO_REGEX = Regex("""desc\s*=\s*\"([^\"]+)\"""", RegexOption.IGN
 private val DESC_JSON_REGEX = Regex("""\"desc\"\s*:\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
 private val DESCRIPTION_JSON_REGEX = Regex("""\"description\"\s*:\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
 private val FENCED_CODE_BLOCK_REGEX = Regex("(?s)```([\\w+-]*)\\n(.*?)```")
+// 块级公式：$$...$$ (跨行匹配，DOTALL)
+private val LATEX_BLOCK_REGEX = Regex("""(?s)\$\$(.*?)\$\$""")
+// 行内公式：$...$ 但不匹配 $$ 开头（负向前瞻区分 $ 与 $$），内容不含换行
+private val LATEX_INLINE_REGEX = Regex("""\$(?!\$)((?:[^\$\n])+?)\$(?!\$)""")
 private const val CODE_BLOCK_COLLAPSE_LINE_THRESHOLD = 10
 
 @Immutable
@@ -105,6 +116,14 @@ private sealed interface MessageBodySegment {
     data class CodeFence(
         val language: String?,
         val content: String,
+    ) : MessageBodySegment
+
+    data class LaTeXBlock(
+        val content: String,  // 块级公式，来自 $$...$$ 之间的内容
+    ) : MessageBodySegment
+
+    data class InlineLatex(
+        val content: String,  // 行内公式，来自 $...$ 之间的内容
     ) : MessageBodySegment
 }
 
@@ -494,6 +513,10 @@ private fun AssistantMessageBlock(
                                         colors = markdownColor(),
                                         typography = markdownTypography(),
                                         modifier = Modifier.fillMaxWidth(),
+                                        components = markdownComponents(
+                                            codeBlock = highlightedCodeBlock,
+                                            codeFence = highlightedCodeFence,
+                                        ),
                                     )
                                 }
                             }
@@ -505,6 +528,40 @@ private fun AssistantMessageBlock(
                                     blockKey = "${item.id}-code-$index",
                                     prefs = codeBlockPrefs,
                                 )
+                            }
+
+                            is MessageBodySegment.LaTeXBlock -> {
+                                if (item.isStreaming) {
+                                    Text(
+                                        text = "\$\$${segment.content}\$\$",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                } else {
+                                    LaTeXSegment(
+                                        latex = segment.content,
+                                        isInline = false,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                            }
+
+                            is MessageBodySegment.InlineLatex -> {
+                                if (item.isStreaming) {
+                                    Text(
+                                        text = "\$${segment.content}\$",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                } else {
+                                    LaTeXSegment(
+                                        latex = segment.content,
+                                        isInline = true,
+                                    )
+                                }
                             }
                         }
                     }
@@ -555,32 +612,70 @@ private fun parseMessageBodySegments(content: String): List<MessageBodySegment> 
     val segments = mutableListOf<MessageBodySegment>()
     var cursor = 0
 
-    FENCED_CODE_BLOCK_REGEX.findAll(content).forEach { match ->
+    // 1. 优先提取块级 LaTeX $$...$$
+    LATEX_BLOCK_REGEX.findAll(content).forEach { match ->
         val start = match.range.first
         if (start > cursor) {
-            val markdown = content.substring(cursor, start)
-            if (markdown.isNotBlank()) {
-                segments += MessageBodySegment.MarkdownText(markdown)
-            }
+            val intermediate = content.substring(cursor, start)
+            extractCodeFencesAndInlineLatex(intermediate, segments)
         }
-
-        val language = match.groupValues[1].trim().ifBlank { null }
-        val code = match.groupValues[2].trimEnd('\n', '\r')
-        segments += MessageBodySegment.CodeFence(language = language, content = code)
+        val latexContent = match.groupValues[1].trim()
+        if (latexContent.isNotBlank()) {
+            segments += MessageBodySegment.LaTeXBlock(latexContent)
+        }
         cursor = match.range.last + 1
     }
 
+    // 2. 处理块级 LaTeX 之后剩余内容
     if (cursor < content.length) {
-        val markdownTail = content.substring(cursor)
-        if (markdownTail.isNotBlank()) {
-            segments += MessageBodySegment.MarkdownText(markdownTail)
-        }
+        extractCodeFencesAndInlineLatex(content.substring(cursor), segments)
     }
 
-    return if (segments.isEmpty()) {
-        listOf(MessageBodySegment.MarkdownText(content))
-    } else {
-        segments
+    return if (segments.isEmpty()) listOf(MessageBodySegment.MarkdownText(content)) else segments
+}
+
+// 提取代码块，剩余文本再提取行内 LaTeX
+private fun extractCodeFencesAndInlineLatex(
+    content: String,
+    segments: MutableList<MessageBodySegment>,
+) {
+    var subCursor = 0
+    FENCED_CODE_BLOCK_REGEX.findAll(content).forEach { match ->
+        val start = match.range.first
+        if (start > subCursor) {
+            extractInlineLatexFromMarkdown(content.substring(subCursor, start), segments)
+        }
+        val language = match.groupValues[1].trim().ifBlank { null }
+        val code = match.groupValues[2].trimEnd('\n', '\r')
+        segments += MessageBodySegment.CodeFence(language = language, content = code)
+        subCursor = match.range.last + 1
+    }
+    if (subCursor < content.length) {
+        extractInlineLatexFromMarkdown(content.substring(subCursor), segments)
+    }
+}
+
+// 从纯 Markdown 文本中提取行内 $...$ LaTeX
+private fun extractInlineLatexFromMarkdown(
+    text: String,
+    segments: MutableList<MessageBodySegment>,
+) {
+    var cursor = 0
+    LATEX_INLINE_REGEX.findAll(text).forEach { match ->
+        val start = match.range.first
+        if (start > cursor) {
+            val md = text.substring(cursor, start)
+            if (md.isNotBlank()) segments += MessageBodySegment.MarkdownText(md)
+        }
+        val latexContent = match.groupValues[1].trim()
+        if (latexContent.isNotBlank()) {
+            segments += MessageBodySegment.InlineLatex(latexContent)
+        }
+        cursor = match.range.last + 1
+    }
+    if (cursor < text.length) {
+        val tail = text.substring(cursor)
+        if (tail.isNotBlank()) segments += MessageBodySegment.MarkdownText(tail)
     }
 }
 
@@ -672,6 +767,43 @@ private fun CodeBlockSegment(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun LaTeXSegment(
+    latex: String,
+    isInline: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    val isDarkTheme = isSystemInDarkTheme()
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val fontSize = MaterialTheme.typography.bodyLarge.fontSize
+    val config = remember(textColor, isDarkTheme, fontSize) {
+        LatexConfig(
+            fontSize = fontSize,
+            color = textColor,
+            darkColor = textColor,
+        )
+    }
+    // Pre-validate: empty or obviously malformed LaTeX falls back to raw text
+    val isValid = remember(latex) { latex.isNotBlank() }
+    if (!isValid) {
+        val rawText = if (isInline) "\$${latex}\$" else "\$\$\n${latex}\n\$\$"
+        Text(
+            text = rawText,
+            style = MaterialTheme.typography.bodyMedium,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = modifier,
+        )
+    } else {
+        Latex(
+            latex = latex,
+            modifier = if (isInline) modifier else modifier.fillMaxWidth(),
+            config = config,
+            isDarkTheme = isDarkTheme,
+        )
     }
 }
 

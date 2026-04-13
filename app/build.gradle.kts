@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
-    kotlin("kapt")
+    alias(libs.plugins.kotlin.ksp)
 }
 
 val githubToken: String by lazy {
@@ -75,13 +75,9 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-
     buildFeatures {
         buildConfig = true
         compose = true
@@ -97,6 +93,12 @@ android {
             pickFirsts += "META-INF/INDEX.LIST"
             pickFirsts += "META-INF/io.netty.versions.properties"
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
@@ -129,7 +131,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-service:2.8.7")
 
     // 协程
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     
     // Immutable Collections
     implementation(libs.kotlinx.collections.immutable)
@@ -174,7 +176,11 @@ dependencies {
     
     // Markdown Renderer
     implementation(libs.multiplatform.markdown.renderer)
-    
+    implementation(libs.multiplatform.markdown.renderer.code)
+
+    // LaTeX Renderer
+    implementation(libs.latex.renderer)
+
     // Test Dependencies
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)
@@ -186,7 +192,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     implementation(libs.kotlinx.serialization.json)
-    kapt(libs.androidx.room.compiler)
+    ksp(libs.androidx.room.compiler)
     
     // PDF 处理
     implementation("com.itextpdf:itext7-core:7.2.5")
