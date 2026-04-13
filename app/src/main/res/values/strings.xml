@@ -144,8 +144,6 @@
     <string name="about_checking_updates">检查中...</string>
     <string name="about_changelog">更新日志</string>
     <string name="about_open_source_licenses">开源许可声明</string>
-    <string name="license_mikepenz_markdown">Markdown 渲染：mikepenz/multiplatform-markdown-renderer (Apache-2.0)</string>
-    <string name="license_huarangmeng_latex">LaTeX 渲染：huarangmeng/latex (MIT License)</string>
     <string name="about_website">访问官网</string>
     <string name="about_website_domain">aries-agent.com</string>
     <string name="about_website_url">https://aries-agent.com/</string>

@@ -563,10 +563,10 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var apiNeedsRecheckToastShown: Boolean = false
     @Volatile private var qwenDownloadInFlight: Boolean = false
     @Volatile private var localModelReady: Boolean = false
-    private var useThirdPartyApi: Boolean = false
-    private var useLocalModel: Boolean = false
-    private var apiBaseUrl: String = AutoGlmClient.DEFAULT_BASE_URL
-    private var apiModel: String = AutoGlmClient.DEFAULT_MODEL
+    private var useThirdPartyApi by mutableStateOf(false)
+    private var useLocalModel by mutableStateOf(false)
+    private var apiBaseUrl by mutableStateOf(AutoGlmClient.DEFAULT_BASE_URL)
+    private var apiModel by mutableStateOf(AutoGlmClient.DEFAULT_MODEL)
     private val navControllerState = mutableStateOf<NavHostController?>(null)
     private val routeNavigationActionState = mutableStateOf<((String) -> Unit)?>(null)
     private val pendingQwenDownloadIds = linkedSetOf<Long>()
@@ -682,6 +682,22 @@ class MainActivity : AppCompatActivity() {
             val codeAutoWrap by appPrefsRepository.codeAutoWrapFlow.collectAsState(initial = true)
             val codeLineNumbers by appPrefsRepository.codeLineNumbersFlow.collectAsState(initial = false)
             val codeAutoCollapse by appPrefsRepository.codeAutoCollapseFlow.collectAsState(initial = false)
+
+            // Reactively observe API config so settings changes take effect immediately
+            // (no need to wait for onResume which doesn't fire on in-graph navigation)
+            val currentApiKey by appPrefsRepository.apiKeyFlow.collectAsState(initial = "")
+            val currentUseThirdParty by appPrefsRepository.apiUseThirdPartyFlow.collectAsState(initial = false)
+            val currentUseLocalModel by appPrefsRepository.apiUseLocalModelFlow.collectAsState(initial = false)
+            val currentApiBaseUrl by appPrefsRepository.apiThirdPartyBaseUrlFlow.collectAsState(initial = "")
+            val currentApiModel by appPrefsRepository.apiThirdPartyModelFlow.collectAsState(initial = "")
+
+            LaunchedEffect(currentApiKey, currentUseThirdParty, currentUseLocalModel, currentApiBaseUrl, currentApiModel) {
+                useThirdPartyApi = currentUseThirdParty
+                useLocalModel    = currentUseLocalModel
+                apiBaseUrl       = currentApiBaseUrl
+                apiModel         = currentApiModel
+                onApiConfigPotentiallyChanged(showNeedsCheckMessage = false)
+            }
 
             val themeMode = when (themeModeStr.lowercase()) {
                 "light" -> ThemeMode.LIGHT

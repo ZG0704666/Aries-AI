@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.kotlin.ksp)
+    alias(libs.plugins.ksp)
 }
 
 val githubToken: String by lazy {
@@ -75,9 +75,13 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+
     buildFeatures {
         buildConfig = true
         compose = true
@@ -93,12 +97,6 @@ android {
             pickFirsts += "META-INF/INDEX.LIST"
             pickFirsts += "META-INF/io.netty.versions.properties"
         }
-    }
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
@@ -131,7 +129,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-service:2.8.7")
 
     // 协程
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     
     // Immutable Collections
     implementation(libs.kotlinx.collections.immutable)
@@ -168,19 +166,23 @@ dependencies {
     testImplementation(libs.koin.test)
     testImplementation(libs.koin.test.junit4)
     
-    // Coil - Image Loading
+    // Coil - Image Loading (Coil 2 for existing code, Coil 3 for new Markdown module)
     implementation(libs.coil.compose)
+    implementation(libs.coil3.compose)
+    implementation(libs.coil3.network.okhttp)
     
     // Lucide Icons
     implementation(libs.compose.icons.lucide)
     
-    // Markdown Renderer
+    // Markdown Renderer (mikepenz - kept during transition)
     implementation(libs.multiplatform.markdown.renderer)
-    implementation(libs.multiplatform.markdown.renderer.code)
-
-    // LaTeX Renderer
-    implementation(libs.latex.renderer)
-
+    
+    // Self-hosted Markdown rendering module deps
+    implementation(libs.jetbrains.markdown)          // JetBrains AST parser
+    implementation(libs.quickjs.kt)                  // QuickJS + Prism.js highlighting
+    implementation(libs.jlatexmath.android)          // JLatexMath for Android
+    implementation(libs.jsoup)                       // HTML parsing
+    
     // Test Dependencies
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)

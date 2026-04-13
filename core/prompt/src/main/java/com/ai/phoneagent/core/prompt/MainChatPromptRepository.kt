@@ -40,8 +40,6 @@ object MainChatPromptRepository {
         6) 自动化场景回答示例：
            我可以帮你执行这个手机操作。
            [[AUTO_EXECUTE:打开手机浏览器并访问 https://www.jd.com]]
-         7) 数学公式推荐使用块级 LaTeX 格式：用 ${'$'}${'$'} 包裹，例如 ${'$'}${'$'}E = mc^2${'$'}${'$'}。不推荐使用行内 ${'$'}...${'$'} 格式，但客户端可以渲染。
-        8) 复杂公式可分行书写，确保 ${'$'}${'$'} 标记完整闭合。
         """.trimIndent()
 
     private data class PromptSnapshot(
