@@ -996,6 +996,10 @@ class MainActivity : AppCompatActivity() {
                 .orEmpty()
     }
 
+    private fun refreshAutomationCardsForCurrentConversation() {
+        activeConversation?.let { syncMessageTranscript(it) }
+    }
+
     private fun updateStreamingTranscript(
         retryText: String?,
         thinking: String,
@@ -1149,6 +1153,12 @@ class MainActivity : AppCompatActivity() {
         val hasTerminalLog = logs.any { isAutomationTerminalLog(it) }
         val isNormalFinished = isAutomationNormalFinished(logs)
         val isTerminatePending = isAutomationTerminatePending(messageRef)
+        val readyStateForPendingCommand =
+            if (!hasConfirm && !hasConfirmed && !hasRejected && !hasTerminalLog && logs.isEmpty()) {
+                resolveAutomationReadyState()
+            } else {
+                null
+            }
         val status =
             when {
                 isTerminatePending -> getString(R.string.automation_scene_stop_requested)
@@ -1157,6 +1167,7 @@ class MainActivity : AppCompatActivity() {
                 hasTerminalLog -> getString(R.string.automation_scene_finished)
                 logs.isNotEmpty() -> getString(R.string.automation_scene_running)
                 hasConfirmed -> getString(R.string.automation_scene_confirmed)
+                readyStateForPendingCommand?.ready == true -> getString(R.string.automation_scene_need_confirm)
                 else -> getString(R.string.automation_scene_not_ready)
             }
 
@@ -1203,7 +1214,7 @@ class MainActivity : AppCompatActivity() {
                     if (countdownSeconds != null) {
                         getString(R.string.automation_confirm_countdown, countdownSeconds)
                     } else {
-                        getString(R.string.automation_confirm)
+                        getString(R.string.automation_execute_now)
                     }
                 actionEnabled = true
                 isDestructive = false
@@ -1211,7 +1222,7 @@ class MainActivity : AppCompatActivity() {
             }
             else -> {
                 // 系统未就绪：显示"去开启"按钮引导用户开启权限
-                val readyState = resolveAutomationReadyState()
+                val readyState = readyStateForPendingCommand ?: resolveAutomationReadyState()
                 if (!readyState.ready) {
                     val shizukuConnected = ShizukuBridge.pingBinder()
                     val shizukuGranted = if (shizukuConnected) ShizukuBridge.hasPermission() else false
@@ -1228,10 +1239,10 @@ class MainActivity : AppCompatActivity() {
                     secondaryActionEnabled = true
                     openSetupAction = true
                 } else {
-                    actionLabel = null
-                    actionEnabled = false
+                    actionLabel = getString(R.string.automation_execute_now)
+                    actionEnabled = true
                     isDestructive = false
-                    confirmInstruction = null
+                    confirmInstruction = command
                 }
             }
         }
@@ -1295,6 +1306,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     withContext(Dispatchers.Main) {
                         Toast.makeText(this@MainActivity, getString(R.string.automation_setup_accessibility_enabled), Toast.LENGTH_SHORT).show()
+                        refreshAutomationCardsForCurrentConversation()
                     }
                 }
             } else {
@@ -1444,6 +1456,7 @@ class MainActivity : AppCompatActivity() {
 
         handleReturnFromFloatingWindow()
         handleAutomationOverlayReturnIntent()
+        refreshAutomationCardsForCurrentConversation()
 
         restoreApiKey()
         reconcilePendingQwenDownloads()

@@ -375,8 +375,8 @@ private fun WelcomePanel(
         shape = MaterialTheme.shapes.extraLarge,
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(spacingLg),
-            verticalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(spacingLg),
+            verticalArrangement = Arrangement.spacedBy(spacingLg),
         ) {
             Box(
                 modifier = Modifier.fillMaxWidth().weight(1f),
@@ -500,7 +500,7 @@ private fun PermissionPanel(
         shape = MaterialTheme.shapes.extraLarge,
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(spacingLg),
+            modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(spacingLg),
             verticalArrangement = Arrangement.spacedBy(spacingMd),
         ) {
             Text(
@@ -563,7 +563,7 @@ private fun PermissionPanel(
             if (!permissionUiState.allReady || flowMode == MainOnboardingOverlay.FlowMode.PERMISSION_ONLY) {
                 FilledTonalButton(
                     onClick = onDone,
-                    modifier = Modifier.fillMaxWidth().height(buttonHeight).navigationBarsPadding(),
+                    modifier = Modifier.fillMaxWidth().height(buttonHeight),
                 ) {
                     Text(stringResource(R.string.perm_sheet_secondary_action))
                 }

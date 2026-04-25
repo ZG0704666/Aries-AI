@@ -1,9 +1,12 @@
 package com.ai.phoneagent.ui.components.markdown
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,24 +44,26 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ai.phoneagent.R
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.withContext
-import android.util.Log
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.MarkdownTokenTypes
 import org.intellij.markdown.ast.ASTNode
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
 import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
+import org.intellij.markdown.html.HtmlGenerator
 import org.intellij.markdown.parser.MarkdownParser
-
-private const val MD_DBG = "MD_DEBUG"
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Settings model & CompositionLocal
@@ -84,6 +89,17 @@ data class MarkdownSettings(
 
 val LocalMarkdownSettings = compositionLocalOf { MarkdownSettings() }
 
+private val markdownFlavour by lazy {
+    GFMFlavourDescriptor(makeHttpsAutoLinks = true, useSafeLinks = true)
+}
+
+private val markdownParser by lazy { MarkdownParser(markdownFlavour) }
+
+private sealed class MarkdownParseResult {
+    data class Ast(val source: String, val root: ASTNode) : MarkdownParseResult()
+    data class Html(val html: String) : MarkdownParseResult()
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  preProcess – normalise LaTeX delimiters before AST parsing
 // ─────────────────────────────────────────────────────────────────────────────
@@ -98,6 +114,26 @@ val LocalMarkdownSettings = compositionLocalOf { MarkdownSettings() }
 private val FENCED_CODE_RE = Regex("""`{3,}[\s\S]*?`{3,}""")
 private val INLINE_CODE_RE = Regex("""`[^\n`]+`""")
 
+// Applied to extracted payload (not raw source) so backtick fences don't interfere.
+// Patterns: pure $$…$$, pure single-line $…$, complete \begin{env}…\end{env}.
+private val PAYLOAD_IS_LATEX_RE = Regex(
+    """^\s*\$\$[\s\S]*?\$\$\s*$""" +
+    """|^\s*\$[^$\n]+\$\s*$""" +
+    """|^\s*\\begin\{[^}]+\}[\s\S]*?\\end\{[^}]+\}\s*$"""
+)
+
+private val LATEX_INLINE_HINT_RE = Regex(
+    """\\[A-Za-z]+|[A-Za-z]\s*\(|[A-Za-z0-9)\]}]\s*\^\s*\{?[-+A-Za-z0-9]+|[A-Za-z0-9)\]}]\s*[_=+\-*/]\s*[-+A-Za-z0-9\\({]"""
+)
+
+private val BARE_ASSIGNMENT_MATH_RE = Regex(
+    """(?<![$`\\])\b([A-Za-z](?:\([^)]+\)|[A-Za-z])?\s*=\s*[-+\\A-Za-z0-9{}\^_*/(). ]{1,48})(?=[，,。.;；:：])"""
+)
+
+private val BARE_LATEX_ASSIGNMENT_MATH_RE = Regex(
+    """(?<![$`])((?:\\[A-Za-z]+|[A-Za-z])\w*\s*=\s*(?:\\[A-Za-z]+|[-+A-Za-z0-9{}_^\s])+)(?=[，,。.;；:：])"""
+)
+
 /**
  * Before passing text to the GFM parser:
  *  1. Locate all code ranges (fenced blocks + inline code) so they are skipped.
@@ -105,16 +141,12 @@ private val INLINE_CODE_RE = Regex("""`[^\n`]+`""")
  *     so the rendered text contains recognisable block/inline math markers.
  */
 fun preProcess(text: String): String {
-    // Build a sorted list of code ranges to avoid replacement inside them.
-    // Fenced blocks and inline code are found separately so inline code
-    // never matches across newlines (the root cause of table corruption).
     val codeRanges = buildList {
         addAll(FENCED_CODE_RE.findAll(text).map { it.range })
         addAll(INLINE_CODE_RE.findAll(text).map { it.range })
     }.sortedBy { it.first }
 
     fun inCodeRange(index: Int): Boolean {
-        // Binary-search-friendly linear scan (ranges are sorted and few)
         for (r in codeRanges) {
             if (index in r) return true
             if (index < r.first) break
@@ -128,6 +160,18 @@ fun preProcess(text: String): String {
         if (inCodeRange(i)) {
             sb.append(text[i++])
             continue
+        }
+        // \$…\$  →  $…$ when the payload looks like LaTeX/math.
+        if (text.startsWith("\\$", i)) {
+            val end = findEscapedDollarMathEnd(text, i + 2, ::inCodeRange)
+            if (end != -1) {
+                val payload = text.substring(i + 2, end)
+                if (isLikelyInlineLatex(payload)) {
+                    sb.append("$").append(payload).append("$")
+                    i = end + 2
+                    continue
+                }
+            }
         }
         // \[…\]  →  $$…$$
         if (text.startsWith("\\[", i)) {
@@ -149,36 +193,115 @@ fun preProcess(text: String): String {
         }
         sb.append(text[i++])
     }
-    return sb.toString()
+    return normalizeBareInlineMath(deindentMathBlocks(sb.toString()))
+}
+
+private fun findEscapedDollarMathEnd(
+    text: String,
+    start: Int,
+    inCodeRange: (Int) -> Boolean,
+): Int {
+    var searchFrom = start
+    while (searchFrom < text.length) {
+        val end = text.indexOf("\\$", searchFrom)
+        if (end == -1) return -1
+        if (!inCodeRange(end) && text.substring(start, end).none { it == '\n' }) {
+            return end
+        }
+        searchFrom = end + 2
+    }
+    return -1
+}
+
+private fun isLikelyInlineLatex(payload: String): Boolean {
+    val s = payload.trim()
+    if (s.isEmpty() || s.length > 160) return false
+    if (LATEX_INLINE_HINT_RE.containsMatchIn(s)) return true
+    return Regex("""^[\\A-Za-z0-9{}_().+\-*/=<>\s]{1,80}$""").matches(s)
+}
+
+private fun normalizeBareInlineMath(text: String): String {
+    val codeRanges = buildList {
+        addAll(FENCED_CODE_RE.findAll(text).map { it.range })
+        addAll(INLINE_CODE_RE.findAll(text).map { it.range })
+    }.sortedBy { it.first }
+
+    fun inCodeRange(index: Int): Boolean {
+        for (r in codeRanges) {
+            if (index in r) return true
+            if (index < r.first) break
+        }
+        return false
+    }
+
+    val normalizedAssignments = BARE_ASSIGNMENT_MATH_RE.replace(text) { match ->
+        if (inCodeRange(match.range.first) || isInsideDollarMath(text, match.range.first)) {
+            match.value
+        } else {
+            val expression = match.groupValues[1].trim()
+            if (isLikelyBareAssignmentMath(expression)) "$" + expression + "$" else match.value
+        }
+    }
+    return BARE_LATEX_ASSIGNMENT_MATH_RE.replace(normalizedAssignments) { match ->
+        if (inCodeRange(match.range.first) || isInsideDollarMath(normalizedAssignments, match.range.first)) {
+            match.value
+        } else {
+            "$" + match.groupValues[1].trim() + "$"
+        }
+    }
+}
+
+private fun isInsideDollarMath(text: String, index: Int): Boolean {
+    val before = text.substring(0, index).count { it == '$' }
+    return before % 2 == 1
+}
+
+private fun isLikelyBareAssignmentMath(expression: String): Boolean {
+    val right = expression.substringAfter('=', missingDelimiterValue = "").trim()
+    if (right.isEmpty()) return false
+    return right.contains('^') ||
+        right.contains('\\') ||
+        Regex("""\d\s*[A-Za-z]|[A-Za-z]\s*\^|[*/]""").containsMatchIn(right)
+}
+
+/**
+ * Strips leading whitespace from lines inside `$$…$$` blocks so the GFM parser
+ * does not treat indented math as an indented-code-block (4-space rule).
+ * Also ensures `$$` markers sit on their own lines with surrounding blank lines
+ * so the parser sees them as plain PARAGRAPH nodes.
+ */
+private val BLOCK_MATH_DEINDENT_RE = Regex("""\$\$[\s\S]*?\$\$""")
+
+private fun deindentMathBlocks(text: String): String {
+    var result = text
+    BLOCK_MATH_DEINDENT_RE.findAll(text).toList().asReversed().forEach { m ->
+        val original = m.value
+        val cleaned = original.lines().joinToString("\n") { line ->
+            if (line.trimStart().startsWith("$$")) line.trimStart()
+            else line.replaceFirst(Regex("""^ {1,4}"""), "")
+        }
+        val prefix = if (m.range.first > 0 && result[m.range.first - 1] != '\n') "\n" else ""
+        val suffix = if (m.range.last + 1 < result.length && result[m.range.last + 1] != '\n') "\n" else ""
+        result = result.substring(0, m.range.first) + prefix + cleaned + suffix + result.substring(m.range.last + 1)
+    }
+    return result
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  LaTeX detection patterns (used by PARAGRAPH handler)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Matches `\begin{env}...\end{env}` blocks (may span multiple lines). */
+// 匹配任意 \begin{env}…\end{env}（含 document 级别的完整文档）
 private val LATEX_ENV_RE = Regex("""\\begin\{[^}]+\}[\s\S]*?\\end\{[^}]+\}""")
+
+// 识别完整 LaTeX 文档（含 \begin{document}）
+private val LATEX_FULL_DOC_RE = Regex("""\\begin\{document\}[\s\S]*?\\end\{document\}""")
 
 /** Matches a paragraph that is purely `$$…$$` (possibly with leading/trailing whitespace/newlines). */
 private val PURE_BLOCK_MATH_RE = Regex("""^\s*\$\$[\s\S]*?\$\$\s*$""")
 
 /** Detects `$$…$$` anywhere inside text (for mixed-content paragraphs). */
 private val BLOCK_MATH_INLINE_RE = Regex("""\$\$[\s\S]*?\$\$""")
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Debug: dump AST tree to Logcat
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Recursively logs the AST tree for debugging. */
-private fun dumpAstTree(node: ASTNode, source: String, depth: Int, maxDepth: Int) {
-    val indent = "  ".repeat(depth)
-    val snippet = source.substring(node.startOffset, node.endOffset.coerceAtMost(source.length))
-        .take(80).replace('\n', '↵')
-    Log.d(MD_DBG, "${indent}[${node.type}] ${node.startOffset}..${node.endOffset} «${snippet}»")
-    if (depth < maxDepth) {
-        node.children.forEach { dumpAstTree(it, source, depth + 1, maxDepth) }
-    }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Public entry composable
@@ -206,11 +329,10 @@ fun Markdown(
     }
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @Composable
 private fun MarkdownContent(text: String, modifier: Modifier) {
-    data class ParseResult(val source: String, val root: ASTNode)
-
-    var parsed by remember { mutableStateOf<ParseResult?>(null) }
+    var parsed by remember { mutableStateOf<MarkdownParseResult?>(null) }
 
     // Reactive parse: cancel in-flight parse if text changes (streaming)
     LaunchedEffect(Unit) {
@@ -218,17 +340,16 @@ private fun MarkdownContent(text: String, modifier: Modifier) {
             .distinctUntilChanged()
             .mapLatest { src ->
                 val processed = preProcess(src)
-                Log.d(MD_DBG, "═══ preProcess INPUT (${src.length} chars) ═══")
-                Log.d(MD_DBG, src.take(500))
-                Log.d(MD_DBG, "═══ preProcess OUTPUT (${processed.length} chars) ═══")
-                Log.d(MD_DBG, processed.take(500))
-                val root = withContext(Dispatchers.Default) {
-                    val flavour = GFMFlavourDescriptor()
-                    MarkdownParser(flavour).buildMarkdownTreeFromString(processed)
+                withContext(Dispatchers.Default) {
+                    if (shouldUseHtmlRenderPipeline(processed)) {
+                        MarkdownParseResult.Html(generateMarkdownHtml(processed))
+                    } else {
+                        MarkdownParseResult.Ast(
+                            source = processed,
+                            root = markdownParser.buildMarkdownTreeFromString(processed),
+                        )
+                    }
                 }
-                Log.d(MD_DBG, "═══ AST root type=${root.type} children=${root.children.size} ═══")
-                dumpAstTree(root, processed, depth = 0, maxDepth = 3)
-                ParseResult(processed, root)
             }
             .collect { parsed = it }
     }
@@ -245,32 +366,57 @@ private fun MarkdownContent(text: String, modifier: Modifier) {
         return
     }
 
-    Column(
-        modifier            = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        // Group consecutive pipe-table-like paragraphs so they render as a single
-        // table even when the GFM parser fails to recognise them (e.g. missing
-        // separator line).
-        val groups = groupPipeTableParagraphs(result.root.children, result.source)
-        Log.d(MD_DBG, "═══ groupPipeTableParagraphs: ${groups.size} groups ═══")
-        groups.forEachIndexed { idx, g ->
-            when (g) {
-                is ContentGroup.PipeTable -> Log.d(MD_DBG, "  group[$idx] = PipeTable (${g.lines.size} lines)")
-                is ContentGroup.Node -> Log.d(MD_DBG, "  group[$idx] = Node type=${g.node.type}")
-            }
+    when (result) {
+        is MarkdownParseResult.Html -> {
+            HtmlBlock(
+                html = result.html,
+                modifier = modifier.fillMaxWidth(),
+            )
         }
-        groups.forEach { group ->
-            when (group) {
-                is ContentGroup.PipeTable -> {
-                    PipeTableFallback(rawLines = group.lines, source = result.source)
-                }
-                is ContentGroup.Node -> {
-                    MarkdownNode(node = group.node, source = result.source)
+        is MarkdownParseResult.Ast -> {
+            Column(
+                modifier            = modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                // Group consecutive pipe-table-like paragraphs so they render as a single
+                // table even when the GFM parser fails to recognise them (e.g. missing
+                // separator line).
+                val groups = groupPipeTableParagraphs(result.root.children, result.source)
+                groups.forEach { group ->
+                    when (group) {
+                        is ContentGroup.PipeTable -> {
+                            PipeTableFallback(rawLines = group.lines, source = result.source)
+                        }
+                        is ContentGroup.Node -> {
+                            MarkdownNode(node = group.node, source = result.source)
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+private val HTML_RENDER_TAG_RE = Regex(
+    """(?is)<\s*(details|summary|table|thead|tbody|tr|td|th|div|span|font|progress|img|figure|figcaption|blockquote|pre|code|hr|br)\b"""
+)
+
+private val HTML_RENDER_ATTR_RE = Regex(
+    """(?is)<\s*[a-z][a-z0-9-]*\b[^>]*\b(style|class|open|src|href|width|height|align)\s*="""
+)
+
+private val MERMAID_FENCE_RE = Regex("""(?is)`{3,}\s*mermaid\b""")
+
+internal fun shouldUseHtmlRenderPipeline(text: String): Boolean {
+    if (!text.contains('<') || MERMAID_FENCE_RE.containsMatchIn(text)) {
+        return false
+    }
+    return HTML_RENDER_TAG_RE.containsMatchIn(text) || HTML_RENDER_ATTR_RE.containsMatchIn(text)
+}
+
+private fun generateMarkdownHtml(content: String): String {
+    val tree = markdownParser.buildMarkdownTreeFromString(content)
+    return HtmlGenerator(content, tree, markdownFlavour).generateHtml()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -344,69 +490,65 @@ private fun PipeTableFallback(
     rawLines: List<String>,
     source: String,
 ) {
-    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
-    val outlineVariant = MaterialTheme.colorScheme.outlineVariant
-
-    // Parse rows: skip separator line, split on `|`
     val rows = rawLines
         .filter { it.contains('|') }
         .filterNot { it.matches(Regex("""^\|?[\s-:|]+\|?$""")) }
         .map { line ->
-            line.trim()
-                .removePrefix("|")
-                .removeSuffix("|")
-                .split('|')
-                .map { it.trim() }
+            line.trim().removePrefix("|").removeSuffix("|")
+                .split('|').map { it.trim() }
         }
         .filter { it.any { cell -> cell.isNotBlank() } }
 
     if (rows.isEmpty()) return
-
     val colCount = rows.maxOfOrNull { it.size } ?: 0
     if (colCount == 0) return
 
-    // Determine header: if first row has `-` patterns, it's a separator (already filtered).
-    // Otherwise first row is the header.
-    val headerRow = rows.firstOrNull() ?: return
-    val dataRows = rows.drop(1)
+    val headerRow    = rows.first()
+    val dataRows     = rows.drop(1)
+    val headerBg     = MaterialTheme.colorScheme.primaryContainer
+    val rowAltBg     = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    val borderColor  = MaterialTheme.colorScheme.outline
+    val dividerColor = MaterialTheme.colorScheme.outlineVariant
+    val tableShape   = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
+            .horizontalScroll(rememberScrollState())
+            .clip(tableShape)
+            .border(1.dp, borderColor, tableShape),
     ) {
-        // Header
         Row(
             modifier = Modifier
-                .background(surfaceVariant, MaterialTheme.shapes.small)
+                .background(headerBg)
                 .width(IntrinsicSize.Max),
         ) {
             headerRow.forEachIndexed { idx, cell ->
-                if (idx > 0) VerticalDivider(color = outlineVariant, modifier = Modifier.fillMaxHeight())
-                Box(modifier = Modifier.weight(1f).padding(horizontal = 8.dp, vertical = 6.dp)) {
+                if (idx > 0) VerticalDivider(color = borderColor.copy(alpha = 0.5f), modifier = Modifier.fillMaxHeight())
+                Box(modifier = Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 8.dp)) {
                     Text(text = cell, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                 }
             }
-            repeat((colCount - headerRow.size).coerceAtLeast(0)) {
-                Box(modifier = Modifier.weight(1f))
-            }
+            repeat((colCount - headerRow.size).coerceAtLeast(0)) { Box(modifier = Modifier.weight(1f)) }
         }
-        HorizontalDivider(color = outlineVariant)
+        HorizontalDivider(color = borderColor, thickness = 1.dp)
 
-        // Data rows
         dataRows.forEachIndexed { rowIdx, row ->
-            Row(modifier = Modifier.fillMaxWidth().width(IntrinsicSize.Max)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .width(IntrinsicSize.Max)
+                    .background(if (rowIdx % 2 == 1) rowAltBg else MaterialTheme.colorScheme.surface),
+            ) {
                 row.forEachIndexed { idx, cell ->
-                    if (idx > 0) VerticalDivider(color = outlineVariant, modifier = Modifier.fillMaxHeight())
-                    Box(modifier = Modifier.weight(1f).padding(horizontal = 8.dp, vertical = 4.dp)) {
+                    if (idx > 0) VerticalDivider(color = dividerColor, modifier = Modifier.fillMaxHeight())
+                    Box(modifier = Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 6.dp)) {
                         Text(text = cell, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-                repeat((colCount - row.size).coerceAtLeast(0)) {
-                    Box(modifier = Modifier.weight(1f))
-                }
+                repeat((colCount - row.size).coerceAtLeast(0)) { Box(modifier = Modifier.weight(1f)) }
             }
-            if (rowIdx < dataRows.lastIndex) HorizontalDivider(color = outlineVariant)
+            if (rowIdx < dataRows.lastIndex) HorizontalDivider(color = dividerColor, thickness = 0.5.dp)
         }
     }
 }
@@ -430,8 +572,7 @@ fun MarkdownNode(
     when (node.type) {
         // ── Document root ─────────────────────────────────────────────────────
         MarkdownElementTypes.MARKDOWN_FILE -> {
-            Log.d(MD_DBG, "MarkdownNode: MARKDOWN_FILE (${node.children.size} children)")
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs))) {
                 node.children.forEach { MarkdownNode(it, source, depth) }
             }
         }
@@ -439,27 +580,29 @@ fun MarkdownNode(
         // ── Block math ($$…$$ / \begin{…}…\end{…}) ────────────────────────────
         MarkdownElementTypes.PARAGRAPH -> {
             val raw = source.substring(node.startOffset, node.endOffset)
-            Log.d(MD_DBG, "MarkdownNode: PARAGRAPH «${raw.take(100).replace('\n','↵')}»")
             when {
-                // Pure block-math paragraph: $$…$$ only
                 PURE_BLOCK_MATH_RE.matches(raw.trim()) -> {
                     MathBlock(formula = processLatex(raw.trim()))
                 }
-                // LaTeX environment block: \begin{…}…\end{…}
+                // 完整 LaTeX 文档（\begin{document}…\end{document}）：提取内部数学内容渲染
+                LATEX_FULL_DOC_RE.containsMatchIn(raw) || raw.trim().contains("\\begin{document}") -> {
+                    val extracted = processLatex(raw.trim())
+                    if (extracted.isNotBlank() && extracted != raw.trim() && isRenderableMath(extracted)) {
+                        MathBlock(formula = extracted)
+                    } else {
+                        ParagraphNode(node = node, source = source, isBold = isBoldContext)
+                    }
+                }
                 LATEX_ENV_RE.containsMatchIn(raw) -> {
                     val match = LATEX_ENV_RE.find(raw)
                     if (match != null) {
                         val before = raw.substring(0, match.range.first).trim()
                         val envContent = match.value
                         val after = raw.substring(match.range.last + 1).trim()
-
-                        // Render leading text
                         if (before.isNotEmpty()) {
                             Text(text = before, style = MaterialTheme.typography.bodyMedium)
                         }
-                        // Render the LaTeX environment
                         MathBlock(formula = envContent)
-                        // Render trailing text
                         if (after.isNotEmpty()) {
                             Text(text = after, style = MaterialTheme.typography.bodyMedium)
                         }
@@ -467,7 +610,6 @@ fun MarkdownNode(
                         ParagraphNode(node = node, source = source, isBold = isBoldContext)
                     }
                 }
-                // Mixed content with inline $$…$$: e.g. "公式：$$x=1$$ 如下"
                 BLOCK_MATH_INLINE_RE.containsMatchIn(raw) -> {
                     MathMixedText(raw = raw, source = source, node = node, isBold = isBoldContext)
                 }
@@ -493,19 +635,55 @@ fun MarkdownNode(
 
         // ── Code ──────────────────────────────────────────────────────────────
         MarkdownElementTypes.CODE_FENCE -> {
-            val lang = extractFenceLang(node, source)
-            val code = extractFenceContent(node, source)
-            val rawText = source.substring(node.startOffset, node.endOffset)
-            Log.w(MD_DBG, "▶ CODE_FENCE  lang=$lang  raw(120)=«${rawText.take(120).replace('\n','↵')}»")
-            CodeBlock(language = lang, code = code)
+            val lang    = extractFenceLang(node, source)
+            val payload = extractFenceContent(node, source)
+
+            val isExplicitMathLang = lang.lowercase() in setOf("math", "latex", "tex")
+            val isUnlabelledMath   = lang.isEmpty() && PAYLOAD_IS_LATEX_RE.matches(payload.trim())
+
+            // 含 \begin{document} 的完整 LaTeX 文档：按数学片段切割，公式渲染为图像，其余保留为代码块
+            val isFullLatexDoc = payload.contains("\\begin{document}")
+
+            if ((isExplicitMathLang || isUnlabelledMath) && !isFullLatexDoc) {
+                val trimmed = payload.trim()
+                val processed = processLatex(trimmed)
+                val hasMathContent = processed.isNotBlank() && (
+                    isRenderableMath(processed) ||
+                    (isExplicitMathLang && processed.length < trimmed.length)
+                )
+                if (hasMathContent) {
+                    when {
+                        PURE_BLOCK_MATH_RE.matches(trimmed) ->
+                            MathBlock(formula = processed)
+                        BLOCK_MATH_INLINE_RE.containsMatchIn(trimmed) ->
+                            MathMixedText(raw = trimmed, source = source, node = node, isBold = isBoldContext)
+                        else ->
+                            MathBlock(formula = processed)
+                    }
+                } else {
+                    CodeBlock(language = lang, code = payload)
+                }
+            } else if (isFullLatexDoc && isExplicitMathLang) {
+                LatexDocBlock(lang = lang, payload = payload)
+            } else {
+                CodeBlock(language = lang, code = payload)
+            }
         }
 
         MarkdownElementTypes.CODE_BLOCK -> {
             val rawText = source.substring(node.startOffset, node.endOffset)
-            Log.w(MD_DBG, "▶ CODE_BLOCK  raw(120)=«${rawText.take(120).replace('\n','↵')}»")
-            val code = source.substring(node.startOffset, node.endOffset)
-                .lines().joinToString("\n") { it.removePrefix("    ") }.trimEnd()
-            CodeBlock(language = "", code = code)
+            val payload = rawText.lines().joinToString("\n") { it.removePrefix("    ") }.trimEnd()
+
+            if (!payload.contains("\\begin{document}") && PAYLOAD_IS_LATEX_RE.matches(payload.trim())) {
+                val processed = processLatex(payload.trim())
+                if (processed.isNotBlank() && isRenderableMath(processed)) {
+                    MathBlock(formula = processed)
+                } else {
+                    CodeBlock(language = "", code = payload)
+                }
+            } else {
+                CodeBlock(language = "", code = payload)
+            }
         }
 
         // ── HTML block ────────────────────────────────────────────────────────
@@ -516,7 +694,6 @@ fun MarkdownNode(
 
         // ── GFM Table ─────────────────────────────────────────────────────────
         GFMElementTypes.TABLE -> {
-            Log.d(MD_DBG, "▶ GFM TABLE detected!")
             DataTable(node = node, source = source)
         }
 
@@ -555,18 +732,62 @@ fun MarkdownNode(
         MarkdownTokenTypes.TEXT,
         MarkdownTokenTypes.WHITE_SPACE,
         MarkdownTokenTypes.EOL        -> {
-            // Inline nodes at block level → wrap in a paragraph
-            val text = buildInlineAnnotatedString(listOf(node), source,
-                MaterialTheme.colorScheme.onSurface, MaterialTheme.colorScheme.primary)
-            if (text.text.isNotBlank()) Text(text = text, style = MaterialTheme.typography.bodyMedium)
+            RenderInlineNodes(nodes = listOf(node), source = source, isBold = isBoldContext)
         }
 
         // ── Recurse for wrapper / unknown nodes ───────────────────────────────
         else -> {
-            val rawSnippet = source.substring(node.startOffset, node.endOffset.coerceAtMost(source.length)).take(80).replace('\n','↵')
-            Log.d(MD_DBG, "MarkdownNode: UNKNOWN/PASS type=${node.type} «${rawSnippet}»")
             node.children.forEach { MarkdownNode(it, source, depth) }
         }
+    }
+}
+
+@Composable
+private fun RenderInlineNodes(
+    nodes: List<ASTNode>,
+    source: String,
+    isBold: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    if (nodes.isEmpty()) return
+    val annotated = buildInlineAnnotatedString(
+        nodes = nodes,
+        source = source,
+        baseColor = MaterialTheme.colorScheme.onSurface,
+        linkColor = MaterialTheme.colorScheme.primary,
+    )
+    val rawText = source.substring(nodes.first().startOffset, nodes.last().endOffset).trim()
+    val mathText = when {
+        LocalMarkdownSettings.current.enableLatex && containsInlineMath(annotated.text) -> annotated.text
+        LocalMarkdownSettings.current.enableLatex && containsInlineMath(rawText) -> rawText
+        else -> null
+    }
+    if (mathText != null) {
+        MathInlineText(text = mathText, modifier = modifier)
+    } else {
+        RenderInlineText(text = annotated, isBold = isBold, modifier = modifier)
+    }
+}
+
+@Composable
+private fun RenderInlineText(
+    text: AnnotatedString,
+    isBold: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    if (text.text.isBlank()) return
+    val uriHandler = LocalUriHandler.current
+    val style = MaterialTheme.typography.bodyMedium.let {
+        if (isBold) it.copy(fontWeight = FontWeight.Bold) else it
+    }
+    if (LocalMarkdownSettings.current.enableLatex && containsInlineMath(text.text)) {
+        MathInlineText(text = text.text, modifier = modifier)
+    } else {
+        Text(
+            text     = text,
+            style    = style,
+            modifier = modifier.clickOnLinks(text, uriHandler),
+        )
     }
 }
 
@@ -579,7 +800,6 @@ private fun ParagraphNode(node: ASTNode, source: String, isBold: Boolean) {
     val settings    = LocalMarkdownSettings.current
     val onSurface   = MaterialTheme.colorScheme.onSurface
     val primary     = MaterialTheme.colorScheme.primary
-    val boldWeight  = if (isBold) FontWeight.Bold else null
 
     // Collect IMAGE nodes that live as block-level items inside the paragraph
     val imageNodes = remember(node) {
@@ -602,18 +822,6 @@ private fun ParagraphNode(node: ASTNode, source: String, isBold: Boolean) {
         }
     }
 
-    // Full text of the paragraph — check for inline math
-    val fullText = source.substring(node.startOffset, node.endOffset).trim()
-    val hasMath  = settings.enableLatex && INLINE_MATH_RE.containsMatchIn(fullText)
-
-    if (hasMath) {
-        MathInlineText(
-            text     = buildAnnotatedStringWithMathFallback(inlineNodes, source, onSurface, primary).text,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        return
-    }
-
     // Build an AnnotatedString for the entire paragraph
     val annotated = buildInlineAnnotatedString(
         nodes     = inlineNodes,
@@ -622,22 +830,22 @@ private fun ParagraphNode(node: ASTNode, source: String, isBold: Boolean) {
         linkColor = primary,
     )
 
-    val uriHandler = LocalUriHandler.current
-    val style = MaterialTheme.typography.bodyMedium.let {
-        if (boldWeight != null) it.copy(fontWeight = boldWeight) else it
+    val rawParagraphText = source.substring(node.startOffset, node.endOffset).trim()
+    val mathText = when {
+        settings.enableLatex && containsInlineMath(annotated.text) -> annotated.text
+        settings.enableLatex && containsInlineMath(rawParagraphText) -> rawParagraphText
+        else -> null
+    }
+    if (mathText != null) {
+        MathInlineText(text = mathText, modifier = Modifier.fillMaxWidth())
+        return
     }
 
     // Render images within the paragraph inline
     if (imageNodes.isNotEmpty()) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (annotated.text.isNotBlank()) {
-                Text(
-                    text     = annotated,
-                    style    = style,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickOnLinks(annotated, uriHandler),
-                )
+                RenderInlineText(text = annotated, isBold = isBold, modifier = Modifier.fillMaxWidth())
             }
             imageNodes.forEach { imgNode ->
                 val imgUrl = extractImageUrl(imgNode, source)
@@ -648,13 +856,7 @@ private fun ParagraphNode(node: ASTNode, source: String, isBold: Boolean) {
             }
         }
     } else {
-        Text(
-            text     = annotated,
-            style    = style,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickOnLinks(annotated, uriHandler),
-        )
+        RenderInlineText(text = annotated, isBold = isBold, modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -675,19 +877,59 @@ private fun MathMixedText(
     isBold: Boolean,
 ) {
     val segments = remember(raw) { splitMixedMath(raw) }
+    var nextOrderedListStart = remember(raw) { firstOrderedListMarker(raw) ?: 1 }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         segments.forEach { seg ->
             if (seg.isMath) {
                 MathBlock(formula = processLatex(seg.content))
             } else if (seg.content.isNotBlank()) {
-                // Fall back to normal inline rendering for the text portion
-                val onSurface = MaterialTheme.colorScheme.onSurface
-                val primary = MaterialTheme.colorScheme.primary
-                val style = MaterialTheme.typography.bodyMedium.let {
-                    val boldWeight = if (isBold) FontWeight.Bold else null
-                    if (boldWeight != null) it.copy(fontWeight = boldWeight) else it
+                val orderedItems = countOrderedListMarkers(seg.content)
+                RenderMarkdownFragment(
+                    text = seg.content,
+                    isBold = isBold,
+                    orderedListStart = if (orderedItems > 0) nextOrderedListStart else null,
+                )
+                if (orderedItems > 0) {
+                    nextOrderedListStart += orderedItems
                 }
-                Text(text = seg.content, style = style)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RenderMarkdownFragment(
+    text: String,
+    isBold: Boolean,
+    orderedListStart: Int? = null,
+    modifier: Modifier = Modifier,
+) {
+    val trimmed = text.trim()
+    if (trimmed.isBlank()) return
+
+    val root = remember(trimmed) { markdownParser.buildMarkdownTreeFromString(trimmed) }
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        var nextOrderedListStart = orderedListStart
+        root.children.forEach { child ->
+            if (child.type == MarkdownElementTypes.ORDERED_LIST) {
+                ListNode(
+                    node = child,
+                    source = trimmed,
+                    ordered = true,
+                    depth = 0,
+                    startNumber = nextOrderedListStart,
+                )
+                nextOrderedListStart = (nextOrderedListStart ?: orderedListStart(child, trimmed))
+                    ?.plus(countOrderedListItems(child))
+            } else {
+                MarkdownNode(
+                    node = child,
+                    source = trimmed,
+                    isBoldContext = isBold,
+                )
             }
         }
     }
@@ -710,6 +952,24 @@ private fun splitMixedMath(text: String): List<MathSegRaw> {
         result += MathSegRaw(text.substring(cursor), false)
     }
     return result
+}
+
+@Composable
+private fun LatexDocBlock(lang: String, payload: String) {
+    val segments = remember(payload) { splitLatexDocSegments(payload) }
+    if (segments.none { it.isMath }) {
+        CodeBlock(language = lang, code = payload)
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs))) {
+        segments.forEach { seg ->
+            if (seg.isMath) {
+                MathBlock(formula = seg.content)
+            } else {
+                CodeBlock(language = lang, code = seg.content)
+            }
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -742,31 +1002,157 @@ private fun HeadingNode(node: ASTNode, source: String, style: TextStyle) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ListNode(node: ASTNode, source: String, ordered: Boolean, depth: Int) {
-    val primary = MaterialTheme.colorScheme.primary
-    var counter = 1
+private fun ListNode(
+    node: ASTNode,
+    source: String,
+    ordered: Boolean,
+    depth: Int,
+    startNumber: Int? = null,
+) {
+    val markerColor = MaterialTheme.colorScheme.onSurface
+    val itemCount = countOrderedListItems(node)
+    val markerWidth = dimensionResource(
+        if (ordered && itemCount >= 10) R.dimen.m3t_spacing_xxl else R.dimen.m3t_spacing_lg
+    )
+    val markerGap = dimensionResource(R.dimen.m3t_spacing_xs)
+    val listIndent = dimensionResource(R.dimen.m3t_spacing_lg)
+    var counter = startNumber ?: orderedListStart(node, source) ?: 1
 
     Column(
         modifier            = Modifier
             .fillMaxWidth()
-            .padding(start = (depth * 16).dp),
+            .padding(start = listIndent * depth),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         node.children.filter { it.type == MarkdownElementTypes.LIST_ITEM }.forEach { item ->
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text  = if (ordered) "${counter++}.  " else "•  ",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = primary,
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    item.children.forEach { child ->
-                        MarkdownNode(child, source, depth + 1)
+            val firstLineNodes = mutableListOf<ASTNode>()
+            val remainingNodes = mutableListOf<ASTNode>()
+            var foundContentLine = false
+            var firstLineClosed = false
+
+            item.children.forEach { child ->
+                when {
+                    !foundContentLine && isListSyntaxNode(child, source) -> Unit
+                    !foundContentLine && child.type == MarkdownElementTypes.PARAGRAPH -> {
+                        val paragraphInlineNodes = child.children
+                            .filterNot { isListSyntaxNode(it, source) }
+                            .filter { isInlineRenderableNode(it) }
+                        if (paragraphInlineNodes.isNotEmpty()) {
+                            firstLineNodes += paragraphInlineNodes
+                            foundContentLine = true
+                        } else {
+                            remainingNodes += child
+                        }
                     }
+                    !firstLineClosed && isInlineRenderableNode(child) -> {
+                        firstLineNodes += child
+                        foundContentLine = true
+                    }
+                    else -> {
+                        if (foundContentLine) firstLineClosed = true
+                        remainingNodes += child
+                    }
+                }
+            }
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = if (ordered) "${counter++}." else "•",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = markerColor,
+                        modifier = Modifier
+                            .width(markerWidth)
+                            .alignByBaseline(),
+                        textAlign = TextAlign.End,
+                    )
+                    Spacer(Modifier.width(markerGap))
+                    if (firstLineNodes.isNotEmpty()) {
+                        RenderInlineNodes(
+                            nodes = firstLineNodes,
+                            source = source,
+                            isBold = false,
+                            modifier = Modifier
+                                .weight(1f)
+                                .alignByBaseline(),
+                        )
+                    } else {
+                        Spacer(Modifier.weight(1f))
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = markerWidth + markerGap),
+                ) {
+                    val inlineBuffer = mutableListOf<ASTNode>()
+
+                    @Composable
+                    fun flushInlineBuffer() {
+                        if (inlineBuffer.isEmpty()) return
+                        RenderInlineNodes(
+                            nodes = inlineBuffer.toList(),
+                            source = source,
+                            isBold = false,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        inlineBuffer.clear()
+                    }
+
+                    remainingNodes.forEach { child ->
+                        if (isInlineRenderableNode(child)) {
+                            inlineBuffer += child
+                        } else if (!isListSyntaxNode(child, source)) {
+                            flushInlineBuffer()
+                            MarkdownNode(child, source, depth + 1)
+                        }
+                    }
+                    flushInlineBuffer()
                 }
             }
         }
     }
+}
+
+private fun isListSyntaxNode(node: ASTNode, source: String): Boolean {
+    val text = source.substring(node.startOffset, node.endOffset).trim()
+    return text.isBlank() ||
+        text.matches(Regex("""\d+[.)]""")) ||
+        text == "-" ||
+        text == "*" ||
+        text == "+"
+}
+
+private val ORDERED_LIST_MARKER_RE = Regex("""(?m)^[ \t]{0,3}(\d+)[.)]\s+""")
+
+private fun firstOrderedListMarker(text: String): Int? =
+    ORDERED_LIST_MARKER_RE.find(text)?.groupValues?.getOrNull(1)?.toIntOrNull()
+
+private fun countOrderedListMarkers(text: String): Int =
+    ORDERED_LIST_MARKER_RE.findAll(text).count()
+
+private fun orderedListStart(node: ASTNode, source: String): Int? =
+    firstOrderedListMarker(source.substring(node.startOffset, node.endOffset))
+
+private fun countOrderedListItems(node: ASTNode): Int =
+    node.children.count { it.type == MarkdownElementTypes.LIST_ITEM }
+
+private fun isInlineRenderableNode(node: ASTNode): Boolean = when (node.type) {
+    MarkdownElementTypes.EMPH,
+    MarkdownElementTypes.STRONG,
+    GFMElementTypes.STRIKETHROUGH,
+    MarkdownElementTypes.CODE_SPAN,
+    MarkdownElementTypes.INLINE_LINK,
+    MarkdownElementTypes.IMAGE,
+    MarkdownElementTypes.AUTOLINK,
+    MarkdownTokenTypes.TEXT,
+    MarkdownTokenTypes.WHITE_SPACE,
+    MarkdownTokenTypes.EOL,
+    MarkdownTokenTypes.HARD_LINE_BREAK -> true
+    else -> false
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -823,15 +1209,15 @@ private fun buildInlineAnnotatedString(
             MarkdownElementTypes.CODE_SPAN -> {
                 val start = node.startOffset + 1  // skip opening `
                 val end   = (node.endOffset - 1).coerceAtLeast(start)
+                val content = source.substring(start, end)
                 pushStyle(
                     SpanStyle(
                         fontFamily = FontFamily.Monospace,
                         fontSize   = 13.sp,
-                        background = Color(0x1A808080),
                         color      = baseColor,
                     )
                 )
-                append(source.substring(start, end))
+                append(content)
                 pop()
             }
 
@@ -885,11 +1271,11 @@ private fun extractFenceLang(node: ASTNode, source: String): String =
         ?.let { source.substring(it.startOffset, it.endOffset).trim() }
         ?: ""
 
-private fun extractFenceContent(node: ASTNode, source: String): String =
-    node.children
-        .filter { it.type == MarkdownTokenTypes.CODE_FENCE_CONTENT }
-        .joinToString("") { source.substring(it.startOffset, it.endOffset) }
-        .trimEnd('\n', '\r')
+private fun extractFenceContent(node: ASTNode, source: String): String {
+    val tokens = node.children.filter { it.type == MarkdownTokenTypes.CODE_FENCE_CONTENT }
+    if (tokens.isEmpty()) return ""
+    return source.substring(tokens.first().startOffset, tokens.last().endOffset).trimEnd('\n', '\r')
+}
 
 private fun extractLinkUrl(node: ASTNode, source: String): String =
     node.children.firstOrNull { it.type == MarkdownElementTypes.LINK_DESTINATION }

@@ -13,6 +13,9 @@ endfunction()
 if(ANDROID)
     option(ARIES_ENABLE_SHERPA_NCNN "当 submodule 可用时构建 sherpa-ncnn native 模块。" ON)
 
+    add_link_options("-Wl,-z,max-page-size=16384")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,max-page-size=16384")
+
     set(SHERPA_NCNN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/sherpa-ncnn")
     set(SHERPA_NCNN_CMAKELISTS "${SHERPA_NCNN_SOURCE_DIR}/CMakeLists.txt")
     set(NCNN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ncnn")

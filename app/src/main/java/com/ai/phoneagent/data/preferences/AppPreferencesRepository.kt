@@ -36,6 +36,8 @@ class AppPreferencesRepository(
         val legacyActiveConversationId = longPreferencesKey("active_conversation_id")
         val qwenPendingDownloadIds = stringSetPreferencesKey("qwen_pending_download_ids")
         
+        val useAriesApi = booleanPreferencesKey("use_aries_api")
+
         // ─── Appearance preferences ──────────────────────────────────────────
         val themeMode = stringPreferencesKey("theme_mode")
         val amoledDarkEnabled = booleanPreferencesKey("amoled_dark_enabled")
@@ -65,6 +67,11 @@ class AppPreferencesRepository(
     val apiUseLocalModelFlow: Flow<Boolean> =
         context.appPreferencesDataStore.data.map { prefs ->
             prefs[Keys.apiUseLocalModel] ?: false
+        }
+
+    val useAriesApiFlow: Flow<Boolean> =
+        context.appPreferencesDataStore.data.map { prefs ->
+            prefs[Keys.useAriesApi] ?: false
         }
 
     val apiThirdPartyBaseUrlFlow: Flow<String> =
@@ -168,6 +175,12 @@ class AppPreferencesRepository(
     suspend fun setApiUseLocalModel(value: Boolean) {
         context.appPreferencesDataStore.edit { prefs ->
             prefs[Keys.apiUseLocalModel] = value
+        }
+    }
+
+    suspend fun setUseAriesApi(value: Boolean) {
+        context.appPreferencesDataStore.edit { prefs ->
+            prefs[Keys.useAriesApi] = value
         }
     }
 
@@ -393,6 +406,9 @@ class AppPreferencesRepository(
     fun getApiUseLocalModelBlocking(): Boolean = runBlocking {
         context.appPreferencesDataStore.data.first()[Keys.apiUseLocalModel] ?: false
     }
+    fun getUseAriesApiBlocking(): Boolean = runBlocking {
+        context.appPreferencesDataStore.data.first()[Keys.useAriesApi] ?: false
+    }
     fun getApiThirdPartyBaseUrlBlocking(): String = runBlocking {
         context.appPreferencesDataStore.data.first()[Keys.apiThirdPartyBaseUrl] ?: ""
     }
@@ -420,6 +436,7 @@ class AppPreferencesRepository(
     fun setApiKeyBlocking(value: String) = runBlocking { setApiKey(value) }
     fun setApiUseThirdPartyBlocking(value: Boolean) = runBlocking { setApiUseThirdParty(value) }
     fun setApiUseLocalModelBlocking(value: Boolean) = runBlocking { setApiUseLocalModel(value) }
+    fun setUseAriesApiBlocking(value: Boolean) = runBlocking { setUseAriesApi(value) }
     fun setApiThirdPartyBaseUrlBlocking(value: String) = runBlocking { setApiThirdPartyBaseUrl(value) }
     fun setApiThirdPartyModelBlocking(value: String) = runBlocking { setApiThirdPartyModel(value) }
     fun setApiLastCheckKeyBlocking(value: String) = runBlocking { setApiLastCheckKey(value) }

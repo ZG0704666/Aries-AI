@@ -2,6 +2,7 @@ package com.ai.phoneagent.ui.components.markdown
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -109,8 +110,12 @@ private fun HtmlElement(
     when (tag) {
         // ── Block elements ────────────────────────────────────────────────────
         "p", "div" -> {
-            val text = buildHtmlAnnotatedString(element, textColor, primary)
-            Text(text = text, style = inheritedStyle, modifier = Modifier.fillMaxWidth())
+            HtmlParagraph(
+                element = element,
+                inheritedStyle = inheritedStyle,
+                textColor = textColor,
+                primary = primary,
+            )
         }
 
         "h1" -> HeadingText(element, textColor, primary, MaterialTheme.typography.headlineLarge)
@@ -187,7 +192,11 @@ private fun HtmlElement(
         "span", "font" -> {
             val spanColor = styleColor ?: parseFontColor(element.attr("color")) ?: textColor
             val text = buildHtmlAnnotatedString(element, spanColor, primary)
-            Text(text = text, style = inheritedStyle)
+            Text(
+                text = text,
+                style = inheritedStyle,
+                modifier = Modifier.clickOnHtmlLinks(text, LocalUriHandler.current),
+            )
         }
 
         "code" -> {
@@ -262,11 +271,73 @@ private fun HtmlElement(
 
 @Composable
 private fun HeadingText(element: Element, textColor: Color, primary: Color, style: TextStyle) {
+    val text = buildHtmlAnnotatedString(element, textColor, primary)
+    val uriHandler = LocalUriHandler.current
     Text(
-        text  = buildHtmlAnnotatedString(element, textColor, primary),
+        text  = text,
         style = style,
         color = textColor,
-        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
+        modifier = Modifier
+            .padding(top = 8.dp, bottom = 2.dp)
+            .clickOnHtmlLinks(text, uriHandler),
+    )
+}
+
+@Composable
+private fun HtmlParagraph(
+    element: Element,
+    inheritedStyle: TextStyle,
+    textColor: Color,
+    primary: Color,
+) {
+    val uriHandler = LocalUriHandler.current
+    val directImages = remember(element) {
+        element.childNodes().mapNotNull { child ->
+            (child as? Element)?.takeIf { it.tagName().equals("img", ignoreCase = true) }
+        }
+    }
+    val text = buildHtmlAnnotatedString(element, textColor, primary)
+    val hasOnlyImages = remember(element, directImages) {
+        directImages.isNotEmpty() &&
+            element.childNodes().all { child ->
+                when (child) {
+                    is TextNode -> child.text().isBlank()
+                    is Element -> child.tagName().equals("img", ignoreCase = true) ||
+                        child.tagName().equals("br", ignoreCase = true)
+                    else -> true
+                }
+            }
+    }
+
+    if (hasOnlyImages) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            directImages.forEach { image ->
+                val src = image.attr("src").ifBlank { image.attr("data-src") }
+                val alt = image.attr("alt")
+                if (src.isNotBlank()) {
+                    ZoomableAsyncImage(
+                        url = src,
+                        contentDescription = alt.ifBlank { null },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+        return
+    }
+
+    if (text.text.isBlank()) return
+
+    Text(
+        text = text,
+        style = inheritedStyle,
+        color = textColor,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickOnHtmlLinks(text, uriHandler),
     )
 }
 
@@ -319,9 +390,27 @@ private fun HtmlDetails(element: Element, style: TextStyle, textColor: Color, pr
 
 @Composable
 private fun HtmlTable(table: Element) {
-    val headerCells = table.select("thead th, thead td")
-        .map { it.html() }
-    val rows = table.select("tbody tr").map { row ->
+    val allRows = table.select("tr")
+    if (allRows.isEmpty()) return
+
+    var headerCells = table.select("thead tr").firstOrNull()
+        ?.select("th, td")
+        ?.map { it.html() }
+        .orEmpty()
+
+    val bodyRows = when {
+        table.select("tbody tr").isNotEmpty() -> table.select("tbody tr")
+        headerCells.isEmpty() && allRows.firstOrNull()?.select("th")?.isNotEmpty() == true ->
+            allRows.drop(1)
+        else -> allRows
+    }
+
+    val firstRow = allRows.firstOrNull()
+    if (headerCells.isEmpty() && firstRow?.select("th")?.isNotEmpty() == true) {
+        headerCells = firstRow.select("th, td").map { it.html() }
+    }
+
+    val rows = bodyRows.map { row ->
         row.select("th, td").map { it.html() }
     }
     val colCount = maxOf(headerCells.size, rows.maxOfOrNull { it.size } ?: 0)
@@ -420,6 +509,21 @@ private fun buildHtmlAnnotatedString(
         }
     }
     element.childNodes().forEach(::appendNode)
+}
+
+@Composable
+private fun Modifier.clickOnHtmlLinks(
+    annotated: androidx.compose.ui.text.AnnotatedString,
+    uriHandler: androidx.compose.ui.platform.UriHandler,
+): Modifier {
+    val urls = remember(annotated) { annotated.getStringAnnotations("URL", 0, annotated.length) }
+    if (urls.isEmpty()) return this
+    return clickable(
+        indication = null,
+        interactionSource = remember { MutableInteractionSource() },
+    ) {
+        urls.firstOrNull()?.let { runCatching { uriHandler.openUri(it.item) } }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

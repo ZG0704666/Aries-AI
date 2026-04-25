@@ -26,6 +26,7 @@ class SettingsViewModel(
     enum class SettingsPage {
         Home,
         ModelApi,
+        Membership,
         Appearance,
         About,
         Automation,
@@ -54,6 +55,9 @@ class SettingsViewModel(
         private set
 
     var useLocalModel by mutableStateOf(false)
+        private set
+
+    var useAriesApi by mutableStateOf(false)
         private set
 
     var apiBaseUrlText by mutableStateOf("")
@@ -85,6 +89,7 @@ class SettingsViewModel(
         apiInputText = maskKey(saved)
         useThirdPartyApi = prefs.getApiUseThirdPartyBlocking()
         useLocalModel = prefs.getApiUseLocalModelBlocking()
+        useAriesApi = prefs.getUseAriesApiBlocking()
         apiBaseUrlText = prefs.getApiThirdPartyBaseUrlBlocking().ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
         apiModelText = prefs.getApiThirdPartyModelBlocking().ifBlank { AutoGlmClient.DEFAULT_MODEL }
 
@@ -128,6 +133,11 @@ class SettingsViewModel(
         currentPage = SettingsPage.ModelApi
     }
 
+    fun openMembershipPage() {
+        pageTransitionForward = true
+        currentPage = SettingsPage.Membership
+    }
+
     fun openHomePage() {
         pageTransitionForward = false
         currentPage = SettingsPage.Home
@@ -146,6 +156,10 @@ class SettingsViewModel(
 
     fun onUseThirdPartyChange(checked: Boolean) {
         useThirdPartyApi = checked
+        if (checked) {
+            useAriesApi = false
+            useLocalModel = false
+        }
         onApiConfigChanged(clearApiValue = false)
     }
 
@@ -165,9 +179,31 @@ class SettingsViewModel(
 
     fun onUseLocalModelChange(checked: Boolean, onToast: (String) -> Unit) {
         useLocalModel = checked
+        if (checked) {
+            useAriesApi = false
+            useThirdPartyApi = false
+        }
         viewModelScope.launch { prefs.setApiUseLocalModel(checked) }
         if (checked && !localModelReady) {
             onToast(stringRes(R.string.m3t_sidebar_local_model_not_ready))
+        }
+        updateStatusText()
+    }
+
+    fun onUseAriesApiChange(checked: Boolean) {
+        useAriesApi = checked
+        viewModelScope.launch { prefs.setUseAriesApi(checked) }
+        if (checked) {
+            // When Aries API is enabled, disable third-party and local model
+            useThirdPartyApi = false
+            useLocalModel = false
+            viewModelScope.launch {
+                prefs.writeApiConfig(
+                    useThirdParty = false,
+                    useLocalModel = false,
+                    clearCheckResults = true,
+                )
+            }
         }
         updateStatusText()
     }
@@ -374,8 +410,10 @@ class SettingsViewModel(
     }
 
     fun updateStatusText() {
-        apiStatusPositive = remoteApiOk == true || useLocalModel
-        if (useLocalModel) {
+        apiStatusPositive = remoteApiOk == true || useLocalModel || useAriesApi
+        if (useAriesApi) {
+            apiStatusText = stringRes(R.string.settings_model_api_aries_mode)
+        } else if (useLocalModel) {
             apiStatusText =
                 stringRes(
                     if (localModelReady) {
@@ -402,12 +440,14 @@ class SettingsViewModel(
     }
 
     fun resolveApiBaseUrl(): String {
+        if (useAriesApi) return AutoGlmClient.DEFAULT_BASE_URL
         if (useLocalModel) return AutoGlmClient.DEFAULT_BASE_URL
         if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_BASE_URL
         return apiBaseUrlText.trim().ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
     }
 
     fun resolveApiModel(): String {
+        if (useAriesApi) return AutoGlmClient.DEFAULT_MODEL
         if (useLocalModel) return ModelScopeModelDownloader.QWEN35_MODEL_NAME
         if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_MODEL
         return apiModelText.trim().ifBlank { AutoGlmClient.DEFAULT_MODEL }

@@ -36,16 +36,20 @@ import com.composables.icons.lucide.ExternalLink
 import com.composables.icons.lucide.CircleCheck
 import com.composables.icons.lucide.Cloud
 import com.composables.icons.lucide.Clipboard
+import com.composables.icons.lucide.Crown
 import com.composables.icons.lucide.Download
 import com.composables.icons.lucide.Info
 import com.composables.icons.lucide.KeyRound
 import com.composables.icons.lucide.Cpu
+import com.composables.icons.lucide.LogIn
+import com.composables.icons.lucide.Sparkles
 import com.composables.icons.lucide.RotateCw
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -256,6 +260,7 @@ fun DrawerModelApiConfigScreen(
     apiInput: String,
     useThirdPartyApi: Boolean,
     useLocalModel: Boolean,
+    useAriesApi: Boolean,
     apiBaseUrl: String,
     apiModel: String,
     apiStatus: String,
@@ -267,6 +272,8 @@ fun DrawerModelApiConfigScreen(
     onPasteApi: () -> Unit,
     onOpenApiKeyPage: () -> Unit,
     onUseThirdPartyChange: (Boolean) -> Unit,
+    onUseAriesApiChange: (Boolean) -> Unit,
+    onOpenMembership: () -> Unit,
     onApiBaseUrlChange: (String) -> Unit,
     onApiModelChange: (String) -> Unit,
     onUseLocalModelChange: (Boolean) -> Unit,
@@ -281,12 +288,14 @@ fun DrawerModelApiConfigScreen(
     val compactButtonHeight = dimensionResource(R.dimen.m3t_compact_button_height)
     val modeTitle =
         when {
+            useAriesApi -> stringResource(R.string.settings_model_api_aries_mode)
             useLocalModel -> stringResource(R.string.settings_model_api_mode_local)
             useThirdPartyApi -> stringResource(R.string.settings_model_api_mode_third_party)
             else -> stringResource(R.string.settings_model_api_mode_official)
         }
     val modeDescription =
         when {
+            useAriesApi -> stringResource(R.string.settings_model_api_aries_mode_description)
             useLocalModel -> stringResource(R.string.settings_model_api_mode_local_description)
             useThirdPartyApi -> stringResource(R.string.settings_model_api_mode_third_party_description)
             else -> stringResource(R.string.settings_model_api_mode_official_description)
@@ -354,7 +363,7 @@ fun DrawerModelApiConfigScreen(
                             color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
                         ) {
                             Icon(
-                                imageVector = if (useLocalModel) Lucide.Cpu else Lucide.Cloud,
+                                imageVector = if (useLocalModel) Lucide.Cpu else if (useAriesApi) Lucide.Sparkles else Lucide.Cloud,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.padding(spacingSm),
@@ -377,6 +386,50 @@ fun DrawerModelApiConfigScreen(
                             containerColor = statusContainerColor,
                             contentColor = statusContentColor,
                         )
+                    }
+                }
+            }
+
+            item {
+                ModelApiSectionCard {
+                    SectionIntro(
+                        title = stringResource(R.string.settings_model_api_aries_title),
+                        tooltipText = stringResource(R.string.settings_model_api_aries_subtitle),
+                    )
+
+                    Spacer(modifier = Modifier.height(spacingMd))
+
+                    DetailSwitchRow(
+                        title = stringResource(R.string.settings_model_api_aries_switch),
+                        tooltipText = stringResource(R.string.settings_model_api_aries_switch_subtitle),
+                        checked = useAriesApi,
+                        onCheckedChange = onUseAriesApiChange,
+                    )
+
+                    AnimatedVisibility(
+                        visible = useAriesApi,
+                        enter = fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) + expandVertically(animationSpec = tween(180, easing = FastOutSlowInEasing)),
+                        exit = fadeOut(animationSpec = tween(120, easing = FastOutLinearInEasing)) + shrinkVertically(animationSpec = tween(140, easing = FastOutSlowInEasing)),
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
+                            Spacer(modifier = Modifier.height(spacingMd))
+                            OutlinedButton(
+                                onClick = {},
+                                modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_compact_button_height)),
+                            ) {
+                                Icon(Lucide.LogIn, contentDescription = null)
+                                Spacer(modifier = Modifier.width(spacingSm))
+                                Text(stringResource(R.string.settings_model_api_aries_login))
+                            }
+                            Button(
+                                onClick = onOpenMembership,
+                                modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_compact_button_height)),
+                            ) {
+                                Icon(Lucide.Crown, contentDescription = null)
+                                Spacer(modifier = Modifier.width(spacingSm))
+                                Text(stringResource(R.string.settings_model_api_aries_membership))
+                            }
+                        }
                     }
                 }
             }

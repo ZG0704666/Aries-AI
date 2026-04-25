@@ -115,6 +115,7 @@ fun SettingsRoute(
                     apiInput = viewModel.apiInputText,
                     useThirdPartyApi = viewModel.useThirdPartyApi,
                     useLocalModel = viewModel.useLocalModel,
+                    useAriesApi = viewModel.useAriesApi,
                     apiBaseUrl = viewModel.apiBaseUrlText,
                     apiModel = viewModel.apiModelText,
                     apiStatus = viewModel.apiStatusText,
@@ -130,6 +131,8 @@ fun SettingsRoute(
                     },
                     onOpenApiKeyPage = { viewModel.openApiKeyPage(context) },
                     onUseThirdPartyChange = { checked -> viewModel.onUseThirdPartyChange(checked) },
+                    onUseAriesApiChange = { checked -> viewModel.onUseAriesApiChange(checked) },
+                    onOpenMembership = { viewModel.openMembershipPage() },
                     onApiBaseUrlChange = { value -> viewModel.onApiBaseUrlChange(value) },
                     onApiModelChange = { value -> viewModel.onApiModelChange(value) },
                     onUseLocalModelChange = { checked ->
@@ -147,6 +150,12 @@ fun SettingsRoute(
                             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                         }
                     },
+                )
+            }
+
+            SettingsViewModel.SettingsPage.Membership -> {
+                MembershipScreen(
+                    onBack = { viewModel.openHomePage() },
                 )
             }
 

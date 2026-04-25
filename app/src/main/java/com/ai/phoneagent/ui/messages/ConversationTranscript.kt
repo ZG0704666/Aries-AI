@@ -439,8 +439,7 @@ private fun AssistantMessageBlock(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .widthIn(max = maxWidth)
-            .animateContentSize(),
+            .widthIn(max = maxWidth),
         verticalArrangement = Arrangement.spacedBy(spacingSm),
     ) {
         if (item.automation == null) {

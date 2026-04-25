@@ -44,16 +44,116 @@ import org.scilab.forge.jlatexmath.TeXFormula
 //  Delimiter normalisation
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Strips surrounding `$$…$$`, `$…$`, `\[…\]`, `\(…\)` and returns the bare formula. */
+// 剥离定界符 → 提取文档体 → 去掉文档级命令 → 提取数学环境
 fun processLatex(raw: String): String {
-    val s = raw.trim()
-    return when {
-        s.startsWith("$$") && s.endsWith("$$")   -> s.drop(2).dropLast(2).trim()
-        s.startsWith("$")  && s.endsWith("$")    -> s.drop(1).dropLast(1).trim()
-        s.startsWith("\\[") && s.endsWith("\\]") -> s.drop(2).dropLast(2).trim()
-        s.startsWith("\\(") && s.endsWith("\\)") -> s.drop(2).dropLast(2).trim()
-        else                                     -> s
+    var s = raw.trim()
+
+    // step-1: 去掉外层 $$…$$ / $…$ / \[…\] / \(…\) 定界符
+    s = when {
+        s.startsWith("\$\$") && s.endsWith("\$\$") -> s.drop(2).dropLast(2).trim()
+        s.startsWith("\$")   && s.endsWith("\$")   -> s.drop(1).dropLast(1).trim()
+        s.startsWith("\\[")  && s.endsWith("\\]")  -> s.drop(2).dropLast(2).trim()
+        s.startsWith("\\(")  && s.endsWith("\\)")  -> s.drop(2).dropLast(2).trim()
+        else                                        -> s
     }
+
+    // step-2: 去掉 \begin{document}…\end{document} 完整文档外壳，保留内部内容
+    val docBodyRe = Regex("""\\begin\{document\}([\s\S]*?)\\end\{document\}""")
+    val docMatch = docBodyRe.find(s)
+    if (docMatch != null) s = docMatch.groupValues[1].trim()
+
+    // step-3: 去掉文档级命令行（JLatexMath 不支持）
+    val docLevelRe = Regex(
+        """^\\(?:documentclass|usepackage|title|author|date|maketitle|begin\{titlepage\}|end\{titlepage\})[^\n]*\n?""",
+        RegexOption.MULTILINE
+    )
+    s = docLevelRe.replace(s, "").trim()
+
+    if (s.isEmpty()) return raw.trim()
+
+    // step-4: 优先提取数学环境 \begin{equation}…\end{equation} 等
+    val mathEnvRe = Regex("""\\begin\{(equation|align|matrix|pmatrix|bmatrix|cases|gather|multline|eqnarray)[*]?\}[\s\S]*?\\end\{\1[*]?\}""")
+    val mathParts = mathEnvRe.findAll(s).map { it.value }.toList()
+    if (mathParts.isNotEmpty()) return mathParts.joinToString("\n\n")
+
+    // step-4.5: 提取 \[…\] 和 \(…\) 块（代码围栏内未被 preProcess 转换的）
+    val displayBlockRe  = Regex("""\\\[[\s\S]*?\\\]""")
+    val inlineParenRe   = Regex("""\\\([\s\S]*?\\\)""")
+    val displayParts = (displayBlockRe.findAll(s) + inlineParenRe.findAll(s))
+        .map { m ->
+            val inner = m.value
+            when {
+                inner.startsWith("\\[") -> inner.drop(2).dropLast(2).trim()
+                inner.startsWith("\\(") -> inner.drop(2).dropLast(2).trim()
+                else -> inner
+            }
+        }.filter { it.isNotBlank() }.toList()
+    if (displayParts.isNotEmpty()) return displayParts.joinToString("\n\n")
+
+    // step-5: 提取行内 $…$ / $$…$$ 公式
+    val inlineMathRe = Regex("""\$\$?[^$\n]+?\$\$?""")
+    val inlineParts = inlineMathRe.findAll(s).map { it.value }.toList()
+    if (inlineParts.isNotEmpty()) return inlineParts.joinToString("  ")
+
+    return s
+}
+
+fun isRenderableMath(formula: String): Boolean {
+    val s = formula.trim()
+    if (s.isEmpty()) return false
+    if (s.contains("\\begin{document}")) return false
+    if (s.contains(Regex("""\\begin\{(equation|align|matrix|pmatrix|bmatrix|cases|gather|multline|eqnarray)"""))) return true
+    if (s.contains(Regex("""\$\$?"""))) return true
+    if (s.contains(Regex("""\\[\[\(]"""))) return true
+    if (s.contains(Regex("""\\(?:frac|sqrt|sum|int|prod|lim|infty|alpha|beta|gamma|delta|theta|pi|sigma|omega|cdot|times|div|leq|geq|neq|approx|rightarrow|leftarrow|Rightarrow|Leftarrow|partial|nabla|hat|bar|vec|mathbf|text)\b"""))) return true
+    return false
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  LaTeX document segmentation
+// ─────────────────────────────────────────────────────────────────────────────
+
+internal data class LatexSegment(val content: String, val isMath: Boolean)
+
+// 匹配 \[...\]、\(...\)、\begin{equation/align/...}...\end{...}
+private val MATH_CHUNK_RE = Regex(
+    """\\\[[\s\S]*?\\\]""" +
+    """|\\\([\s\S]*?\\\)""" +
+    """|\\begin\{(equation|align|matrix|pmatrix|bmatrix|cases|gather|multline|eqnarray)[*]?\}[\s\S]*?\\end\{\1[*]?\}"""
+)
+
+// JLatexMath 不支持 equation/eqnarray/multline 环境，需要剥离外壳只保留内部公式
+private val STRIP_ENV_RE = Regex(
+    """^\\begin\{(equation|eqnarray|multline)[*]?\}\s*([\s\S]*?)\s*\\end\{\1[*]?\}$"""
+)
+
+internal fun splitLatexDocSegments(payload: String): List<LatexSegment> {
+    val result = mutableListOf<LatexSegment>()
+    var cursor = 0
+    MATH_CHUNK_RE.findAll(payload).forEach { m ->
+        if (m.range.first > cursor) {
+            val text = payload.substring(cursor, m.range.first).trim()
+            if (text.isNotEmpty()) result += LatexSegment(text, isMath = false)
+        }
+        val inner = m.value.let {
+            when {
+                it.startsWith("\\[") -> it.drop(2).dropLast(2).trim()
+                it.startsWith("\\(") -> it.drop(2).dropLast(2).trim()
+                else -> {
+                    // equation/eqnarray/multline → 剥离环境取内部；align/matrix/cases 等保留
+                    val strip = STRIP_ENV_RE.find(it)
+                    strip?.groupValues?.get(2)?.trim() ?: it
+                }
+            }
+        }
+        if (inner.isNotEmpty()) result += LatexSegment(inner, isMath = true)
+        cursor = m.range.last + 1
+    }
+    if (cursor < payload.length) {
+        val tail = payload.substring(cursor).trim()
+        if (tail.isNotEmpty()) result += LatexSegment(tail, isMath = false)
+    }
+    return result
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,6 +164,7 @@ fun processLatex(raw: String): String {
 fun renderLatexToBitmap(formula: String, textSizePx: Float, argb: Int): Bitmap? = try {
     val tf   = TeXFormula(formula)
     val icon = tf.createTeXIcon(TeXConstants.STYLE_DISPLAY, textSizePx)
+    icon.setForeground(ru.noties.jlatexmath.awt.Color(argb))
     if (icon.iconWidth <= 0 || icon.iconHeight <= 0) null
     else {
         val bmp = Bitmap.createBitmap(icon.iconWidth, icon.iconHeight, Bitmap.Config.ARGB_8888)
@@ -128,10 +229,10 @@ fun MathBlock(formula: String, modifier: Modifier = Modifier) {
             )
         } else {
             Text(
-                text  = "$$${formula}$$",
-                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                color = fgColor.copy(alpha = 0.7f),
-                modifier = Modifier.padding(4.dp),
+                text     = formula,
+                style    = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                color    = fgColor.copy(alpha = 0.6f),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             )
         }
     }
@@ -146,6 +247,21 @@ internal val INLINE_MATH_RE = Regex("""\$(?!\$)(.+?)\$(?!\$)""", RegexOption.DOT
 
 internal data class MathSeg(val content: String, val isMath: Boolean)
 
+internal fun containsInlineMath(text: String): Boolean =
+    splitTextWithMath(text).any { it.isMath }
+
+private val INLINE_GREEK_WORD_RE = Regex(
+    """(?<![\\A-Za-z])(alpha|beta|gamma|delta|epsilon|varepsilon|theta|vartheta|lambda|mu|pi|rho|sigma|omega)(?![A-Za-z])"""
+)
+
+internal fun normalizeInlineLatexFormula(raw: String): String {
+    var s = raw.trim()
+    s = s.replace(Regex("""\\theta0\b"""), """\\theta_0""")
+    s = s.replace(Regex("""\\mut\b"""), """\\mu(t)""")
+    s = INLINE_GREEK_WORD_RE.replace(s) { match -> "\\${match.value}" }
+    return s
+}
+
 /**
  * Splits [text] into math / non-math segments based on `$…$` delimiters.
  *
@@ -156,15 +272,58 @@ internal data class MathSeg(val content: String, val isMath: Boolean)
 internal fun splitTextWithMath(text: String): List<MathSeg> {
     val result = mutableListOf<MathSeg>()
     var cursor = 0
-    INLINE_MATH_RE.findAll(text).forEach { m ->
-        if (m.range.first > cursor)
-            result += MathSeg(text.substring(cursor, m.range.first), false)
-        result += MathSeg(m.groupValues[1], true)
-        cursor = m.range.last + 1
+    while (cursor < text.length) {
+        val start = findInlineMathStart(text, cursor)
+        if (start == -1) break
+        val end = findInlineMathEnd(text, start + 1)
+        if (end == -1) break
+        val payload = text.substring(start + 1, end)
+        if (payload.isBlank() || payload.contains('\n')) {
+            cursor = start + 1
+            continue
+        }
+        if (start > cursor) {
+            result += MathSeg(text.substring(cursor, start), false)
+        }
+        result += MathSeg(payload, true)
+        cursor = end + 1
     }
     if (cursor < text.length) result += MathSeg(text.substring(cursor), false)
     return result
 }
+
+private fun findInlineMathStart(text: String, fromIndex: Int): Int {
+    var index = fromIndex
+    while (index < text.length) {
+        val candidate = text.indexOf('$', index)
+        if (candidate == -1) return -1
+        val prev = text.getOrNull(candidate - 1)
+        val next = text.getOrNull(candidate + 1)
+        if (prev != '\\' && next != '$' && next != null && !next.isWhitespaceOnlyNewline()) {
+            return candidate
+        }
+        index = candidate + 1
+    }
+    return -1
+}
+
+private fun findInlineMathEnd(text: String, fromIndex: Int): Int {
+    var index = fromIndex
+    while (index < text.length) {
+        val candidate = text.indexOf('$', index)
+        if (candidate == -1) return -1
+        val prev = text.getOrNull(candidate - 1)
+        val next = text.getOrNull(candidate + 1)
+        if (prev != '\\' && prev != '$' && next != '$') {
+            return candidate
+        }
+        index = candidate + 1
+    }
+    return -1
+}
+
+private fun Char.isWhitespaceOnlyNewline(): Boolean =
+    this == '\n' || this == '\r'
 
 /**
  * Renders [text] which may contain `$formula$` inline math expressions.
@@ -180,7 +339,7 @@ fun MathInlineText(text: String, modifier: Modifier = Modifier) {
     val density    = LocalDensity.current
     val textSizePx = with(density) { style.fontSize.toPx() }
 
-    if (!settings.enableLatex || !INLINE_MATH_RE.containsMatchIn(text)) {
+    if (!settings.enableLatex || !containsInlineMath(text)) {
         Text(text = text, style = style, color = fgColor, modifier = modifier)
         return
     }
@@ -191,7 +350,13 @@ fun MathInlineText(text: String, modifier: Modifier = Modifier) {
         val map = mutableMapOf<Int, Bitmap?>()
         withContext(Dispatchers.Default) {
             segments.forEachIndexed { i, seg ->
-                if (seg.isMath) map[i] = renderLatexToBitmap(seg.content, textSizePx, fgColor.toArgb())
+                if (seg.isMath) {
+                    map[i] = renderLatexToBitmap(
+                        normalizeInlineLatexFormula(seg.content),
+                        textSizePx,
+                        fgColor.toArgb(),
+                    )
+                }
             }
         }
         value = map
@@ -224,13 +389,14 @@ private fun buildMathAnnotated(
     val annotated = buildAnnotatedString {
         segments.forEachIndexed { i, seg ->
             if (!seg.isMath) {
-                withStyle(SpanStyle(color = fgColor)) { append(seg.content) }
+                appendSimpleMarkdownText(seg.content, fgColor)
             } else {
                 val key = "math_$i"
+                val formula = normalizeInlineLatexFormula(seg.content)
                 val bmp = bitmaps[i]
 
                 val (wPx, hPx) = if (bmp != null) bmp.width.toFloat() to bmp.height.toFloat()
-                                  else assumeLatexSize(seg.content, textSizePx)
+                                  else assumeLatexSize(formula, textSizePx)
                 val wSp = with(density) { wPx.toDp().toSp() }
                 val hSp = with(density) { hPx.toDp().toSp() }
 
@@ -242,8 +408,17 @@ private fun buildMathAnnotated(
                     if (captured != null) {
                         Image(
                             bitmap             = captured.asImageBitmap(),
-                            contentDescription = seg.content,
+                            contentDescription = formula,
                             modifier           = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Text(
+                            text  = formula,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = FontFamily.Monospace,
+                                color = fgColor,
+                            ),
+                            modifier = Modifier.fillMaxSize(),
                         )
                     }
                 }
@@ -251,4 +426,24 @@ private fun buildMathAnnotated(
         }
     }
     return annotated to inlineMap
+}
+
+private fun AnnotatedString.Builder.appendSimpleMarkdownText(text: String, fgColor: Color) {
+    var cursor = 0
+    Regex("""(\*\*|__)(.+?)\1""").findAll(text).forEach { match ->
+        if (match.range.first > cursor) {
+            withStyle(SpanStyle(color = fgColor)) {
+                append(text.substring(cursor, match.range.first))
+            }
+        }
+        withStyle(SpanStyle(color = fgColor, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)) {
+            append(match.groupValues[2])
+        }
+        cursor = match.range.last + 1
+    }
+    if (cursor < text.length) {
+        withStyle(SpanStyle(color = fgColor)) {
+            append(text.substring(cursor))
+        }
+    }
 }

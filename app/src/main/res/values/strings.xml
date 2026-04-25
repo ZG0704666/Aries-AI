@@ -27,6 +27,7 @@
     <string name="automation_done">已执行</string>
     <string name="automation_retry">重试</string>
     <string name="automation_start_now">立即开始</string>
+    <string name="automation_execute_now">去执行</string>
     <string name="automation_not_ready_short">未就绪</string>
     <string name="automation_confirm_hint">检测到自动化任务，请点击确认按钮执行</string>
     <string name="automation_dispatched">已转交自动化执行</string>
@@ -285,6 +286,47 @@
     <string name="settings_model_api_local_subtitle">下载并启用本地模型后，可将任务切换到本地推理链路。</string>
     <string name="settings_model_api_local_switch_subtitle">启用后优先使用本地模型；未就绪时请先下载模型文件。</string>
     <string name="settings_model_api_local_note_title">本地模型说明</string>
+    <!-- Aries API -->
+    <string name="settings_model_api_aries_title">Aries API</string>
+    <string name="settings_model_api_aries_subtitle">启用 Aries 官方托管 API，一键接入无需自配。</string>
+    <string name="settings_model_api_aries_switch">使用 Aries API</string>
+    <string name="settings_model_api_aries_switch_subtitle">启用后将自动切换到 Aries 官方托管服务。</string>
+    <string name="settings_model_api_aries_mode">Aries 托管 API</string>
+    <string name="settings_model_api_aries_mode_description">使用 Aries 官方托管 API，无需配置 Key 即可快速体验。</string>
+    <string name="settings_model_api_aries_membership">升级会员</string>
+    <string name="settings_model_api_aries_membership_subtitle">解锁更多额度与高级功能</string>
+    <string name="settings_model_api_aries_login">登录 Aries 账号</string>
+
+    <!-- Membership -->
+    <string name="membership_title">Aries 会员</string>
+    <string name="membership_tier_basic">基础版</string>
+    <string name="membership_tier_basic_price">免费</string>
+    <string name="membership_tier_basic_desc">体验 Aries 基础功能</string>
+    <string name="membership_tier_pro">专业版</string>
+    <string name="membership_tier_pro_price">¥29/月</string>
+    <string name="membership_tier_pro_desc">解锁全部模型与高级自动化</string>
+    <string name="membership_tier_ultimate">旗舰版</string>
+    <string name="membership_tier_ultimate_price">¥9999/月</string>
+    <string name="membership_tier_ultimate_desc">无限额度，专属模型与优先支持</string>
+    <string name="membership_feature_daily_tasks">点数</string>
+    <string name="membership_feature_basic_value">10 点/天</string>
+    <string name="membership_feature_pro_value">200 点/天</string>
+    <string name="membership_feature_ultimate_value">无限点/天</string>
+    <string name="membership_feature_models">可用模型</string>
+    <string name="membership_feature_basic_models">基础模型</string>
+    <string name="membership_feature_pro_models">全部模型</string>
+    <string name="membership_feature_ultimate_models">全部模型 + 旗舰模型</string>
+    <string name="membership_feature_automation">自动化功能</string>
+    <string name="membership_feature_basic_automation">基础自动化</string>
+    <string name="membership_feature_pro_automation">高级自动化</string>
+    <string name="membership_feature_ultimate_automation">高级自动化 + 批量任务</string>
+    <string name="membership_feature_support">技术支持</string>
+    <string name="membership_feature_basic_support">社区支持</string>
+    <string name="membership_feature_pro_support">邮件支持</string>
+    <string name="membership_feature_ultimate_support">1 对 1 专属支持</string>
+    <string name="membership_current_plan">当前方案</string>
+    <string name="membership_subscribe">订阅</string>
+
     <string name="settings_model_api_action_title">连接检查</string>
     <string name="settings_model_api_action_subtitle">完成配置后在这里检查当前模型与 API 链路是否可用。</string>
     <string name="settings_model_api_status_title">当前连接状态</string>
