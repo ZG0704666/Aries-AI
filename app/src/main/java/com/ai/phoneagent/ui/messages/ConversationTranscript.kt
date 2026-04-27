@@ -487,12 +487,25 @@ private fun AssistantMessageBlock(
                 tonalElevation = if (item.isStreaming) 2.dp else 1.dp,
             ) {
                 SelectionContainer {
-                    Markdown(
-                        text     = item.body,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = spacingMd, vertical = spacingMd),
-                    )
+                    if (item.isStreaming) {
+                        Text(
+                            text = item.body,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = spacingMd, vertical = spacingMd),
+                        )
+                    } else {
+                        Markdown(
+                            text = item.body,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = spacingMd, vertical = spacingMd),
+                        )
+                    }
                 }
             }
         }
@@ -825,10 +838,19 @@ private fun ThinkingSection(
                     ),
                 ) {
                     SelectionContainer {
-                        Markdown(
-                            text = thinking,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        if (item.isStreaming) {
+                            Text(
+                                text = thinking,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        } else {
+                            Markdown(
+                                text = thinking,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }

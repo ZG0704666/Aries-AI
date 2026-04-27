@@ -70,6 +70,7 @@ class AriesAgentApp : Application() {
 
         // 初始化全局上下文
         AppState.init(this)
+        AutomationLiveNotification.initialize(this)
 
         // 初始化 Koin 依赖注入框架
         startKoin {
@@ -124,4 +125,3 @@ object AppState {
     @JvmStatic
     fun getAppContext(): Context? = appContext
 }
-

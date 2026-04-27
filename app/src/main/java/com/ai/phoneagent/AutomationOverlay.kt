@@ -235,6 +235,7 @@ object AutomationOverlay {
      * 只在第一次解析出有效预估值时设置，后续不再更新
      */
     fun updateEstimatedSteps(estimated: Int) {
+        AutomationLiveNotification.updateEstimatedSteps(estimated)
         if (estimated > 0 && !hasEstimatedSteps) {
             this.estimatedTotalSteps = estimated
             this.hasEstimatedSteps = true
@@ -248,6 +249,11 @@ object AutomationOverlay {
     fun startThinking() {
         isShowingThinking = true
         thinkingText = ""
+        AutomationLiveNotification.updateState(
+            title = "思考中",
+            subtitle = "模型推理中",
+            detail = "准备生成下一步动作",
+        )
         runOnMain {
             val v = container ?: return@runOnMain
             v.setTexts("思考中", "模型推理中", "准备生成下一步动作")
@@ -262,6 +268,11 @@ object AutomationOverlay {
         if (!isShowingThinking) return
         thinkingText += delta
         val displayText = extractRealtimeThinking(thinkingText)
+        AutomationLiveNotification.updateState(
+            title = "思考中",
+            subtitle = "模型推理中",
+            detail = displayText,
+        )
         runOnMain {
             val v = container
             if (v == null) {
@@ -387,6 +398,7 @@ object AutomationOverlay {
     }
 
     fun updateProgress(step: Int, phaseInStep: Float, maxSteps: Int? = null, subtitle: String? = null) {
+        AutomationLiveNotification.updateProgress(step, phaseInStep, maxSteps, subtitle)
         runOnMain {
             val v = container ?: return@runOnMain
             if (maxSteps != null && !hasEstimatedSteps) {
@@ -407,6 +419,7 @@ object AutomationOverlay {
     fun updateFromLogLine(line: String) {
         val trimmed = simplifyLine(line).trim()
         if (trimmed.isBlank()) return
+        AutomationLiveNotification.updateFromLogLine(line)
         runOnMain {
             val v = container ?: return@runOnMain
             v.setDetailText(trimmed.take(34))
@@ -414,6 +427,7 @@ object AutomationOverlay {
     }
 
     fun complete(message: String) {
+        AutomationLiveNotification.complete(message)
         runOnMain {
             val v = container ?: return@runOnMain
             v.setProgress(1f)
@@ -430,6 +444,7 @@ object AutomationOverlay {
     }
 
     fun hide() {
+        AutomationLiveNotification.hide()
         val w = wm
         val v = container
         container = null

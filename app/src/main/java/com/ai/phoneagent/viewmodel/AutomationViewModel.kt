@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ai.phoneagent.AutomationLiveNotification
 import com.ai.phoneagent.AutomationOverlay
 import com.ai.phoneagent.MainActivity
 import com.ai.phoneagent.PhoneAgentAccessibilityService
@@ -779,7 +780,16 @@ class AutomationViewModel(
         appendLog("准备开始：baseUrl=$baseUrl, model=$model")
         appendLog("任务：$task")
 
-        if (AutomationOverlay.canDrawOverlays(appContext)) {
+        val liveNotificationStarted =
+            AutomationLiveNotification.show(
+                context = appContext,
+                title = "分析中",
+                subtitle = task.take(20),
+                maxSteps = 100,
+                navigateMainOnClick = fromHomeDispatch,
+            )
+
+        if (!liveNotificationStarted && AutomationOverlay.canDrawOverlays(appContext)) {
             val ok =
                 AutomationOverlay.show(
                     context = appContext,
@@ -792,7 +802,7 @@ class AutomationViewModel(
             if (!ok) {
                 Toast.makeText(appContext, "悬浮窗显示失败，将保持前台显示日志", Toast.LENGTH_SHORT).show()
             }
-        } else {
+        } else if (!liveNotificationStarted) {
             Toast.makeText(appContext, "如需显示进度悬浮窗，请授予悬浮窗权限", Toast.LENGTH_SHORT).show()
         }
 

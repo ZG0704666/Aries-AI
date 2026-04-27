@@ -338,6 +338,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_SCROLL_TO_BOTTOM = "extra_scroll_to_bottom"
         const val EXTRA_SHOW_AUTOMATION_STOP = "extra_show_automation_stop"
+        private const val STREAMING_UI_FRAME_DELAY_MS = 48L
     }
 
     private data class UiMessage(
@@ -3007,7 +3008,48 @@ class MainActivity : AppCompatActivity() {
                 // 临时变量用于构建完整内容以方便保存
                 val reasoningSb = StringBuilder()
                 val contentSb = StringBuilder()
+                val streamBufferLock = Any()
+                val streamUiScheduleLock = Any()
+                var pendingStreamUiUpdate: Job? = null
                 var floatingStreamStarted = false
+
+                fun flushStreamingTranscriptUi() {
+                    val (reasoningSnapshot, contentSnapshot) =
+                        synchronized(streamBufferLock) {
+                            reasoningSb.toString() to contentSb.toString()
+                        }
+                    updateStreamingTranscriptFromBuffers(
+                        retryText = baseUserText,
+                        reasoning = reasoningSnapshot,
+                        answer = contentSnapshot,
+                    )
+                }
+
+                fun requestStreamingTranscriptUiUpdate(immediate: Boolean = false) {
+                    synchronized(streamUiScheduleLock) {
+                        val pending = pendingStreamUiUpdate
+                        if (!immediate && pending?.isActive == true) return
+
+                        pending?.cancel()
+                        pendingStreamUiUpdate =
+                            lifecycleScope.launch(Dispatchers.Main) {
+                                if (!immediate) delay(STREAMING_UI_FRAME_DELAY_MS)
+                                flushStreamingTranscriptUi()
+                                synchronized(streamUiScheduleLock) {
+                                    if (pendingStreamUiUpdate === this.coroutineContext[Job]) {
+                                        pendingStreamUiUpdate = null
+                                    }
+                                }
+                            }
+                    }
+                }
+
+                fun cancelPendingStreamingTranscriptUiUpdate() {
+                    synchronized(streamUiScheduleLock) {
+                        pendingStreamUiUpdate?.cancel()
+                        pendingStreamUiUpdate = null
+                    }
+                }
 
                 if (FloatingChatService.isRunning()) {
                     FloatingChatService.getInstance()?.beginExternalStreamAiReply()
@@ -3046,8 +3088,11 @@ class MainActivity : AppCompatActivity() {
 
                 for (attempt in 1..maxAttempts) {
                     if (attempt > 1) {
-                        reasoningSb.clear()
-                        contentSb.clear()
+                        cancelPendingStreamingTranscriptUiUpdate()
+                        synchronized(streamBufferLock) {
+                            reasoningSb.clear()
+                            contentSb.clear()
+                        }
                         runOnUiThread {
                             updateStreamingTranscript(
                                 retryText = baseUserText,
@@ -3064,15 +3109,10 @@ class MainActivity : AppCompatActivity() {
                         if (shouldStopGeneration) {
                             // stop requested; ignore incoming delta
                         } else if (delta.isNotBlank()) {
-                            reasoningSb.append(delta)
-                            runOnUiThread {
-                                updateStreamingTranscriptFromBuffers(
-                                    retryText = baseUserText,
-                                    reasoning = reasoningSb,
-                                    answer = contentSb,
-                                )
-                                smoothScrollToBottom()
+                            synchronized(streamBufferLock) {
+                                reasoningSb.append(delta)
                             }
+                            requestStreamingTranscriptUiUpdate()
                             if (FloatingChatService.isRunning()) {
                                 FloatingChatService.getInstance()
                                     ?.appendExternalReasoningDelta(delta)
@@ -3084,15 +3124,10 @@ class MainActivity : AppCompatActivity() {
                         if (shouldStopGeneration) {
                             // stop requested; ignore incoming delta
                         } else if (delta.isNotEmpty()) {
-                            contentSb.append(delta)
-                            runOnUiThread {
-                                updateStreamingTranscriptFromBuffers(
-                                    retryText = baseUserText,
-                                    reasoning = reasoningSb,
-                                    answer = contentSb,
-                                )
-                                smoothScrollToBottom()
+                            synchronized(streamBufferLock) {
+                                contentSb.append(delta)
                             }
+                            requestStreamingTranscriptUiUpdate()
 
                             // 同步到悬浮窗
                             if (FloatingChatService.isRunning()) {
@@ -3140,11 +3175,14 @@ class MainActivity : AppCompatActivity() {
                 val timeCostMs = System.currentTimeMillis() - startTime
                 val timeCost = timeCostMs / 1000
 
+                cancelPendingStreamingTranscriptUiUpdate()
+                flushStreamingTranscriptUi()
+
                 val finalContent =
                         if (shouldStopGeneration) {
                             "生成已停止"
                         } else if (streamOk) {
-                            contentSb.toString()
+                            synchronized(streamBufferLock) { contentSb.toString() }
                         } else {
                             val err = lastError?.message ?: "Unknown error"
                             "请求失败: $err"
@@ -3157,7 +3195,9 @@ class MainActivity : AppCompatActivity() {
 
                 val parsedPersisted = parseStoredAiContent(finalContent)
                 val thinkingContent =
-                    reasoningSb.toString().trim().ifBlank { parsedPersisted.first.orEmpty().trim() }
+                    synchronized(streamBufferLock) { reasoningSb.toString() }
+                        .trim()
+                        .ifBlank { parsedPersisted.first.orEmpty().trim() }
                 val answerContentRaw =
                     parsedPersisted.second.trim().ifBlank { stripAutomationMarker(finalContent).trim() }
                 val (answerContent, markerInAnswer) =

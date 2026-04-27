@@ -187,7 +187,9 @@ class UiAutomationAgent(
         }
 
         // 虚拟屏模式：启动预览悬浮窗
-        if (config.useBackgroundVirtualDisplay && VirtualDisplayController.isVirtualDisplayStarted()
+        if (config.useBackgroundVirtualDisplay &&
+                VirtualDisplayController.isVirtualDisplayStarted() &&
+                !AutomationLiveNotification.isActive()
         ) {
             onLog("【虚拟屏模式】启动预览悬浮窗...")
             val ctx = service ?: appContext
