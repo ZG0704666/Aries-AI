@@ -96,6 +96,7 @@ import androidx.core.view.WindowCompat
 import androidx.appcompat.widget.ActionMenuView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import com.ai.phoneagent.net.AriesApiClient
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
 import com.ai.phoneagent.net.LocalMnnInferenceEngine
@@ -566,8 +567,10 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var localModelReady: Boolean = false
     private var useThirdPartyApi by mutableStateOf(false)
     private var useLocalModel by mutableStateOf(false)
+    private var useAriesApi by mutableStateOf(false)
     private var apiBaseUrl by mutableStateOf(AutoGlmClient.DEFAULT_BASE_URL)
     private var apiModel by mutableStateOf(AutoGlmClient.DEFAULT_MODEL)
+    private var ariesSelectedModel by mutableStateOf("")
     private val navControllerState = mutableStateOf<NavHostController?>(null)
     private val routeNavigationActionState = mutableStateOf<((String) -> Unit)?>(null)
     private val pendingQwenDownloadIds = linkedSetOf<Long>()
@@ -689,15 +692,31 @@ class MainActivity : AppCompatActivity() {
             val currentApiKey by appPrefsRepository.apiKeyFlow.collectAsState(initial = "")
             val currentUseThirdParty by appPrefsRepository.apiUseThirdPartyFlow.collectAsState(initial = false)
             val currentUseLocalModel by appPrefsRepository.apiUseLocalModelFlow.collectAsState(initial = false)
+            val currentUseAriesApi by appPrefsRepository.useAriesApiFlow.collectAsState(initial = false)
             val currentApiBaseUrl by appPrefsRepository.apiThirdPartyBaseUrlFlow.collectAsState(initial = "")
             val currentApiModel by appPrefsRepository.apiThirdPartyModelFlow.collectAsState(initial = "")
+            val currentAriesModel by appPrefsRepository.ariesSelectedModelFlow.collectAsState(initial = "")
 
-            LaunchedEffect(currentApiKey, currentUseThirdParty, currentUseLocalModel, currentApiBaseUrl, currentApiModel) {
+            LaunchedEffect(
+                currentApiKey,
+                currentUseThirdParty,
+                currentUseLocalModel,
+                currentUseAriesApi,
+                currentApiBaseUrl,
+                currentApiModel,
+                currentAriesModel,
+            ) {
                 useThirdPartyApi = currentUseThirdParty
                 useLocalModel    = currentUseLocalModel
+                useAriesApi      = currentUseAriesApi
                 apiBaseUrl       = currentApiBaseUrl
                 apiModel         = currentApiModel
-                onApiConfigPotentiallyChanged(showNeedsCheckMessage = false)
+                ariesSelectedModel = currentAriesModel
+                if (currentUseAriesApi) {
+                    updateStatusText()
+                } else {
+                    onApiConfigPotentiallyChanged(showNeedsCheckMessage = false)
+                }
             }
 
             val themeMode = when (themeModeStr.lowercase()) {
@@ -2268,6 +2287,8 @@ class MainActivity : AppCompatActivity() {
         val saved = prefs.getString("api_key", "") ?: ""
         useThirdPartyApi = prefs.getBoolean(apiUseThirdPartyPref, false)
         useLocalModel = prefs.getBoolean(apiUseLocalModelPref, false)
+        useAriesApi = appPrefsRepository.getUseAriesApiBlocking()
+        ariesSelectedModel = appPrefsRepository.getAriesSelectedModelBlocking()
         apiBaseUrl =
             prefs.getString(apiThirdPartyBaseUrlPref, AutoGlmClient.DEFAULT_BASE_URL)
                 .orEmpty()
@@ -2282,6 +2303,13 @@ class MainActivity : AppCompatActivity() {
             prefs.edit().putBoolean(apiUseLocalModelPref, false).apply()
         }
         applyLocalModelUiState(useLocalModel)
+
+        if (useAriesApi) {
+            remoteApiOk = null
+            remoteApiChecking = false
+            updateStatusText()
+            return
+        }
 
         if (saved.isBlank()) {
             onApiConfigChanged(clearApiValue = true, showNeedsCheckMessage = false)
@@ -2401,6 +2429,14 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        if (useAriesApi) {
+            remoteApiChecking = false
+            remoteApiOk = null
+            lastCheckedApiKey = ""
+            updateStatusText()
+            return
+        }
+
         val currentKey = prefs.getString("api_key", "").orEmpty()
         if (currentKey.isBlank()) {
             apiCheckSeq++
@@ -2477,6 +2513,7 @@ class MainActivity : AppCompatActivity() {
         if (isLocalModelModeEnabled()) {
             return AutoGlmClient.DEFAULT_BASE_URL
         }
+        if (useAriesApi) return AriesApiClient.ARIES_API_V1_BASE_URL
         if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_BASE_URL
         val rawUrl = apiBaseUrl
         return normalizeBaseUrlInput(rawUrl) ?: AutoGlmClient.DEFAULT_BASE_URL
@@ -2524,6 +2561,7 @@ class MainActivity : AppCompatActivity() {
         if (isLocalModelModeEnabled()) {
             return ModelScopeModelDownloader.QWEN35_MODEL_NAME
         }
+        if (useAriesApi) return ariesSelectedModel.ifBlank { "glm-4-flash" }
         if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_MODEL
         return apiModel.trim().ifBlank { AutoGlmClient.DEFAULT_MODEL }
     }
@@ -2545,11 +2583,25 @@ class MainActivity : AppCompatActivity() {
     ): String {
         val normalizedBaseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
         val normalizedModel = model.ifBlank { AutoGlmClient.DEFAULT_MODEL }
-        return "${if (useThirdParty) "1" else "0"}|${apiKey.trim()}|$normalizedBaseUrl|$normalizedModel"
+        val mode =
+            when {
+                useAriesApi -> "aries"
+                useThirdParty -> "third_party"
+                else -> "default"
+            }
+        return "$mode|${apiKey.trim()}|$normalizedBaseUrl|$normalizedModel"
     }
 
     private fun resolveApiKeyFromInput(): String {
         return prefs.getString("api_key", "").orEmpty().trim()
+    }
+
+    private fun resolveActiveApiKey(): String {
+        return if (appPrefsRepository.getUseAriesApiBlocking()) {
+            appPrefsRepository.getActiveAriesApiKeyBlocking()
+        } else {
+            prefs.getString("api_key", "").orEmpty()
+        }.trim()
     }
 
     private fun updateStatusText() {
@@ -2563,6 +2615,11 @@ class MainActivity : AppCompatActivity() {
                     else -> getString(R.string.m3t_sidebar_local_model_not_ready)
                 }
             statusTextState.value = localText
+            return
+        }
+
+        if (useAriesApi) {
+            statusTextState.value = getString(R.string.settings_model_api_aries_mode)
             return
         }
 
@@ -2889,7 +2946,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val localModeEnabled = isLocalModelModeEnabled()
-        val apiKey = prefs.getString("api_key", "") ?: ""
+        val apiKey = if (localModeEnabled) "" else resolveActiveApiKey()
 
         if (localModeEnabled && !localModelReady) {
             Toast.makeText(
@@ -3593,7 +3650,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val localModeEnabled = isLocalModelModeEnabled()
-        val apiKey = prefs.getString("api_key", "") ?: ""
+        val apiKey = if (localModeEnabled) "" else resolveActiveApiKey()
         if (!localModeEnabled && apiKey.isBlank()) {
             onDone(text)
             return
@@ -3622,8 +3679,12 @@ class MainActivity : AppCompatActivity() {
                         messages = punctuationMessages,
                     )
                 } else {
+                    val resolvedBaseUrl = resolveApiBaseUrl()
+                    val resolvedModel = resolveApiModel()
                     AutoGlmClient.sendChatResult(
                         apiKey = apiKey,
+                        baseUrl = resolvedBaseUrl,
+                        model = resolvedModel,
                         messages = punctuationMessages,
                         temperature = 0.0f
                     )

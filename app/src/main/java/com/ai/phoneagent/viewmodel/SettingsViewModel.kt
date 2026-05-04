@@ -12,6 +12,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ai.phoneagent.R
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
+import com.ai.phoneagent.net.AriesApiClient
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ModelScopeModelDownloader
 import kotlinx.coroutines.Dispatchers
@@ -78,9 +79,62 @@ class SettingsViewModel(
     var qwenButtonEnabled by mutableStateOf(true)
         private set
 
+    // ─── Aries API 区段可见性（隐藏特性，需连点 xuanyu.xyla 20 次解锁） ────
+    var showAriesApiSection by mutableStateOf(false)
+        private set
+
+    // ─── Aries 登录状态 ──────────────────────────────────────────────────────
+    var ariesLoggedInUser by mutableStateOf("")
+        private set
+
+    // ─── Aries 已选模型 ──────────────────────────────────────────────────────
+    var ariesSelectedModel by mutableStateOf("")
+        private set
+
+    // ─── Aries 模型选择对话框状态 ────────────────────────────────────────────
+    var showAriesModelDialog by mutableStateOf(false)
+        private set
+
+    var ariesAvailableModels by mutableStateOf<List<AriesApiClient.ModelInfo>>(emptyList())
+        private set
+
+    // ─── 登录对话框状态 ──────────────────────────────────────────────────────
+    var showAriesLoginDialog by mutableStateOf(false)
+        private set
+
+    var ariesLoginUsername by mutableStateOf("")
+        private set
+
+    var ariesLoginPassword by mutableStateOf("")
+        private set
+
+    var ariesLoginLoading by mutableStateOf(false)
+        private set
+
+    var ariesLoginError by mutableStateOf<String?>(null)
+        private set
+
     init {
         localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(getApplication())
         restoreSettings()
+        // 响应式监听 Aries API 解锁状态（AboutViewModel 切换后实时生效）
+        viewModelScope.launch {
+            prefs.ariesApiSectionUnlockedFlow.collect { unlocked ->
+                showAriesApiSection = unlocked
+            }
+        }
+        // 响应式监听已登录用户
+        viewModelScope.launch {
+            prefs.ariesLoggedInUserFlow.collect { user ->
+                ariesLoggedInUser = user
+            }
+        }
+        // 响应式监听 Aries 已选模型
+        viewModelScope.launch {
+            prefs.ariesSelectedModelFlow.collect { model ->
+                ariesSelectedModel = model
+            }
+        }
     }
 
     fun restoreSettings() {
@@ -90,6 +144,9 @@ class SettingsViewModel(
         useThirdPartyApi = prefs.getApiUseThirdPartyBlocking()
         useLocalModel = prefs.getApiUseLocalModelBlocking()
         useAriesApi = prefs.getUseAriesApiBlocking()
+        showAriesApiSection = prefs.getAriesApiSectionUnlockedBlocking()
+        ariesLoggedInUser = prefs.getAriesLoggedInUserBlocking()
+        ariesSelectedModel = prefs.getAriesSelectedModelBlocking()
         apiBaseUrlText = prefs.getApiThirdPartyBaseUrlBlocking().ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
         apiModelText = prefs.getApiThirdPartyModelBlocking().ifBlank { AutoGlmClient.DEFAULT_MODEL }
 
@@ -194,16 +251,9 @@ class SettingsViewModel(
         useAriesApi = checked
         viewModelScope.launch { prefs.setUseAriesApi(checked) }
         if (checked) {
-            // When Aries API is enabled, disable third-party and local model
-            useThirdPartyApi = false
+            // Aries API 使用独立 key，不修改远程 API 的 key/baseUrl/model/第三方配置。
             useLocalModel = false
-            viewModelScope.launch {
-                prefs.writeApiConfig(
-                    useThirdParty = false,
-                    useLocalModel = false,
-                    clearCheckResults = true,
-                )
-            }
+            viewModelScope.launch { prefs.setApiUseLocalModel(false) }
         }
         updateStatusText()
     }
@@ -289,8 +339,8 @@ class SettingsViewModel(
         viewModelScope.launch { prefs.setApiKey(key) }
         apiInputTag = key
         apiInputText = maskKey(key)
-        val baseUrl = resolveApiBaseUrl()
-        val model = resolveApiModel()
+        val baseUrl = resolveRemoteApiBaseUrl()
+        val model = resolveRemoteApiModel()
         startApiCheck(key = key, baseUrl = baseUrl, model = model, force = true, onToast = onToast)
     }
 
@@ -440,15 +490,23 @@ class SettingsViewModel(
     }
 
     fun resolveApiBaseUrl(): String {
-        if (useAriesApi) return AutoGlmClient.DEFAULT_BASE_URL
+        if (useAriesApi) return AriesApiClient.ARIES_API_V1_BASE_URL
         if (useLocalModel) return AutoGlmClient.DEFAULT_BASE_URL
+        return resolveRemoteApiBaseUrl()
+    }
+
+    fun resolveApiModel(): String {
+        if (useAriesApi) return ariesSelectedModel.ifBlank { "glm-4-flash" }
+        if (useLocalModel) return ModelScopeModelDownloader.QWEN35_MODEL_NAME
+        return resolveRemoteApiModel()
+    }
+
+    private fun resolveRemoteApiBaseUrl(): String {
         if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_BASE_URL
         return apiBaseUrlText.trim().ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
     }
 
-    fun resolveApiModel(): String {
-        if (useAriesApi) return AutoGlmClient.DEFAULT_MODEL
-        if (useLocalModel) return ModelScopeModelDownloader.QWEN35_MODEL_NAME
+    private fun resolveRemoteApiModel(): String {
         if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_MODEL
         return apiModelText.trim().ifBlank { AutoGlmClient.DEFAULT_MODEL }
     }
@@ -500,6 +558,114 @@ class SettingsViewModel(
         if (scheme == "http" && host !in localHosts) {
             onToast(stringRes(R.string.settings_api_http_warning))
         }
+    }
+
+    // ─── Aries 登录对话框 ──────────────────────────────────────────────────
+
+    fun openAriesLoginDialog() {
+        ariesLoginUsername = ""
+        ariesLoginPassword = ""
+        ariesLoginError = null
+        showAriesLoginDialog = true
+    }
+
+    fun dismissAriesLoginDialog() {
+        showAriesLoginDialog = false
+        ariesLoginLoading = false
+        ariesLoginError = null
+    }
+
+    fun onAriesLoginUsernameChange(value: String) {
+        ariesLoginUsername = value
+        ariesLoginError = null
+    }
+
+    fun onAriesLoginPasswordChange(value: String) {
+        ariesLoginPassword = value
+        ariesLoginError = null
+    }
+
+    fun submitAriesLogin(onSuccess: (String) -> Unit, onError: (String) -> Unit) {
+        val username = ariesLoginUsername.trim()
+        val password = ariesLoginPassword
+        if (username.isBlank() || password.isBlank()) {
+            ariesLoginError = stringRes(R.string.aries_login_fields_required)
+            return
+        }
+        ariesLoginLoading = true
+        ariesLoginError = null
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                AriesApiClient.loginAndGetApiKey(username, password)
+            }
+            ariesLoginLoading = false
+            if (result.success) {
+                // Aries API Key 独立保存，不覆盖远程 API 配置。
+                prefs.setAriesApiKey(result.apiKey)
+                prefs.setAriesLoggedInUser(username)
+                prefs.setUseAriesApi(true)
+                prefs.setApiUseLocalModel(false)
+                useAriesApi = true
+                useLocalModel = false
+                ariesLoggedInUser = username
+                showAriesLoginDialog = false
+                updateStatusText()
+                onSuccess(stringRes(R.string.aries_login_success, username))
+                // 自动获取模型列表并展示选择对话框
+                fetchAndShowModels(result.apiKey)
+            } else {
+                ariesLoginError = result.message.ifBlank { stringRes(R.string.aries_login_failed) }
+                onError(ariesLoginError ?: "")
+            }
+        }
+    }
+
+    fun ariesLogout() {
+        viewModelScope.launch {
+            prefs.setAriesLoggedInUser("")
+            prefs.setAriesApiKey("")
+            ariesLoggedInUser = ""
+        }
+    }
+
+    // ─── Aries 模型选择 ────────────────────────────────────────────────
+
+    private fun fetchAndShowModels(apiKey: String) {
+        viewModelScope.launch {
+            val modelsResult = withContext(Dispatchers.IO) {
+                AriesApiClient.fetchModels(apiKey)
+            }
+            modelsResult.onSuccess { models ->
+                ariesAvailableModels = models
+                if (models.isNotEmpty()) showAriesModelDialog = true
+            }
+        }
+    }
+
+    fun openAriesModelSelectionDialog() {
+        val key = prefs.getAriesApiKeyBlocking()
+        if (ariesAvailableModels.isEmpty() && key.isNotBlank()) {
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { AriesApiClient.fetchModels(key) }
+                result.onSuccess { models ->
+                    ariesAvailableModels = models
+                    if (models.isNotEmpty()) showAriesModelDialog = true
+                }
+            }
+        } else if (ariesAvailableModels.isNotEmpty()) {
+            showAriesModelDialog = true
+        }
+    }
+
+    fun dismissAriesModelDialog() {
+        showAriesModelDialog = false
+    }
+
+    fun selectAriesModel(modelId: String) {
+        ariesSelectedModel = modelId
+        showAriesModelDialog = false
+        viewModelScope.launch { prefs.setAriesSelectedModel(modelId) }
+        updateStatusText()
     }
 
     private fun stringRes(resId: Int, vararg args: Any): String =

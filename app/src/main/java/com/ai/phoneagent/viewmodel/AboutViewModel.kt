@@ -10,6 +10,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ai.phoneagent.core.common.VersionComparator
 import com.ai.phoneagent.core.prompt.MainChatPromptRepository
+import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.feature.settings.R
 import com.ai.phoneagent.feature.updates.BuildConfig as UpdatesBuildConfig
 import com.ai.phoneagent.updates.ApkDownloadUtil
@@ -24,6 +25,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 data class AboutUiState(
     val appVersionText: String = "",
@@ -44,7 +47,8 @@ data class DownloadOptionsDialogState(val entry: ReleaseEntry, val options: List
 
 class AboutViewModel(
     application: Application,
-    private val releaseRepo: ReleaseRepository
+    private val releaseRepo: ReleaseRepository,
+    private val prefs: AppPreferencesRepository,
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(AboutUiState())
@@ -55,6 +59,12 @@ class AboutViewModel(
     private val localModelDownloadToggleTapIntervalMs = 1200L
     private var developerTapCount = 0
     private var lastDeveloperTapAtMs = 0L
+
+    // ─── Aries API 解锁计数 ──────────────────────────────────────────────────
+    private val ariesApiUnlockTapRequired = 20
+    private val ariesApiUnlockTapIntervalMs = 1200L
+    private var aliasTapCount = 0
+    private var lastAliasTapAtMs = 0L
 
     init {
         val context = getApplication<Application>()
@@ -101,6 +111,36 @@ class AboutViewModel(
             ).show()
         } else {
             Toast.makeText(context, R.string.about_thanks, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /** 点击 xuanyu.xyla 别名文本 20 次切换 Aries API 区段可见性。 */
+    fun handleAliasTap() {
+        val context = getApplication<Application>()
+        val now = SystemClock.elapsedRealtime()
+        aliasTapCount = if (now - lastAliasTapAtMs <= ariesApiUnlockTapIntervalMs) {
+            aliasTapCount + 1
+        } else {
+            1
+        }
+        lastAliasTapAtMs = now
+
+        if (aliasTapCount >= ariesApiUnlockTapRequired) {
+            aliasTapCount = 0
+            lastAliasTapAtMs = 0L
+            viewModelScope.launch {
+                val current = prefs.getAriesApiSectionUnlocked()
+                val next = !current
+                prefs.setAriesApiSectionUnlocked(next)
+                Toast.makeText(
+                    context,
+                    context.getString(
+                        if (next) R.string.aries_api_section_unlocked
+                        else R.string.aries_api_section_locked
+                    ),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
 

@@ -78,12 +78,14 @@ class VdGlFrameDispatcher {
     @Volatile private var oesTexId: Int = 0
 
     @Volatile private var lastFrameTimeMs: Long = 0L
+    @Volatile private var lastPreviewRenderTimeMs: Long = 0L
 
     private val frameSync = Object()
     private var frameAvailable: Boolean = false
 
     private val renderSync = Object()
     private var previewRenderPosted: Boolean = false
+    private val renderLock = Object()
 
     @Volatile private var initError: Throwable? = null
 
@@ -148,6 +150,7 @@ class VdGlFrameDispatcher {
         width = 0
         height = 0
         lastFrameTimeMs = 0L
+        lastPreviewRenderTimeMs = 0L
     }
 
     fun getInputSurface(): Surface? = inputSurface
@@ -276,6 +279,10 @@ class VdGlFrameDispatcher {
                     // Never render directly inside the callback: it may arrive on a non-GL thread
                     // and can be re-entrant.
                     // Post at most one pending preview render to GL thread.
+                    val now = SystemClock.uptimeMillis()
+                    if (now - lastPreviewRenderTimeMs < PREVIEW_FRAME_INTERVAL_MS) {
+                        return@setOnFrameAvailableListener
+                    }
                     val h = glHandler ?: return@setOnFrameAvailableListener
                     synchronized(renderSync) {
                         if (previewRenderPosted) return@setOnFrameAvailableListener
@@ -286,6 +293,7 @@ class VdGlFrameDispatcher {
                             val ps = eglPreviewSurface
                             if (ps != null) {
                                 renderLatestToSurface(ps, width, height)
+                                lastPreviewRenderTimeMs = SystemClock.uptimeMillis()
                             }
                         } finally {
                             synchronized(renderSync) { previewRenderPosted = false }
@@ -397,7 +405,7 @@ class VdGlFrameDispatcher {
         }
         eglPreviewSurface = es
 
-        renderLatestToSurface(es, width, height)
+        lastPreviewRenderTimeMs = 0L
     }
 
     private fun captureBitmapOnThread(timeoutMs: Long): Bitmap? {
@@ -436,6 +444,12 @@ class VdGlFrameDispatcher {
     }
 
     private fun renderLatestToSurface(eglSurface: EGLSurface, outW: Int, outH: Int) {
+        synchronized(renderLock) {
+            renderLatestToSurfaceLocked(eglSurface, outW, outH)
+        }
+    }
+
+    private fun renderLatestToSurfaceLocked(eglSurface: EGLSurface, outW: Int, outH: Int) {
         val d = eglDisplay ?: return
         val ctx = eglContext ?: return
 
@@ -575,6 +589,8 @@ class VdGlFrameDispatcher {
     }
 
     companion object {
+        private const val PREVIEW_FRAME_INTERVAL_MS = 120L
+
         private const val VS =
                 """attribute vec4 aPos;
 attribute vec2 aTex;

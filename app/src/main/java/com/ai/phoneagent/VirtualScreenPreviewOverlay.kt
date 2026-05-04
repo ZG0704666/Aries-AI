@@ -29,7 +29,6 @@ import android.widget.TextView
 import androidx.annotation.ColorRes
 import androidx.core.content.ContextCompat
 import com.ai.phoneagent.core.utils.DisplayUtils
-import com.ai.phoneagent.input.InputHelper
 import com.ai.phoneagent.vdiso.ShizukuVirtualDisplayEngine
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -41,7 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * - 底部控制栏：虚拟返回 / 虚拟Home / 暂停恢复 / 停止任务
  * - 右上角减号 = 最小化到后台，显示后台操作进度悬浮窗
  * - 支持拖拽移动
- * - 触摸注入层：支持用户在预览窗直接触摸操作虚拟屏（通过 InputHelper 队列化注入）
+ * - 触摸注入层：支持用户在预览窗直接触摸操作虚拟屏
  *
  * 参考：autoglm_KY FloatingStatusService 工具箱按钮行
  */
@@ -83,6 +82,11 @@ object VirtualScreenPreviewOverlay {
             mainHandler.post { show(context) }
             return
         }
+        runCatching { showOnMain(context) }
+                .onFailure { Log.e(TAG, "Failed to show preview overlay", it) }
+    }
+
+    private fun showOnMain(context: Context) {
         hide()
 
         val appCtx = context.applicationContext
@@ -114,6 +118,8 @@ object VirtualScreenPreviewOverlay {
 
         val typeCandidates = DisplayUtils.getOverlayTypeCandidates()
 
+        bindPreviewWhenReady(view)
+
         var lastErr: Throwable? = null
         for (type in typeCandidates.distinct()) {
             val lp =
@@ -143,7 +149,7 @@ object VirtualScreenPreviewOverlay {
                 isExpanded = true
                 isPaused = false
                 Log.i(TAG, "Preview overlay shown: ${overlayW}x${overlayH}")
-                bindPreviewWhenReady(view)
+                view.bindTextureIfAvailable()
                 return
             }
         }
@@ -282,7 +288,15 @@ object VirtualScreenPreviewOverlay {
     // ─── 预览绑定 ───
 
     private fun bindPreviewWhenReady(container: PreviewContainer) {
-        container.onTextureAvailable = { surfaceTexture ->
+        container.onTextureAvailable = available@{ surfaceTexture ->
+            if (isBound && container.boundSurfaceTexture === surfaceTexture) {
+                return@available
+            }
+            if (isBound) {
+                unbindPreview()
+            }
+            container.boundSurfaceTexture = surfaceTexture
+
             // 设置 SurfaceTexture 缓冲区大小为虚拟屏实际内容尺寸，确保预览清晰
             val (contentW, contentH) = VirtualDisplayController.getContentSizeBestEffort()
             if (contentW > 0 && contentH > 0) {
@@ -295,10 +309,15 @@ object VirtualScreenPreviewOverlay {
                 isBound = true
                 Log.i(TAG, "Preview surface bound successfully")
             } else {
+                container.boundSurfaceTexture = null
+                runCatching { surface.release() }
                 Log.w(TAG, "Failed to bind preview surface", result.exceptionOrNull())
             }
         }
-        container.onTextureDestroyed = { unbindPreview() }
+        container.onTextureDestroyed = {
+            container.boundSurfaceTexture = null
+            unbindPreview()
+        }
     }
 
     private fun unbindPreview() {
@@ -560,13 +579,13 @@ object VirtualScreenPreviewOverlay {
         private var touchDownTime = 0L
         private var touchDownX = 0f
         private var touchDownY = 0f
-        private var isTouchInjecting = false
         private val LONG_PRESS_THRESHOLD_MS = 450L
         private val TAP_SLOP_PX = 15
 
         // 回调
         var onTextureAvailable: ((SurfaceTexture) -> Unit)? = null
         var onTextureDestroyed: (() -> Unit)? = null
+        var boundSurfaceTexture: SurfaceTexture? = null
 
         init {
             buildViews()
@@ -583,6 +602,14 @@ object VirtualScreenPreviewOverlay {
 
         fun refreshPauseButton(paused: Boolean) {
             pauseBtn?.text = if (paused) "▶ 继续" else "⏸ 暂停"
+        }
+
+        fun bindTextureIfAvailable() {
+            val tv = textureView ?: return
+            val st = if (tv.isAvailable) tv.surfaceTexture else null
+            if (st != null) {
+                onTextureAvailable?.invoke(st)
+            }
         }
 
         // ─── 构建视图 ───
@@ -618,6 +645,23 @@ object VirtualScreenPreviewOverlay {
                     }
             )
 
+            val statusTv =
+                    TextView(context).apply {
+                        text = "执行中..."
+                        setTextColor(m3Color(R.color.m3t_vd_status_text))
+                        textSize = 10f
+                        gravity = Gravity.CENTER_VERTICAL or Gravity.END
+                        setPadding(dp(6), 0, dp(6), 0)
+                        layoutParams =
+                                LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT)
+                                        .apply {
+                                            gravity = Gravity.CENTER_VERTICAL or Gravity.END
+                                            marginEnd = dp(32)
+                                        }
+                    }
+            statusTextView = statusTv
+            header.addView(statusTv)
+
             // 右上角 - → 最小化到后台，显示后台操作进度悬浮窗
             header.addView(
                     TextView(context).apply {
@@ -644,7 +688,6 @@ object VirtualScreenPreviewOverlay {
                                             bottomMargin = dp(CONTROL_BAR_HEIGHT_DP)
                                         }
                         isOpaque = true
-                        setBackgroundColor(android.graphics.Color.BLACK)
                     }
             tv.surfaceTextureListener =
                     object : TextureView.SurfaceTextureListener {
@@ -670,49 +713,52 @@ object VirtualScreenPreviewOverlay {
                 if (contentW <= 0 || contentH <= 0) return@setOnTouchListener false
 
                 // 坐标映射：预览窗 → 虚拟屏
-                val vx = (event.x / view.width * contentW).toInt().coerceIn(0, contentW - 1)
-                val vy = (event.y / view.height * contentH).toInt().coerceIn(0, contentH - 1)
+                fun toVirtualX(x: Float): Int =
+                        (x / view.width.toFloat() * contentW).toInt().coerceIn(0, contentW - 1)
+
+                fun toVirtualY(y: Float): Int =
+                        (y / view.height.toFloat() * contentH).toInt().coerceIn(0, contentH - 1)
+
+                val vx = toVirtualX(event.x)
+                val vy = toVirtualY(event.y)
 
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         touchDownTime = android.os.SystemClock.uptimeMillis()
                         touchDownX = event.x
                         touchDownY = event.y
-                        isTouchInjecting = true
-                        InputHelper.enqueueTouch(
-                                did,
-                                touchDownTime,
-                                MotionEvent.ACTION_DOWN,
-                                vx,
-                                vy,
-                                ensureFocus = true
-                        )
                         true
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        if (isTouchInjecting) {
-                            InputHelper.enqueueTouch(
-                                    did,
-                                    touchDownTime,
-                                    MotionEvent.ACTION_MOVE,
-                                    vx,
-                                    vy,
-                                    ensureFocus = false
-                            )
-                        }
                         true
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        if (isTouchInjecting) {
-                            InputHelper.enqueueTouch(
-                                    did,
-                                    touchDownTime,
-                                    MotionEvent.ACTION_UP,
-                                    vx,
-                                    vy,
-                                    ensureFocus = false
-                            )
-                            isTouchInjecting = false
+                        val upTime = android.os.SystemClock.uptimeMillis()
+                        val dx = event.x - touchDownX
+                        val dy = event.y - touchDownY
+                        val moved = Math.hypot(dx.toDouble(), dy.toDouble()).toFloat()
+                        val durationMs = (upTime - touchDownTime).coerceAtLeast(1L)
+
+                        if (event.action == MotionEvent.ACTION_UP) {
+                            val startX = toVirtualX(touchDownX)
+                            val startY = toVirtualY(touchDownY)
+                            Thread {
+                                        if (moved <= TAP_SLOP_PX &&
+                                                        durationMs < LONG_PRESS_THRESHOLD_MS
+                                        ) {
+                                            VirtualDisplayController.injectTapBestEffort(did, vx, vy)
+                                        } else {
+                                            VirtualDisplayController.injectSwipeBestEffort(
+                                                    did,
+                                                    startX,
+                                                    startY,
+                                                    vx,
+                                                    vy,
+                                                    durationMs
+                                            )
+                                        }
+                                    }
+                                    .start()
                         }
                         true
                     }
@@ -721,24 +767,6 @@ object VirtualScreenPreviewOverlay {
             }
             textureView = tv
             addView(tv)
-
-            // === 状态条（悬浮在画面底部上方） ===
-            val statusTv =
-                    TextView(context).apply {
-                        text = "执行中..."
-                        setTextColor(m3Color(R.color.m3t_vd_status_text))
-                        textSize = 10f
-                        setBackgroundColor(m3Color(R.color.m3t_vd_status_bg))
-                        setPadding(dp(6), dp(2), dp(6), dp(2))
-                        layoutParams =
-                                LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
-                                        .apply {
-                                            gravity = Gravity.BOTTOM
-                                            bottomMargin = dp(CONTROL_BAR_HEIGHT_DP)
-                                        }
-                    }
-            statusTextView = statusTv
-            addView(statusTv)
 
             // === 底部控制栏 ===
             val controlBar =

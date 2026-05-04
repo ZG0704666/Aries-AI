@@ -64,4 +64,8 @@
     <string name="update_apk_missing_fallback_release">未找到 APK，已为你跳转发布页</string>
     <string name="update_download_submit_failed">下载未能提交，请稍后重试</string>
     <string name="update_open_detail_failed">打开更新详情失败，请稍后重试</string>
+
+    <!-- Aries API 解锁提示 -->
+    <string name="aries_api_section_unlocked">Aries API 已解锁</string>
+    <string name="aries_api_section_locked">Aries API 已隐藏</string>
 </resources>

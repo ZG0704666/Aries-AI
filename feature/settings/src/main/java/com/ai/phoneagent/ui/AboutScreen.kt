@@ -68,6 +68,7 @@ fun AboutScreen(
     onOpenSourceCode: () -> Unit,
     onCopyContact: () -> Unit,
     onDeveloperTap: () -> Unit,
+    onAliasTap: () -> Unit = {},
 ) {
     val spacingXl = dimensionResource(DesignSystemR.dimen.m3t_spacing_xl)
 
@@ -194,7 +195,9 @@ fun AboutScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onAliasTap),
                     )
                 }
             }

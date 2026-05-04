@@ -111,6 +111,7 @@ import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
 import com.ai.phoneagent.core.designsystem.theme.ThemeMode
+import com.ai.phoneagent.net.AriesApiClient
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
 import com.ai.phoneagent.net.LocalMnnInferenceEngine
@@ -336,7 +337,13 @@ class FloatingChatService : LifecycleService(), SavedStateRegistryOwner {
             ColorUtils.setAlphaComponent(m3Color(colorRes), alpha.coerceIn(0, 255))
 
     private fun resolveApiConfig(): Triple<String, String, String> {
-            val apiKey = appPrefsRepository.getApiKeyBlocking().trim()
+            val useAriesApi = appPrefsRepository.getUseAriesApiBlocking()
+            val apiKey =
+                    if (useAriesApi) {
+                        appPrefsRepository.getActiveAriesApiKeyBlocking().trim()
+                    } else {
+                        appPrefsRepository.getApiKeyBlocking().trim()
+                    }
             val useThirdParty = appPrefsRepository.getApiUseThirdPartyBlocking()
             val useLocalModel = appPrefsRepository.getApiUseLocalModelBlocking()
             val storedThirdPartyBaseUrl =
@@ -346,6 +353,8 @@ class FloatingChatService : LifecycleService(), SavedStateRegistryOwner {
             val baseUrl =
                     if (useLocalModel) {
                         AutoGlmClient.DEFAULT_BASE_URL
+                    } else if (useAriesApi) {
+                        AriesApiClient.ARIES_API_V1_BASE_URL
                     } else if (!useThirdParty) {
                         AutoGlmClient.DEFAULT_BASE_URL
                     } else {
@@ -354,6 +363,10 @@ class FloatingChatService : LifecycleService(), SavedStateRegistryOwner {
             val model =
                     if (useLocalModel) {
                         ModelScopeModelDownloader.QWEN35_MODEL_NAME
+                    } else if (useAriesApi) {
+                        appPrefsRepository.getAriesSelectedModelBlocking()
+                            .trim()
+                            .ifBlank { "glm-4-flash" }
                     } else if (!useThirdParty) {
                         AutoGlmClient.DEFAULT_MODEL
                     } else {

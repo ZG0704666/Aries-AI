@@ -542,12 +542,6 @@ object ShizukuVirtualDisplayEngine {
     private fun buildFlags(rotatesWithContent: Boolean): Int {
         val publicFlag =
                 getVirtualDisplayFlagBestEffort("VIRTUAL_DISPLAY_FLAG_PUBLIC", fallback = null) ?: 0
-        val ownContentOnlyFlag =
-                getVirtualDisplayFlagBestEffort(
-                        "VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY",
-                        fallback = null
-                )
-                        ?: 0
         val presentationFlag =
                 getVirtualDisplayFlagBestEffort(
                         "VIRTUAL_DISPLAY_FLAG_PRESENTATION",
@@ -560,7 +554,9 @@ object ShizukuVirtualDisplayEngine {
                         fallback = (1 shl 10)
                 )
 
-        var flags = publicFlag or ownContentOnlyFlag
+        // 不使用 OWN_CONTENT_ONLY：后台虚拟屏需要承载 Chrome/B 站等第三方 App。
+        // 带上该 flag 后，部分系统会只显示本应用自己的窗口，导致截图一直是空帧/黑帧。
+        var flags = publicFlag
 
         flags = flags or presentationFlag
         if (trustedFlag != null) {

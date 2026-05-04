@@ -37,6 +37,10 @@ class AppPreferencesRepository(
         val qwenPendingDownloadIds = stringSetPreferencesKey("qwen_pending_download_ids")
         
         val useAriesApi = booleanPreferencesKey("use_aries_api")
+        val ariesApiSectionUnlocked = booleanPreferencesKey("aries_api_section_unlocked")
+        val ariesLoggedInUser = stringPreferencesKey("aries_logged_in_user")
+        val ariesSelectedModel = stringPreferencesKey("aries_selected_model")
+        val ariesApiKey = stringPreferencesKey("aries_api_key")
 
         // ─── Appearance preferences ──────────────────────────────────────────
         val themeMode = stringPreferencesKey("theme_mode")
@@ -72,6 +76,26 @@ class AppPreferencesRepository(
     val useAriesApiFlow: Flow<Boolean> =
         context.appPreferencesDataStore.data.map { prefs ->
             prefs[Keys.useAriesApi] ?: false
+        }
+
+    val ariesApiSectionUnlockedFlow: Flow<Boolean> =
+        context.appPreferencesDataStore.data.map { prefs ->
+            prefs[Keys.ariesApiSectionUnlocked] ?: false
+        }
+
+    val ariesLoggedInUserFlow: Flow<String> =
+        context.appPreferencesDataStore.data.map { prefs ->
+            prefs[Keys.ariesLoggedInUser] ?: ""
+        }
+
+    val ariesSelectedModelFlow: Flow<String> =
+        context.appPreferencesDataStore.data.map { prefs ->
+            prefs[Keys.ariesSelectedModel] ?: ""
+        }
+
+    val ariesApiKeyFlow: Flow<String> =
+        context.appPreferencesDataStore.data.map { prefs ->
+            prefs[Keys.ariesApiKey] ?: ""
         }
 
     val apiThirdPartyBaseUrlFlow: Flow<String> =
@@ -181,6 +205,65 @@ class AppPreferencesRepository(
     suspend fun setUseAriesApi(value: Boolean) {
         context.appPreferencesDataStore.edit { prefs ->
             prefs[Keys.useAriesApi] = value
+        }
+    }
+
+    suspend fun setAriesApiSectionUnlocked(value: Boolean) {
+        context.appPreferencesDataStore.edit { prefs ->
+            prefs[Keys.ariesApiSectionUnlocked] = value
+        }
+    }
+
+    suspend fun getAriesApiSectionUnlocked(): Boolean {
+        val prefs = context.appPreferencesDataStore.data.first()
+        return prefs[Keys.ariesApiSectionUnlocked] ?: false
+    }
+
+    suspend fun setAriesLoggedInUser(value: String) {
+        context.appPreferencesDataStore.edit { prefs ->
+            if (value.isBlank()) prefs.remove(Keys.ariesLoggedInUser)
+            else prefs[Keys.ariesLoggedInUser] = value
+        }
+    }
+
+    suspend fun getAriesLoggedInUser(): String {
+        val prefs = context.appPreferencesDataStore.data.first()
+        return prefs[Keys.ariesLoggedInUser] ?: ""
+    }
+
+    suspend fun setAriesSelectedModel(value: String) {
+        context.appPreferencesDataStore.edit { prefs ->
+            if (value.isBlank()) prefs.remove(Keys.ariesSelectedModel)
+            else prefs[Keys.ariesSelectedModel] = value
+        }
+    }
+
+    suspend fun getAriesSelectedModel(): String {
+        val prefs = context.appPreferencesDataStore.data.first()
+        return prefs[Keys.ariesSelectedModel] ?: ""
+    }
+
+    suspend fun setAriesApiKey(value: String) {
+        context.appPreferencesDataStore.edit { prefs ->
+            if (value.isBlank()) prefs.remove(Keys.ariesApiKey)
+            else prefs[Keys.ariesApiKey] = value
+        }
+    }
+
+    suspend fun getAriesApiKey(): String {
+        val prefs = context.appPreferencesDataStore.data.first()
+        return prefs[Keys.ariesApiKey] ?: ""
+    }
+
+    suspend fun getActiveAriesApiKey(): String {
+        val prefs = context.appPreferencesDataStore.data.first()
+        val ariesKey = prefs[Keys.ariesApiKey].orEmpty()
+        if (ariesKey.isNotBlank()) return ariesKey
+        val loggedInUser = prefs[Keys.ariesLoggedInUser].orEmpty()
+        return if (loggedInUser.isNotBlank()) {
+            prefs[Keys.apiKey].orEmpty()
+        } else {
+            ""
         }
     }
 
@@ -409,6 +492,15 @@ class AppPreferencesRepository(
     fun getUseAriesApiBlocking(): Boolean = runBlocking {
         context.appPreferencesDataStore.data.first()[Keys.useAriesApi] ?: false
     }
+    fun getAriesApiSectionUnlockedBlocking(): Boolean = runBlocking { getAriesApiSectionUnlocked() }
+    fun setAriesApiSectionUnlockedBlocking(value: Boolean) = runBlocking { setAriesApiSectionUnlocked(value) }
+    fun getAriesLoggedInUserBlocking(): String = runBlocking { getAriesLoggedInUser() }
+    fun setAriesLoggedInUserBlocking(value: String) = runBlocking { setAriesLoggedInUser(value) }
+    fun getAriesSelectedModelBlocking(): String = runBlocking { getAriesSelectedModel() }
+    fun setAriesSelectedModelBlocking(value: String) = runBlocking { setAriesSelectedModel(value) }
+    fun getAriesApiKeyBlocking(): String = runBlocking { getAriesApiKey() }
+    fun setAriesApiKeyBlocking(value: String) = runBlocking { setAriesApiKey(value) }
+    fun getActiveAriesApiKeyBlocking(): String = runBlocking { getActiveAriesApiKey() }
     fun getApiThirdPartyBaseUrlBlocking(): String = runBlocking {
         context.appPreferencesDataStore.data.first()[Keys.apiThirdPartyBaseUrl] ?: ""
     }

@@ -6,12 +6,8 @@
  */
 package com.ai.phoneagent
 
-import android.app.ActivityOptions
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
-import android.os.Handler
-import android.os.Looper
 import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
@@ -54,60 +50,13 @@ object VirtualDisplayController {
 
     @Volatile private var activeDisplayId: Int? = null
 
-    @Volatile private var welcomeShownForCurrentVd: Boolean = false
-
     @Volatile private var lifecycleObserverInstalled: Boolean = false
 
     // IME 焦点死锁防护控制器
     private val imeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var imeFocusController: ImeFocusDeadlockController? = null
 
-    // ─── 焦点完全隔离 v2：连续焦点强制执行（激进模式）───
-    // 核心策略：虚拟屏操作全部通过 displayId 定向注入，焦点**始终**驻留主屏（display 0）。
-    // **连续高频**强制执行 setFocusedDisplay(0)（100ms 间隔），防止系统任何时刻自动切焦到 VD。
-    // 这样用户的物理按键/手势返回**绝大多数时刻**只作用在主屏，虚拟屏仅由程序控制。
-    //
-    // 为什么改为 100ms：
-    // - 人的按键响应时间 > 200ms，所以 100ms 内恢复焦点用户基本感知不到
-    // - 系统在 Activity 创建、焦点事件等时刻会自动切焦，100ms 足够快地打断这些自动行为
-    // - 虽然 IPC 频繁，但系统级的 wm set-focused-display 操作很轻量
-    private const val FOCUS_ENFORCEMENT_INTERVAL_MS = 100L
-    private val focusHandler = Handler(Looper.getMainLooper())
-
-    /**
-     * **连续焦点强制执行**：每 100ms 检查&恢复焦点到主屏。 这是比"周期性"（2 秒）更激进的隔离策略，确保焦点在任何时刻都尽可能在主屏。
-     *
-     * 虽然 IPC 频繁，但获益是：虚拟屏与主屏基本完全独立。
-     */
-    private val focusEnforcementRunnable =
-            object : Runnable {
-                private var lastRestoreMs = 0L
-
-                override fun run() {
-                    if (activeDisplayId != null && activeDisplayId!! > 0) {
-                        val now = SystemClock.uptimeMillis()
-                        // 100ms 间隔内最多调用一次（避免极端频繁）
-                        if (now - lastRestoreMs >= 80L) {
-                            lastRestoreMs = now
-                            runCatching {
-                                ShizukuVirtualDisplayEngine.restoreFocusToDefaultDisplay()
-                            }
-                        }
-                    }
-                    if (isVirtualDisplayStarted()) {
-                        focusHandler.postDelayed(this, FOCUS_ENFORCEMENT_INTERVAL_MS)
-                    }
-                }
-            }
-
-    private fun startFocusEnforcement() {
-        focusHandler.removeCallbacks(focusEnforcementRunnable)
-        focusHandler.postDelayed(focusEnforcementRunnable, FOCUS_ENFORCEMENT_INTERVAL_MS)
-    }
-
-    private fun stopFocusEnforcement() {
-        focusHandler.removeCallbacks(focusEnforcementRunnable)
-    }
+    private fun stopFocusEnforcement() = Unit
 
     /** 标记当前是否应该使用虚拟屏模式 在 prepareForTask 被调用时设置，也可以通过 setShouldUseVirtualDisplay 外部设置 */
     @Volatile
@@ -195,25 +144,11 @@ object VirtualDisplayController {
         if (r.isSuccess) {
             val did = r.getOrNull()
             Log.i(TAG, "VirtualDisplay created successfully: displayId=$did")
-            val isNewOrChanged = (did != null && did != existing)
             activeDisplayId = did
-
-            if (isNewOrChanged) {
-                welcomeShownForCurrentVd = false
-            }
-            if (did != null && !welcomeShownForCurrentVd) {
-                welcomeShownForCurrentVd = true
-                // 在虚拟屏上启动 WelcomeActivity 作为兜底界面
-                // 避免虚拟屏无窗口时黑屏，且 WelcomeActivity 会吞掉 Back 键防止退出
-                Log.i(TAG, "Virtual display ready: displayId=$did, launching WelcomeActivity")
-                showWelcomeOnActiveDisplayBestEffort(context, did)
-            }
 
             // 完全隔离模式：不启动 IME 强制锁焦（会持续把焦点抢回虚拟屏）
             if (did != null && did > 0) {
                 stopImeFocusController()
-                // 启动周期性焦点强制执行：确保焦点始终在主屏
-                startFocusEnforcement()
             }
 
             return did
@@ -221,7 +156,6 @@ object VirtualDisplayController {
 
         Log.w(TAG, "ShizukuVirtualDisplayEngine.ensureStarted failed", r.exceptionOrNull())
         activeDisplayId = null
-        welcomeShownForCurrentVd = false
         return null
     }
 
@@ -393,6 +327,35 @@ object VirtualDisplayController {
         }
     }
 
+    /** 注入长按事件（best-effort） */
+    @JvmStatic
+    fun injectLongPressBestEffort(displayId: Int, x: Int, y: Int, durationMs: Long) {
+        if (displayId <= 0) return
+        if (!ShizukuBridge.pingBinder() || !ShizukuBridge.hasPermission()) return
+
+        val downTime = SystemClock.uptimeMillis()
+        val holdMs = durationMs.coerceAtLeast(1L)
+        runCatching {
+            asyncInputInjector.injectSingleTouchAsync(
+                    displayId,
+                    downTime,
+                    x.toFloat(),
+                    y.toFloat(),
+                    android.view.MotionEvent.ACTION_DOWN
+            )
+            try {
+                Thread.sleep(holdMs)
+            } catch (_: InterruptedException) {}
+            asyncInputInjector.injectSingleTouchAsync(
+                    displayId,
+                    downTime,
+                    x.toFloat(),
+                    y.toFloat(),
+                    android.view.MotionEvent.ACTION_UP
+            )
+        }
+    }
+
     /** 注入返回事件（best-effort） */
     @JvmStatic
     fun injectBackBestEffort(displayId: Int) {
@@ -437,6 +400,16 @@ object VirtualDisplayController {
         if (displayId <= 0) return
         if (!ShizukuBridge.pingBinder() || !ShizukuBridge.hasPermission()) return
         runCatching {
+            asyncInputInjector.injectKeyEventAsync(
+                    displayId,
+                    279,
+                    KeyEvent.ACTION_DOWN
+            )
+            asyncInputInjector.injectKeyEventAsync(
+                    displayId,
+                    279,
+                    KeyEvent.ACTION_UP
+            )
             asyncInputInjector.injectKeyComboAsync(
                     displayId,
                     KeyEvent.KEYCODE_V,
@@ -455,7 +428,6 @@ object VirtualDisplayController {
         runCatching { ShizukuVirtualDisplayEngine.restoreFocusToDefaultDisplay() }
 
         activeDisplayId = null
-        welcomeShownForCurrentVd = false
     }
 
     /** 仅清理 Overlay */
@@ -468,7 +440,6 @@ object VirtualDisplayController {
         runCatching { ShizukuVirtualDisplayEngine.restoreFocusToDefaultDisplay() }
 
         activeDisplayId = null
-        welcomeShownForCurrentVd = false
     }
 
     /** 异步清理 */
@@ -487,7 +458,6 @@ object VirtualDisplayController {
         runCatching { ShizukuVirtualDisplayEngine.restoreFocusToDefaultDisplay() }
 
         activeDisplayId = null
-        welcomeShownForCurrentVd = false
         shouldUseVirtualDisplay = false
     }
 
@@ -519,73 +489,6 @@ object VirtualDisplayController {
     private fun stopImeFocusController() {
         imeFocusController?.stop()
         imeFocusController = null
-    }
-
-    /** 在虚拟屏上启动 WelcomeActivity 作为兜底界面 */
-    private fun showWelcomeOnActiveDisplayBestEffort(context: Context, displayId: Int) {
-        val appContext = context.applicationContext
-
-        // 路径1: 使用 ActivityOptions.setLaunchDisplayId 启动 WelcomeActivity
-        runCatching {
-            val intent =
-                    Intent(appContext, WelcomeActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-            val options = ActivityOptions.makeBasic()
-            options.setLaunchDisplayId(displayId)
-            appContext.startActivity(intent, options.toBundle())
-            Log.i(TAG, "WelcomeActivity launched via ActivityOptions on display $displayId")
-            // 系统可能自动将焦点切到 VD，延迟恢复到主屏
-            schedulePostLaunchFocusRestore()
-            return
-        }
-
-        // 路径2: 使用 Shizuku shell 命令降级启动
-        if (ShizukuBridge.pingBinder() && ShizukuBridge.hasPermission()) {
-            thread(start = true, name = "ShowWelcomeOnDisplay") {
-                val component = "${appContext.packageName}/.WelcomeActivity"
-                val flags = 0x10000000 // FLAG_ACTIVITY_NEW_TASK
-                val candidates =
-                        listOf(
-                                "cmd activity start-activity --user 0 --display $displayId --windowingMode 1 --activity-reorder-to-front -n $component -f $flags",
-                                "cmd activity start-activity --user 0 --display $displayId --windowingMode 1 -n $component -f $flags",
-                                "cmd activity start-activity --user 0 --display $displayId -n $component -f $flags",
-                                "am start --user 0 --display $displayId -n $component -f $flags",
-                                "am start --display $displayId -n $component -f $flags",
-                        )
-                for (c in candidates) {
-                    val r = runCatching { ShizukuBridge.execResult(c) }.getOrNull()
-                    if (r != null) {
-                        val err = r.stderrText().trim()
-                        val out = r.stdoutText().trim()
-                        Log.i(
-                                TAG,
-                                "showWelcome exec: exitCode=${r.exitCode} cmd=$c stderr=${err.take(200)} stdout=${out.take(200)}"
-                        )
-                        if (r.exitCode == 0) {
-                            // 系统可能自动将焦点切到 VD，延迟恢复到主屏
-                            schedulePostLaunchFocusRestore()
-                            return@thread
-                        }
-                    }
-                }
-                Log.w(TAG, "All welcome activity launch candidates failed")
-            }
-            return
-        }
-
-        Log.w(TAG, "Cannot launch WelcomeActivity: Shizuku not available")
-    }
-
-    /** Activity 在 VD 上启动后，延迟恢复焦点到主屏。 需要等待系统完成 Activity 创建（~800ms），否则系统可能在恢复后再次自动切焦。 */
-    private fun schedulePostLaunchFocusRestore() {
-        focusHandler.postDelayed(
-                {
-                    restoreFocusToDefaultDisplayNow()
-                    Log.d(TAG, "Post-launch focus restored to main display")
-                },
-                800
-        )
     }
 
     private fun isLikelyBlackBitmap(bmp: Bitmap): Boolean {

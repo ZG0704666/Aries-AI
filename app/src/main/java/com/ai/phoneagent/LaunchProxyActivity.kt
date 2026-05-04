@@ -91,7 +91,7 @@ class LaunchProxyActivity : Activity() {
         /** 启动应用到默认显示器（前台模式） */
         fun launch(context: Context, targetIntent: Intent) {
             val proxy = Intent(context, LaunchProxyActivity::class.java)
-            proxy.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            proxy.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
             proxy.putExtra(EXTRA_TARGET_INTENT, targetIntent)
             context.startActivity(proxy)
         }
@@ -103,7 +103,7 @@ class LaunchProxyActivity : Activity() {
                 return
             }
             val proxy = Intent(context, LaunchProxyActivity::class.java)
-            proxy.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            proxy.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
             proxy.putExtra(EXTRA_TARGET_INTENT, targetIntent)
             proxy.putExtra(EXTRA_DISPLAY_ID, displayId)
             context.startActivity(proxy)

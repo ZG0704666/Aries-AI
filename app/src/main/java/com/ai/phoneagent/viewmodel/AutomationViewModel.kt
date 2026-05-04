@@ -37,6 +37,7 @@ import com.ai.phoneagent.core.tools.AIToolHandler
 import com.ai.phoneagent.core.tools.ToolRegistration
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.AutomationResultsRepository
+import com.ai.phoneagent.net.AriesApiClient
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ModelScopeModelDownloader
 import com.ai.phoneagent.speech.SherpaSpeechRecognizer
@@ -1138,6 +1139,9 @@ class AutomationViewModel(
     }
 
     private fun getApiKey(): String {
+        if (appPrefsRepository.getUseAriesApiBlocking()) {
+            return appPrefsRepository.getActiveAriesApiKeyBlocking()
+        }
         val key = appPrefsRepository.getApiKeyBlocking()
         if (key.isNotBlank()) return key
         return appPrefsRepository.getAutoglmApiKeyBlocking()
@@ -1148,6 +1152,9 @@ class AutomationViewModel(
     }
 
     private fun resolveApiBaseUrl(): String {
+        if (appPrefsRepository.getUseAriesApiBlocking()) {
+            return AriesApiClient.ARIES_API_V1_BASE_URL
+        }
         val useThirdParty = appPrefsRepository.getApiUseThirdPartyBlocking()
         val useLocalModel = appPrefsRepository.getApiUseLocalModelBlocking()
         if (useLocalModel) return AutoGlmClient.DEFAULT_BASE_URL
@@ -1157,6 +1164,11 @@ class AutomationViewModel(
     }
 
     private fun resolveAutomationModel(): String {
+        if (appPrefsRepository.getUseAriesApiBlocking()) {
+            return appPrefsRepository.getAriesSelectedModelBlocking()
+                .trim()
+                .ifBlank { "glm-4-flash" }
+        }
         val useLocalModel = appPrefsRepository.getApiUseLocalModelBlocking()
         val useThirdParty = appPrefsRepository.getApiUseThirdPartyBlocking()
         if (useLocalModel) return ModelScopeModelDownloader.QWEN35_MODEL_NAME

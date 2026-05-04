@@ -63,7 +63,6 @@
             android:theme="@style/Theme.TransparentLaunch"
             android:excludeFromRecents="true"
             android:finishOnTaskLaunch="true"
-            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize" />
 
         <!-- 虚拟屏兜底 Activity：独立 taskAffinity，吞掉 Back 键防止虚拟屏黑屏 -->

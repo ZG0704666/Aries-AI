@@ -106,7 +106,10 @@ fun AboutRoute(
         onDeveloperTap = {
             vibrateLight()
             viewModel.handleDeveloperTap()
-        }
+        },
+        onAliasTap = {
+            viewModel.handleAliasTap()
+        },
     )
 
     uiState.updateDialogState?.let { state ->

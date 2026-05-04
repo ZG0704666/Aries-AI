@@ -310,11 +310,11 @@ class ActionExecutor(
             if (isVirtualDisplayMode()) {
                 val displayId = getVirtualDisplayId()
                 onLog("在虚拟屏启动: displayId=$displayId")
-                LaunchProxyActivity.launchOnDisplay(context, intent, displayId)
-                if (displayId > 0) {
-                    delay(config.launchActionDelayMs)
-                    VirtualDisplayController.restoreFocusToDefaultDisplayNow()
+                val launched = launchIntentOnVirtualDisplay(pkgName, intent, displayId, onLog)
+                if (!launched) {
+                    return false
                 }
+                delay(config.launchActionDelayMs)
             } else {
                 LaunchProxyActivity.launch(context, intent)
             }
@@ -330,6 +330,76 @@ class ActionExecutor(
             onLog("启动异常: ${e.message.orEmpty()}")
             false
         }
+    }
+
+    private fun launchIntentOnVirtualDisplay(
+            packageName: String,
+            intent: Intent,
+            displayId: Int,
+            onLog: (String) -> Unit
+    ): Boolean {
+        if (displayId <= 0) {
+            onLog("虚拟屏启动失败：displayId 无效")
+            return false
+        }
+        if (!ShizukuBridge.isShizukuAvailable()) {
+            onLog("虚拟屏启动失败：Shizuku 不可用")
+            return false
+        }
+
+        val component = intent.component
+        val activityArgs =
+                mutableListOf(
+                        "-a",
+                        "android.intent.action.MAIN",
+                        "-c",
+                        "android.intent.category.LAUNCHER"
+                )
+        if (component != null) {
+            activityArgs += listOf("-n", "${component.packageName}/${component.className}")
+        } else {
+            activityArgs += listOf("-p", packageName)
+        }
+
+        val candidates =
+                listOf(
+                        listOf(
+                                "cmd",
+                                "activity",
+                                "start-activity",
+                                "--user",
+                                "0",
+                                "--display",
+                                displayId.toString(),
+                                "--windowingMode",
+                                "1"
+                        ) + activityArgs,
+                        listOf(
+                                "cmd",
+                                "activity",
+                                "start-activity",
+                                "--user",
+                                "0",
+                                "--display",
+                                displayId.toString()
+                        ) + activityArgs,
+                        listOf(
+                                "am",
+                                "start",
+                                "--user",
+                                "0",
+                                "--display",
+                                displayId.toString()
+                        ) + activityArgs,
+                        listOf("am", "start", "--display", displayId.toString()) + activityArgs
+                )
+
+        for (args in candidates) {
+            val result = ShizukuBridge.execResultArgs(args)
+            if (result.exitCode == 0) return true
+        }
+        onLog("虚拟屏启动失败：Shizuku --display 启动未成功，已阻止主屏跳板兜底")
+        return false
     }
 
     private fun isWordBoundaryMatch(query: String, text: String): Boolean {
@@ -510,6 +580,9 @@ class ActionExecutor(
         onLog("执行操作: 输入(${inputText.take(config.logInputTextTruncateLength)})")
 
         if (isVirtualDisplayMode()) {
+            if (!hasExplicitTapTarget) {
+                prepareVirtualDisplayInputFocusIfNeeded(uiDump, onLog)
+            }
             ensureVdFocus()
             val displayId = getVirtualDisplayId()
             var ok = injectTextOnVirtualDisplay(displayId, inputText, onLog)
@@ -755,9 +828,12 @@ class ActionExecutor(
         if (isVirtualDisplayMode()) {
             ensureVdFocus()
             val displayId = getVirtualDisplayId()
-            VirtualDisplayController.injectTapBestEffort(displayId, x.toInt(), y.toInt())
-            delay(config.longPressDurationMs)
-            VirtualDisplayController.injectTapBestEffort(displayId, x.toInt(), y.toInt())
+            VirtualDisplayController.injectLongPressBestEffort(
+                    displayId,
+                    x.toInt(),
+                    y.toInt(),
+                    config.longPressDurationMs
+            )
             delay(config.tapAwaitWindowTimeoutMs)
             return true
         }
@@ -945,6 +1021,12 @@ class ActionExecutor(
         val hasDisplayId = displayId > 0
         val isAsciiOnly = text.all { it.code in 0..127 }
         logShizukuTypeStage(onLog, "mode", "start", if (hasDisplayId) "display=$displayId" else "foreground")
+
+        if (hasDisplayId && isAsciiOnly && runDirectInputText(displayId, text)) {
+            logShizukuTypeStage(onLog, "final", "ok", "via=display_direct_input")
+            return true
+        }
+
         logShizukuTypeStage(onLog, "mode", "clipboard_first", "policy=always")
 
         if (setClipboardAndPaste(displayId, text, onLog)) {
@@ -1243,6 +1325,33 @@ class ActionExecutor(
         }
     }
 
+    private suspend fun prepareVirtualDisplayInputFocusIfNeeded(
+            uiDump: String,
+            onLog: (String) -> Unit
+    ) {
+        if (editableFocusedNodeRegex.containsMatchIn(uiDump)) {
+            logShizukuTypeStage(onLog, "vd_focus_prep", "skipped_focused")
+            return
+        }
+
+        val center = findFirstEditableCenter(uiDump)
+        if (center == null) {
+            logShizukuTypeStage(onLog, "vd_focus_prep", "miss", "editable_not_found")
+            return
+        }
+
+        val displayId = getVirtualDisplayId()
+        if (displayId <= 0) {
+            logShizukuTypeStage(onLog, "vd_focus_prep", "fail", "display_missing")
+            return
+        }
+
+        val (x, y) = center
+        VirtualDisplayController.injectTapBestEffort(displayId, x, y)
+        logShizukuTypeStage(onLog, "vd_focus_prep", "hit", "tap=[$x,$y]")
+        delay(220)
+    }
+
     private fun findFirstEditableCenter(uiDump: String): Pair<Int, Int>? {
         for (match in nodeTagRegex.findAll(uiDump)) {
             val nodeTag = match.value
@@ -1356,6 +1465,3 @@ class ActionExecutor(
         onLog("[Type][Shizuku] $stage=$status$suffix")
     }
 }
-
-
-

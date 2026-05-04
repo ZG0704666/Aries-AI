@@ -267,6 +267,10 @@ fun DrawerModelApiConfigScreen(
     apiStatusPositive: Boolean,
     qwenButtonText: String,
     qwenButtonEnabled: Boolean,
+    showAriesApiSection: Boolean,
+    ariesLoggedInUser: String,
+    ariesSelectedModel: String,
+    onChangeAriesModel: () -> Unit,
     onBack: () -> Unit,
     onApiInputChange: (String) -> Unit,
     onPasteApi: () -> Unit,
@@ -274,6 +278,8 @@ fun DrawerModelApiConfigScreen(
     onUseThirdPartyChange: (Boolean) -> Unit,
     onUseAriesApiChange: (Boolean) -> Unit,
     onOpenMembership: () -> Unit,
+    onAriesLoginClick: () -> Unit,
+    onAriesLogout: () -> Unit,
     onApiBaseUrlChange: (String) -> Unit,
     onApiModelChange: (String) -> Unit,
     onUseLocalModelChange: (Boolean) -> Unit,
@@ -391,43 +397,72 @@ fun DrawerModelApiConfigScreen(
             }
 
             item {
-                ModelApiSectionCard {
-                    SectionIntro(
-                        title = stringResource(R.string.settings_model_api_aries_title),
-                        tooltipText = stringResource(R.string.settings_model_api_aries_subtitle),
-                    )
+                AnimatedVisibility(
+                    visible = showAriesApiSection,
+                    enter = fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) + expandVertically(animationSpec = tween(200, easing = FastOutSlowInEasing)),
+                    exit = fadeOut(animationSpec = tween(120, easing = FastOutLinearInEasing)) + shrinkVertically(animationSpec = tween(160, easing = FastOutSlowInEasing)),
+                ) {
+                    ModelApiSectionCard {
+                        SectionIntro(
+                            title = stringResource(R.string.settings_model_api_aries_title),
+                            tooltipText = stringResource(R.string.settings_model_api_aries_subtitle),
+                        )
 
-                    Spacer(modifier = Modifier.height(spacingMd))
+                        Spacer(modifier = Modifier.height(spacingMd))
 
-                    DetailSwitchRow(
-                        title = stringResource(R.string.settings_model_api_aries_switch),
-                        tooltipText = stringResource(R.string.settings_model_api_aries_switch_subtitle),
-                        checked = useAriesApi,
-                        onCheckedChange = onUseAriesApiChange,
-                    )
+                        DetailSwitchRow(
+                            title = stringResource(R.string.settings_model_api_aries_switch),
+                            tooltipText = stringResource(R.string.settings_model_api_aries_switch_subtitle),
+                            checked = useAriesApi,
+                            onCheckedChange = onUseAriesApiChange,
+                        )
 
-                    AnimatedVisibility(
-                        visible = useAriesApi,
-                        enter = fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) + expandVertically(animationSpec = tween(180, easing = FastOutSlowInEasing)),
-                        exit = fadeOut(animationSpec = tween(120, easing = FastOutLinearInEasing)) + shrinkVertically(animationSpec = tween(140, easing = FastOutSlowInEasing)),
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
-                            Spacer(modifier = Modifier.height(spacingMd))
-                            OutlinedButton(
-                                onClick = {},
-                                modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_compact_button_height)),
-                            ) {
-                                Icon(Lucide.LogIn, contentDescription = null)
-                                Spacer(modifier = Modifier.width(spacingSm))
-                                Text(stringResource(R.string.settings_model_api_aries_login))
-                            }
-                            Button(
-                                onClick = onOpenMembership,
-                                modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_compact_button_height)),
-                            ) {
-                                Icon(Lucide.Crown, contentDescription = null)
-                                Spacer(modifier = Modifier.width(spacingSm))
-                                Text(stringResource(R.string.settings_model_api_aries_membership))
+                        AnimatedVisibility(
+                            visible = useAriesApi,
+                            enter = fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) + expandVertically(animationSpec = tween(180, easing = FastOutSlowInEasing)),
+                            exit = fadeOut(animationSpec = tween(120, easing = FastOutLinearInEasing)) + shrinkVertically(animationSpec = tween(140, easing = FastOutSlowInEasing)),
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
+                                Spacer(modifier = Modifier.height(spacingMd))
+                                if (ariesLoggedInUser.isNotBlank()) {
+                                    OutlinedButton(
+                                        onClick = onAriesLogout,
+                                        modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_compact_button_height)),
+                                    ) {
+                                        Icon(Lucide.LogIn, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(spacingSm))
+                                        Text(stringResource(R.string.settings_model_api_aries_logged_in, ariesLoggedInUser))
+                                    }
+                                    OutlinedButton(
+                                        onClick = onChangeAriesModel,
+                                        modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_compact_button_height)),
+                                    ) {
+                                        Icon(Lucide.Cpu, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(spacingSm))
+                                        if (ariesSelectedModel.isNotBlank()) {
+                                            Text(stringResource(R.string.aries_current_model, ariesSelectedModel))
+                                        } else {
+                                            Text(stringResource(R.string.aries_model_change))
+                                        }
+                                    }
+                                } else {
+                                    OutlinedButton(
+                                        onClick = onAriesLoginClick,
+                                        modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_compact_button_height)),
+                                    ) {
+                                        Icon(Lucide.LogIn, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(spacingSm))
+                                        Text(stringResource(R.string.settings_model_api_aries_login))
+                                    }
+                                }
+                                Button(
+                                    onClick = onOpenMembership,
+                                    modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_compact_button_height)),
+                                ) {
+                                    Icon(Lucide.Crown, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(spacingSm))
+                                    Text(stringResource(R.string.settings_model_api_aries_membership))
+                                }
                             }
                         }
                     }

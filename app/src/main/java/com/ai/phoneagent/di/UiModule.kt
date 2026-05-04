@@ -40,6 +40,6 @@ val uiModule = module {
     viewModel { AutomationViewModel(get(), get(), get()) }
     viewModel { SettingsViewModel(get(), get()) }
     viewModel { AppearanceViewModel(get(), get()) }
-    viewModel { com.ai.phoneagent.viewmodel.AboutViewModel(get(), com.ai.phoneagent.updates.ReleaseRepository()) }
+    viewModel { com.ai.phoneagent.viewmodel.AboutViewModel(get(), com.ai.phoneagent.updates.ReleaseRepository(), get()) }
     viewModel { com.ai.phoneagent.viewmodel.UpdateHistoryViewModel(get(), com.ai.phoneagent.updates.ReleaseRepository()) }
 }

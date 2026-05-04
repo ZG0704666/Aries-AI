@@ -9,13 +9,10 @@
 package com.ai.phoneagent
 
 import android.app.Activity
-import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
-import android.view.View
 import android.view.WindowManager
-import android.view.inputmethod.InputMethodManager
 
 /**
  * 虚拟屏欢迎/兜底 Activity — 焦点隔离模式。
@@ -57,21 +54,6 @@ class WelcomeActivity : Activity() {
                                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                 window?.attributes = attrs
                 Log.i(TAG, "Window attributes set: NOT_FOCUSABLE | NOT_TOUCHABLE")
-            }
-        }
-
-        runCatching {
-            val dc = createDisplayContext(display)
-            val imm = dc.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-
-            val root = window?.decorView
-            root?.isFocusable = true
-            root?.isFocusableInTouchMode = true
-            root?.requestFocus()
-
-            val v: View? = currentFocus ?: root
-            if (imm != null && v != null) {
-                imm.showSoftInput(v, InputMethodManager.SHOW_IMPLICIT)
             }
         }
 
