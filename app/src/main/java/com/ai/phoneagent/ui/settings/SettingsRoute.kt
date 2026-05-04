@@ -118,17 +118,15 @@ fun SettingsRoute(
                     onBack = { navController.popBackStack() },
                     onOpenAppearance = { viewModel.navigateTo(SettingsViewModel.SettingsPage.Appearance) },
                     onOpenModelApi = { viewModel.openModelApiPage() },
-                    onOpenAutomation = { viewModel.navigateTo(SettingsViewModel.SettingsPage.Automation) },
+                    onOpenAutomation = { navController.navigate(Routes.Automation.route) },
                     onOpenAbout = { viewModel.navigateTo(SettingsViewModel.SettingsPage.About) },
                 )
             }
 
             SettingsViewModel.SettingsPage.ModelApi -> {
                 DrawerModelApiConfigScreen(
+                    currentApiMode = viewModel.currentApiMode,
                     apiInput = viewModel.apiInputText,
-                    useThirdPartyApi = viewModel.useThirdPartyApi,
-                    useLocalModel = viewModel.useLocalModel,
-                    useAriesApi = viewModel.useAriesApi,
                     apiBaseUrl = viewModel.apiBaseUrlText,
                     apiModel = viewModel.apiModelText,
                     apiStatus = viewModel.apiStatusText,
@@ -140,6 +138,11 @@ fun SettingsRoute(
                     ariesSelectedModel = viewModel.ariesSelectedModel,
                     onChangeAriesModel = { viewModel.openAriesModelSelectionDialog() },
                     onBack = { viewModel.openHomePage() },
+                    onApiModeChange = { mode ->
+                        viewModel.onApiModeChange(mode) { message ->
+                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                        }
+                    },
                     onApiInputChange = { value -> viewModel.onApiInputChanged(value) },
                     onPasteApi = {
                         viewModel.pasteApiKey(context) { message ->
@@ -147,8 +150,6 @@ fun SettingsRoute(
                         }
                     },
                     onOpenApiKeyPage = { viewModel.openApiKeyPage(context) },
-                    onUseThirdPartyChange = { checked -> viewModel.onUseThirdPartyChange(checked) },
-                    onUseAriesApiChange = { checked -> viewModel.onUseAriesApiChange(checked) },
                     onOpenMembership = { viewModel.openMembershipPage() },
                     onAriesLoginClick = { viewModel.openAriesLoginDialog() },
                     onAriesLogout = {
@@ -157,11 +158,6 @@ fun SettingsRoute(
                     },
                     onApiBaseUrlChange = { value -> viewModel.onApiBaseUrlChange(value) },
                     onApiModelChange = { value -> viewModel.onApiModelChange(value) },
-                    onUseLocalModelChange = { checked ->
-                        viewModel.onUseLocalModelChange(checked) { message ->
-                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                        }
-                    },
                     onCheckApi = {
                         viewModel.checkApiConnection { message ->
                             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
@@ -285,12 +281,6 @@ fun SettingsRoute(
                 SettingsAboutContent(
                     onBack = { viewModel.openHomePage() },
                     onNavigate = { route -> navController.navigate(route) },
-                )
-            }
-
-            SettingsViewModel.SettingsPage.Automation -> {
-                SettingsAutomationContent(
-                    onBack = { viewModel.openHomePage() },
                 )
             }
         }
@@ -509,92 +499,3 @@ private fun SettingsAboutContent(
     }
 }
 
-// ── Automation content embedded in Settings ───────────────────────────────────
-
-@Composable
-private fun SettingsAutomationContent(
-    onBack: () -> Unit,
-) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val hostActivity = remember(context) {
-        var ctx: Context = context
-        while (ctx is android.content.ContextWrapper && ctx !is android.app.Activity) {
-            ctx = ctx.baseContext
-        }
-        ctx as? android.app.Activity
-    }
-    // Scope to Activity so it shares the same instance as AutomationScreen
-    val activityOwner = hostActivity as? androidx.lifecycle.ViewModelStoreOwner
-    val viewModel: AutomationViewModel = koinViewModel(
-        viewModelStoreOwner = activityOwner
-            ?: androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner.current!!,
-    )
-
-    val audioPermissionLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            viewModel.onAudioPermissionResult(granted)
-        }
-
-    DisposableEffect(hostActivity) {
-        viewModel.attachHostActivity(hostActivity)
-        onDispose {
-            viewModel.attachHostActivity(null)
-        }
-    }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer =
-            LifecycleEventObserver { _, event ->
-                when (event) {
-                    Lifecycle.Event.ON_RESUME -> viewModel.onResume()
-                    Lifecycle.Event.ON_STOP -> viewModel.onStop()
-                    else -> Unit
-                }
-            }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    AutomationControlScreen(
-        statusText = viewModel.statusText,
-        statusTone = viewModel.statusTone(),
-        isBackgroundMode = viewModel.isBackgroundMode,
-        virtualDisplayStatus = viewModel.virtualDisplayStatus,
-        useShizukuInteraction = viewModel.useShizukuInteraction,
-        autoApprove = viewModel.autoApprove,
-        isListening = viewModel.isListening,
-        taskText = viewModel.taskText,
-        taskHint = viewModel.taskHint,
-        recommendText = viewModel.recommendText,
-        logText = viewModel.logText,
-        showShizukuAuthorize = viewModel.showShizukuAuthorize,
-        startButtonText = viewModel.startButtonText,
-        startButtonEnabled = viewModel.startButtonEnabled,
-        startButtonTerminateStyle = viewModel.startButtonTerminateStyle,
-        pauseButtonText = viewModel.pauseButtonText,
-        pauseButtonEnabled = viewModel.pauseButtonEnabled,
-        stopButtonEnabled = viewModel.stopButtonEnabled,
-        onBack = onBack,
-        onOpenAccessibility = {
-            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        },
-        onAuthorizeShizuku = { viewModel.authorizeShizukuAndAccessibility() },
-        onRefreshStatus = { viewModel.onRefreshStatus() },
-        onExecutionModeChange = { viewModel.onExecutionModeChange(it) },
-        onShizukuModeChange = { viewModel.onShizukuModeChange(it) },
-        onAutoApproveChange = { viewModel.onAutoApproveChange(it) },
-        onTaskChange = { viewModel.onTaskChange(it) },
-        onVoiceTask = {
-            val needPermission = viewModel.onVoiceTaskClick(viewModel.hasRecordAudioPermission())
-            if (needPermission) {
-                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-            }
-        },
-        onUseRecommendTask = { viewModel.onUseRecommendTask() },
-        onStart = { viewModel.onStartOrTerminateClick() },
-        onPause = { viewModel.onPauseClick() },
-        onStop = { viewModel.onStopClick() },
-        onCopyLog = { viewModel.copyLog() },
-    )
-}

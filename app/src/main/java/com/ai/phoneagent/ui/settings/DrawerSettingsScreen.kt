@@ -55,6 +55,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -71,6 +72,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -83,6 +85,7 @@ import com.ai.phoneagent.core.designsystem.theme.AriesSettingsNavigationItem
 import com.ai.phoneagent.core.designsystem.theme.AriesSettingsSectionHeader
 import com.ai.phoneagent.core.designsystem.theme.ThemeMode
 import com.ai.phoneagent.ui.components.InfoTooltip
+import com.ai.phoneagent.viewmodel.SettingsViewModel
 
 private enum class SettingsEntryType {
     Appearance,
@@ -95,6 +98,13 @@ private data class SettingsEntryUi(
     val type: SettingsEntryType,
     val title: String,
     val subtitle: String,
+)
+
+private data class ApiModeOptionUi(
+    val mode: SettingsViewModel.ApiMode,
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -257,10 +267,8 @@ fun DrawerSettingsScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DrawerModelApiConfigScreen(
+    currentApiMode: SettingsViewModel.ApiMode,
     apiInput: String,
-    useThirdPartyApi: Boolean,
-    useLocalModel: Boolean,
-    useAriesApi: Boolean,
     apiBaseUrl: String,
     apiModel: String,
     apiStatus: String,
@@ -272,17 +280,15 @@ fun DrawerModelApiConfigScreen(
     ariesSelectedModel: String,
     onChangeAriesModel: () -> Unit,
     onBack: () -> Unit,
+    onApiModeChange: (SettingsViewModel.ApiMode) -> Unit,
     onApiInputChange: (String) -> Unit,
     onPasteApi: () -> Unit,
     onOpenApiKeyPage: () -> Unit,
-    onUseThirdPartyChange: (Boolean) -> Unit,
-    onUseAriesApiChange: (Boolean) -> Unit,
     onOpenMembership: () -> Unit,
     onAriesLoginClick: () -> Unit,
     onAriesLogout: () -> Unit,
     onApiBaseUrlChange: (String) -> Unit,
     onApiModelChange: (String) -> Unit,
-    onUseLocalModelChange: (Boolean) -> Unit,
     onCheckApi: () -> Unit,
     onDownloadQwenModel: () -> Unit,
 ) {
@@ -292,19 +298,59 @@ fun DrawerModelApiConfigScreen(
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
     val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
     val compactButtonHeight = dimensionResource(R.dimen.m3t_compact_button_height)
+    val isRemoteMode =
+        currentApiMode == SettingsViewModel.ApiMode.Official ||
+            currentApiMode == SettingsViewModel.ApiMode.ThirdParty
     val modeTitle =
-        when {
-            useAriesApi -> stringResource(R.string.settings_model_api_aries_mode)
-            useLocalModel -> stringResource(R.string.settings_model_api_mode_local)
-            useThirdPartyApi -> stringResource(R.string.settings_model_api_mode_third_party)
-            else -> stringResource(R.string.settings_model_api_mode_official)
+        when (currentApiMode) {
+            SettingsViewModel.ApiMode.Official -> stringResource(R.string.settings_model_api_mode_official)
+            SettingsViewModel.ApiMode.ThirdParty -> stringResource(R.string.settings_model_api_mode_third_party)
+            SettingsViewModel.ApiMode.Local -> stringResource(R.string.settings_model_api_mode_local)
+            SettingsViewModel.ApiMode.Aries -> stringResource(R.string.settings_model_api_aries_mode)
         }
     val modeDescription =
-        when {
-            useAriesApi -> stringResource(R.string.settings_model_api_aries_mode_description)
-            useLocalModel -> stringResource(R.string.settings_model_api_mode_local_description)
-            useThirdPartyApi -> stringResource(R.string.settings_model_api_mode_third_party_description)
-            else -> stringResource(R.string.settings_model_api_mode_official_description)
+        when (currentApiMode) {
+            SettingsViewModel.ApiMode.Official -> stringResource(R.string.settings_model_api_mode_official_description)
+            SettingsViewModel.ApiMode.ThirdParty -> stringResource(R.string.settings_model_api_mode_third_party_description)
+            SettingsViewModel.ApiMode.Local -> stringResource(R.string.settings_model_api_mode_local_description)
+            SettingsViewModel.ApiMode.Aries -> stringResource(R.string.settings_model_api_aries_mode_description)
+        }
+    val modeOptions =
+        buildList {
+            add(
+                ApiModeOptionUi(
+                    mode = SettingsViewModel.ApiMode.Official,
+                    title = stringResource(R.string.settings_model_api_mode_official),
+                    description = stringResource(R.string.settings_model_api_mode_official_description),
+                    icon = Lucide.KeyRound,
+                ),
+            )
+            add(
+                ApiModeOptionUi(
+                    mode = SettingsViewModel.ApiMode.ThirdParty,
+                    title = stringResource(R.string.settings_model_api_mode_third_party),
+                    description = stringResource(R.string.settings_model_api_mode_third_party_description),
+                    icon = Lucide.Cloud,
+                ),
+            )
+            add(
+                ApiModeOptionUi(
+                    mode = SettingsViewModel.ApiMode.Local,
+                    title = stringResource(R.string.settings_model_api_mode_local),
+                    description = stringResource(R.string.settings_model_api_mode_local_description),
+                    icon = Lucide.Cpu,
+                ),
+            )
+            if (showAriesApiSection) {
+                add(
+                    ApiModeOptionUi(
+                        mode = SettingsViewModel.ApiMode.Aries,
+                        title = stringResource(R.string.settings_model_api_aries_mode),
+                        description = stringResource(R.string.settings_model_api_aries_mode_description),
+                        icon = Lucide.Sparkles,
+                    ),
+                )
+            }
         }
     val statusContainerColor =
         if (apiStatusPositive) {
@@ -354,7 +400,7 @@ fun DrawerModelApiConfigScreen(
                 ModelApiSectionCard {
                     SectionIntro(
                         title = stringResource(R.string.settings_model_api_summary_title),
-                        tooltipText = stringResource(R.string.settings_model_api_summary_subtitle),
+                        subtitle = stringResource(R.string.settings_model_api_summary_subtitle),
                     )
 
                     Spacer(modifier = Modifier.height(spacingMd))
@@ -369,23 +415,33 @@ fun DrawerModelApiConfigScreen(
                             color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
                         ) {
                             Icon(
-                                imageVector = if (useLocalModel) Lucide.Cpu else if (useAriesApi) Lucide.Sparkles else Lucide.Cloud,
+                                imageVector =
+                                    when (currentApiMode) {
+                                        SettingsViewModel.ApiMode.Official -> Lucide.KeyRound
+                                        SettingsViewModel.ApiMode.ThirdParty -> Lucide.Cloud
+                                        SettingsViewModel.ApiMode.Local -> Lucide.Cpu
+                                        SettingsViewModel.ApiMode.Aries -> Lucide.Sparkles
+                                    },
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.padding(spacingSm),
                             )
                         }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = modeTitle,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
-                                Spacer(modifier = Modifier.width(dimensionResource(R.dimen.m3t_spacing_xs)))
-                                InfoTooltip(tooltipText = modeDescription)
-                            }
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(spacingXs),
+                        ) {
+                            Text(
+                                text = modeTitle,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = modeDescription,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                         StatusBadge(
                             text = apiStatus,
@@ -397,141 +453,82 @@ fun DrawerModelApiConfigScreen(
             }
 
             item {
-                AnimatedVisibility(
-                    visible = showAriesApiSection,
-                    enter = fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) + expandVertically(animationSpec = tween(200, easing = FastOutSlowInEasing)),
-                    exit = fadeOut(animationSpec = tween(120, easing = FastOutLinearInEasing)) + shrinkVertically(animationSpec = tween(160, easing = FastOutSlowInEasing)),
-                ) {
-                    ModelApiSectionCard {
-                        SectionIntro(
-                            title = stringResource(R.string.settings_model_api_aries_title),
-                            tooltipText = stringResource(R.string.settings_model_api_aries_subtitle),
-                        )
+                ModelApiSectionCard {
+                    SectionIntro(
+                        title = stringResource(R.string.settings_model_api_mode_title),
+                        subtitle = stringResource(R.string.settings_model_api_mode_subtitle),
+                    )
 
-                        Spacer(modifier = Modifier.height(spacingMd))
+                    Spacer(modifier = Modifier.height(spacingMd))
 
-                        DetailSwitchRow(
-                            title = stringResource(R.string.settings_model_api_aries_switch),
-                            tooltipText = stringResource(R.string.settings_model_api_aries_switch_subtitle),
-                            checked = useAriesApi,
-                            onCheckedChange = onUseAriesApiChange,
-                        )
-
-                        AnimatedVisibility(
-                            visible = useAriesApi,
-                            enter = fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) + expandVertically(animationSpec = tween(180, easing = FastOutSlowInEasing)),
-                            exit = fadeOut(animationSpec = tween(120, easing = FastOutLinearInEasing)) + shrinkVertically(animationSpec = tween(140, easing = FastOutSlowInEasing)),
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
-                                Spacer(modifier = Modifier.height(spacingMd))
-                                if (ariesLoggedInUser.isNotBlank()) {
-                                    OutlinedButton(
-                                        onClick = onAriesLogout,
-                                        modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_compact_button_height)),
-                                    ) {
-                                        Icon(Lucide.LogIn, contentDescription = null)
-                                        Spacer(modifier = Modifier.width(spacingSm))
-                                        Text(stringResource(R.string.settings_model_api_aries_logged_in, ariesLoggedInUser))
-                                    }
-                                    OutlinedButton(
-                                        onClick = onChangeAriesModel,
-                                        modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_compact_button_height)),
-                                    ) {
-                                        Icon(Lucide.Cpu, contentDescription = null)
-                                        Spacer(modifier = Modifier.width(spacingSm))
-                                        if (ariesSelectedModel.isNotBlank()) {
-                                            Text(stringResource(R.string.aries_current_model, ariesSelectedModel))
-                                        } else {
-                                            Text(stringResource(R.string.aries_model_change))
-                                        }
-                                    }
-                                } else {
-                                    OutlinedButton(
-                                        onClick = onAriesLoginClick,
-                                        modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_compact_button_height)),
-                                    ) {
-                                        Icon(Lucide.LogIn, contentDescription = null)
-                                        Spacer(modifier = Modifier.width(spacingSm))
-                                        Text(stringResource(R.string.settings_model_api_aries_login))
-                                    }
-                                }
-                                Button(
-                                    onClick = onOpenMembership,
-                                    modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_compact_button_height)),
-                                ) {
-                                    Icon(Lucide.Crown, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(spacingSm))
-                                    Text(stringResource(R.string.settings_model_api_aries_membership))
-                                }
-                            }
+                    Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
+                        modeOptions.forEach { option ->
+                            ModeOptionRow(
+                                title = option.title,
+                                description = option.description,
+                                icon = option.icon,
+                                selected = currentApiMode == option.mode,
+                                onClick = { onApiModeChange(option.mode) },
+                            )
                         }
                     }
                 }
             }
 
-            item {
-                ModelApiSectionCard {
-                    SectionIntro(
-                        title = stringResource(R.string.settings_model_api_remote_title),
-                        tooltipText = stringResource(R.string.settings_model_api_remote_subtitle),
-                    )
+            if (isRemoteMode) {
+                item {
+                    ModelApiSectionCard {
+                        SectionIntro(
+                            title = stringResource(R.string.settings_model_api_remote_title),
+                            subtitle =
+                                if (currentApiMode == SettingsViewModel.ApiMode.ThirdParty) {
+                                    stringResource(R.string.settings_model_api_remote_subtitle)
+                                } else {
+                                    stringResource(R.string.settings_model_api_mode_official_description)
+                                },
+                        )
 
-                    Spacer(modifier = Modifier.height(spacingMd))
+                        Spacer(modifier = Modifier.height(spacingMd))
 
-                    FilledInputField(
-                        value = apiInput,
-                        onValueChange = onApiInputChange,
-                        label = stringResource(R.string.m3t_sidebar_api_hint),
-                        placeholder = stringResource(R.string.settings_model_api_key_placeholder),
-                        leadingIcon = {
-                            Icon(Lucide.KeyRound, contentDescription = null)
-                        },
-                    )
+                        FilledInputField(
+                            value = apiInput,
+                            onValueChange = onApiInputChange,
+                            label = stringResource(R.string.m3t_sidebar_api_hint),
+                            placeholder = stringResource(R.string.settings_model_api_key_placeholder),
+                            leadingIcon = {
+                                Icon(Lucide.KeyRound, contentDescription = null)
+                            },
+                        )
 
-                    Spacer(modifier = Modifier.height(spacingSm))
+                        Spacer(modifier = Modifier.height(spacingSm))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(spacingSm),
-                    ) {
-                        FilledTonalButton(
-                            onClick = onPasteApi,
-                            modifier = Modifier.weight(1f).height(compactButtonHeight),
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(spacingSm),
                         ) {
-                            Icon(Lucide.Clipboard, contentDescription = null)
-                            Spacer(modifier = Modifier.width(spacingSm))
-                            Text(stringResource(R.string.m3t_sidebar_api_paste))
+                            FilledTonalButton(
+                                onClick = onPasteApi,
+                                modifier = Modifier.weight(1f).height(compactButtonHeight),
+                            ) {
+                                Icon(Lucide.Clipboard, contentDescription = null)
+                                Spacer(modifier = Modifier.width(spacingSm))
+                                Text(stringResource(R.string.m3t_sidebar_api_paste))
+                            }
+                            FilledTonalButton(
+                                onClick = onOpenApiKeyPage,
+                                modifier = Modifier.weight(1f).height(compactButtonHeight),
+                            ) {
+                                Icon(Lucide.ExternalLink, contentDescription = null)
+                                Spacer(modifier = Modifier.width(spacingSm))
+                                Text(stringResource(R.string.settings_model_api_get_key_short))
+                            }
                         }
-                        FilledTonalButton(
-                            onClick = onOpenApiKeyPage,
-                            modifier = Modifier.weight(1f).height(compactButtonHeight),
-                        ) {
-                            Icon(Lucide.ExternalLink, contentDescription = null)
-                            Spacer(modifier = Modifier.width(spacingSm))
-                            Text(stringResource(R.string.settings_model_api_get_key_short))
-                        }
-                    }
 
-                    Spacer(modifier = Modifier.height(spacingMd))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(modifier = Modifier.height(spacingMd))
+                        if (currentApiMode == SettingsViewModel.ApiMode.ThirdParty) {
+                            Spacer(modifier = Modifier.height(spacingMd))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Spacer(modifier = Modifier.height(spacingMd))
 
-                    DetailSwitchRow(
-                        title = stringResource(R.string.m3t_sidebar_third_party_api),
-                        tooltipText = stringResource(R.string.settings_model_api_third_party_switch_subtitle),
-                        checked = useThirdPartyApi,
-                        onCheckedChange = onUseThirdPartyChange,
-                    )
-
-                    AnimatedVisibility(
-                        visible = useThirdPartyApi,
-                        enter = fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) + expandVertically(animationSpec = tween(180, easing = FastOutSlowInEasing)),
-                        exit = fadeOut(animationSpec = tween(120, easing = FastOutLinearInEasing)) + shrinkVertically(animationSpec = tween(140, easing = FastOutLinearInEasing)),
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(top = spacingMd).animateContentSize(),
-                            verticalArrangement = Arrangement.spacedBy(spacingSm),
-                        ) {
                             FilledInputField(
                                 value = apiBaseUrl,
                                 onValueChange = onApiBaseUrlChange,
@@ -539,6 +536,9 @@ fun DrawerModelApiConfigScreen(
                                 placeholder = stringResource(R.string.drawer_api_base_url_hint),
                                 leadingIcon = { Icon(Lucide.Cloud, contentDescription = null) },
                             )
+
+                            Spacer(modifier = Modifier.height(spacingSm))
+
                             FilledInputField(
                                 value = apiModel,
                                 onValueChange = onApiModelChange,
@@ -551,32 +551,102 @@ fun DrawerModelApiConfigScreen(
                 }
             }
 
-            item {
-                ModelApiSectionCard {
-                    SectionIntro(
-                        title = stringResource(R.string.settings_model_api_local_title),
-                        tooltipText = stringResource(R.string.settings_model_api_local_subtitle),
-                    )
+            if (currentApiMode == SettingsViewModel.ApiMode.Local) {
+                item {
+                    ModelApiSectionCard {
+                        SectionIntro(
+                            title = stringResource(R.string.settings_model_api_local_title),
+                            subtitle = stringResource(R.string.settings_model_api_local_subtitle),
+                        )
 
-                    Spacer(modifier = Modifier.height(spacingMd))
+                        Spacer(modifier = Modifier.height(spacingMd))
 
-                    DetailSwitchRow(
-                        title = stringResource(R.string.m3t_sidebar_local_model_mode),
-                        tooltipText = stringResource(R.string.settings_model_api_local_switch_subtitle),
-                        checked = useLocalModel,
-                        onCheckedChange = onUseLocalModelChange,
-                    )
+                        StatusPanel(
+                            title = stringResource(R.string.settings_model_api_status_title),
+                            body = apiStatus,
+                            containerColor = statusContainerColor,
+                            contentColor = statusContentColor,
+                        )
 
-                    Spacer(modifier = Modifier.height(spacingMd))
+                        Spacer(modifier = Modifier.height(spacingMd))
 
-                    FilledTonalButton(
-                        onClick = onDownloadQwenModel,
-                        enabled = qwenButtonEnabled,
-                        modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
-                    ) {
-                        Icon(Lucide.Download, contentDescription = null)
-                        Spacer(modifier = Modifier.width(spacingSm))
-                        Text(qwenButtonText)
+                        FilledTonalButton(
+                            onClick = onDownloadQwenModel,
+                            enabled = qwenButtonEnabled,
+                            modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
+                        ) {
+                            Icon(Lucide.Download, contentDescription = null)
+                            Spacer(modifier = Modifier.width(spacingSm))
+                            Text(qwenButtonText)
+                        }
+                    }
+                }
+            }
+
+            if (currentApiMode == SettingsViewModel.ApiMode.Aries) {
+                item {
+                    ModelApiSectionCard {
+                        SectionIntro(
+                            title = stringResource(R.string.settings_model_api_aries_title),
+                            subtitle = stringResource(R.string.settings_model_api_aries_subtitle),
+                        )
+
+                        Spacer(modifier = Modifier.height(spacingMd))
+
+                        StatusPanel(
+                            title = stringResource(R.string.settings_model_api_status_title),
+                            body =
+                                if (ariesLoggedInUser.isNotBlank()) {
+                                    stringResource(R.string.settings_model_api_aries_logged_in, ariesLoggedInUser)
+                                } else {
+                                    stringResource(R.string.settings_model_api_aries_login_required)
+                                },
+                            containerColor = statusContainerColor,
+                            contentColor = statusContentColor,
+                        )
+
+                        Spacer(modifier = Modifier.height(spacingMd))
+
+                        Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
+                            if (ariesLoggedInUser.isNotBlank()) {
+                                OutlinedButton(
+                                    onClick = onChangeAriesModel,
+                                    modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
+                                ) {
+                                    Icon(Lucide.Cpu, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(spacingSm))
+                                    if (ariesSelectedModel.isNotBlank()) {
+                                        Text(stringResource(R.string.aries_current_model, ariesSelectedModel))
+                                    } else {
+                                        Text(stringResource(R.string.aries_model_change))
+                                    }
+                                }
+                                OutlinedButton(
+                                    onClick = onAriesLogout,
+                                    modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
+                                ) {
+                                    Text(stringResource(R.string.settings_model_api_aries_logout))
+                                }
+                            } else {
+                                Button(
+                                    onClick = onAriesLoginClick,
+                                    modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
+                                ) {
+                                    Icon(Lucide.LogIn, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(spacingSm))
+                                    Text(stringResource(R.string.settings_model_api_aries_login))
+                                }
+                            }
+
+                            FilledTonalButton(
+                                onClick = onOpenMembership,
+                                modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
+                            ) {
+                                Icon(Lucide.Crown, contentDescription = null)
+                                Spacer(modifier = Modifier.width(spacingSm))
+                                Text(stringResource(R.string.settings_model_api_aries_membership))
+                            }
+                        }
                     }
                 }
             }
@@ -585,7 +655,7 @@ fun DrawerModelApiConfigScreen(
                 ModelApiSectionCard {
                     SectionIntro(
                         title = stringResource(R.string.settings_model_api_action_title),
-                        tooltipText = stringResource(R.string.settings_model_api_action_subtitle),
+                        subtitle = stringResource(R.string.settings_model_api_action_subtitle),
                     )
 
                     Spacer(modifier = Modifier.height(spacingMd))
@@ -601,26 +671,12 @@ fun DrawerModelApiConfigScreen(
 
                     Spacer(modifier = Modifier.height(spacingMd))
 
-                    Surface(
-                        color = statusContainerColor,
-                        shape = MaterialTheme.shapes.large,
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(spacingMd),
-                            verticalArrangement = Arrangement.spacedBy(spacingXs),
-                        ) {
-                            Text(
-                                text = stringResource(R.string.settings_model_api_status_title),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = statusContentColor,
-                            )
-                            Text(
-                                text = apiStatus,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = statusContentColor,
-                            )
-                        }
-                    }
+                    StatusPanel(
+                        title = stringResource(R.string.settings_model_api_status_title),
+                        body = apiStatus,
+                        containerColor = statusContainerColor,
+                        contentColor = statusContentColor,
+                    )
                 }
             }
         }
@@ -689,6 +745,104 @@ private fun StatusBadge(
             color = contentColor,
             modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
         )
+    }
+}
+
+@Composable
+private fun StatusPanel(
+    title: String,
+    body: String,
+    containerColor: androidx.compose.ui.graphics.Color,
+    contentColor: androidx.compose.ui.graphics.Color,
+) {
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    Surface(
+        color = containerColor,
+        shape = MaterialTheme.shapes.large,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacingMd),
+            verticalArrangement = Arrangement.spacedBy(spacingXs),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                color = contentColor,
+            )
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = contentColor,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModeOptionRow(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.large,
+        color =
+            if (selected) {
+                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.56f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
+            },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(spacingMd),
+            horizontalArrangement = Arrangement.spacedBy(spacingSm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = CircleShape,
+                color =
+                    if (selected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    },
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint =
+                        if (selected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    modifier = Modifier.padding(spacingSm),
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs)),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            RadioButton(selected = selected, onClick = onClick)
+        }
     }
 }
 

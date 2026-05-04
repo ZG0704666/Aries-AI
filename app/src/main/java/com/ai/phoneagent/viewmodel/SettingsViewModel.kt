@@ -30,7 +30,13 @@ class SettingsViewModel(
         Membership,
         Appearance,
         About,
-        Automation,
+    }
+
+    enum class ApiMode {
+        Official,
+        ThirdParty,
+        Local,
+        Aries,
     }
 
     private var remoteApiOk: Boolean? = null
@@ -59,6 +65,9 @@ class SettingsViewModel(
         private set
 
     var useAriesApi by mutableStateOf(false)
+        private set
+
+    var currentApiMode by mutableStateOf(ApiMode.Official)
         private set
 
     var apiBaseUrlText by mutableStateOf("")
@@ -141,14 +150,26 @@ class SettingsViewModel(
         val saved = prefs.getApiKeyBlocking()
         apiInputTag = saved
         apiInputText = maskKey(saved)
-        useThirdPartyApi = prefs.getApiUseThirdPartyBlocking()
-        useLocalModel = prefs.getApiUseLocalModelBlocking()
-        useAriesApi = prefs.getUseAriesApiBlocking()
+        val restoredThirdParty = prefs.getApiUseThirdPartyBlocking()
+        val restoredLocal = prefs.getApiUseLocalModelBlocking()
+        val restoredAries = prefs.getUseAriesApiBlocking()
+        applyApiModeState(
+            resolveApiMode(
+                useThirdParty = restoredThirdParty,
+                useLocal = restoredLocal,
+                useAries = restoredAries,
+            ),
+        )
         showAriesApiSection = prefs.getAriesApiSectionUnlockedBlocking()
         ariesLoggedInUser = prefs.getAriesLoggedInUserBlocking()
         ariesSelectedModel = prefs.getAriesSelectedModelBlocking()
         apiBaseUrlText = prefs.getApiThirdPartyBaseUrlBlocking().ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
         apiModelText = prefs.getApiThirdPartyModelBlocking().ifBlank { AutoGlmClient.DEFAULT_MODEL }
+        normalizePersistedApiModeIfNeeded(
+            restoredThirdParty = restoredThirdParty,
+            restoredLocal = restoredLocal,
+            restoredAries = restoredAries,
+        )
 
         val lastSig = prefs.getApiLastCheckSigBlocking()
         val currentSig =
@@ -205,6 +226,20 @@ class SettingsViewModel(
         currentPage = page
     }
 
+    fun onApiModeChange(mode: ApiMode, onToast: (String) -> Unit) {
+        if (mode == currentApiMode) return
+        applyApiModeState(mode)
+        apiCheckSeq++
+        remoteApiOk = null
+        remoteApiChecking = false
+        lastCheckedApiKey = ""
+        persistApiMode(clearCheckResults = true)
+        if (mode == ApiMode.Local && !localModelReady) {
+            onToast(stringRes(R.string.m3t_sidebar_local_model_not_ready))
+        }
+        updateStatusText()
+    }
+
     fun onApiInputChanged(value: String) {
         apiInputTag = ""
         apiInputText = value
@@ -212,12 +247,7 @@ class SettingsViewModel(
     }
 
     fun onUseThirdPartyChange(checked: Boolean) {
-        useThirdPartyApi = checked
-        if (checked) {
-            useAriesApi = false
-            useLocalModel = false
-        }
-        onApiConfigChanged(clearApiValue = false)
+        onApiModeChange(if (checked) ApiMode.ThirdParty else ApiMode.Official) {}
     }
 
     fun onApiBaseUrlChange(value: String) {
@@ -235,27 +265,11 @@ class SettingsViewModel(
     }
 
     fun onUseLocalModelChange(checked: Boolean, onToast: (String) -> Unit) {
-        useLocalModel = checked
-        if (checked) {
-            useAriesApi = false
-            useThirdPartyApi = false
-        }
-        viewModelScope.launch { prefs.setApiUseLocalModel(checked) }
-        if (checked && !localModelReady) {
-            onToast(stringRes(R.string.m3t_sidebar_local_model_not_ready))
-        }
-        updateStatusText()
+        onApiModeChange(if (checked) ApiMode.Local else ApiMode.Official, onToast)
     }
 
     fun onUseAriesApiChange(checked: Boolean) {
-        useAriesApi = checked
-        viewModelScope.launch { prefs.setUseAriesApi(checked) }
-        if (checked) {
-            // Aries API 使用独立 key，不修改远程 API 的 key/baseUrl/model/第三方配置。
-            useLocalModel = false
-            viewModelScope.launch { prefs.setApiUseLocalModel(false) }
-        }
-        updateStatusText()
+        onApiModeChange(if (checked) ApiMode.Aries else ApiMode.Official) {}
     }
 
     fun pasteApiKey(context: Context, onToast: (String) -> Unit) {
@@ -306,8 +320,8 @@ class SettingsViewModel(
                 thirdPartyModel = apiModelText.trim(),
                 clearCheckResults = true,
             )
+            prefs.setUseAriesApi(useAriesApi)
         }
-        apiStatusText = stringRes(R.string.m3t_sidebar_api_not_checked)
         updateStatusText()
     }
 
@@ -327,6 +341,22 @@ class SettingsViewModel(
             if (!localModelReady) {
                 onToast(stringRes(R.string.m3t_sidebar_local_model_not_ready))
             }
+            return
+        }
+
+        if (useAriesApi) {
+            val key = prefs.getActiveAriesApiKeyBlocking().trim()
+            if (key.isBlank()) {
+                onToast(stringRes(R.string.settings_model_api_aries_login_required))
+                return
+            }
+            startApiCheck(
+                key = key,
+                baseUrl = AriesApiClient.ARIES_API_V1_BASE_URL,
+                model = ariesSelectedModel.ifBlank { AutoGlmClient.DEFAULT_MODEL },
+                force = true,
+                onToast = onToast,
+            )
             return
         }
 
@@ -460,10 +490,20 @@ class SettingsViewModel(
     }
 
     fun updateStatusText() {
-        apiStatusPositive = remoteApiOk == true || useLocalModel || useAriesApi
         if (useAriesApi) {
-            apiStatusText = stringRes(R.string.settings_model_api_aries_mode)
+            val hasAriesKey = prefs.getActiveAriesApiKeyBlocking().isNotBlank()
+            apiStatusPositive = remoteApiOk == true || (remoteApiOk == null && hasAriesKey)
+            if (!remoteApiChecking) {
+                apiStatusText =
+                    when {
+                        remoteApiOk == true -> stringRes(R.string.settings_api_available)
+                        remoteApiOk == false -> stringRes(R.string.settings_api_failed)
+                        hasAriesKey -> stringRes(R.string.settings_model_api_aries_ready)
+                        else -> stringRes(R.string.settings_model_api_aries_login_required)
+                    }
+            }
         } else if (useLocalModel) {
+            apiStatusPositive = localModelReady
             apiStatusText =
                 stringRes(
                     if (localModelReady) {
@@ -472,8 +512,11 @@ class SettingsViewModel(
                         R.string.m3t_sidebar_local_model_not_ready
                     },
                 )
-        } else if (!remoteApiChecking && remoteApiOk == null) {
-            apiStatusText = stringRes(R.string.m3t_sidebar_api_not_checked)
+        } else {
+            apiStatusPositive = remoteApiOk == true
+            if (!remoteApiChecking && remoteApiOk == null) {
+                apiStatusText = stringRes(R.string.m3t_sidebar_api_not_checked)
+            }
         }
     }
 
@@ -603,12 +646,13 @@ class SettingsViewModel(
                 // Aries API Key 独立保存，不覆盖远程 API 配置。
                 prefs.setAriesApiKey(result.apiKey)
                 prefs.setAriesLoggedInUser(username)
-                prefs.setUseAriesApi(true)
-                prefs.setApiUseLocalModel(false)
-                useAriesApi = true
-                useLocalModel = false
+                applyApiModeState(ApiMode.Aries)
+                persistApiModeState(clearCheckResults = true)
                 ariesLoggedInUser = username
                 showAriesLoginDialog = false
+                remoteApiOk = null
+                remoteApiChecking = false
+                lastCheckedApiKey = ""
                 updateStatusText()
                 onSuccess(stringRes(R.string.aries_login_success, username))
                 // 自动获取模型列表并展示选择对话框
@@ -625,6 +669,14 @@ class SettingsViewModel(
             prefs.setAriesLoggedInUser("")
             prefs.setAriesApiKey("")
             ariesLoggedInUser = ""
+            if (currentApiMode == ApiMode.Aries) {
+                applyApiModeState(ApiMode.Official)
+                persistApiModeState(clearCheckResults = true)
+                remoteApiOk = null
+                remoteApiChecking = false
+                lastCheckedApiKey = ""
+            }
+            updateStatusText()
         }
     }
 
@@ -666,6 +718,55 @@ class SettingsViewModel(
         showAriesModelDialog = false
         viewModelScope.launch { prefs.setAriesSelectedModel(modelId) }
         updateStatusText()
+    }
+
+    private fun resolveApiMode(
+        useThirdParty: Boolean = useThirdPartyApi,
+        useLocal: Boolean = useLocalModel,
+        useAries: Boolean = useAriesApi,
+    ): ApiMode =
+        when {
+            useAries -> ApiMode.Aries
+            useLocal -> ApiMode.Local
+            useThirdParty -> ApiMode.ThirdParty
+            else -> ApiMode.Official
+        }
+
+    private fun applyApiModeState(mode: ApiMode) {
+        currentApiMode = mode
+        useThirdPartyApi = mode == ApiMode.ThirdParty
+        useLocalModel = mode == ApiMode.Local
+        useAriesApi = mode == ApiMode.Aries
+    }
+
+    private fun normalizePersistedApiModeIfNeeded(
+        restoredThirdParty: Boolean,
+        restoredLocal: Boolean,
+        restoredAries: Boolean,
+    ) {
+        if (
+            restoredThirdParty == useThirdPartyApi &&
+            restoredLocal == useLocalModel &&
+            restoredAries == useAriesApi
+        ) {
+            return
+        }
+        persistApiMode(clearCheckResults = false)
+    }
+
+    private fun persistApiMode(clearCheckResults: Boolean) {
+        viewModelScope.launch {
+            persistApiModeState(clearCheckResults = clearCheckResults)
+        }
+    }
+
+    private suspend fun persistApiModeState(clearCheckResults: Boolean) {
+        prefs.writeApiConfig(
+            useThirdParty = useThirdPartyApi,
+            useLocalModel = useLocalModel,
+            clearCheckResults = clearCheckResults,
+        )
+        prefs.setUseAriesApi(useAriesApi)
     }
 
     private fun stringRes(resId: Int, vararg args: Any): String =

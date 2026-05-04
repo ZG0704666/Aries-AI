@@ -271,6 +271,8 @@
     <string name="settings_api_description">优先在这里完成远程 API 或本地模型的接入配置。</string>
     <string name="settings_model_api_summary_title">接入概览</string>
     <string name="settings_model_api_summary_subtitle">按当前接入方式组织远程 API、本地模型与连接检查配置。</string>
+    <string name="settings_model_api_mode_title">选择接入方式</string>
+    <string name="settings_model_api_mode_subtitle">先确定当前使用的链路，再填写该模式真正需要的配置。</string>
     <string name="settings_model_api_mode_official">智谱官方 API</string>
     <string name="settings_model_api_mode_official_description">使用内置官方接入路径，适合直接填写智谱 API Key 后快速开始。</string>
     <string name="settings_model_api_mode_third_party">第三方兼容 API</string>
@@ -297,6 +299,9 @@
     <string name="settings_model_api_aries_membership_subtitle">解锁更多额度与高级功能</string>
     <string name="settings_model_api_aries_login">登录 Aries 账号</string>
     <string name="settings_model_api_aries_logged_in">已登录：%1$s</string>
+    <string name="settings_model_api_aries_logout">退出 Aries 账号</string>
+    <string name="settings_model_api_aries_ready">Aries 账号已就绪</string>
+    <string name="settings_model_api_aries_login_required">请先登录 Aries 账号</string>
 
     <!-- Aries 登录对话框 -->
     <string name="aries_login_dialog_title">登录 Aries 账号</string>
