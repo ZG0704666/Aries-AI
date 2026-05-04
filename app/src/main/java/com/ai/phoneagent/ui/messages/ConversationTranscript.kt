@@ -154,37 +154,11 @@ fun LazyListScope.conversationTranscriptItems(
 ) {
     if (items.isEmpty()) {
         item(key = "transcript_empty_hint", contentType = "empty_hint") {
-            val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-            val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-            Surface(
+            TranscriptEmptyHintCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = spacingMd),
-                shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 1.dp,
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingMd + spacingSm),
-                    verticalArrangement = Arrangement.spacedBy(spacingSm),
-                ) {
-                    Icon(
-                        imageVector = Lucide.Lightbulb,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        text = stringResource(R.string.transcript_empty_hint),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = stringResource(R.string.input_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+                    .padding(vertical = dimensionResource(R.dimen.m3t_spacing_md)),
+            )
         }
         return
     }
@@ -232,6 +206,41 @@ fun LazyListScope.conversationTranscriptItems(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun TranscriptEmptyHintCard(
+    modifier: Modifier = Modifier,
+) {
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingMd + spacingSm),
+            verticalArrangement = Arrangement.spacedBy(spacingSm),
+        ) {
+            Icon(
+                imageVector = Lucide.Lightbulb,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = stringResource(R.string.transcript_empty_hint),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = stringResource(R.string.input_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -746,7 +755,6 @@ private fun ThinkingSection(
             bodyVisible = false
         }
     }
-
     BoxWithConstraints(
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -795,11 +803,15 @@ private fun ThinkingSection(
             } else {
                 Modifier.width(animatedWidth)
             }
-        val contentWidthModifier = if (needsCollapsedBootstrap) Modifier.wrapContentWidth() else Modifier.fillMaxWidth()
+        val contentWidthModifier =
+            if (needsCollapsedBootstrap) {
+                Modifier.wrapContentWidth()
+            } else {
+                Modifier.fillMaxWidth()
+            }
 
         Surface(
-            modifier =
-                surfaceModifier,
+            modifier = surfaceModifier,
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.secondaryContainer,
             tonalElevation = 1.dp,

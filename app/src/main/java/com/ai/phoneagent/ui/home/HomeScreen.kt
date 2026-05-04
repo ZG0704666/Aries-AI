@@ -42,6 +42,7 @@ import com.ai.phoneagent.R
 import com.ai.phoneagent.ui.drawer.ConversationDrawer
 import com.ai.phoneagent.ui.drawer.DrawerConversationUiItem
 import com.ai.phoneagent.ui.messages.CodeBlockPrefs
+import com.ai.phoneagent.ui.messages.TranscriptEmptyHintCard
 import com.ai.phoneagent.ui.messages.TranscriptMessageUi
 import com.ai.phoneagent.ui.messages.conversationTranscriptItems
 import com.ai.phoneagent.ui.topbar.MainTopBar
@@ -166,6 +167,18 @@ fun HomeScreen(
                         animationSpec = tween(200),
                         label = "conversationSwitch",
                     ) { animKey ->
+                        if (lazyTranscriptItems.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                TranscriptEmptyHintCard(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .align(Alignment.TopCenter)
+                                        .padding(top = spacingMd),
+                                )
+                            }
+                            return@Crossfade
+                        }
+
                         val conversationId = remember(lazyTranscriptItems, animKey) {
                             lazyTranscriptItems.firstOrNull()?.conversationId ?: animKey
                         }
