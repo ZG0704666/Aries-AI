@@ -24,16 +24,16 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
@@ -52,9 +52,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.phoneagent.R
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.withContext
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.MarkdownTokenTypes
@@ -329,29 +326,24 @@ fun Markdown(
     }
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
 @Composable
 private fun MarkdownContent(text: String, modifier: Modifier) {
     var parsed by remember { mutableStateOf<MarkdownParseResult?>(null) }
 
-    // Reactive parse: cancel in-flight parse if text changes (streaming)
-    LaunchedEffect(Unit) {
-        snapshotFlow { text }
-            .distinctUntilChanged()
-            .mapLatest { src ->
-                val processed = preProcess(src)
-                withContext(Dispatchers.Default) {
-                    if (shouldUseHtmlRenderPipeline(processed)) {
-                        MarkdownParseResult.Html(generateMarkdownHtml(processed))
-                    } else {
-                        MarkdownParseResult.Ast(
-                            source = processed,
-                            root = markdownParser.buildMarkdownTreeFromString(processed),
-                        )
-                    }
-                }
+    // Re-launch parsing whenever the input changes so streaming Markdown can
+    // incrementally refresh instead of waiting for the composable instance to be replaced.
+    LaunchedEffect(text) {
+        val processed = preProcess(text)
+        parsed = withContext(Dispatchers.Default) {
+            if (shouldUseHtmlRenderPipeline(processed)) {
+                MarkdownParseResult.Html(generateMarkdownHtml(processed))
+            } else {
+                MarkdownParseResult.Ast(
+                    source = processed,
+                    root = markdownParser.buildMarkdownTreeFromString(processed),
+                )
             }
-            .collect { parsed = it }
+        }
     }
 
     val result = parsed
@@ -1025,68 +1017,22 @@ private fun ListNode(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         node.children.filter { it.type == MarkdownElementTypes.LIST_ITEM }.forEach { item ->
-            val firstLineNodes = mutableListOf<ASTNode>()
-            val remainingNodes = mutableListOf<ASTNode>()
-            var foundContentLine = false
-            var firstLineClosed = false
-
-            item.children.forEach { child ->
-                when {
-                    !foundContentLine && isListSyntaxNode(child, source) -> Unit
-                    !foundContentLine && child.type == MarkdownElementTypes.PARAGRAPH -> {
-                        val paragraphInlineNodes = child.children
-                            .filterNot { isListSyntaxNode(it, source) }
-                            .filter { isInlineRenderableNode(it) }
-                        if (paragraphInlineNodes.isNotEmpty()) {
-                            firstLineNodes += paragraphInlineNodes
-                            foundContentLine = true
-                        } else {
-                            remainingNodes += child
-                        }
-                    }
-                    !firstLineClosed && isInlineRenderableNode(child) -> {
-                        firstLineNodes += child
-                        foundContentLine = true
-                    }
-                    else -> {
-                        if (foundContentLine) firstLineClosed = true
-                        remainingNodes += child
-                    }
-                }
-            }
-
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text = if (ordered) "${counter++}." else "•",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = markerColor,
-                        modifier = Modifier
-                            .width(markerWidth)
-                            .alignByBaseline(),
-                        textAlign = TextAlign.End,
-                    )
-                    Spacer(Modifier.width(markerGap))
-                    if (firstLineNodes.isNotEmpty()) {
-                        RenderInlineNodes(
-                            nodes = firstLineNodes,
-                            source = source,
-                            isBold = false,
-                            modifier = Modifier
-                                .weight(1f)
-                                .alignByBaseline(),
-                        )
-                    } else {
-                        Spacer(Modifier.weight(1f))
-                    }
-                }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Text(
+                    text = if (ordered) "${counter++}." else "•",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = markerColor,
+                    modifier = Modifier.width(markerWidth),
+                    textAlign = TextAlign.End,
+                )
+                Spacer(Modifier.width(markerGap))
 
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = markerWidth + markerGap),
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     val inlineBuffer = mutableListOf<ASTNode>()
 
@@ -1102,12 +1048,14 @@ private fun ListNode(
                         inlineBuffer.clear()
                     }
 
-                    remainingNodes.forEach { child ->
-                        if (isInlineRenderableNode(child)) {
-                            inlineBuffer += child
-                        } else if (!isListSyntaxNode(child, source)) {
-                            flushInlineBuffer()
-                            MarkdownNode(child, source, depth + 1)
+                    item.children.forEach { child ->
+                        when {
+                            isListSyntaxNode(child, source) -> Unit
+                            isInlineRenderableNode(child) -> inlineBuffer += child
+                            else -> {
+                                flushInlineBuffer()
+                                MarkdownNode(child, source, depth + 1)
+                            }
                         }
                     }
                     flushInlineBuffer()

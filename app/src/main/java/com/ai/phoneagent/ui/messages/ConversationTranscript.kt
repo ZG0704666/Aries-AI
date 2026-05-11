@@ -59,6 +59,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -87,6 +88,8 @@ private val DESC_JSON_REGEX = Regex("""\"desc\"\s*:\s*\"([^\"]+)\"""", RegexOpti
 private val DESCRIPTION_JSON_REGEX = Regex("""\"description\"\s*:\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
 private val FENCED_CODE_BLOCK_REGEX = Regex("(?s)```([\\w+-]*)\\n(.*?)```")
 private const val CODE_BLOCK_COLLAPSE_LINE_THRESHOLD = 10
+private const val STREAMING_MARKDOWN_RENDER_INTERVAL_MS = 320L
+private val STREAMING_MARKDOWN_ORDERED_LIST_RE = Regex("""(?m)^\s*\d+\.\s""")
 
 @Immutable
 data class CodeBlockPrefs(
@@ -166,45 +169,92 @@ fun LazyListScope.conversationTranscriptItems(
     items(
         items = items,
         key = { it.id },
-        contentType = {
-            when {
-                it.isUser -> "user_message"
-                it.automation != null -> "automation_message"
-                !it.thinking.isNullOrBlank() -> "thinking_section"
-                else -> "assistant_message"
-            }
-        },
+        contentType = { transcriptItemContentType(it) },
     ) { item ->
-        val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = spacingSm / 2),
-        ) {
-            if (item.isUser) {
-                UserMessageBubble(
+        TranscriptMessageListItem(
+            item = item,
+            onCopyMessage = onCopyMessage,
+            onRetryMessage = onRetryMessage,
+            onAutomationAction = onAutomationAction,
+            thinkingExpandedByDefault = thinkingExpandedByDefault,
+            onEditMessage = onEditMessage,
+            codeBlockPrefs = codeBlockPrefs,
+        )
+    }
+}
+
+fun LazyListScope.conversationTranscriptItem(
+    item: TranscriptMessageUi,
+    onCopyMessage: (TranscriptMessageUi) -> Unit,
+    onRetryMessage: (TranscriptMessageUi) -> Unit,
+    onAutomationAction: (TranscriptMessageUi) -> Unit,
+    thinkingExpandedByDefault: Boolean,
+    onEditMessage: (TranscriptMessageUi) -> Unit = {},
+    codeBlockPrefs: CodeBlockPrefs = CodeBlockPrefs(),
+) {
+    item(
+        key = item.id,
+        contentType = transcriptItemContentType(item),
+    ) {
+        TranscriptMessageListItem(
+            item = item,
+            onCopyMessage = onCopyMessage,
+            onRetryMessage = onRetryMessage,
+            onAutomationAction = onAutomationAction,
+            thinkingExpandedByDefault = thinkingExpandedByDefault,
+            onEditMessage = onEditMessage,
+            codeBlockPrefs = codeBlockPrefs,
+        )
+    }
+}
+
+private fun transcriptItemContentType(item: TranscriptMessageUi): String =
+    when {
+        item.isUser -> "user_message"
+        item.automation != null -> "automation_message"
+        !item.thinking.isNullOrBlank() -> "thinking_section"
+        else -> "assistant_message"
+    }
+
+@Composable
+private fun TranscriptMessageListItem(
+    item: TranscriptMessageUi,
+    onCopyMessage: (TranscriptMessageUi) -> Unit,
+    onRetryMessage: (TranscriptMessageUi) -> Unit,
+    onAutomationAction: (TranscriptMessageUi) -> Unit,
+    thinkingExpandedByDefault: Boolean,
+    onEditMessage: (TranscriptMessageUi) -> Unit,
+    codeBlockPrefs: CodeBlockPrefs,
+) {
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = spacingSm / 2),
+    ) {
+        if (item.isUser) {
+            UserMessageBubble(
+                item = item,
+                onCopyMessage = onCopyMessage,
+                onRetryMessage = onRetryMessage,
+                onEditMessage = onEditMessage,
+            )
+        } else {
+            CompositionLocalProvider(
+                LocalCodeBlockPrefs provides codeBlockPrefs,
+                LocalMarkdownSettings provides MarkdownSettings(
+                    autoWrap = codeBlockPrefs.autoWrap,
+                    lineNumbers = codeBlockPrefs.lineNumbers,
+                    autoCollapse = codeBlockPrefs.autoCollapse,
+                ),
+            ) {
+                AssistantMessageBlock(
                     item = item,
+                    thinkingExpandedByDefault = thinkingExpandedByDefault,
                     onCopyMessage = onCopyMessage,
                     onRetryMessage = onRetryMessage,
-                    onEditMessage = onEditMessage,
+                    onAutomationAction = onAutomationAction,
                 )
-            } else {
-                CompositionLocalProvider(
-                    LocalCodeBlockPrefs provides codeBlockPrefs,
-                    LocalMarkdownSettings provides MarkdownSettings(
-                        autoWrap     = codeBlockPrefs.autoWrap,
-                        lineNumbers  = codeBlockPrefs.lineNumbers,
-                        autoCollapse = codeBlockPrefs.autoCollapse,
-                    ),
-                ) {
-                    AssistantMessageBlock(
-                        item = item,
-                        thinkingExpandedByDefault = thinkingExpandedByDefault,
-                        onCopyMessage = onCopyMessage,
-                        onRetryMessage = onRetryMessage,
-                        onAutomationAction = onAutomationAction,
-                    )
-                }
             }
         }
     }
@@ -496,7 +546,15 @@ private fun AssistantMessageBlock(
                 tonalElevation = if (item.isStreaming) 2.dp else 1.dp,
             ) {
                 SelectionContainer {
-                    if (item.isStreaming) {
+                    if (item.isStreaming && shouldRenderStreamingMarkdown(item.body)) {
+                        StreamingMarkdownPreview(
+                            text = item.body,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = spacingMd, vertical = spacingMd),
+                        )
+                    } else if (item.isStreaming) {
                         Text(
                             text = item.body,
                             style = MaterialTheme.typography.bodyMedium,
@@ -566,6 +624,130 @@ private fun AssistantMessageBlock(
             }
         }
     }
+}
+
+private fun shouldRenderStreamingMarkdown(text: String): Boolean {
+    if (text.length < 2) return false
+    return text.contains("```") ||
+        text.contains('`') ||
+        text.contains("$$") ||
+        text.contains("\\(") ||
+        text.contains("\\[") ||
+        text.contains("\\begin{") ||
+        text.contains("**") ||
+        text.contains("__") ||
+        text.startsWith("# ") ||
+        text.contains("\n# ") ||
+        text.startsWith("- ") ||
+        text.contains("\n- ") ||
+        text.startsWith("* ") ||
+        text.contains("\n* ") ||
+        text.startsWith("> ") ||
+        text.contains("\n> ") ||
+        text.contains("](") ||
+        text.contains("|") ||
+        STREAMING_MARKDOWN_ORDERED_LIST_RE.containsMatchIn(text)
+}
+
+@Composable
+private fun StreamingMarkdownPreview(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    val latestText by rememberUpdatedState(text)
+    var renderedMarkdownText by remember {
+        mutableStateOf(extractStableStreamingMarkdownPrefix(text))
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            val candidate = latestText
+            val stableCandidate = extractStableStreamingMarkdownPrefix(candidate)
+            if (stableCandidate.length > renderedMarkdownText.length &&
+                candidate.startsWith(renderedMarkdownText) &&
+                candidate.startsWith(stableCandidate)
+            ) {
+                renderedMarkdownText = stableCandidate
+            }
+            kotlinx.coroutines.delay(STREAMING_MARKDOWN_RENDER_INTERVAL_MS)
+        }
+    }
+
+    if (renderedMarkdownText.isBlank()) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = modifier.fillMaxWidth(),
+        )
+        return
+    }
+
+    Markdown(
+        text = renderedMarkdownText,
+        modifier = modifier.fillMaxWidth(),
+    )
+}
+
+private fun extractStableStreamingMarkdownPrefix(text: String): String {
+    if (text.isBlank()) return text
+    val stableEnd = findStableStreamingMarkdownEnd(text)
+    if (stableEnd <= 0) return ""
+    if (stableEnd >= text.length) return text
+    return text.substring(0, stableEnd)
+}
+
+private fun findStableStreamingMarkdownEnd(text: String): Int {
+    var safeEnd = 0
+    var inFence = false
+    var inInlineCode = false
+    var inBlockMath = false
+    var inInlineMath = false
+    var index = 0
+
+    while (index < text.length) {
+        if (!inInlineCode && !inBlockMath && !inInlineMath && text.startsWith("```", index)) {
+            inFence = !inFence
+            index += 3
+            continue
+        }
+        if (!inFence && !inInlineCode && !inInlineMath && text.startsWith("$$", index)) {
+            inBlockMath = !inBlockMath
+            index += 2
+            continue
+        }
+
+        val ch = text[index]
+        if (!inFence && !inBlockMath && ch == '`') {
+            inInlineCode = !inInlineCode
+            index += 1
+            continue
+        }
+        if (!inFence && !inInlineCode && !inBlockMath && ch == '$' && !isEscapedMarkdownChar(text, index)) {
+            inInlineMath = !inInlineMath
+            index += 1
+            continue
+        }
+        if (ch == '\n' && !inFence && !inInlineCode && !inBlockMath && !inInlineMath) {
+            safeEnd = index + 1
+        }
+        index += 1
+    }
+
+    if (!inFence && !inInlineCode && !inBlockMath && !inInlineMath) {
+        safeEnd = text.length
+    }
+    return safeEnd
+}
+
+private fun isEscapedMarkdownChar(text: String, index: Int): Boolean {
+    var slashCount = 0
+    var cursor = index - 1
+    while (cursor >= 0 && text[cursor] == '\\') {
+        slashCount += 1
+        cursor -= 1
+    }
+    return slashCount % 2 == 1
 }
 
 private fun parseMessageBodySegments(content: String): List<MessageBodySegment> {

@@ -1,5 +1,6 @@
 package com.ai.phoneagent.ui.components.markdown
 
+import android.util.LruCache
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
@@ -7,9 +8,12 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.InlineTextContent
@@ -160,6 +164,28 @@ internal fun splitLatexDocSegments(payload: String): List<LatexSegment> {
 //  Low-level rendering (call on Dispatchers.Default)
 // ─────────────────────────────────────────────────────────────────────────────
 
+private data class LatexBitmapCacheEntry(
+    val bitmap: Bitmap,
+    val widthPx: Float,
+    val heightPx: Float,
+)
+
+private val latexBitmapCache = object : LruCache<String, LatexBitmapCacheEntry>(96) {}
+
+private fun buildLatexCacheKey(
+    formula: String,
+    textSizePx: Float,
+    argb: Int,
+    displayMode: Boolean,
+): String {
+    return listOf(
+        if (displayMode) "display" else "inline",
+        formula,
+        textSizePx,
+        argb,
+    ).joinToString("|")
+}
+
 /** Renders [formula] to a [Bitmap] with JLatexMath-Android; returns null on failure. */
 fun renderLatexToBitmap(formula: String, textSizePx: Float, argb: Int): Bitmap? = try {
     val tf   = TeXFormula(formula)
@@ -198,7 +224,19 @@ fun MathBlock(formula: String, modifier: Modifier = Modifier) {
     val settings   = LocalMarkdownSettings.current
     val fgColor    = MaterialTheme.colorScheme.onSurface
     val density    = LocalDensity.current
-    val textSizePx = with(density) { 16.sp.toPx() }
+    val displayTextSizePx = with(density) { 16.sp.toPx() * 1.3f }
+    val cacheKey = remember(formula, fgColor, displayTextSizePx) {
+        buildLatexCacheKey(
+            formula = formula,
+            textSizePx = displayTextSizePx,
+            argb = fgColor.toArgb(),
+            displayMode = true,
+        )
+    }
+    val cachedEntry = remember(cacheKey) { latexBitmapCache.get(cacheKey) }
+    val placeholderSize = remember(formula, displayTextSizePx) {
+        assumeLatexSize(formula, displayTextSizePx)
+    }
 
     if (!settings.enableLatex) {
         Text(
@@ -210,30 +248,58 @@ fun MathBlock(formula: String, modifier: Modifier = Modifier) {
         return
     }
 
-    val bitmap by produceState<Bitmap?>(null, formula, fgColor) {
+    val cacheAwareInitialBitmap = cachedEntry?.bitmap
+    val bitmap by produceState(cacheAwareInitialBitmap, cacheKey) {
+        if (cacheAwareInitialBitmap != null) {
+            value = cacheAwareInitialBitmap
+            return@produceState
+        }
         value = withContext(Dispatchers.Default) {
-            renderLatexToBitmap(formula, textSizePx * 1.3f, fgColor.toArgb())
+            renderLatexToBitmap(formula, displayTextSizePx, fgColor.toArgb())
+                ?.also { rendered ->
+                    latexBitmapCache.put(
+                        cacheKey,
+                        LatexBitmapCacheEntry(
+                            bitmap = rendered,
+                            widthPx = rendered.width.toFloat(),
+                            heightPx = rendered.height.toFloat(),
+                        ),
+                    )
+                }
         }
     }
+
+    val widthPx = cachedEntry?.widthPx ?: bitmap?.width?.toFloat() ?: placeholderSize.first
+    val heightPx = cachedEntry?.heightPx ?: bitmap?.height?.toFloat() ?: placeholderSize.second
+    val widthDp = with(density) { widthPx.toDp() }
+    val heightDp = with(density) { heightPx.toDp() }
 
     Box(
         modifier          = modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         contentAlignment  = Alignment.Center,
     ) {
-        val bmp = bitmap
-        if (bmp != null) {
-            Image(
-                bitmap             = bmp.asImageBitmap(),
-                contentDescription = formula,
-                modifier           = Modifier.padding(vertical = 8.dp),
-            )
-        } else {
-            Text(
-                text     = formula,
-                style    = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                color    = fgColor.copy(alpha = 0.6f),
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            )
+        Box(
+            modifier = Modifier
+                .padding(vertical = 8.dp)
+                .width(widthDp)
+                .height(heightDp)
+        ) {
+            val bmp = bitmap
+            if (bmp != null) {
+                Image(
+                    bitmap = bmp.asImageBitmap(),
+                    contentDescription = formula,
+                    modifier = Modifier,
+                )
+            } else {
+                Spacer(modifier = Modifier.fillMaxWidth().height(heightDp))
+                Text(
+                    text = formula,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    color = fgColor.copy(alpha = 0.45f),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
         }
     }
 }
@@ -351,11 +417,34 @@ fun MathInlineText(text: String, modifier: Modifier = Modifier) {
         withContext(Dispatchers.Default) {
             segments.forEachIndexed { i, seg ->
                 if (seg.isMath) {
-                    map[i] = renderLatexToBitmap(
-                        normalizeInlineLatexFormula(seg.content),
-                        textSizePx,
-                        fgColor.toArgb(),
+                    val normalized = normalizeInlineLatexFormula(seg.content)
+                    val cacheKey = buildLatexCacheKey(
+                        formula = normalized,
+                        textSizePx = textSizePx,
+                        argb = fgColor.toArgb(),
+                        displayMode = false,
                     )
+                    val cached = latexBitmapCache.get(cacheKey)
+                    if (cached != null) {
+                        map[i] = cached.bitmap
+                    } else {
+                        val rendered = renderLatexToBitmap(
+                            normalized,
+                            textSizePx,
+                            fgColor.toArgb(),
+                        )
+                        if (rendered != null) {
+                            latexBitmapCache.put(
+                                cacheKey,
+                                LatexBitmapCacheEntry(
+                                    bitmap = rendered,
+                                    widthPx = rendered.width.toFloat(),
+                                    heightPx = rendered.height.toFloat(),
+                                ),
+                            )
+                        }
+                        map[i] = rendered
+                    }
                 }
             }
         }
