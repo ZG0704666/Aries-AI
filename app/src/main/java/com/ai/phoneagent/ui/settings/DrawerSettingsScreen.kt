@@ -1,16 +1,6 @@
 package com.ai.phoneagent.ui.settings
 
 import android.content.res.Configuration
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -58,7 +48,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -77,12 +66,9 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import com.ai.phoneagent.R
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
-import com.ai.phoneagent.core.designsystem.theme.AriesSettingsNavigationItem
-import com.ai.phoneagent.core.designsystem.theme.AriesSettingsSectionHeader
 import com.ai.phoneagent.core.designsystem.theme.ThemeMode
 import com.ai.phoneagent.ui.components.InfoTooltip
 import com.ai.phoneagent.viewmodel.SettingsViewModel
@@ -116,7 +102,6 @@ fun DrawerSettingsScreen(
     onOpenAutomation: () -> Unit,
     onOpenAbout: () -> Unit,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
@@ -155,6 +140,14 @@ fun DrawerSettingsScreen(
                 entry.title.contains(query, ignoreCase = true) ||
                 entry.subtitle.contains(query, ignoreCase = true)
         }
+    val sections =
+        listOf(
+            stringResource(R.string.settings_section_appearance) to entries.filter { it.type == SettingsEntryType.Appearance },
+            stringResource(R.string.settings_section_model_automation) to entries.filter {
+                it.type == SettingsEntryType.ModelApi || it.type == SettingsEntryType.Automation
+            },
+            stringResource(R.string.settings_section_about) to entries.filter { it.type == SettingsEntryType.About },
+        )
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -205,24 +198,29 @@ fun DrawerSettingsScreen(
                 )
             }
 
-            val groupedEntries = filteredEntries.groupBy {
-                when (it.type) {
-                    SettingsEntryType.Appearance -> "界面"
-                    SettingsEntryType.ModelApi, SettingsEntryType.Automation -> "AI 设置"
-                    SettingsEntryType.About -> "关于"
-                }
-            }
-
-            groupedEntries.forEach { (header, groupEntries) ->
-                if (searchQuery.isBlank()) {
+            if (searchQuery.isBlank()) {
+                sections.forEach { (header, sectionEntries) ->
                     item(key = "header_$header") {
-                        AriesSettingsSectionHeader(title = header)
+                        SettingsSectionHeader(title = header)
+                    }
+                    items(sectionEntries, key = { it.type.name }) { entry ->
+                        SettingsEntryRow(
+                            entry = entry,
+                            onClick = {
+                                when (entry.type) {
+                                    SettingsEntryType.Appearance -> onOpenAppearance()
+                                    SettingsEntryType.ModelApi -> onOpenModelApi()
+                                    SettingsEntryType.Automation -> onOpenAutomation()
+                                    SettingsEntryType.About -> onOpenAbout()
+                                }
+                            },
+                        )
                     }
                 }
-                items(groupEntries, key = { it.type.name }) { entry ->
-                    AriesSettingsNavigationItem(
-                        headlineText = entry.title,
-                        supportingText = entry.subtitle,
+            } else {
+                items(filteredEntries, key = { it.type.name }) { entry ->
+                    SettingsEntryRow(
+                        entry = entry,
                         onClick = {
                             when (entry.type) {
                                 SettingsEntryType.Appearance -> onOpenAppearance()
@@ -231,21 +229,6 @@ fun DrawerSettingsScreen(
                                 SettingsEntryType.About -> onOpenAbout()
                             }
                         },
-                        leadingIcon = {
-                            if (entry.type == SettingsEntryType.About) {
-                                Icon(
-                                    imageVector = Lucide.Info,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            } else {
-                                Icon(
-                                    painter = painterResource(resolveEntryIcon(entry.type)),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
                     )
                 }
             }
@@ -260,6 +243,90 @@ fun DrawerSettingsScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SettingsSectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = dimensionResource(R.dimen.m3t_spacing_lg))
+                .padding(
+                    top = dimensionResource(R.dimen.m3t_spacing_lg),
+                    bottom = dimensionResource(R.dimen.m3t_spacing_xs),
+                ),
+    )
+}
+
+@Composable
+private fun SettingsEntryRow(
+    entry: SettingsEntryUi,
+    onClick: () -> Unit,
+) {
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val iconSize = dimensionResource(R.dimen.m3t_about_row_icon_size)
+    val chevronSize = dimensionResource(R.dimen.m3t_about_chevron_size)
+
+    Surface(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacingLg, vertical = spacingSm),
+            horizontalArrangement = Arrangement.spacedBy(spacingMd),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (entry.type == SettingsEntryType.About) {
+                Icon(
+                    imageVector = Lucide.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(iconSize),
+                )
+            } else {
+                Icon(
+                    painter = painterResource(resolveEntryIcon(entry.type)),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(iconSize),
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs)),
+            ) {
+                Text(
+                    text = entry.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = entry.subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                imageVector = Lucide.ArrowLeft,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(chevronSize).graphicsLayer { rotationZ = 180f },
+            )
         }
     }
 }
@@ -352,18 +419,8 @@ fun DrawerModelApiConfigScreen(
                 )
             }
         }
-    val statusContainerColor =
-        if (apiStatusPositive) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
-        }
-    val statusContentColor =
-        if (apiStatusPositive) {
-            MaterialTheme.colorScheme.onPrimaryContainer
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        }
+    val statusContainerColor = MaterialTheme.colorScheme.surfaceVariant
+    val statusContentColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -394,17 +451,10 @@ fun DrawerModelApiConfigScreen(
                     .padding(innerPadding)
                     .navigationBarsPadding(),
             contentPadding = PaddingValues(start = spacingLg, top = spacingSm, end = spacingLg, bottom = spacingXl),
-            verticalArrangement = Arrangement.spacedBy(spacingMd),
+            verticalArrangement = Arrangement.spacedBy(spacingSm),
         ) {
             item {
                 ModelApiSectionCard {
-                    SectionIntro(
-                        title = stringResource(R.string.settings_model_api_summary_title),
-                        subtitle = stringResource(R.string.settings_model_api_summary_subtitle),
-                    )
-
-                    Spacer(modifier = Modifier.height(spacingMd))
-
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(spacingSm),
@@ -412,7 +462,7 @@ fun DrawerModelApiConfigScreen(
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
                         ) {
                             Icon(
                                 imageVector =
@@ -443,12 +493,16 @@ fun DrawerModelApiConfigScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        StatusBadge(
-                            text = apiStatus,
-                            containerColor = statusContainerColor,
-                            contentColor = statusContentColor,
-                        )
                     }
+
+                    Spacer(modifier = Modifier.height(spacingMd))
+
+                    StatusPanel(
+                        title = stringResource(R.string.settings_model_api_status_title),
+                        body = apiStatus,
+                        containerColor = statusContainerColor,
+                        contentColor = statusContentColor,
+                    )
                 }
             }
 
@@ -461,8 +515,8 @@ fun DrawerModelApiConfigScreen(
 
                     Spacer(modifier = Modifier.height(spacingMd))
 
-                    Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
-                        modeOptions.forEach { option ->
+                    Column {
+                        modeOptions.forEachIndexed { index, option ->
                             ModeOptionRow(
                                 title = option.title,
                                 description = option.description,
@@ -470,6 +524,9 @@ fun DrawerModelApiConfigScreen(
                                 selected = currentApiMode == option.mode,
                                 onClick = { onApiModeChange(option.mode) },
                             )
+                            if (index != modeOptions.lastIndex) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            }
                         }
                     }
                 }
@@ -557,15 +614,6 @@ fun DrawerModelApiConfigScreen(
                         SectionIntro(
                             title = stringResource(R.string.settings_model_api_local_title),
                             subtitle = stringResource(R.string.settings_model_api_local_subtitle),
-                        )
-
-                        Spacer(modifier = Modifier.height(spacingMd))
-
-                        StatusPanel(
-                            title = stringResource(R.string.settings_model_api_status_title),
-                            body = apiStatus,
-                            containerColor = statusContainerColor,
-                            contentColor = statusContentColor,
                         )
 
                         Spacer(modifier = Modifier.height(spacingMd))
@@ -668,15 +716,6 @@ fun DrawerModelApiConfigScreen(
                         Spacer(modifier = Modifier.width(spacingSm))
                         Text(stringResource(R.string.m3t_sidebar_check_connection))
                     }
-
-                    Spacer(modifier = Modifier.height(spacingMd))
-
-                    StatusPanel(
-                        title = stringResource(R.string.settings_model_api_status_title),
-                        body = apiStatus,
-                        containerColor = statusContainerColor,
-                        contentColor = statusContentColor,
-                    )
                 }
             }
         }
@@ -687,13 +726,14 @@ fun DrawerModelApiConfigScreen(
 private fun ModelApiSectionCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = MaterialTheme.shapes.large,
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(spacingLg),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = spacingLg, vertical = spacingMd),
             verticalArrangement = Arrangement.Top,
             content = content,
         )
@@ -709,7 +749,7 @@ private fun SectionIntro(
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -728,27 +768,6 @@ private fun SectionIntro(
 }
 
 @Composable
-private fun StatusBadge(
-    text: String,
-    containerColor: androidx.compose.ui.graphics.Color,
-    contentColor: androidx.compose.ui.graphics.Color,
-) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    Surface(
-        color = containerColor,
-        shape = MaterialTheme.shapes.large,
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color = contentColor,
-            modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
-        )
-    }
-}
-
-@Composable
 private fun StatusPanel(
     title: String,
     body: String,
@@ -756,13 +775,14 @@ private fun StatusPanel(
     contentColor: androidx.compose.ui.graphics.Color,
 ) {
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     Surface(
         color = containerColor,
         shape = MaterialTheme.shapes.large,
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(spacingMd),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = spacingMd, vertical = spacingSm),
             verticalArrangement = Arrangement.spacedBy(spacingXs),
         ) {
             Text(
@@ -772,7 +792,7 @@ private fun StatusPanel(
             )
             Text(
                 text = body,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
                 color = contentColor,
             )
         }
@@ -791,40 +811,24 @@ private fun ModeOptionRow(
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = MaterialTheme.shapes.large,
-        color =
-            if (selected) {
-                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.56f)
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
-            },
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(spacingMd),
             horizontalArrangement = Arrangement.spacedBy(spacingSm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                shape = CircleShape,
-                color =
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint =
                     if (selected) {
-                        MaterialTheme.colorScheme.primaryContainer
+                        MaterialTheme.colorScheme.primary
                     } else {
-                        MaterialTheme.colorScheme.surface
+                        MaterialTheme.colorScheme.onSurfaceVariant
                     },
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint =
-                        if (selected) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    modifier = Modifier.padding(spacingSm),
-                )
-            }
+                modifier = Modifier.size(dimensionResource(R.dimen.m3t_about_row_icon_size)),
+            )
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs)),
@@ -865,54 +869,14 @@ private fun FilledInputField(
         shape = MaterialTheme.shapes.large,
         colors =
             TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f),
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
                 unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
                 disabledIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
             ),
     )
-}
-
-@Composable
-private fun DetailSwitchRow(
-    title: String,
-    summary: String? = null,
-    tooltipText: String? = null,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(spacingSm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Medium,
-                )
-                if (tooltipText != null) {
-                    Spacer(modifier = Modifier.width(spacingXs))
-                    InfoTooltip(tooltipText = tooltipText)
-                }
-            }
-            if (summary != null) {
-                Text(
-                    text = summary,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
 }
 
 private fun resolveEntryIcon(type: SettingsEntryType): Int =

@@ -59,6 +59,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -82,13 +83,16 @@ import com.ai.phoneagent.ui.components.markdown.MarkdownSettings
 import com.ai.phoneagent.ui.components.markdown.LocalMarkdownSettings
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.sample
 
 private val DESC_DO_REGEX = Regex("""desc\s*=\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
 private val DESC_JSON_REGEX = Regex("""\"desc\"\s*:\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
 private val DESCRIPTION_JSON_REGEX = Regex("""\"description\"\s*:\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
 private val FENCED_CODE_BLOCK_REGEX = Regex("(?s)```([\\w+-]*)\\n(.*?)```")
 private const val CODE_BLOCK_COLLAPSE_LINE_THRESHOLD = 10
-private const val STREAMING_MARKDOWN_RENDER_INTERVAL_MS = 320L
+private const val STREAMING_MARKDOWN_RENDER_INTERVAL_MS = 480L
+private const val STREAMING_MARKDOWN_MIN_CHUNK_DELTA = 48
 private val STREAMING_MARKDOWN_ORDERED_LIST_RE = Regex("""(?m)^\s*\d+\.\s""")
 
 @Immutable
@@ -545,26 +549,26 @@ private fun AssistantMessageBlock(
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = if (item.isStreaming) 2.dp else 1.dp,
             ) {
-                SelectionContainer {
-                    if (item.isStreaming && shouldRenderStreamingMarkdown(item.body)) {
-                        StreamingMarkdownPreview(
-                            text = item.body,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = spacingMd, vertical = spacingMd),
-                        )
-                    } else if (item.isStreaming) {
-                        Text(
-                            text = item.body,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = spacingMd, vertical = spacingMd),
-                        )
-                    } else {
+                if (item.isStreaming && shouldRenderStreamingMarkdown(item.body)) {
+                    StreamingMarkdownPreview(
+                        text = item.body,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = spacingMd, vertical = spacingMd),
+                    )
+                } else if (item.isStreaming) {
+                    Text(
+                        text = item.body,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = spacingMd, vertical = spacingMd),
+                    )
+                } else {
+                    SelectionContainer {
                         Markdown(
                             text = item.body,
                             modifier =
@@ -650,30 +654,50 @@ private fun shouldRenderStreamingMarkdown(text: String): Boolean {
 }
 
 @Composable
+@OptIn(FlowPreview::class)
 private fun StreamingMarkdownPreview(
     text: String,
     modifier: Modifier = Modifier,
 ) {
-    val latestText by rememberUpdatedState(text)
+    val latestTextState = rememberUpdatedState(text)
     var renderedMarkdownText by remember {
         mutableStateOf(extractStableStreamingMarkdownPrefix(text))
     }
+    val renderedBlocks = remember(renderedMarkdownText) {
+        splitStableStreamingMarkdownBlocks(renderedMarkdownText)
+    }
 
     LaunchedEffect(Unit) {
-        while (true) {
-            val candidate = latestText
-            val stableCandidate = extractStableStreamingMarkdownPrefix(candidate)
-            if (stableCandidate.length > renderedMarkdownText.length &&
-                candidate.startsWith(renderedMarkdownText) &&
-                candidate.startsWith(stableCandidate)
-            ) {
-                renderedMarkdownText = stableCandidate
+        snapshotFlow { latestTextState.value }
+            .sample(STREAMING_MARKDOWN_RENDER_INTERVAL_MS)
+            .collect { candidate ->
+                val stableCandidate = extractStableStreamingMarkdownPrefix(candidate)
+                if (stableCandidate.length > renderedMarkdownText.length &&
+                    candidate.startsWith(renderedMarkdownText) &&
+                    candidate.startsWith(stableCandidate) &&
+                    shouldAdvanceStreamingMarkdownPreview(
+                        previousRendered = renderedMarkdownText,
+                        nextRendered = stableCandidate,
+                    )
+                ) {
+                    renderedMarkdownText = stableCandidate
+                }
             }
-            kotlinx.coroutines.delay(STREAMING_MARKDOWN_RENDER_INTERVAL_MS)
+    }
+
+    LaunchedEffect(text) {
+        val stableCandidate = extractStableStreamingMarkdownPrefix(text)
+        if (stableCandidate.length > renderedMarkdownText.length &&
+            shouldAdvanceStreamingMarkdownPreview(
+                previousRendered = renderedMarkdownText,
+                nextRendered = stableCandidate,
+            )
+        ) {
+            renderedMarkdownText = stableCandidate
         }
     }
 
-    if (renderedMarkdownText.isBlank()) {
+    if (renderedBlocks.isEmpty()) {
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium,
@@ -683,10 +707,31 @@ private fun StreamingMarkdownPreview(
         return
     }
 
-    Markdown(
-        text = renderedMarkdownText,
+    Column(
         modifier = modifier.fillMaxWidth(),
-    )
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        renderedBlocks.forEach { block ->
+            Markdown(
+                text = block,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+private fun shouldAdvanceStreamingMarkdownPreview(
+    previousRendered: String,
+    nextRendered: String,
+): Boolean {
+    if (previousRendered.isBlank()) return true
+    val delta = nextRendered.length - previousRendered.length
+    return delta >= STREAMING_MARKDOWN_MIN_CHUNK_DELTA ||
+        nextRendered.endsWith('\n') ||
+        nextRendered.endsWith("```") ||
+        nextRendered.endsWith("$$") ||
+        nextRendered.endsWith("\\)") ||
+        nextRendered.endsWith("\\]")
 }
 
 private fun extractStableStreamingMarkdownPrefix(text: String): String {
@@ -738,6 +783,66 @@ private fun findStableStreamingMarkdownEnd(text: String): Int {
         safeEnd = text.length
     }
     return safeEnd
+}
+
+private fun splitStableStreamingMarkdownBlocks(text: String): List<String> {
+    if (text.isBlank()) return emptyList()
+
+    val blocks = mutableListOf<String>()
+    var blockStart = 0
+    var lineStart = 0
+    var inFence = false
+    var inInlineCode = false
+    var inBlockMath = false
+    var inInlineMath = false
+    var index = 0
+
+    fun flushBlock(endExclusive: Int) {
+        if (endExclusive <= blockStart) return
+        val block = text.substring(blockStart, endExclusive).trim('\n', '\r')
+        if (block.isNotBlank()) {
+            blocks += block
+        }
+        blockStart = endExclusive
+    }
+
+    while (index < text.length) {
+        if (!inInlineCode && !inBlockMath && !inInlineMath && text.startsWith("```", index)) {
+            inFence = !inFence
+            index += 3
+            continue
+        }
+        if (!inFence && !inInlineCode && !inInlineMath && text.startsWith("$$", index)) {
+            inBlockMath = !inBlockMath
+            index += 2
+            continue
+        }
+
+        val ch = text[index]
+        if (!inFence && !inBlockMath && ch == '`') {
+            inInlineCode = !inInlineCode
+            index += 1
+            continue
+        }
+        if (!inFence && !inInlineCode && !inBlockMath && ch == '$' && !isEscapedMarkdownChar(text, index)) {
+            inInlineMath = !inInlineMath
+            index += 1
+            continue
+        }
+        if (ch == '\n') {
+            if (!inFence && !inInlineCode && !inBlockMath && !inInlineMath) {
+                val line = text.substring(lineStart, index)
+                if (line.isBlank()) {
+                    flushBlock(index + 1)
+                }
+            }
+            lineStart = index + 1
+        }
+        index += 1
+    }
+
+    flushBlock(text.length)
+    return blocks
 }
 
 private fun isEscapedMarkdownChar(text: String, index: Int): Boolean {
@@ -889,7 +994,7 @@ private fun ThinkingSection(
     val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
     var expanded by rememberSaveable(item.id) {
-        mutableStateOf(item.isStreaming)
+        mutableStateOf(item.isStreaming || thinkingExpandedByDefault)
     }
     var wasStreaming by rememberSaveable(item.id) {
         mutableStateOf(item.isStreaming)
@@ -898,8 +1003,6 @@ private fun ThinkingSection(
     LaunchedEffect(item.id, item.isStreaming) {
         if (item.isStreaming && !wasStreaming) {
             expanded = true
-        } else if (!item.isStreaming && wasStreaming) {
-            expanded = false
         }
         wasStreaming = item.isStreaming
     }
@@ -1031,15 +1134,15 @@ private fun ThinkingSection(
                         animationSpec = tween(200, easing = FastOutSlowInEasing),
                     ),
                 ) {
-                    SelectionContainer {
-                        if (item.isStreaming) {
-                            Text(
-                                text = thinking,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        } else {
+                    if (item.isStreaming) {
+                        Text(
+                            text = thinking,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        SelectionContainer {
                             Markdown(
                                 text = thinking,
                                 modifier = Modifier.fillMaxWidth(),

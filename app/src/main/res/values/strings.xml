@@ -258,6 +258,9 @@
     <string name="settings_subtitle">统一管理 API、本地模型与工具入口。</string>
     <string name="settings_search_hint">搜索设置</string>
     <string name="settings_search_empty">没有匹配的设置项</string>
+    <string name="settings_section_appearance">外观</string>
+    <string name="settings_section_model_automation">模型与自动化</string>
+    <string name="settings_section_about">关于</string>
     <string name="settings_entry_appearance_title">外观设置</string>
     <string name="settings_entry_appearance_subtitle">主题、界面密度与显示风格</string>
     <string name="settings_entry_model_api_title">模型与 API 配置</string>

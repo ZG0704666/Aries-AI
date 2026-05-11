@@ -145,6 +145,7 @@ import com.ai.phoneagent.ui.inputbar.InputState
 import com.ai.phoneagent.ui.inputbar.InputBar
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -1013,6 +1014,26 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
                 .orEmpty()
+    }
+
+    private fun replaceStreamingTranscriptWithConversation(
+        conversation: Conversation? = activeConversation,
+    ) {
+        Snapshot.withMutableSnapshot {
+            streamingTranscriptConversationIdState.value = null
+            streamingTranscriptItemState.value = null
+            transcriptItemsState.value =
+                conversation
+                    ?.messages
+                    ?.mapIndexed { index, message ->
+                        buildTranscriptMessageUi(
+                            conversationId = conversation.id,
+                            index = index,
+                            message = message,
+                        )
+                    }
+                    .orEmpty()
+        }
     }
 
     private fun refreshAutomationCardsForCurrentConversation() {
@@ -3311,8 +3332,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 )
                 cc.updatedAt = System.currentTimeMillis()
-                clearStreamingTranscript()
-                syncMessageTranscript(cc)
+                replaceStreamingTranscriptWithConversation(cc)
                 persistConversations()
 
                 if (!automationInstruction.isNullOrBlank()) {

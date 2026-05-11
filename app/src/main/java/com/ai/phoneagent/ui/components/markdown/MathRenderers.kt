@@ -187,9 +187,15 @@ private fun buildLatexCacheKey(
 }
 
 /** Renders [formula] to a [Bitmap] with JLatexMath-Android; returns null on failure. */
-fun renderLatexToBitmap(formula: String, textSizePx: Float, argb: Int): Bitmap? = try {
+fun renderLatexToBitmap(
+    formula: String,
+    textSizePx: Float,
+    argb: Int,
+    displayMode: Boolean,
+): Bitmap? = try {
     val tf   = TeXFormula(formula)
-    val icon = tf.createTeXIcon(TeXConstants.STYLE_DISPLAY, textSizePx)
+    val style = if (displayMode) TeXConstants.STYLE_DISPLAY else TeXConstants.STYLE_TEXT
+    val icon = tf.createTeXIcon(style, textSizePx)
     icon.setForeground(ru.noties.jlatexmath.awt.Color(argb))
     if (icon.iconWidth <= 0 || icon.iconHeight <= 0) null
     else {
@@ -204,8 +210,13 @@ fun renderLatexToBitmap(formula: String, textSizePx: Float, argb: Int): Bitmap? 
 } catch (_: Exception) { null }
 
 /** Estimates pixel dimensions of [formula] for placeholder sizing. */
-fun assumeLatexSize(formula: String, textSizePx: Float): Pair<Float, Float> = try {
-    val icon = TeXFormula(formula).createTeXIcon(TeXConstants.STYLE_TEXT, textSizePx)
+fun assumeLatexSize(
+    formula: String,
+    textSizePx: Float,
+    displayMode: Boolean,
+): Pair<Float, Float> = try {
+    val style = if (displayMode) TeXConstants.STYLE_DISPLAY else TeXConstants.STYLE_TEXT
+    val icon = TeXFormula(formula).createTeXIcon(style, textSizePx)
     icon.iconWidth.toFloat() to icon.iconHeight.toFloat()
 } catch (_: Exception) {
     (formula.length.coerceAtLeast(4) * textSizePx * 0.55f) to (textSizePx * 1.6f)
@@ -235,7 +246,11 @@ fun MathBlock(formula: String, modifier: Modifier = Modifier) {
     }
     val cachedEntry = remember(cacheKey) { latexBitmapCache.get(cacheKey) }
     val placeholderSize = remember(formula, displayTextSizePx) {
-        assumeLatexSize(formula, displayTextSizePx)
+        assumeLatexSize(
+            formula = formula,
+            textSizePx = displayTextSizePx,
+            displayMode = true,
+        )
     }
 
     if (!settings.enableLatex) {
@@ -255,7 +270,12 @@ fun MathBlock(formula: String, modifier: Modifier = Modifier) {
             return@produceState
         }
         value = withContext(Dispatchers.Default) {
-            renderLatexToBitmap(formula, displayTextSizePx, fgColor.toArgb())
+            renderLatexToBitmap(
+                formula = formula,
+                textSizePx = displayTextSizePx,
+                argb = fgColor.toArgb(),
+                displayMode = true,
+            )
                 ?.also { rendered ->
                     latexBitmapCache.put(
                         cacheKey,
@@ -429,9 +449,10 @@ fun MathInlineText(text: String, modifier: Modifier = Modifier) {
                         map[i] = cached.bitmap
                     } else {
                         val rendered = renderLatexToBitmap(
-                            normalized,
-                            textSizePx,
-                            fgColor.toArgb(),
+                            formula = normalized,
+                            textSizePx = textSizePx,
+                            argb = fgColor.toArgb(),
+                            displayMode = false,
                         )
                         if (rendered != null) {
                             latexBitmapCache.put(
@@ -485,7 +506,11 @@ private fun buildMathAnnotated(
                 val bmp = bitmaps[i]
 
                 val (wPx, hPx) = if (bmp != null) bmp.width.toFloat() to bmp.height.toFloat()
-                                  else assumeLatexSize(formula, textSizePx)
+                                  else assumeLatexSize(
+                                      formula = formula,
+                                      textSizePx = textSizePx,
+                                      displayMode = false,
+                                  )
                 val wSp = with(density) { wPx.toDp().toSp() }
                 val hSp = with(density) { hPx.toDp().toSp() }
 
