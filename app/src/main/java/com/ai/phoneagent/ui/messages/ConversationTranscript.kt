@@ -55,6 +55,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.compositionLocalOf
@@ -135,6 +136,75 @@ data class TranscriptMessageUi(
 )
 
 @Immutable
+data class StreamingTranscriptBodyPreview(
+    val usesMarkdownPreview: Boolean,
+    val committedBlocks: ImmutableList<String>,
+    val committedPrefixLength: Int,
+    val tailText: String,
+    val fullTextLength: Int,
+    val layoutVersion: Int,
+)
+
+@Stable
+class StreamingTranscriptMessageState(
+    val conversationId: Long,
+    val messageIndex: Int,
+    val id: String,
+    val author: String,
+    val retryText: String?,
+    initialBody: String,
+    initialThinking: String?,
+    initialCopyText: String,
+    initialBodyPreview: StreamingTranscriptBodyPreview = buildStreamingTranscriptBodyPreview(initialBody),
+) {
+    private var bodyText: String = initialBody
+
+    var bodyPreview by mutableStateOf(initialBodyPreview)
+        private set
+
+    var thinking by mutableStateOf(initialThinking)
+        private set
+
+    var copyText by mutableStateOf(initialCopyText)
+        private set
+
+    val bodyLength: Int
+        get() = bodyPreview.fullTextLength
+
+    val bodyLayoutVersion: Int
+        get() = bodyPreview.layoutVersion
+
+    val thinkingLength: Int
+        get() = thinking?.length ?: 0
+
+    val thinkingLayoutVersion: Int
+        get() = computeStreamingTextLayoutVersion(thinking.orEmpty())
+
+    fun update(
+        nextBody: String,
+        nextThinking: String?,
+        nextCopyText: String,
+        nextBodyPreview: StreamingTranscriptBodyPreview? = null,
+    ) {
+        if (bodyText != nextBody) {
+            bodyText = nextBody
+            val resolvedBodyPreview = nextBodyPreview ?: buildStreamingTranscriptBodyPreview(nextBody)
+            if (bodyPreview != resolvedBodyPreview) {
+                bodyPreview = resolvedBodyPreview
+            }
+        } else if (nextBodyPreview != null && bodyPreview != nextBodyPreview) {
+            bodyPreview = nextBodyPreview
+        }
+        if (thinking != nextThinking) {
+            thinking = nextThinking
+        }
+        if (copyText != nextCopyText) {
+            copyText = nextCopyText
+        }
+    }
+}
+
+@Immutable
 data class TranscriptAutomationUi(
     val command: String,
     val status: String,
@@ -213,12 +283,44 @@ fun LazyListScope.conversationTranscriptItem(
     }
 }
 
+fun LazyListScope.conversationTranscriptItem(
+    item: StreamingTranscriptMessageState,
+    onCopyMessage: (TranscriptMessageUi) -> Unit,
+    onRetryMessage: (TranscriptMessageUi) -> Unit,
+    onAutomationAction: (TranscriptMessageUi) -> Unit,
+    thinkingExpandedByDefault: Boolean,
+    onEditMessage: (TranscriptMessageUi) -> Unit = {},
+    codeBlockPrefs: CodeBlockPrefs = CodeBlockPrefs(),
+) {
+    item(
+        key = item.id,
+        contentType = streamingTranscriptItemContentType(item),
+    ) {
+        StreamingTranscriptMessageListItem(
+            itemState = item,
+            onCopyMessage = onCopyMessage,
+            onRetryMessage = onRetryMessage,
+            onAutomationAction = onAutomationAction,
+            thinkingExpandedByDefault = thinkingExpandedByDefault,
+            onEditMessage = onEditMessage,
+            codeBlockPrefs = codeBlockPrefs,
+        )
+    }
+}
+
 private fun transcriptItemContentType(item: TranscriptMessageUi): String =
     when {
         item.isUser -> "user_message"
         item.automation != null -> "automation_message"
         !item.thinking.isNullOrBlank() -> "thinking_section"
         else -> "assistant_message"
+    }
+
+private fun streamingTranscriptItemContentType(itemState: StreamingTranscriptMessageState): String =
+    if (!itemState.thinking.isNullOrBlank()) {
+        "thinking_section"
+    } else {
+        "assistant_message"
     }
 
 @Composable
@@ -261,6 +363,38 @@ private fun TranscriptMessageListItem(
                     onAutomationAction = onAutomationAction,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun StreamingTranscriptMessageListItem(
+    itemState: StreamingTranscriptMessageState,
+    onCopyMessage: (TranscriptMessageUi) -> Unit,
+    onRetryMessage: (TranscriptMessageUi) -> Unit,
+    onAutomationAction: (TranscriptMessageUi) -> Unit,
+    thinkingExpandedByDefault: Boolean,
+    onEditMessage: (TranscriptMessageUi) -> Unit,
+    codeBlockPrefs: CodeBlockPrefs,
+) {
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = spacingSm / 2),
+    ) {
+        CompositionLocalProvider(
+            LocalCodeBlockPrefs provides codeBlockPrefs,
+            LocalMarkdownSettings provides MarkdownSettings(
+                autoWrap = codeBlockPrefs.autoWrap,
+                lineNumbers = codeBlockPrefs.lineNumbers,
+                autoCollapse = codeBlockPrefs.autoCollapse,
+            ),
+        ) {
+            StreamingAssistantMessageBlock(
+                itemState = itemState,
+                thinkingExpandedByDefault = thinkingExpandedByDefault,
+            )
         }
     }
 }
@@ -564,6 +698,115 @@ private fun AssistantMessageBlock(
 }
 
 @Composable
+private fun StreamingAssistantMessageBlock(
+    itemState: StreamingTranscriptMessageState,
+    thinkingExpandedByDefault: Boolean,
+) {
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val maxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = maxWidth),
+        verticalArrangement = Arrangement.spacedBy(spacingSm),
+    ) {
+        AssistantMessageHeader(
+            author = itemState.author,
+            isStreaming = true,
+            spacingSm = spacingSm,
+            spacingXs = spacingXs,
+        )
+
+        StreamingAssistantThinkingSection(
+            itemState = itemState,
+            thinkingExpandedByDefault = thinkingExpandedByDefault,
+        )
+
+        StreamingAssistantBodySection(itemState = itemState)
+    }
+}
+
+@Composable
+private fun StreamingAssistantThinkingSection(
+    itemState: StreamingTranscriptMessageState,
+    thinkingExpandedByDefault: Boolean,
+) {
+    ThinkingSection(
+        messageId = itemState.id,
+        thinking = itemState.thinking,
+        thinkingDurationMs = null,
+        isStreaming = true,
+        thinkingExpandedByDefault = thinkingExpandedByDefault,
+    )
+}
+
+@Composable
+private fun StreamingAssistantBodySection(
+    itemState: StreamingTranscriptMessageState,
+) {
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val bodyPreview = itemState.bodyPreview
+    if (bodyPreview.fullTextLength == 0) return
+
+    StreamingAssistantBodyPreview(
+        preview = bodyPreview,
+        spacingMd = spacingMd,
+    )
+}
+
+@Composable
+private fun StreamingAssistantBodyPreview(
+    preview: StreamingTranscriptBodyPreview,
+    spacingMd: Dp,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp,
+    ) {
+        if (!preview.usesMarkdownPreview || preview.committedBlocks.isEmpty()) {
+            Text(
+                text = preview.tailText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacingMd, vertical = spacingMd),
+            )
+        } else {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacingMd, vertical = spacingMd),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                preview.committedBlocks.forEachIndexed { index, block ->
+                    key(index, block) {
+                        Markdown(
+                            text = block,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
+                if (preview.tailText.isNotBlank()) {
+                    Text(
+                        text = preview.tailText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun AssistantMessageHeader(
     author: String,
     isStreaming: Boolean,
@@ -811,6 +1054,62 @@ private data class StreamingMarkdownSnapshot(
     val blocks: ImmutableList<String>,
     val committedPrefixLength: Int,
 )
+
+fun buildStreamingTranscriptBodyPreview(text: String): StreamingTranscriptBodyPreview {
+    if (text.isBlank()) {
+        return StreamingTranscriptBodyPreview(
+            usesMarkdownPreview = false,
+            committedBlocks = emptyList<String>().toImmutableList(),
+            committedPrefixLength = 0,
+            tailText = "",
+            fullTextLength = 0,
+            layoutVersion = 0,
+        )
+    }
+
+    if (!shouldRenderStreamingMarkdown(text)) {
+        return StreamingTranscriptBodyPreview(
+            usesMarkdownPreview = false,
+            committedBlocks = emptyList<String>().toImmutableList(),
+            committedPrefixLength = 0,
+            tailText = text,
+            fullTextLength = text.length,
+            layoutVersion = computeStreamingTextLayoutVersion(text),
+        )
+    }
+
+    val snapshot = buildStreamingMarkdownSnapshot(text)
+    val tailText = renderableStreamingTailText(text, snapshot.committedPrefixLength)
+    val renderedTailText = if (snapshot.blocks.isEmpty()) text else tailText
+    return StreamingTranscriptBodyPreview(
+        usesMarkdownPreview = true,
+        committedBlocks = snapshot.blocks,
+        committedPrefixLength = snapshot.committedPrefixLength,
+        tailText = renderedTailText,
+        fullTextLength = text.length,
+        layoutVersion = computeStreamingBodyLayoutVersion(snapshot.blocks.size, renderedTailText),
+    )
+}
+
+private fun renderableStreamingTailText(
+    text: String,
+    committedPrefixLength: Int,
+): String =
+    text
+        .drop(committedPrefixLength.coerceAtMost(text.length))
+        .trimStart('\n', '\r')
+
+private fun computeStreamingBodyLayoutVersion(
+    committedBlockCount: Int,
+    tailText: String,
+): Int = (committedBlockCount * 4096) + computeStreamingTextLayoutVersion(tailText)
+
+private fun computeStreamingTextLayoutVersion(text: String): Int {
+    if (text.isBlank()) return 0
+    val lineBreakCount = text.count { it == '\n' }
+    val chunkCount = (text.length + STREAMING_MARKDOWN_MIN_CHUNK_DELTA - 1) / STREAMING_MARKDOWN_MIN_CHUNK_DELTA
+    return (lineBreakCount * 1024) + chunkCount
+}
 
 private fun buildStreamingMarkdownSnapshot(text: String): StreamingMarkdownSnapshot {
     val stablePrefix = extractStableStreamingMarkdownPrefix(text)

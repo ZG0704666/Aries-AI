@@ -187,6 +187,9 @@ import com.ai.phoneagent.ui.history.ConversationHistoryItemUi
 import com.ai.phoneagent.ui.messages.TranscriptAutomationUi
 import com.ai.phoneagent.ui.messages.TranscriptMessageUi
 import com.ai.phoneagent.ui.messages.CodeBlockPrefs
+import com.ai.phoneagent.ui.messages.StreamingTranscriptBodyPreview
+import com.ai.phoneagent.ui.messages.StreamingTranscriptMessageState
+import com.ai.phoneagent.ui.messages.buildStreamingTranscriptBodyPreview
 import com.ai.phoneagent.ui.home.HomeTranscriptPane
 import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.ui.topbar.MainTopBar
@@ -555,7 +558,7 @@ class MainActivity : AppCompatActivity() {
     private val drawerConversationItemsState = mutableStateOf<List<DrawerConversationUiItem>>(emptyList())
     private val drawerEmptyMessageState = mutableStateOf("")
     private val transcriptItemsState = mutableStateOf<List<TranscriptMessageUi>>(emptyList())
-    private val streamingTranscriptItemState = mutableStateOf<TranscriptMessageUi?>(null)
+    private val streamingTranscriptItemState = mutableStateOf<StreamingTranscriptMessageState?>(null)
     private val streamingTranscriptConversationIdState = mutableStateOf<Long?>(null)
 
     // Aries附件上传相关 - 简化为只保留 ActivityResultLauncher
@@ -1149,6 +1152,7 @@ class MainActivity : AppCompatActivity() {
         retryText: String?,
         thinking: String,
         answer: String,
+        bodyPreview: StreamingTranscriptBodyPreview? = null,
     ) {
         val conversationId = activeConversation?.id ?: -1L
         val futureAssistantIndex = activeConversation?.messages?.size ?: -1
@@ -1167,31 +1171,40 @@ class MainActivity : AppCompatActivity() {
                 },
             )
         val nextConversationId = conversationId.takeIf { it >= 0L }
-        val nextItem =
-            TranscriptMessageUi(
-                conversationId = conversationId,
-                messageIndex = futureAssistantIndex,
-                id = streamingId,
-                author = "Aries AI",
-                body =
-                    answer.ifBlank {
-                        if (thinking.isBlank()) pendingText else ""
-                    },
-                thinking = thinking.ifBlank { null },
-                thinkingDurationMs = null,
-                isUser = false,
-                attachments = persistentListOf(),
-                isAutomation = false,
-                copyText = answer,
-                retryText = retryText,
-                isStreaming = true,
-            )
+        val nextBody =
+            answer.ifBlank {
+                if (thinking.isBlank()) pendingText else ""
+            }
+        val nextThinking = thinking.ifBlank { null }
 
         if (streamingTranscriptConversationIdState.value != nextConversationId) {
             streamingTranscriptConversationIdState.value = nextConversationId
         }
-        if (streamingTranscriptItemState.value != nextItem) {
-            streamingTranscriptItemState.value = nextItem
+        val existingItem = streamingTranscriptItemState.value
+        if (existingItem != null &&
+            existingItem.id == streamingId &&
+            existingItem.conversationId == conversationId &&
+            existingItem.messageIndex == futureAssistantIndex
+        ) {
+            existingItem.update(
+                nextBody = nextBody,
+                nextThinking = nextThinking,
+                nextCopyText = answer,
+                nextBodyPreview = bodyPreview,
+            )
+        } else {
+            streamingTranscriptItemState.value =
+                StreamingTranscriptMessageState(
+                    conversationId = conversationId,
+                    messageIndex = futureAssistantIndex,
+                    id = streamingId,
+                    author = "Aries AI",
+                    retryText = retryText,
+                    initialBody = nextBody,
+                    initialThinking = nextThinking,
+                    initialCopyText = answer,
+                    initialBodyPreview = bodyPreview ?: buildStreamingTranscriptBodyPreview(nextBody),
+                )
         }
     }
 
@@ -1204,12 +1217,27 @@ class MainActivity : AppCompatActivity() {
         retryText: String?,
         reasoning: CharSequence,
         answer: CharSequence,
+        bodyPreview: StreamingTranscriptBodyPreview? = null,
     ) {
         updateStreamingTranscript(
             retryText = retryText,
             thinking = reasoning.toString(),
             answer = answer.toString(),
+            bodyPreview = bodyPreview,
         )
+    }
+
+    private fun computeStreamingUiFrameDelayMs(
+        reasoningLength: Int,
+        answerLength: Int,
+    ): Long {
+        val maxLength = maxOf(reasoningLength, answerLength)
+        return when {
+            maxLength >= 8000 -> 220L
+            maxLength >= 4000 -> 160L
+            maxLength >= 2000 -> 120L
+            else -> STREAMING_UI_FRAME_DELAY_MS
+        }
     }
 
     private fun buildTranscriptMessageUi(
@@ -3252,9 +3280,36 @@ class MainActivity : AppCompatActivity() {
 
                         pending?.cancel()
                         pendingStreamUiUpdate =
-                            lifecycleScope.launch(Dispatchers.Main) {
-                                if (!immediate) delay(STREAMING_UI_FRAME_DELAY_MS)
-                                flushStreamingTranscriptUi()
+                            lifecycleScope.launch(Dispatchers.Default) {
+                                if (!immediate) {
+                                    val delayMs =
+                                        synchronized(streamBufferLock) {
+                                            computeStreamingUiFrameDelayMs(
+                                                reasoningLength = reasoningSb.length,
+                                                answerLength = contentSb.length,
+                                            )
+                                        }
+                                    delay(delayMs)
+                                }
+
+                                val (reasoningSnapshot, contentSnapshot) =
+                                    synchronized(streamBufferLock) {
+                                        reasoningSb.toString() to contentSb.toString()
+                                    }
+                                val bodyPreview =
+                                    contentSnapshot
+                                        .takeIf { it.isNotBlank() }
+                                        ?.let(::buildStreamingTranscriptBodyPreview)
+
+                                withContext(Dispatchers.Main) {
+                                    updateStreamingTranscriptFromBuffers(
+                                        retryText = baseUserText,
+                                        reasoning = reasoningSnapshot,
+                                        answer = contentSnapshot,
+                                        bodyPreview = bodyPreview,
+                                    )
+                                }
+
                                 synchronized(streamUiScheduleLock) {
                                     if (pendingStreamUiUpdate === this.coroutineContext[Job]) {
                                         pendingStreamUiUpdate = null

@@ -44,6 +44,7 @@ import com.ai.phoneagent.ui.debug.DebugRecomposeLogger
 import com.ai.phoneagent.ui.drawer.ConversationDrawer
 import com.ai.phoneagent.ui.drawer.DrawerConversationUiItem
 import com.ai.phoneagent.ui.messages.CodeBlockPrefs
+import com.ai.phoneagent.ui.messages.StreamingTranscriptMessageState
 import com.ai.phoneagent.ui.messages.TranscriptEmptyHintCard
 import com.ai.phoneagent.ui.messages.TranscriptMessageUi
 import com.ai.phoneagent.ui.messages.conversationTranscriptItem
@@ -182,7 +183,7 @@ fun HomeScreen(
 @Composable
 fun HomeTranscriptPane(
     transcriptItems: ImmutableList<TranscriptMessageUi>,
-    streamingTranscriptItem: TranscriptMessageUi?,
+    streamingTranscriptItem: StreamingTranscriptMessageState?,
     transcriptResetKey: Long,
     thinkingExpandedByDefault: Boolean,
     codeBlockPrefs: CodeBlockPrefs,
@@ -229,20 +230,76 @@ fun HomeTranscriptPane(
     }
     val listState = rememberLazyListState()
     val bottomListIndex = transcriptItems.size + if (streamingTranscriptItem != null) 1 else 0
+
+    HomeTranscriptAutoFollowController(
+        listState = listState,
+        listKey = listKey,
+        bottomListIndex = bottomListIndex,
+        scrollToBottomSignal = scrollToBottomSignal,
+        transcriptItems = transcriptItems,
+        streamingTranscriptItem = streamingTranscriptItem,
+        bottomOverlayPadding = bottomOverlayPadding,
+    )
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = spacingMd)
+            .padding(top = spacingXxxs),
+        state = listState,
+    ) {
+        conversationTranscriptItems(
+            items = transcriptItems,
+            onCopyMessage = onCopyMessage,
+            onRetryMessage = onRetryMessage,
+            onAutomationAction = onAutomationAction,
+            thinkingExpandedByDefault = thinkingExpandedByDefault,
+            onEditMessage = onEditMessage,
+            codeBlockPrefs = codeBlockPrefs,
+        )
+
+        streamingTranscriptItem?.let { item ->
+            conversationTranscriptItem(
+                item = item,
+                onCopyMessage = onCopyMessage,
+                onRetryMessage = onRetryMessage,
+                onAutomationAction = onAutomationAction,
+                thinkingExpandedByDefault = thinkingExpandedByDefault,
+                onEditMessage = onEditMessage,
+                codeBlockPrefs = codeBlockPrefs,
+            )
+        }
+
+        item(key = "bottom_overlay_spacer", contentType = "bottom_spacer") {
+            Spacer(modifier = Modifier.height(bottomOverlayPadding))
+        }
+    }
+}
+
+@Composable
+private fun HomeTranscriptAutoFollowController(
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    listKey: String,
+    bottomListIndex: Int,
+    scrollToBottomSignal: Long,
+    transcriptItems: ImmutableList<TranscriptMessageUi>,
+    streamingTranscriptItem: StreamingTranscriptMessageState?,
+    bottomOverlayPadding: Dp,
+) {
     val streamingContentVersion = remember(
         transcriptItems.lastOrNull()?.id,
         transcriptItems.lastOrNull()?.body?.length,
         transcriptItems.lastOrNull()?.thinking?.length,
-        streamingTranscriptItem?.body?.length,
-        streamingTranscriptItem?.thinking?.length,
+        streamingTranscriptItem?.bodyLayoutVersion,
+        streamingTranscriptItem?.thinkingLayoutVersion,
         bottomOverlayPadding,
     ) {
         listOf(
             transcriptItems.lastOrNull()?.id,
             transcriptItems.lastOrNull()?.body?.length,
             transcriptItems.lastOrNull()?.thinking?.length,
-            streamingTranscriptItem?.body?.length,
-            streamingTranscriptItem?.thinking?.length,
+            streamingTranscriptItem?.bodyLayoutVersion,
+            streamingTranscriptItem?.thinkingLayoutVersion,
             bottomOverlayPadding.value,
         )
     }
@@ -282,42 +339,8 @@ fun HomeTranscriptPane(
         listState.isScrollInProgress,
         bottomListIndex,
     ) {
-        if (autoFollowBottom && !listState.isScrollInProgress) {
+        if (autoFollowBottom && !listState.isScrollInProgress && listState.canScrollForward) {
             listState.scrollToItem(bottomListIndex)
-        }
-    }
-
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = spacingMd)
-            .padding(top = spacingXxxs),
-        state = listState,
-    ) {
-        conversationTranscriptItems(
-            items = transcriptItems,
-            onCopyMessage = onCopyMessage,
-            onRetryMessage = onRetryMessage,
-            onAutomationAction = onAutomationAction,
-            thinkingExpandedByDefault = thinkingExpandedByDefault,
-            onEditMessage = onEditMessage,
-            codeBlockPrefs = codeBlockPrefs,
-        )
-
-        streamingTranscriptItem?.let { item ->
-            conversationTranscriptItem(
-                item = item,
-                onCopyMessage = onCopyMessage,
-                onRetryMessage = onRetryMessage,
-                onAutomationAction = onAutomationAction,
-                thinkingExpandedByDefault = thinkingExpandedByDefault,
-                onEditMessage = onEditMessage,
-                codeBlockPrefs = codeBlockPrefs,
-            )
-        }
-
-        item(key = "bottom_overlay_spacer", contentType = "bottom_spacer") {
-            Spacer(modifier = Modifier.height(bottomOverlayPadding))
         }
     }
 }
