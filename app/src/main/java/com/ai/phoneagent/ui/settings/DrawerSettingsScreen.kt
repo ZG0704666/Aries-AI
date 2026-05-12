@@ -25,7 +25,6 @@ import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.ExternalLink
 import com.composables.icons.lucide.CircleCheck
 import com.composables.icons.lucide.Cloud
-import com.composables.icons.lucide.Clipboard
 import com.composables.icons.lucide.Crown
 import com.composables.icons.lucide.Download
 import com.composables.icons.lucide.Info
@@ -62,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -349,7 +349,6 @@ fun DrawerModelApiConfigScreen(
     onBack: () -> Unit,
     onApiModeChange: (SettingsViewModel.ApiMode) -> Unit,
     onApiInputChange: (String) -> Unit,
-    onPasteApi: () -> Unit,
     onOpenApiKeyPage: () -> Unit,
     onOpenMembership: () -> Unit,
     onAriesLoginClick: () -> Unit,
@@ -400,14 +399,16 @@ fun DrawerModelApiConfigScreen(
                     icon = Lucide.Cloud,
                 ),
             )
-            add(
-                ApiModeOptionUi(
-                    mode = SettingsViewModel.ApiMode.Local,
-                    title = stringResource(R.string.settings_model_api_mode_local),
-                    description = stringResource(R.string.settings_model_api_mode_local_description),
-                    icon = Lucide.Cpu,
-                ),
-            )
+            if (showAriesApiSection) {
+                add(
+                    ApiModeOptionUi(
+                        mode = SettingsViewModel.ApiMode.Local,
+                        title = stringResource(R.string.settings_model_api_mode_local),
+                        description = stringResource(R.string.settings_model_api_mode_local_description),
+                        icon = Lucide.Cpu,
+                    ),
+                )
+            }
             if (showAriesApiSection) {
                 add(
                     ApiModeOptionUi(
@@ -421,6 +422,20 @@ fun DrawerModelApiConfigScreen(
         }
     val statusContainerColor = MaterialTheme.colorScheme.surfaceVariant
     val statusContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val statusNotCheckedText = stringResource(R.string.m3t_sidebar_api_not_checked)
+    val statusCheckingText = stringResource(R.string.settings_api_checking)
+    val statusPillContainerColor =
+        when {
+            apiStatusPositive -> colorResource(R.color.success_light)
+            apiStatus.isNotBlank() && apiStatus != statusNotCheckedText && apiStatus != statusCheckingText -> colorResource(R.color.error_light)
+            else -> MaterialTheme.colorScheme.surfaceVariant
+        }
+    val statusPillContentColor =
+        when {
+            apiStatusPositive -> colorResource(R.color.success_dark)
+            apiStatus.isNotBlank() && apiStatus != statusNotCheckedText && apiStatus != statusCheckingText -> colorResource(R.color.error_dark)
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -497,11 +512,11 @@ fun DrawerModelApiConfigScreen(
 
                     Spacer(modifier = Modifier.height(spacingMd))
 
-                    StatusPanel(
+                    StatusPill(
                         title = stringResource(R.string.settings_model_api_status_title),
-                        body = apiStatus,
-                        containerColor = statusContainerColor,
-                        contentColor = statusContentColor,
+                        status = apiStatus,
+                        containerColor = statusPillContainerColor,
+                        contentColor = statusPillContentColor,
                     )
                 }
             }
@@ -564,12 +579,12 @@ fun DrawerModelApiConfigScreen(
                             horizontalArrangement = Arrangement.spacedBy(spacingSm),
                         ) {
                             FilledTonalButton(
-                                onClick = onPasteApi,
+                                onClick = onCheckApi,
                                 modifier = Modifier.weight(1f).height(compactButtonHeight),
                             ) {
-                                Icon(Lucide.Clipboard, contentDescription = null)
+                                Icon(Lucide.RotateCw, contentDescription = null)
                                 Spacer(modifier = Modifier.width(spacingSm))
-                                Text(stringResource(R.string.m3t_sidebar_api_paste))
+                                Text(stringResource(R.string.m3t_sidebar_check_connection))
                             }
                             FilledTonalButton(
                                 onClick = onOpenApiKeyPage,
@@ -608,7 +623,7 @@ fun DrawerModelApiConfigScreen(
                 }
             }
 
-            if (currentApiMode == SettingsViewModel.ApiMode.Local) {
+            if (showAriesApiSection && currentApiMode == SettingsViewModel.ApiMode.Local) {
                 item {
                     ModelApiSectionCard {
                         SectionIntro(
@@ -698,26 +713,6 @@ fun DrawerModelApiConfigScreen(
                     }
                 }
             }
-
-            item {
-                ModelApiSectionCard {
-                    SectionIntro(
-                        title = stringResource(R.string.settings_model_api_action_title),
-                        subtitle = stringResource(R.string.settings_model_api_action_subtitle),
-                    )
-
-                    Spacer(modifier = Modifier.height(spacingMd))
-
-                    Button(
-                        onClick = onCheckApi,
-                        modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
-                    ) {
-                        Icon(Lucide.RotateCw, contentDescription = null)
-                        Spacer(modifier = Modifier.width(spacingSm))
-                        Text(stringResource(R.string.m3t_sidebar_check_connection))
-                    }
-                }
-            }
         }
     }
 }
@@ -764,6 +759,41 @@ private fun SectionIntro(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+@Composable
+private fun StatusPill(
+    title: String,
+    status: String,
+    containerColor: androidx.compose.ui.graphics.Color,
+    contentColor: androidx.compose.ui.graphics.Color,
+) {
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacingSm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Surface(
+            shape = MaterialTheme.shapes.large,
+            color = containerColor,
+        ) {
+            Text(
+                text = status,
+                style = MaterialTheme.typography.labelMedium,
+                color = contentColor,
+                modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingXs),
+            )
+        }
     }
 }
 

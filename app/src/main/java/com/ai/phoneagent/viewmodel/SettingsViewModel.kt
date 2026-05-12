@@ -126,10 +126,19 @@ class SettingsViewModel(
     init {
         localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(getApplication())
         restoreSettings()
-        // 响应式监听 Aries API 解锁状态（AboutViewModel 切换后实时生效）
+        // 响应式监听隐藏模型入口解锁状态（AboutViewModel 切换后实时生效）
         viewModelScope.launch {
             prefs.ariesApiSectionUnlockedFlow.collect { unlocked ->
                 showAriesApiSection = unlocked
+                if (!unlocked && (currentApiMode == ApiMode.Local || currentApiMode == ApiMode.Aries)) {
+                    applyApiModeState(ApiMode.Official)
+                    apiCheckSeq++
+                    remoteApiOk = null
+                    remoteApiChecking = false
+                    lastCheckedApiKey = ""
+                    persistApiMode(clearCheckResults = true)
+                    updateStatusText()
+                }
             }
         }
         // 响应式监听已登录用户
@@ -153,14 +162,14 @@ class SettingsViewModel(
         val restoredThirdParty = prefs.getApiUseThirdPartyBlocking()
         val restoredLocal = prefs.getApiUseLocalModelBlocking()
         val restoredAries = prefs.getUseAriesApiBlocking()
-        applyApiModeState(
+        showAriesApiSection = prefs.getAriesApiSectionUnlockedBlocking()
+        val restoredMode =
             resolveApiMode(
                 useThirdParty = restoredThirdParty,
-                useLocal = restoredLocal,
-                useAries = restoredAries,
-            ),
-        )
-        showAriesApiSection = prefs.getAriesApiSectionUnlockedBlocking()
+                useLocal = restoredLocal && showAriesApiSection,
+                useAries = restoredAries && showAriesApiSection,
+            )
+        applyApiModeState(restoredMode)
         ariesLoggedInUser = prefs.getAriesLoggedInUserBlocking()
         ariesSelectedModel = prefs.getAriesSelectedModelBlocking()
         apiBaseUrlText = prefs.getApiThirdPartyBaseUrlBlocking().ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
@@ -228,6 +237,7 @@ class SettingsViewModel(
 
     fun onApiModeChange(mode: ApiMode, onToast: (String) -> Unit) {
         if (mode == currentApiMode) return
+        if (!showAriesApiSection && (mode == ApiMode.Local || mode == ApiMode.Aries)) return
         applyApiModeState(mode)
         apiCheckSeq++
         remoteApiOk = null

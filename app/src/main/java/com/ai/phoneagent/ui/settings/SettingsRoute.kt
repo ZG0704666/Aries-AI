@@ -144,11 +144,6 @@ fun SettingsRoute(
                         }
                     },
                     onApiInputChange = { value -> viewModel.onApiInputChanged(value) },
-                    onPasteApi = {
-                        viewModel.pasteApiKey(context) { message ->
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                        }
-                    },
                     onOpenApiKeyPage = { viewModel.openApiKeyPage(context) },
                     onOpenMembership = { viewModel.openMembershipPage() },
                     onAriesLoginClick = { viewModel.openAriesLoginDialog() },
@@ -498,4 +493,3 @@ private fun SettingsAboutContent(
         )
     }
 }
-

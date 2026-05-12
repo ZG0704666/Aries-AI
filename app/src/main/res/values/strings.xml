@@ -315,8 +315,8 @@
     <string name="aries_login_success">已登录 %1$s</string>
     <string name="aries_login_failed">登录失败，请检查用户名和密码</string>
     <string name="aries_logout_success">已退出登录</string>
-    <string name="aries_api_section_unlocked">Aries API 已解锁</string>
-    <string name="aries_api_section_locked">Aries API 已隐藏</string>
+    <string name="aries_api_section_unlocked">隐藏模型入口已显示</string>
+    <string name="aries_api_section_locked">隐藏模型入口已隐藏</string>
     <string name="aries_model_select_title">选择模型</string>
     <string name="aries_model_change">更换模型</string>
     <string name="aries_current_model">模型：%1$s</string>
