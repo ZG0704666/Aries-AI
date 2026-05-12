@@ -103,6 +103,7 @@ import com.ai.phoneagent.net.LocalMnnInferenceEngine
 import com.ai.phoneagent.net.ModelScopeModelDownloader
 import com.ai.phoneagent.updates.UpdateStartupCoordinator
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -161,6 +162,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.activity.result.ActivityResultLauncher
@@ -185,6 +187,7 @@ import com.ai.phoneagent.ui.history.ConversationHistoryItemUi
 import com.ai.phoneagent.ui.messages.TranscriptAutomationUi
 import com.ai.phoneagent.ui.messages.TranscriptMessageUi
 import com.ai.phoneagent.ui.messages.CodeBlockPrefs
+import com.ai.phoneagent.ui.home.HomeTranscriptPane
 import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.ui.topbar.MainTopBar
 import com.ai.phoneagent.navigation.AriesNavGraph
@@ -341,7 +344,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_SCROLL_TO_BOTTOM = "extra_scroll_to_bottom"
         const val EXTRA_SHOW_AUTOMATION_STOP = "extra_show_automation_stop"
-        private const val STREAMING_UI_FRAME_DELAY_MS = 48L
+        private const val STREAMING_UI_FRAME_DELAY_MS = 80L
     }
 
     private data class UiMessage(
@@ -778,147 +781,10 @@ class MainActivity : AppCompatActivity() {
                 AriesNavGraph(
                     navController = navController,
                     homeContent = {
-                        // 在 homeContent lambda 内部读取所有 state，
-                        // 这样读取发生在 NavHost composable 的 recomposition scope 内，
-                        // state 变化时 NavHost 会正确追踪并触发重组。
-                        val currentTranscriptItems = transcriptItemsState.value
-                        val currentStreamingConvId = streamingTranscriptConversationIdState.value
-                        val currentStreamingItem = streamingTranscriptItemState.value
-                        val currentTranscriptAnimKey = transcriptAnimationKeyState.value
-                        val currentStatusText = statusTextState.value
-                        val currentStatusVisible = statusVisibleState.value
-                        val currentDrawerSearchQuery = drawerSearchQueryState.value
-                        val currentDrawerItems = drawerConversationItemsState.value
-                        val currentDrawerEmptyMessage = drawerEmptyMessageState.value
-                        val currentThinkingExpanded = thinkingExpandedByDefaultState.value
-                        val currentScrollSignal = scrollToBottomSignalState.value
-                        val currentContentAlpha = homeContentAlphaState.value
-                        val currentContentScale = homeContentScaleState.value
-                        val currentShowHistoryDialog = showHistoryDialogState.value
-
-                        HomeScreen(
+                        HomeRoute(
                             drawerState = drawerState,
-                            drawerGesturesEnabled = !onboardingOverlay.isShowing(),
-                            statusText = currentStatusText,
-                            statusVisible = currentStatusVisible,
-                            onToggleStatus = { statusVisibleState.value = !statusVisibleState.value },
-                            onOpenDrawer = {
-                                if (!onboardingOverlay.isShowing()) {
-                                    vibrateLight()
-                                    hideKeyboard()
-                                    composeScope.launch { drawerState.open() }
-                                }
-                            },
-                            onNewChat = {
-                                vibrateLight()
-                                composeScope.launch { drawerState.close() }
-                                startNewChat(clearUi = true)
-                            },
-                            onOpenFloatingWindow = {
-                                vibrateLight()
-                                enterMiniWindowMode()
-                            },
-                            modelName = getDisplayNameForModel(resolveApiModel()),
-                            drawerSearchQuery = currentDrawerSearchQuery,
-                            drawerItems = currentDrawerItems,
-                            drawerEmptyMessage = currentDrawerEmptyMessage,
-                            onDrawerSearchQueryChange = { query ->
-                                drawerSearchQueryState.value = query
-                                refreshDrawerConversationItems()
-                            },
-                            onDrawerConversationClick = { conversationId ->
-                                val target = conversations.firstOrNull { it.id == conversationId }
-                                if (target != null) {
-                                    activeConversation = target
-                                    renderConversation(target, animateTransition = true)
-                                    persistConversations()
-                                    composeScope.launch { drawerState.close() }
-                                }
-                            },
-                            onDrawerConversationLongClick = { conversationId ->
-                                if (deleteConversationById(conversationId, clearUiForActive = true)) {
-                                    vibrateLight()
-                                }
-                            },
-                            onDrawerSettingsClick = {
-                                vibrateLight()
-                                navigateToRoute(Routes.Settings.route, closeDrawerFirst = true)
-                            },
-                            transcriptItems = currentTranscriptItems,
-                            streamingTranscriptItem =
-                                currentStreamingItem?.takeIf {
-                                    currentStreamingConvId == activeConversation?.id
-                                },
-                            transcriptAnimationKey = currentTranscriptAnimKey,
-                            thinkingExpandedByDefault = currentThinkingExpanded,
+                            composeScope = composeScope,
                             codeBlockPrefs = codeBlockPrefs,
-                            onCopyMessage = { item -> copyTranscriptMessage(item.copyText) },
-                            onRetryMessage = { item ->
-                                val retryText = item.retryText.orEmpty()
-                                if (retryText.isBlank()) {
-                                    Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    retryMessage(retryText)
-                                }
-                            },
-                            onEditMessage = { item ->
-                                if (isRequestInFlight) {
-                                    Toast.makeText(this@MainActivity, "正在生成回复，请稍后…", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    val conversation = activeConversation
-                                    if (conversation != null) {
-                                        val newText = item.body
-                                        val msgIndex = item.messageIndex
-                                        if (msgIndex in conversation.messages.indices) {
-                                            conversation.messages[msgIndex] =
-                                                conversation.messages[msgIndex].copy(content = newText)
-                                            if (msgIndex + 1 < conversation.messages.size) {
-                                                conversation.messages.subList(msgIndex + 1, conversation.messages.size).clear()
-                                            }
-                                            conversation.updatedAt = System.currentTimeMillis()
-                                            persistConversations()
-                                            renderConversation(conversation)
-                                            sendMessage(newText, resendUser = false, retryMode = true)
-                                        }
-                                    }
-                                }
-                            },
-                            onAutomationAction = { item -> handleTranscriptAutomationAction(item) },
-                            inputBarContent = { HomeInputBar() },
-                            aiNoticeText = getString(R.string.ai_generated_notice),
-                            scrollToBottomSignal = currentScrollSignal,
-                            contentAlpha = currentContentAlpha,
-                            contentScale = currentContentScale,
-                            onboardingContent = { onboardingOverlay.Render() },
-                            historyDialogContent = {
-                                if (currentShowHistoryDialog) {
-                                    ConversationHistoryDialog(
-                                        items = buildHistoryDialogItems(),
-                                        onDismiss = {
-                                            vibrateLight()
-                                            showHistoryDialogState.value = false
-                                        },
-                                        onSelect = { conversationId ->
-                                            conversations.firstOrNull { it.id == conversationId }?.let { conversation ->
-                                                activeConversation = conversation
-                                                renderConversation(conversation, animateTransition = true)
-                                                persistConversations()
-                                            }
-                                            vibrateLight()
-                                            showHistoryDialogState.value = false
-                                        },
-                                        onDelete = { conversationId ->
-                                            if (!deleteConversationById(conversationId, clearUiForActive = true)) {
-                                                return@ConversationHistoryDialog
-                                            }
-                                            if (buildHistoryDialogItems().isEmpty()) {
-                                                showHistoryDialogState.value = false
-                                            }
-                                        },
-                                    )
-                                }
-                            },
-                            onDrawerClosed = { runPendingDrawerNavigationAction() },
                         )
                     },
                 )
@@ -958,6 +824,245 @@ class MainActivity : AppCompatActivity() {
 
         // Handle automation intent extras from cold-start launch
         handleAutomationLaunchIntent()
+    }
+
+    @Composable
+    private fun HomeRoute(
+        drawerState: DrawerState,
+        composeScope: CoroutineScope,
+        codeBlockPrefs: CodeBlockPrefs,
+    ) {
+        DebugRecomposeLogger(scope = "HomeRoute")
+        val currentTranscriptItems by remember { transcriptItemsState }
+        val currentStreamingConvId by remember { streamingTranscriptConversationIdState }
+        val currentStreamingItem by remember { streamingTranscriptItemState }
+        val currentTranscriptAnimKey by remember { transcriptAnimationKeyState }
+        val currentStatusText by remember { statusTextState }
+        val currentStatusVisible by remember { statusVisibleState }
+        val currentDrawerSearchQuery by remember { drawerSearchQueryState }
+        val currentDrawerItems by remember { drawerConversationItemsState }
+        val currentDrawerEmptyMessage by remember { drawerEmptyMessageState }
+        val currentContentAlpha by remember { homeContentAlphaState }
+        val currentContentScale by remember { homeContentScaleState }
+        val modelDisplayName = getDisplayNameForModel(resolveApiModel())
+        val aiNoticeText = remember { getString(R.string.ai_generated_notice) }
+        val onToggleStatus = remember {
+            { statusVisibleState.value = !statusVisibleState.value }
+        }
+        val onOpenDrawer = remember(drawerState, composeScope) {
+            {
+                if (!onboardingOverlay.isShowing()) {
+                    vibrateLight()
+                    hideKeyboard()
+                    composeScope.launch { drawerState.open() }
+                }
+            }
+        }
+        val onNewChat = remember(drawerState, composeScope) {
+            {
+                vibrateLight()
+                composeScope.launch { drawerState.close() }
+                startNewChat(clearUi = true)
+            }
+        }
+        val onOpenFloatingWindow = remember {
+            {
+                vibrateLight()
+                enterMiniWindowMode()
+            }
+        }
+        val onDrawerSearchQueryChange = remember {
+            { query: String ->
+                drawerSearchQueryState.value = query
+                refreshDrawerConversationItems()
+            }
+        }
+        val onDrawerConversationClick = remember(drawerState, composeScope) {
+            { conversationId: Long ->
+                val target = conversations.firstOrNull { it.id == conversationId }
+                if (target != null) {
+                    activeConversation = target
+                    renderConversation(target, animateTransition = true)
+                    persistConversations()
+                    composeScope.launch { drawerState.close() }
+                }
+            }
+        }
+        val onDrawerConversationLongClick = remember {
+            { conversationId: Long ->
+                if (deleteConversationById(conversationId, clearUiForActive = true)) {
+                    vibrateLight()
+                }
+            }
+        }
+        val onDrawerSettingsClick = remember {
+            {
+                vibrateLight()
+                navigateToRoute(Routes.Settings.route, closeDrawerFirst = true)
+            }
+        }
+        val onCopyMessage: (TranscriptMessageUi) -> Unit = remember {
+            { item: TranscriptMessageUi ->
+                copyTranscriptMessage(item.copyText)
+                Unit
+            }
+        }
+        val onRetryMessage: (TranscriptMessageUi) -> Unit = remember {
+            { item: TranscriptMessageUi ->
+                val retryText = item.retryText.orEmpty()
+                if (retryText.isBlank()) {
+                    Toast.makeText(this@MainActivity, "未找到可重试的用户问题", Toast.LENGTH_SHORT).show()
+                } else {
+                    retryMessage(retryText)
+                }
+                Unit
+            }
+        }
+        val onEditMessage: (TranscriptMessageUi) -> Unit = remember {
+            { item: TranscriptMessageUi ->
+                if (isRequestInFlight) {
+                    Toast.makeText(this@MainActivity, "正在生成回复，请稍后…", Toast.LENGTH_SHORT).show()
+                } else {
+                    val conversation = activeConversation
+                    if (conversation != null) {
+                        val newText = item.body
+                        val msgIndex = item.messageIndex
+                        if (msgIndex in conversation.messages.indices) {
+                            conversation.messages[msgIndex] =
+                                conversation.messages[msgIndex].copy(content = newText)
+                            if (msgIndex + 1 < conversation.messages.size) {
+                                conversation.messages.subList(msgIndex + 1, conversation.messages.size).clear()
+                            }
+                            conversation.updatedAt = System.currentTimeMillis()
+                            persistConversations()
+                            renderConversation(conversation)
+                            sendMessage(newText, resendUser = false, retryMode = true)
+                        }
+                    }
+                }
+                Unit
+            }
+        }
+        val onAutomationAction: (TranscriptMessageUi) -> Unit = remember {
+            { item: TranscriptMessageUi ->
+                handleTranscriptAutomationAction(item)
+                Unit
+            }
+        }
+        val onDrawerClosed = remember {
+            { runPendingDrawerNavigationAction() }
+        }
+
+        HomeScreen(
+            drawerState = drawerState,
+            drawerGesturesEnabled = !onboardingOverlay.isShowing(),
+            statusText = currentStatusText,
+            statusVisible = currentStatusVisible,
+            onToggleStatus = onToggleStatus,
+            onOpenDrawer = onOpenDrawer,
+            onNewChat = onNewChat,
+            onOpenFloatingWindow = onOpenFloatingWindow,
+            modelName = modelDisplayName,
+            drawerSearchQuery = currentDrawerSearchQuery,
+            drawerItems = currentDrawerItems,
+            drawerEmptyMessage = currentDrawerEmptyMessage,
+            onDrawerSearchQueryChange = onDrawerSearchQueryChange,
+            onDrawerConversationClick = onDrawerConversationClick,
+            onDrawerConversationLongClick = onDrawerConversationLongClick,
+            onDrawerSettingsClick = onDrawerSettingsClick,
+            transcriptPaneContent = { bottomOverlayPadding, spacingMd, spacingXxxs ->
+                HomeTranscriptRoute(
+                    bottomOverlayPadding = bottomOverlayPadding,
+                    spacingMd = spacingMd,
+                    spacingXxxs = spacingXxxs,
+                    codeBlockPrefs = codeBlockPrefs,
+                    onCopyMessage = onCopyMessage,
+                    onRetryMessage = onRetryMessage,
+                    onEditMessage = onEditMessage,
+                    onAutomationAction = onAutomationAction,
+                )
+            },
+            inputBarContent = { HomeInputBar() },
+            aiNoticeText = aiNoticeText,
+            contentAlpha = currentContentAlpha,
+            contentScale = currentContentScale,
+            onboardingContent = { onboardingOverlay.Render() },
+            historyDialogContent = { HomeHistoryDialog() },
+            onDrawerClosed = onDrawerClosed,
+        )
+    }
+
+    @Composable
+    private fun HomeTranscriptRoute(
+        bottomOverlayPadding: Dp,
+        spacingMd: Dp,
+        spacingXxxs: Dp,
+        codeBlockPrefs: CodeBlockPrefs,
+        onCopyMessage: (TranscriptMessageUi) -> Unit,
+        onRetryMessage: (TranscriptMessageUi) -> Unit,
+        onEditMessage: (TranscriptMessageUi) -> Unit,
+        onAutomationAction: (TranscriptMessageUi) -> Unit,
+    ) {
+        DebugRecomposeLogger(scope = "HomeTranscriptRoute")
+        val currentTranscriptItems by remember { transcriptItemsState }
+        val currentStreamingConvId by remember { streamingTranscriptConversationIdState }
+        val currentStreamingItem by remember { streamingTranscriptItemState }
+        val currentTranscriptAnimKey by remember { transcriptAnimationKeyState }
+        val currentThinkingExpanded by remember { thinkingExpandedByDefaultState }
+        val currentScrollSignal by remember { scrollToBottomSignalState }
+        val immutableTranscriptItems = remember(currentTranscriptItems) {
+            currentTranscriptItems.toImmutableList()
+        }
+
+        HomeTranscriptPane(
+            transcriptItems = immutableTranscriptItems,
+            streamingTranscriptItem =
+                currentStreamingItem?.takeIf {
+                    currentStreamingConvId == activeConversation?.id
+                },
+            transcriptResetKey = currentTranscriptAnimKey,
+            thinkingExpandedByDefault = currentThinkingExpanded,
+            codeBlockPrefs = codeBlockPrefs,
+            onCopyMessage = onCopyMessage,
+            onRetryMessage = onRetryMessage,
+            onEditMessage = onEditMessage,
+            onAutomationAction = onAutomationAction,
+            scrollToBottomSignal = currentScrollSignal,
+            bottomOverlayPadding = bottomOverlayPadding,
+            spacingMd = spacingMd,
+            spacingXxxs = spacingXxxs,
+        )
+    }
+
+    @Composable
+    private fun HomeHistoryDialog() {
+        val currentShowHistoryDialog by remember { showHistoryDialogState }
+        if (!currentShowHistoryDialog) return
+
+        ConversationHistoryDialog(
+            items = buildHistoryDialogItems(),
+            onDismiss = {
+                vibrateLight()
+                showHistoryDialogState.value = false
+            },
+            onSelect = { conversationId ->
+                conversations.firstOrNull { it.id == conversationId }?.let { conversation ->
+                    activeConversation = conversation
+                    renderConversation(conversation, animateTransition = true)
+                    persistConversations()
+                }
+                vibrateLight()
+                showHistoryDialogState.value = false
+            },
+            onDelete = { conversationId ->
+                if (!deleteConversationById(conversationId, clearUiForActive = true)) {
+                    return@ConversationHistoryDialog
+                }
+                if (buildHistoryDialogItems().isEmpty()) {
+                    showHistoryDialogState.value = false
+                }
+            },
+        )
     }
 
     private fun refreshMainChatPromptOnLaunch() {
@@ -1061,8 +1166,8 @@ class MainActivity : AppCompatActivity() {
                     R.string.message_connecting_placeholder
                 },
             )
-        streamingTranscriptConversationIdState.value = conversationId.takeIf { it >= 0L }
-        streamingTranscriptItemState.value =
+        val nextConversationId = conversationId.takeIf { it >= 0L }
+        val nextItem =
             TranscriptMessageUi(
                 conversationId = conversationId,
                 messageIndex = futureAssistantIndex,
@@ -1081,6 +1186,13 @@ class MainActivity : AppCompatActivity() {
                 retryText = retryText,
                 isStreaming = true,
             )
+
+        if (streamingTranscriptConversationIdState.value != nextConversationId) {
+            streamingTranscriptConversationIdState.value = nextConversationId
+        }
+        if (streamingTranscriptItemState.value != nextItem) {
+            streamingTranscriptItemState.value = nextItem
+        }
     }
 
     private fun clearStreamingTranscript() {

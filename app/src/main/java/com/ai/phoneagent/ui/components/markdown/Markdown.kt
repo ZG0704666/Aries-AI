@@ -33,7 +33,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
@@ -52,7 +54,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.phoneagent.R
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.mapLatest
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.MarkdownTokenTypes
 import org.intellij.markdown.ast.ASTNode
@@ -328,37 +332,20 @@ fun Markdown(
 
 @Composable
 private fun MarkdownContent(text: String, modifier: Modifier) {
-    var parsed by remember { mutableStateOf<MarkdownParseResult?>(null) }
+    var parsed by remember { mutableStateOf(parseMarkdownResult(text)) }
+    val latestText by rememberUpdatedState(text)
 
-    // Re-launch parsing whenever the input changes so streaming Markdown can
-    // incrementally refresh instead of waiting for the composable instance to be replaced.
-    LaunchedEffect(text) {
-        val processed = preProcess(text)
-        parsed = withContext(Dispatchers.Default) {
-            if (shouldUseHtmlRenderPipeline(processed)) {
-                MarkdownParseResult.Html(generateMarkdownHtml(processed))
-            } else {
-                MarkdownParseResult.Ast(
-                    source = processed,
-                    root = markdownParser.buildMarkdownTreeFromString(processed),
-                )
+    LaunchedEffect(Unit) {
+        snapshotFlow { latestText }
+            .distinctUntilChanged()
+            .mapLatest { candidate ->
+                parseMarkdownResult(candidate)
             }
-        }
+            .flowOn(Dispatchers.Default)
+            .collect { parsed = it }
     }
 
-    val result = parsed
-    if (result == null) {
-        // Streaming fallback: plain text until first parse completes
-        Text(
-            text     = text,
-            style    = MaterialTheme.typography.bodyMedium,
-            color    = MaterialTheme.colorScheme.onSurface,
-            modifier = modifier,
-        )
-        return
-    }
-
-    when (result) {
+    when (val result = parsed) {
         is MarkdownParseResult.Html -> {
             HtmlBlock(
                 html = result.html,
@@ -386,6 +373,18 @@ private fun MarkdownContent(text: String, modifier: Modifier) {
                 }
             }
         }
+    }
+}
+
+private fun parseMarkdownResult(text: String): MarkdownParseResult {
+    val processed = preProcess(text)
+    return if (shouldUseHtmlRenderPipeline(processed)) {
+        MarkdownParseResult.Html(generateMarkdownHtml(processed))
+    } else {
+        MarkdownParseResult.Ast(
+            source = processed,
+            root = markdownParser.buildMarkdownTreeFromString(processed),
+        )
     }
 }
 

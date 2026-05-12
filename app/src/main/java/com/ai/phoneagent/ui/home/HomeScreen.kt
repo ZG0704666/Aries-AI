@@ -1,7 +1,5 @@
 package com.ai.phoneagent.ui.home
 
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -28,9 +26,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.Alignment
@@ -51,7 +50,7 @@ import com.ai.phoneagent.ui.messages.conversationTranscriptItem
 import com.ai.phoneagent.ui.messages.conversationTranscriptItems
 import com.ai.phoneagent.ui.topbar.MainTopBar
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun HomeScreen(
@@ -71,18 +70,9 @@ fun HomeScreen(
     onDrawerConversationClick: (Long) -> Unit,
     onDrawerConversationLongClick: (Long) -> Unit,
     onDrawerSettingsClick: () -> Unit,
-    transcriptItems: List<TranscriptMessageUi>,
-    streamingTranscriptItem: TranscriptMessageUi? = null,
-    transcriptAnimationKey: Long,
-    thinkingExpandedByDefault: Boolean,
-    codeBlockPrefs: CodeBlockPrefs = CodeBlockPrefs(),
-    onCopyMessage: (TranscriptMessageUi) -> Unit,
-    onRetryMessage: (TranscriptMessageUi) -> Unit,
-    onEditMessage: (TranscriptMessageUi) -> Unit,
-    onAutomationAction: (TranscriptMessageUi) -> Unit,
+    transcriptPaneContent: @Composable (bottomOverlayPadding: Dp, spacingMd: Dp, spacingXxxs: Dp) -> Unit,
     inputBarContent: @Composable () -> Unit,
     aiNoticeText: String,
-    scrollToBottomSignal: Long,
     contentAlpha: Float,
     contentScale: Float,
     onboardingContent: @Composable (() -> Unit)? = null,
@@ -98,9 +88,18 @@ fun HomeScreen(
     val density = LocalDensity.current
     var bottomOverlayHeightPx by remember { mutableIntStateOf(0) }
     val bottomOverlayPadding = with(density) { bottomOverlayHeightPx.toDp() }
-    val reversedTranscriptItems = remember(transcriptItems) {
-        transcriptItems.asReversed().toImmutableList()
-    }
+    val scaffoldModifier =
+        if (contentAlpha != 1f || contentScale != 1f) {
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    alpha = contentAlpha
+                    scaleX = contentScale
+                    scaleY = contentScale
+                }
+        } else {
+            Modifier.fillMaxSize()
+        }
 
     LaunchedEffect(drawerState.currentValue) {
         if (drawerState.currentValue == DrawerValue.Closed) {
@@ -140,13 +139,7 @@ fun HomeScreen(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        alpha = contentAlpha
-                        scaleX = contentScale
-                        scaleY = contentScale
-                    },
+                modifier = scaffoldModifier,
                 topBar = {
                     MainTopBar(
                         statusText = statusText,
@@ -165,22 +158,7 @@ fun HomeScreen(
                         .padding(paddingValues)
                         .imePadding(),
                 ) {
-                    HomeTranscriptPane(
-                        reversedTranscriptItems = reversedTranscriptItems,
-                        streamingTranscriptItem = streamingTranscriptItem,
-                        transcriptItems = transcriptItems,
-                        transcriptAnimationKey = transcriptAnimationKey,
-                        thinkingExpandedByDefault = thinkingExpandedByDefault,
-                        codeBlockPrefs = codeBlockPrefs,
-                        onCopyMessage = onCopyMessage,
-                        onRetryMessage = onRetryMessage,
-                        onEditMessage = onEditMessage,
-                        onAutomationAction = onAutomationAction,
-                        scrollToBottomSignal = scrollToBottomSignal,
-                        bottomOverlayPadding = bottomOverlayPadding,
-                        spacingMd = spacingMd,
-                        spacingXxxs = spacingXxxs,
-                    )
+                    transcriptPaneContent(bottomOverlayPadding, spacingMd, spacingXxxs)
 
                     HomeBottomOverlay(
                         aiNoticeText = aiNoticeText,
@@ -202,11 +180,10 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeTranscriptPane(
-    reversedTranscriptItems: ImmutableList<TranscriptMessageUi>,
+fun HomeTranscriptPane(
+    transcriptItems: ImmutableList<TranscriptMessageUi>,
     streamingTranscriptItem: TranscriptMessageUi?,
-    transcriptItems: List<TranscriptMessageUi>,
-    transcriptAnimationKey: Long,
+    transcriptResetKey: Long,
     thinkingExpandedByDefault: Boolean,
     codeBlockPrefs: CodeBlockPrefs,
     onCopyMessage: (TranscriptMessageUi) -> Unit,
@@ -219,96 +196,117 @@ private fun HomeTranscriptPane(
     spacingXxxs: Dp,
 ) {
     DebugRecomposeLogger(scope = "HomeTranscriptPane")
-    Crossfade(
+    if (transcriptItems.isEmpty() && streamingTranscriptItem == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = spacingMd)
+                .padding(top = spacingXxxs),
+        ) {
+            TranscriptEmptyHintCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .padding(top = spacingMd),
+            )
+        }
+        return
+    }
+
+    val conversationId = remember(
+        transcriptItems,
+        streamingTranscriptItem,
+        transcriptResetKey,
+    ) {
+        streamingTranscriptItem
+            ?.conversationId
+            ?.takeIf { it >= 0L }
+            ?: transcriptItems.firstOrNull()?.conversationId
+            ?: transcriptResetKey
+    }
+    val listKey = remember(conversationId, transcriptResetKey) {
+        "$conversationId-$transcriptResetKey"
+    }
+    val listState = rememberLazyListState()
+    val bottomListIndex = transcriptItems.size + if (streamingTranscriptItem != null) 1 else 0
+    val streamingContentVersion = remember(
+        transcriptItems.lastOrNull()?.id,
+        transcriptItems.lastOrNull()?.body?.length,
+        transcriptItems.lastOrNull()?.thinking?.length,
+        streamingTranscriptItem?.body?.length,
+        streamingTranscriptItem?.thinking?.length,
+        bottomOverlayPadding,
+    ) {
+        listOf(
+            transcriptItems.lastOrNull()?.id,
+            transcriptItems.lastOrNull()?.body?.length,
+            transcriptItems.lastOrNull()?.thinking?.length,
+            streamingTranscriptItem?.body?.length,
+            streamingTranscriptItem?.thinking?.length,
+            bottomOverlayPadding.value,
+        )
+    }
+    val isAtBottom by remember(listState) {
+        derivedStateOf {
+            !listState.canScrollForward
+        }
+    }
+    var autoFollowBottom by remember(listKey) { mutableStateOf(true) }
+
+    LaunchedEffect(listKey) {
+        autoFollowBottom = true
+        listState.scrollToItem(bottomListIndex)
+    }
+
+    LaunchedEffect(listState, listKey) {
+        snapshotFlow { listState.isScrollInProgress to isAtBottom }
+            .distinctUntilChanged()
+            .collect { (isScrollInProgress, atBottom) ->
+                if (isScrollInProgress) {
+                    autoFollowBottom = atBottom
+                }
+            }
+    }
+
+    LaunchedEffect(scrollToBottomSignal, listKey, bottomListIndex) {
+        if (scrollToBottomSignal > 0L) {
+            autoFollowBottom = true
+            listState.scrollToItem(bottomListIndex)
+        }
+    }
+
+    LaunchedEffect(
+        listKey,
+        streamingContentVersion,
+        autoFollowBottom,
+        listState.isScrollInProgress,
+        bottomListIndex,
+    ) {
+        if (autoFollowBottom && !listState.isScrollInProgress) {
+            listState.scrollToItem(bottomListIndex)
+        }
+    }
+
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = spacingMd)
             .padding(top = spacingXxxs),
-        targetState = transcriptAnimationKey,
-        animationSpec = tween(200),
-        label = "conversationSwitch",
-    ) { animKey ->
-        if (reversedTranscriptItems.isEmpty() && streamingTranscriptItem == null) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                TranscriptEmptyHintCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopCenter)
-                        .padding(top = spacingMd),
-                )
-            }
-            return@Crossfade
-        }
+        state = listState,
+    ) {
+        conversationTranscriptItems(
+            items = transcriptItems,
+            onCopyMessage = onCopyMessage,
+            onRetryMessage = onRetryMessage,
+            onAutomationAction = onAutomationAction,
+            thinkingExpandedByDefault = thinkingExpandedByDefault,
+            onEditMessage = onEditMessage,
+            codeBlockPrefs = codeBlockPrefs,
+        )
 
-        val conversationId = remember(
-            reversedTranscriptItems,
-            streamingTranscriptItem,
-            animKey,
-        ) {
-            streamingTranscriptItem
-                ?.conversationId
-                ?.takeIf { it >= 0L }
-                ?: reversedTranscriptItems.firstOrNull()?.conversationId
-                ?: animKey
-        }
-        val listState = key(conversationId) { rememberLazyListState() }
-        val atBottom by remember(listState) {
-            derivedStateOf {
-                listState.firstVisibleItemIndex == 0 &&
-                    listState.firstVisibleItemScrollOffset < 50
-            }
-        }
-
-        LaunchedEffect(conversationId) {
-            listState.scrollToItem(0)
-        }
-
-        LaunchedEffect(scrollToBottomSignal, conversationId, atBottom) {
-            if (scrollToBottomSignal > 0L && atBottom) {
-                listState.animateScrollToItem(0)
-            }
-        }
-
-        LaunchedEffect(
-            conversationId,
-            transcriptItems.size,
-            transcriptItems.lastOrNull()?.id,
-            streamingTranscriptItem?.id,
-            atBottom,
-            listState.isScrollInProgress,
-        ) {
-            if (atBottom &&
-                !listState.isScrollInProgress &&
-                (listState.firstVisibleItemIndex > 0 ||
-                    listState.firstVisibleItemScrollOffset > 0)
-            ) {
-                listState.scrollToItem(0)
-            }
-        }
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            state = listState,
-            reverseLayout = true,
-        ) {
-            item(key = "bottom_overlay_spacer", contentType = "bottom_spacer") {
-                Spacer(modifier = Modifier.height(bottomOverlayPadding))
-            }
-
-            streamingTranscriptItem?.let { item ->
-                conversationTranscriptItem(
-                    item = item,
-                    onCopyMessage = onCopyMessage,
-                    onRetryMessage = onRetryMessage,
-                    onAutomationAction = onAutomationAction,
-                    thinkingExpandedByDefault = thinkingExpandedByDefault,
-                    onEditMessage = onEditMessage,
-                    codeBlockPrefs = codeBlockPrefs,
-                )
-            }
-
-            conversationTranscriptItems(
-                items = reversedTranscriptItems,
+        streamingTranscriptItem?.let { item ->
+            conversationTranscriptItem(
+                item = item,
                 onCopyMessage = onCopyMessage,
                 onRetryMessage = onRetryMessage,
                 onAutomationAction = onAutomationAction,
@@ -316,6 +314,10 @@ private fun HomeTranscriptPane(
                 onEditMessage = onEditMessage,
                 codeBlockPrefs = codeBlockPrefs,
             )
+        }
+
+        item(key = "bottom_overlay_spacer", contentType = "bottom_spacer") {
+            Spacer(modifier = Modifier.height(bottomOverlayPadding))
         }
     }
 }

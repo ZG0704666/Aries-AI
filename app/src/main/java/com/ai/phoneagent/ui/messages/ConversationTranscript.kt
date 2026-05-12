@@ -55,6 +55,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateOf
@@ -506,34 +507,19 @@ private fun AssistantMessageBlock(
         verticalArrangement = Arrangement.spacedBy(spacingSm),
     ) {
         if (item.automation == null) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacingSm),
-            ) {
-                Text(
-                    text = item.author,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                if (item.isStreaming) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.message_streaming_label),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
-                        )
-                    }
-                }
-            }
+            AssistantMessageHeader(
+                author = item.author,
+                isStreaming = item.isStreaming,
+                spacingSm = spacingSm,
+                spacingXs = spacingXs,
+            )
         }
 
         ThinkingSection(
-            item = item,
+            messageId = item.id,
+            thinking = item.thinking,
+            thinkingDurationMs = item.thinkingDurationMs,
+            isStreaming = item.isStreaming,
             thinkingExpandedByDefault = thinkingExpandedByDefault,
         )
 
@@ -544,41 +530,11 @@ private fun AssistantMessageBlock(
                 onAutomationAction = onAutomationAction,
             )
         } else if (item.body.isNotBlank()) {
-            Surface(
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = if (item.isStreaming) 2.dp else 1.dp,
-            ) {
-                if (item.isStreaming && shouldRenderStreamingMarkdown(item.body)) {
-                    StreamingMarkdownPreview(
-                        text = item.body,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = spacingMd, vertical = spacingMd),
-                    )
-                } else if (item.isStreaming) {
-                    Text(
-                        text = item.body,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = spacingMd, vertical = spacingMd),
-                    )
-                } else {
-                    SelectionContainer {
-                        Markdown(
-                            text = item.body,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = spacingMd, vertical = spacingMd),
-                        )
-                    }
-                }
-            }
+            AssistantMessageBody(
+                body = item.body,
+                isStreaming = item.isStreaming,
+                spacingMd = spacingMd,
+            )
         }
         @Suppress("UNUSED_EXPRESSION")
         if (false) { // kept for reference – no longer called
@@ -595,36 +551,167 @@ private fun AssistantMessageBlock(
             item.automation == null &&
             (item.copyText.isNotBlank() || !item.retryText.isNullOrBlank())
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(actionGap),
-                verticalAlignment = Alignment.CenterVertically,
+            AssistantMessageActions(
+                item = item,
+                actionGap = actionGap,
+                actionButtonSize = actionButtonSize,
+                actionIconSize = actionIconSize,
+                onCopyMessage = onCopyMessage,
+                onRetryMessage = onRetryMessage,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AssistantMessageHeader(
+    author: String,
+    isStreaming: Boolean,
+    spacingSm: Dp,
+    spacingXs: Dp,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacingSm),
+    ) {
+        Text(
+            text = author,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold,
+        )
+        if (isStreaming) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer,
             ) {
-                if (item.copyText.isNotBlank()) {
-                    MessageActionButton(
-                        onClick = { onCopyMessage(item) },
-                        buttonSize = actionButtonSize,
-                    ) {
-                        Icon(
-                            imageVector = Lucide.Copy,
-                            contentDescription = stringResource(R.string.common_copy),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(actionIconSize),
+                Text(
+                    text = stringResource(R.string.message_streaming_label),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AssistantMessageBody(
+    body: String,
+    isStreaming: Boolean,
+    spacingMd: Dp,
+) {
+    val codeBlockPrefs = LocalCodeBlockPrefs.current
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = if (isStreaming) 2.dp else 1.dp,
+    ) {
+        if (isStreaming && shouldRenderStreamingMarkdown(body)) {
+            StreamingMarkdownPreview(
+                text = body,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacingMd, vertical = spacingMd),
+            )
+        } else if (isStreaming) {
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacingMd, vertical = spacingMd),
+            )
+        } else {
+            AssistantMessageFinalBody(
+                body = body,
+                spacingMd = spacingMd,
+                codeBlockPrefs = codeBlockPrefs,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AssistantMessageFinalBody(
+    body: String,
+    spacingMd: Dp,
+    codeBlockPrefs: CodeBlockPrefs,
+) {
+    val segments = remember(body) { parseMessageBodySegments(body) }
+    val bodyKeyPrefix = remember(body) { body.hashCode().toString() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacingMd, vertical = spacingMd),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        segments.forEachIndexed { index, segment ->
+            when (segment) {
+                is MessageBodySegment.MarkdownText -> {
+                    SelectionContainer {
+                        Markdown(
+                            text = segment.content,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
-                if (!item.retryText.isNullOrBlank()) {
-                    MessageActionButton(
-                        onClick = { onRetryMessage(item) },
-                        buttonSize = actionButtonSize,
-                    ) {
-                        Icon(
-                            imageVector = Lucide.RefreshCw,
-                            contentDescription = stringResource(R.string.retry),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(actionIconSize),
-                        )
-                    }
+
+                is MessageBodySegment.CodeFence -> {
+                    CodeBlockSegment(
+                        language = segment.language,
+                        code = segment.content,
+                        blockKey = "$bodyKeyPrefix-$index",
+                        prefs = codeBlockPrefs,
+                    )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AssistantMessageActions(
+    item: TranscriptMessageUi,
+    actionGap: Dp,
+    actionButtonSize: Dp,
+    actionIconSize: Dp,
+    onCopyMessage: (TranscriptMessageUi) -> Unit,
+    onRetryMessage: (TranscriptMessageUi) -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(actionGap),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (item.copyText.isNotBlank()) {
+            MessageActionButton(
+                onClick = { onCopyMessage(item) },
+                buttonSize = actionButtonSize,
+            ) {
+                Icon(
+                    imageVector = Lucide.Copy,
+                    contentDescription = stringResource(R.string.common_copy),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(actionIconSize),
+                )
+            }
+        }
+        if (!item.retryText.isNullOrBlank()) {
+            MessageActionButton(
+                onClick = { onRetryMessage(item) },
+                buttonSize = actionButtonSize,
+            ) {
+                Icon(
+                    imageVector = Lucide.RefreshCw,
+                    contentDescription = stringResource(R.string.retry),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(actionIconSize),
+                )
             }
         }
     }
@@ -660,46 +747,36 @@ private fun StreamingMarkdownPreview(
     modifier: Modifier = Modifier,
 ) {
     val latestTextState = rememberUpdatedState(text)
-    var renderedMarkdownText by remember {
-        mutableStateOf(extractStableStreamingMarkdownPrefix(text))
+    var renderedSnapshot by remember {
+        mutableStateOf(buildStreamingMarkdownSnapshot(text))
     }
-    val renderedBlocks = remember(renderedMarkdownText) {
-        splitStableStreamingMarkdownBlocks(renderedMarkdownText)
+    val renderedTailText = remember(text, renderedSnapshot.committedPrefixLength) {
+        text
+            .drop(renderedSnapshot.committedPrefixLength.coerceAtMost(text.length))
+            .trimStart('\n', '\r')
     }
 
     LaunchedEffect(Unit) {
         snapshotFlow { latestTextState.value }
             .sample(STREAMING_MARKDOWN_RENDER_INTERVAL_MS)
             .collect { candidate ->
-                val stableCandidate = extractStableStreamingMarkdownPrefix(candidate)
-                if (stableCandidate.length > renderedMarkdownText.length &&
-                    candidate.startsWith(renderedMarkdownText) &&
-                    candidate.startsWith(stableCandidate) &&
-                    shouldAdvanceStreamingMarkdownPreview(
-                        previousRendered = renderedMarkdownText,
-                        nextRendered = stableCandidate,
-                    )
-                ) {
-                    renderedMarkdownText = stableCandidate
+                val nextSnapshot = buildStreamingMarkdownSnapshot(candidate)
+                if (shouldAdvanceStreamingMarkdownSnapshot(renderedSnapshot, nextSnapshot)) {
+                    renderedSnapshot = nextSnapshot
                 }
             }
     }
 
     LaunchedEffect(text) {
-        val stableCandidate = extractStableStreamingMarkdownPrefix(text)
-        if (stableCandidate.length > renderedMarkdownText.length &&
-            shouldAdvanceStreamingMarkdownPreview(
-                previousRendered = renderedMarkdownText,
-                nextRendered = stableCandidate,
-            )
-        ) {
-            renderedMarkdownText = stableCandidate
+        val nextSnapshot = buildStreamingMarkdownSnapshot(text)
+        if (shouldAdvanceStreamingMarkdownSnapshot(renderedSnapshot, nextSnapshot)) {
+            renderedSnapshot = nextSnapshot
         }
     }
 
-    if (renderedBlocks.isEmpty()) {
+    if (renderedSnapshot.blocks.isEmpty()) {
         Text(
-            text = text,
+            text = renderedTailText.ifBlank { text },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = modifier.fillMaxWidth(),
@@ -711,27 +788,65 @@ private fun StreamingMarkdownPreview(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        renderedBlocks.forEach { block ->
+        renderedSnapshot.blocks.forEach { block ->
             Markdown(
                 text = block,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        if (renderedTailText.isNotBlank()) {
+            Text(
+                text = renderedTailText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
     }
 }
 
-private fun shouldAdvanceStreamingMarkdownPreview(
-    previousRendered: String,
-    nextRendered: String,
+@Immutable
+private data class StreamingMarkdownSnapshot(
+    val blocks: ImmutableList<String>,
+    val committedPrefixLength: Int,
+)
+
+private fun buildStreamingMarkdownSnapshot(text: String): StreamingMarkdownSnapshot {
+    val stablePrefix = extractStableStreamingMarkdownPrefix(text)
+    if (stablePrefix.isBlank()) {
+        return StreamingMarkdownSnapshot(
+            blocks = emptyList<String>().toImmutableList(),
+            committedPrefixLength = 0,
+        )
+    }
+
+    val partition = partitionCommittedStreamingMarkdown(stablePrefix)
+    return StreamingMarkdownSnapshot(
+        blocks = partition.blocks.toImmutableList(),
+        committedPrefixLength = partition.committedPrefixLength,
+    )
+}
+
+private fun shouldAdvanceStreamingMarkdownSnapshot(
+    previous: StreamingMarkdownSnapshot,
+    next: StreamingMarkdownSnapshot,
 ): Boolean {
-    if (previousRendered.isBlank()) return true
-    val delta = nextRendered.length - previousRendered.length
+    if (next.committedPrefixLength <= previous.committedPrefixLength) return false
+    return shouldAdvanceStreamingMarkdownPreview(
+        previousRendered = previous.committedPrefixLength,
+        nextRendered = next.committedPrefixLength,
+    )
+}
+
+private fun shouldAdvanceStreamingMarkdownPreview(
+    previousRendered: Int,
+    nextRendered: Int,
+): Boolean {
+    if (previousRendered <= 0) return true
+    val delta = nextRendered - previousRendered
     return delta >= STREAMING_MARKDOWN_MIN_CHUNK_DELTA ||
-        nextRendered.endsWith('\n') ||
-        nextRendered.endsWith("```") ||
-        nextRendered.endsWith("$$") ||
-        nextRendered.endsWith("\\)") ||
-        nextRendered.endsWith("\\]")
+        delta > 0
 }
 
 private fun extractStableStreamingMarkdownPrefix(text: String): String {
@@ -785,8 +900,19 @@ private fun findStableStreamingMarkdownEnd(text: String): Int {
     return safeEnd
 }
 
-private fun splitStableStreamingMarkdownBlocks(text: String): List<String> {
-    if (text.isBlank()) return emptyList()
+@Immutable
+private data class StreamingMarkdownPartition(
+    val blocks: List<String>,
+    val committedPrefixLength: Int,
+)
+
+private fun partitionCommittedStreamingMarkdown(text: String): StreamingMarkdownPartition {
+    if (text.isBlank()) {
+        return StreamingMarkdownPartition(
+            blocks = emptyList(),
+            committedPrefixLength = 0,
+        )
+    }
 
     val blocks = mutableListOf<String>()
     var blockStart = 0
@@ -796,6 +922,7 @@ private fun splitStableStreamingMarkdownBlocks(text: String): List<String> {
     var inBlockMath = false
     var inInlineMath = false
     var index = 0
+    var lastClosedStructuredBlockEnd = 0
 
     fun flushBlock(endExclusive: Int) {
         if (endExclusive <= blockStart) return
@@ -809,11 +936,17 @@ private fun splitStableStreamingMarkdownBlocks(text: String): List<String> {
     while (index < text.length) {
         if (!inInlineCode && !inBlockMath && !inInlineMath && text.startsWith("```", index)) {
             inFence = !inFence
+            if (!inFence) {
+                lastClosedStructuredBlockEnd = (index + 3).coerceAtMost(text.length)
+            }
             index += 3
             continue
         }
         if (!inFence && !inInlineCode && !inInlineMath && text.startsWith("$$", index)) {
             inBlockMath = !inBlockMath
+            if (!inBlockMath) {
+                lastClosedStructuredBlockEnd = (index + 2).coerceAtMost(text.length)
+            }
             index += 2
             continue
         }
@@ -834,6 +967,9 @@ private fun splitStableStreamingMarkdownBlocks(text: String): List<String> {
                 val line = text.substring(lineStart, index)
                 if (line.isBlank()) {
                     flushBlock(index + 1)
+                } else if (lastClosedStructuredBlockEnd in (blockStart + 1)..index) {
+                    flushBlock(index + 1)
+                    lastClosedStructuredBlockEnd = 0
                 }
             }
             lineStart = index + 1
@@ -841,8 +977,16 @@ private fun splitStableStreamingMarkdownBlocks(text: String): List<String> {
         index += 1
     }
 
-    flushBlock(text.length)
-    return blocks
+    if (!inFence && !inInlineCode && !inBlockMath && !inInlineMath &&
+        lastClosedStructuredBlockEnd in (blockStart + 1)..text.length
+    ) {
+        flushBlock(text.length)
+    }
+
+    return StreamingMarkdownPartition(
+        blocks = blocks,
+        committedPrefixLength = blockStart,
+    )
 }
 
 private fun isEscapedMarkdownChar(text: String, index: Int): Boolean {
@@ -981,57 +1125,74 @@ private fun CodeBlockSegment(
 
 @Composable
 private fun ThinkingSection(
-    item: TranscriptMessageUi,
+    messageId: String,
+    thinking: String?,
+    thinkingDurationMs: Long?,
+    isStreaming: Boolean,
     thinkingExpandedByDefault: Boolean,
 ) {
-    val thinking = item.thinking?.trim().orEmpty()
-    if (thinking.isEmpty()) return
+    val thinkingText = thinking?.trim().orEmpty()
+    if (thinkingText.isEmpty()) return
 
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val thinkingIconBox = dimensionResource(R.dimen.m3t_message_thinking_icon_box_size)
-    val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
-    var expanded by rememberSaveable(item.id) {
-        mutableStateOf(item.isStreaming || thinkingExpandedByDefault)
-    }
-    var wasStreaming by rememberSaveable(item.id) {
-        mutableStateOf(item.isStreaming)
-    }
-
-    LaunchedEffect(item.id, item.isStreaming) {
-        if (item.isStreaming && !wasStreaming) {
-            expanded = true
-        }
-        wasStreaming = item.isStreaming
-    }
 
     val thinkingLabel =
-        item.thinkingDurationMs?.let { durationMs ->
+        thinkingDurationMs?.let { durationMs ->
             stringResource(
                 R.string.message_thinking_duration_format,
                 durationMs / 1000f,
             )
-        } ?: if (item.isStreaming) {
+        } ?: if (isStreaming) {
             stringResource(R.string.message_thinking_in_progress)
         } else {
             stringResource(R.string.message_thinking_label)
         }
+
+    if (isStreaming) {
+        StreamingThinkingSection(
+            thinkingLabel = thinkingLabel,
+            thinkingText = thinkingText,
+            thinkingIconBox = thinkingIconBox,
+            actionIconSize = actionIconSize,
+            spacingSm = spacingSm,
+            spacingMd = spacingMd,
+            spacingXs = spacingXs,
+        )
+        return
+    }
+
+    val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
+    var expanded by rememberSaveable(messageId) {
+        mutableStateOf(isStreaming || thinkingExpandedByDefault)
+    }
+    var wasStreaming by rememberSaveable(messageId) {
+        mutableStateOf(isStreaming)
+    }
+
+    LaunchedEffect(messageId, isStreaming) {
+        if (isStreaming && !wasStreaming) {
+            expanded = true
+        }
+        wasStreaming = isStreaming
+    }
 
     val arrowRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
         animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
         label = "thinkingArrowRotation",
     )
-    var bodyVisible by rememberSaveable(item.id) {
+    var bodyVisible by rememberSaveable(messageId) {
         mutableStateOf(expanded)
     }
-    var hasExpandedOnce by rememberSaveable(item.id) {
+    var hasExpandedOnce by rememberSaveable(messageId) {
         mutableStateOf(expanded)
     }
 
-    LaunchedEffect(item.id, expanded) {
+    LaunchedEffect(messageId, expanded) {
         if (expanded) {
             hasExpandedOnce = true
             kotlinx.coroutines.delay(150)
@@ -1044,7 +1205,7 @@ private fun ThinkingSection(
         modifier = Modifier.fillMaxWidth(),
     ) {
         val density = LocalDensity.current
-        var collapsedWidthPx by rememberSaveable(item.id, thinkingLabel) { mutableStateOf(0) }
+        var collapsedWidthPx by rememberSaveable(messageId, thinkingLabel) { mutableStateOf(0) }
         val expandedWidth = maxWidth
         val collapsedWidth =
             if (collapsedWidthPx > 0) {
@@ -1101,13 +1262,21 @@ private fun ThinkingSection(
             color = MaterialTheme.colorScheme.secondaryContainer,
             tonalElevation = 1.dp,
         ) {
+            val contentModifier =
+                Modifier
+                    .then(contentWidthModifier)
+                    .let { baseModifier ->
+                        if (isStreaming) {
+                            baseModifier
+                        } else {
+                            baseModifier.animateContentSize(
+                                animationSpec = spring(dampingRatio = 0.9f, stiffness = 500f),
+                            )
+                        }
+                    }
             Column(
                 modifier =
-                    Modifier
-                        .then(contentWidthModifier)
-                        .animateContentSize(
-                            animationSpec = spring(dampingRatio = 0.9f, stiffness = 500f),
-                        )
+                    contentModifier
                         .padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
                 verticalArrangement = Arrangement.spacedBy(spacingXs + spacingSm),
             ) {
@@ -1134,9 +1303,9 @@ private fun ThinkingSection(
                         animationSpec = tween(200, easing = FastOutSlowInEasing),
                     ),
                 ) {
-                    if (item.isStreaming) {
+                    if (isStreaming) {
                         Text(
-                            text = thinking,
+                            text = thinkingText,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.fillMaxWidth(),
@@ -1144,13 +1313,67 @@ private fun ThinkingSection(
                     } else {
                         SelectionContainer {
                             Markdown(
-                                text = thinking,
+                                text = thinkingText,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun StreamingThinkingSection(
+    thinkingLabel: String,
+    thinkingText: String,
+    thinkingIconBox: Dp,
+    actionIconSize: Dp,
+    spacingSm: Dp,
+    spacingMd: Dp,
+    spacingXs: Dp,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        tonalElevation = 1.dp,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
+            verticalArrangement = Arrangement.spacedBy(spacingXs + spacingSm),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacingSm),
+            ) {
+                Box(
+                    modifier = Modifier.size(thinkingIconBox),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_cognition_24),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(actionIconSize),
+                    )
+                }
+                Text(
+                    text = thinkingLabel,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Text(
+                text = thinkingText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
