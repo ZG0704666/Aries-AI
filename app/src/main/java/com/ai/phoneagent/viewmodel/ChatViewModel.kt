@@ -1,6 +1,10 @@
 package com.ai.phoneagent.viewmodel
 
 import android.app.Application
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.util.Base64
 import android.util.Base64OutputStream
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,6 +16,7 @@ import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
+import kotlin.math.roundToInt
 
 /**
  * ChatViewModel
@@ -20,8 +25,18 @@ import java.io.InputStream
  */
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private companion object {
-        private const val MAX_BASE64_IMAGE_BYTES = 8L * 1024L * 1024L
+        private const val MAX_BASE64_IMAGE_BYTES = 2L * 1024L * 1024L
+        private const val MAX_RAW_FALLBACK_IMAGE_BYTES = 512L * 1024L
+        private const val MAX_IMAGE_EDGE_PX = 1568
+        private const val JPEG_QUALITY_START = 85
+        private const val JPEG_QUALITY_MIN = 55
+        private const val JPEG_QUALITY_STEP = 10
     }
+
+    private data class EncodedImagePayload(
+        val base64: String,
+        val mimeType: String,
+    )
     
     // 附件管理器
     private val attachmentManager = AttachmentManager(application)
@@ -212,14 +227,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             
             // 添加图片内容
             imageAttachments.forEach { attachment ->
-                // 读取图片并转换为base64
-                val imageData = readImageAsBase64(attachment.filePath)
-                if (imageData != null) {
-                    val imageMimeType = resolveImageMimeType(attachment)
+                val imagePayload = encodeImagePayload(attachment)
+                if (imagePayload != null) {
                     contentArray.add(mapOf(
                         "type" to "image_url",
                         "image_url" to mapOf(
-                            "url" to "data:${imageMimeType};base64,$imageData"
+                            "url" to "data:${imagePayload.mimeType};base64,${imagePayload.base64}"
                         )
                     ))
                 }
@@ -234,41 +247,146 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * 读取图片文件并转换为base64
      */
-    private fun readImageAsBase64(filePath: String): String? {
+    private fun encodeImagePayload(attachment: AttachmentInfo): EncodedImagePayload? {
+        readCompressedImageAsBase64(attachment.filePath)?.let {
+            return EncodedImagePayload(base64 = it, mimeType = "image/jpeg")
+        }
+
+        val rawBase64 = readImageAsBase64(attachment.filePath, MAX_RAW_FALLBACK_IMAGE_BYTES) ?: return null
+        return EncodedImagePayload(base64 = rawBase64, mimeType = resolveImageMimeType(attachment))
+    }
+
+    private fun readCompressedImageAsBase64(filePath: String): String? {
+        val bounds = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+
+        openAttachmentInputStream(filePath)?.use { input ->
+            BitmapFactory.decodeStream(input, null, bounds)
+        }
+
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            return null
+        }
+
+        val decodeOptions = BitmapFactory.Options().apply {
+            inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight)
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+
+        val decodedBitmap =
+            openAttachmentInputStream(filePath)?.use { input ->
+                BitmapFactory.decodeStream(input, null, decodeOptions)
+            } ?: return null
+
+        val scaledBitmap = scaleBitmapIfNeeded(decodedBitmap)
+        if (scaledBitmap !== decodedBitmap) {
+            decodedBitmap.recycle()
+        }
+
         return try {
-            val context = getApplication<Application>()
-            val inputStream =
-                when {
-                    filePath.startsWith("content://") -> {
-                        val uri = android.net.Uri.parse(filePath)
-                        context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
-                            val declaredLength = descriptor.length.takeIf { it > 0L }
-                                ?: descriptor.declaredLength.takeIf { it > 0L }
-                            if (declaredLength != null && declaredLength > MAX_BASE64_IMAGE_BYTES) {
-                                return null
-                            }
-                        }
-                        context.contentResolver.openInputStream(uri)
-                    }
-                    filePath.startsWith("file://") -> {
-                        android.net.Uri.parse(filePath).path
-                            ?.let(::File)
-                            ?.takeIf { it.exists() && it.isFile && it.length() in 1..MAX_BASE64_IMAGE_BYTES }
-                            ?.inputStream()
-                    }
-                    else -> {
-                        val file = File(filePath)
-                        if (file.exists() && file.isFile && file.length() in 1..MAX_BASE64_IMAGE_BYTES) {
-                            file.inputStream()
-                        } else {
-                            null
-                        }
-                    }
-                }
-            inputStream?.use { encodeStreamAsBase64(it, MAX_BASE64_IMAGE_BYTES) }
+            compressBitmapAsBase64(scaledBitmap)
+        } finally {
+            scaledBitmap.recycle()
+        }
+    }
+
+    private fun calculateInSampleSize(width: Int, height: Int): Int {
+        var sampleSize = 1
+        var currentWidth = width
+        var currentHeight = height
+        while (currentWidth > MAX_IMAGE_EDGE_PX || currentHeight > MAX_IMAGE_EDGE_PX) {
+            sampleSize *= 2
+            currentWidth /= 2
+            currentHeight /= 2
+        }
+        return sampleSize.coerceAtLeast(1)
+    }
+
+    private fun scaleBitmapIfNeeded(bitmap: Bitmap): Bitmap {
+        val maxEdge = maxOf(bitmap.width, bitmap.height)
+        if (maxEdge <= MAX_IMAGE_EDGE_PX) {
+            return bitmap
+        }
+
+        val scale = MAX_IMAGE_EDGE_PX.toFloat() / maxEdge.toFloat()
+        val scaledWidth = (bitmap.width * scale).roundToInt().coerceAtLeast(1)
+        val scaledHeight = (bitmap.height * scale).roundToInt().coerceAtLeast(1)
+        return Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true)
+    }
+
+    private fun compressBitmapAsBase64(bitmap: Bitmap): String? {
+        var quality = JPEG_QUALITY_START
+        while (quality >= JPEG_QUALITY_MIN) {
+            val output = ByteArrayOutputStream()
+            val compressed = bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)
+            val bytes = output.toByteArray()
+            if (compressed && bytes.isNotEmpty() && bytes.size.toLong() <= MAX_BASE64_IMAGE_BYTES) {
+                return Base64.encodeToString(bytes, Base64.NO_WRAP)
+            }
+            quality -= JPEG_QUALITY_STEP
+        }
+        return null
+    }
+
+    private fun readImageAsBase64(filePath: String, maxBytes: Long): String? {
+        return try {
+            if (!isWithinByteLimit(filePath, maxBytes)) {
+                return null
+            }
+            openAttachmentInputStream(filePath)?.use { encodeStreamAsBase64(it, maxBytes) }
         } catch (e: Exception) {
             e.printStackTrace()
             null
+        }
+    }
+
+    private fun isWithinByteLimit(filePath: String, maxBytes: Long): Boolean {
+        val context = getApplication<Application>()
+        return when {
+            filePath.startsWith("content://") -> {
+                val uri = Uri.parse(filePath)
+                context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+                    val declaredLength = descriptor.length.takeIf { it > 0L }
+                        ?: descriptor.declaredLength.takeIf { it > 0L }
+                    declaredLength == null || declaredLength in 1..maxBytes
+                } ?: true
+            }
+            filePath.startsWith("file://") -> {
+                Uri.parse(filePath).path
+                    ?.let(::File)
+                    ?.takeIf { it.exists() && it.isFile }
+                    ?.length()
+                    ?.let { it in 1..maxBytes }
+                    ?: false
+            }
+            else -> {
+                val file = File(filePath)
+                file.exists() && file.isFile && file.length() in 1..maxBytes
+            }
+        }
+    }
+
+    private fun openAttachmentInputStream(filePath: String): InputStream? {
+        val context = getApplication<Application>()
+        return when {
+            filePath.startsWith("content://") -> {
+                context.contentResolver.openInputStream(Uri.parse(filePath))
+            }
+            filePath.startsWith("file://") -> {
+                Uri.parse(filePath).path
+                    ?.let(::File)
+                    ?.takeIf { it.exists() && it.isFile }
+                    ?.inputStream()
+            }
+            else -> {
+                val file = File(filePath)
+                if (file.exists() && file.isFile) {
+                    file.inputStream()
+                } else {
+                    null
+                }
+            }
         }
     }
 

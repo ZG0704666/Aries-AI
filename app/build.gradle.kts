@@ -22,6 +22,28 @@ val githubToken: String by lazy {
     line.substring(eqIdx + 1).trim()
 }
 
+fun localProperty(name: String): String {
+    val f = rootProject.file("local.properties")
+    if (!f.exists()) return ""
+
+    val line =
+        f.readLines()
+            .asSequence()
+            .map { it.trim() }
+            .firstOrNull { it.isNotBlank() && !it.startsWith("#") && it.startsWith(name) }
+            ?: return ""
+
+    val eqIdx = line.indexOf('=')
+    if (eqIdx < 0) return ""
+    return line.substring(eqIdx + 1).trim()
+}
+
+fun localProperty(name: String, defaultValue: String): String =
+    localProperty(name).ifBlank { defaultValue }
+
+fun escapedBuildConfigString(value: String): String =
+    value.replace("\\", "\\\\").replace("\"", "\\\"")
+
 android {
     namespace = "com.ai.phoneagent"
     compileSdk = 36
@@ -40,6 +62,10 @@ android {
         versionName = "v1.4.2-xyla.alpha"
 
         buildConfigField("String", "GITHUB_TOKEN", "\"\"")
+        buildConfigField("String", "ARIES_LOGTO_ENDPOINT", "\"https://sso.aries.org.cn/\"")
+        buildConfigField("String", "ARIES_LOGTO_APP_ID", "\"${escapedBuildConfigString(localProperty("aries.logto.appId", "ynaappkxpdyahwo8m81ja"))}\"")
+        buildConfigField("String", "ARIES_LOGTO_REDIRECT_URI", "\"io.logto.android://com.ai.phoneagent/callback\"")
+        buildConfigField("String", "ARIES_LOGTO_API_RESOURCE", "\"${escapedBuildConfigString(localProperty("aries.logto.apiResource", "https://api.aries.org.cn/"))}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -57,8 +83,10 @@ android {
 
     buildTypes {
         debug {
-            val escapedToken = githubToken.replace("\\", "\\\\").replace("\"", "\\\"")
+            val escapedToken = escapedBuildConfigString(githubToken)
             buildConfigField("String", "GITHUB_TOKEN", "\"$escapedToken\"")
+            val endpoint = localProperty("aries.logto.endpoint", "https://sso.aries.org.cn/")
+            buildConfigField("String", "ARIES_LOGTO_ENDPOINT", "\"${escapedBuildConfigString(endpoint)}\"")
         }
 
         release {
@@ -139,6 +167,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("com.google.code.gson:gson:2.10.1")
+    implementation("io.logto.sdk:android:1.1.3")
 
     // 后台任务（便于自动化/定时流程）
     implementation("androidx.work:work-runtime-ktx:2.9.1")

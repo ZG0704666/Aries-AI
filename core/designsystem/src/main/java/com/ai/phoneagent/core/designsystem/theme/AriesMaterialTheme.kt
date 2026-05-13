@@ -1,5 +1,7 @@
 package com.ai.phoneagent.core.designsystem.theme
 
+import android.content.Context
+import android.content.res.Configuration
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -23,24 +25,27 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.ai.phoneagent.core.designsystem.R
 
 /**
  * Aries Material Theme.
  *
- * Priority: AMOLED > Dynamic Color (Android 12+) > Custom token color scheme.
+ * Priority: AMOLED > Dynamic/accent semantic colors > Custom token surface ladder.
  *
  * @param themeMode    Controls light/dark selection. Defaults to system setting.
+ * @param themeAccent  Overrides the accent roles while preserving surface ladders.
  * @param amoledDark   When true and dark is active, forces pure-black backgrounds.
  * @param dynamicColor When true (Android 12+), uses Material You dynamic color.
  * @param fontScale    Multiplier applied to all Material 3 type-scale font sizes.
@@ -50,6 +55,7 @@ import com.ai.phoneagent.core.designsystem.R
 @Composable
 fun AriesMaterialTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
+    themeAccent: ThemeAccent = ThemeAccent.DEFAULT,
     amoledDark: Boolean = false,
     dynamicColor: Boolean = true,
     fontScale: Float = 1.0f,
@@ -64,6 +70,14 @@ fun AriesMaterialTheme(
     }
 
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val themeResourceContext = remember(context, configuration, darkTheme) {
+        val themedConfiguration = Configuration(configuration).apply {
+            val nightMode = if (darkTheme) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
+            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightMode
+        }
+        context.createConfigurationContext(themedConfiguration)
+    }
 
     // 2. Base color scheme: Dynamic Color (Android 12+) > Custom token scheme
     val baseColorScheme: ColorScheme = when {
@@ -71,66 +85,21 @@ fun AriesMaterialTheme(
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> {
-            darkColorScheme(
-                primary = colorResource(R.color.m3t_primary),
-                onPrimary = colorResource(R.color.m3t_on_primary),
-                primaryContainer = colorResource(R.color.m3t_primary_container),
-                onPrimaryContainer = colorResource(R.color.m3t_on_primary_container),
-                secondary = colorResource(R.color.m3t_secondary),
-                onSecondary = colorResource(R.color.m3t_on_secondary),
-                secondaryContainer = colorResource(R.color.m3t_secondary_container),
-                onSecondaryContainer = colorResource(R.color.m3t_on_secondary_container),
-                tertiary = colorResource(R.color.m3t_tertiary),
-                onTertiary = colorResource(R.color.m3t_on_tertiary),
-                error = colorResource(R.color.m3t_error),
-                onError = colorResource(R.color.m3t_on_error),
-                errorContainer = colorResource(R.color.m3t_error_container),
-                onErrorContainer = colorResource(R.color.m3t_on_error_container),
-                background = colorResource(R.color.m3t_background),
-                onBackground = colorResource(R.color.m3t_on_background),
-                surface = colorResource(R.color.m3t_surface),
-                onSurface = colorResource(R.color.m3t_on_surface),
-                surfaceVariant = colorResource(R.color.m3t_surface_variant),
-                onSurfaceVariant = colorResource(R.color.m3t_on_surface_variant),
-                outline = colorResource(R.color.m3t_outline),
-                outlineVariant = colorResource(R.color.m3t_outline_variant),
-                inverseSurface = colorResource(R.color.m3t_inverse_surface),
-                inverseOnSurface = colorResource(R.color.m3t_inverse_on_surface),
-            )
+            buildDarkTokenColorScheme(themeResourceContext)
         }
         else -> {
-            lightColorScheme(
-                primary = colorResource(R.color.m3t_primary),
-                onPrimary = colorResource(R.color.m3t_on_primary),
-                primaryContainer = colorResource(R.color.m3t_primary_container),
-                onPrimaryContainer = colorResource(R.color.m3t_on_primary_container),
-                secondary = colorResource(R.color.m3t_secondary),
-                onSecondary = colorResource(R.color.m3t_on_secondary),
-                secondaryContainer = colorResource(R.color.m3t_secondary_container),
-                onSecondaryContainer = colorResource(R.color.m3t_on_secondary_container),
-                tertiary = colorResource(R.color.m3t_tertiary),
-                onTertiary = colorResource(R.color.m3t_on_tertiary),
-                error = colorResource(R.color.m3t_error),
-                onError = colorResource(R.color.m3t_on_error),
-                errorContainer = colorResource(R.color.m3t_error_container),
-                onErrorContainer = colorResource(R.color.m3t_on_error_container),
-                background = colorResource(R.color.m3t_background),
-                onBackground = colorResource(R.color.m3t_on_background),
-                surface = colorResource(R.color.m3t_surface),
-                onSurface = colorResource(R.color.m3t_on_surface),
-                surfaceVariant = colorResource(R.color.m3t_surface_variant),
-                onSurfaceVariant = colorResource(R.color.m3t_on_surface_variant),
-                outline = colorResource(R.color.m3t_outline),
-                outlineVariant = colorResource(R.color.m3t_outline_variant),
-                inverseSurface = colorResource(R.color.m3t_inverse_surface),
-                inverseOnSurface = colorResource(R.color.m3t_inverse_on_surface),
-            )
+            buildLightTokenColorScheme(themeResourceContext)
         }
     }
 
     // 3. AMOLED override: keep semantic colors, remap only surface roles to deep ladder
+    val accentedColorScheme =
+        baseColorScheme
+            .applyThemeAccent(themeAccent = themeAccent, isDarkTheme = darkTheme)
+            .applyTokenSurfaceLadder(themeResourceContext)
+
     val colorScheme: ColorScheme = if (darkTheme && amoledDark) {
-        baseColorScheme.copy(
+        accentedColorScheme.copy(
             background = Color.Black,
             surface = Color(0xFF050505),
             surfaceVariant = Color(0xFF1A1A1A),
@@ -143,7 +112,7 @@ fun AriesMaterialTheme(
             surfaceContainerHighest = Color(0xFF2A2A2A),
         )
     } else {
-        baseColorScheme
+        accentedColorScheme
     }
 
     val shapes =
@@ -189,6 +158,86 @@ private fun TextStyle.scaledBy(factor: Float): TextStyle =
 
 private fun TextStyle.withFontFamily(fontFamily: FontFamily): TextStyle =
     copy(fontFamily = fontFamily)
+
+private fun buildDarkTokenColorScheme(context: Context): ColorScheme =
+    darkColorScheme(
+        primary = context.themeColor(R.color.m3t_primary),
+        onPrimary = context.themeColor(R.color.m3t_on_primary),
+        primaryContainer = context.themeColor(R.color.m3t_primary_container),
+        onPrimaryContainer = context.themeColor(R.color.m3t_on_primary_container),
+        secondary = context.themeColor(R.color.m3t_secondary),
+        onSecondary = context.themeColor(R.color.m3t_on_secondary),
+        secondaryContainer = context.themeColor(R.color.m3t_secondary_container),
+        onSecondaryContainer = context.themeColor(R.color.m3t_on_secondary_container),
+        tertiary = context.themeColor(R.color.m3t_tertiary),
+        onTertiary = context.themeColor(R.color.m3t_on_tertiary),
+        error = context.themeColor(R.color.m3t_error),
+        onError = context.themeColor(R.color.m3t_on_error),
+        errorContainer = context.themeColor(R.color.m3t_error_container),
+        onErrorContainer = context.themeColor(R.color.m3t_on_error_container),
+        background = context.themeColor(R.color.m3t_background),
+        onBackground = context.themeColor(R.color.m3t_on_background),
+        surface = context.themeColor(R.color.m3t_surface),
+        onSurface = context.themeColor(R.color.m3t_on_surface),
+        surfaceVariant = context.themeColor(R.color.m3t_surface_variant),
+        onSurfaceVariant = context.themeColor(R.color.m3t_on_surface_variant),
+        outline = context.themeColor(R.color.m3t_outline),
+        outlineVariant = context.themeColor(R.color.m3t_outline_variant),
+        inverseSurface = context.themeColor(R.color.m3t_inverse_surface),
+        inverseOnSurface = context.themeColor(R.color.m3t_inverse_on_surface),
+    )
+
+private fun buildLightTokenColorScheme(context: Context): ColorScheme =
+    lightColorScheme(
+        primary = context.themeColor(R.color.m3t_primary),
+        onPrimary = context.themeColor(R.color.m3t_on_primary),
+        primaryContainer = context.themeColor(R.color.m3t_primary_container),
+        onPrimaryContainer = context.themeColor(R.color.m3t_on_primary_container),
+        secondary = context.themeColor(R.color.m3t_secondary),
+        onSecondary = context.themeColor(R.color.m3t_on_secondary),
+        secondaryContainer = context.themeColor(R.color.m3t_secondary_container),
+        onSecondaryContainer = context.themeColor(R.color.m3t_on_secondary_container),
+        tertiary = context.themeColor(R.color.m3t_tertiary),
+        onTertiary = context.themeColor(R.color.m3t_on_tertiary),
+        error = context.themeColor(R.color.m3t_error),
+        onError = context.themeColor(R.color.m3t_on_error),
+        errorContainer = context.themeColor(R.color.m3t_error_container),
+        onErrorContainer = context.themeColor(R.color.m3t_on_error_container),
+        background = context.themeColor(R.color.m3t_background),
+        onBackground = context.themeColor(R.color.m3t_on_background),
+        surface = context.themeColor(R.color.m3t_surface),
+        onSurface = context.themeColor(R.color.m3t_on_surface),
+        surfaceVariant = context.themeColor(R.color.m3t_surface_variant),
+        onSurfaceVariant = context.themeColor(R.color.m3t_on_surface_variant),
+        outline = context.themeColor(R.color.m3t_outline),
+        outlineVariant = context.themeColor(R.color.m3t_outline_variant),
+        inverseSurface = context.themeColor(R.color.m3t_inverse_surface),
+        inverseOnSurface = context.themeColor(R.color.m3t_inverse_on_surface),
+    )
+
+private fun ColorScheme.applyTokenSurfaceLadder(context: Context): ColorScheme =
+    copy(
+        background = context.themeColor(R.color.m3t_background),
+        onBackground = context.themeColor(R.color.m3t_on_background),
+        surface = context.themeColor(R.color.m3t_surface),
+        onSurface = context.themeColor(R.color.m3t_on_surface),
+        surfaceVariant = context.themeColor(R.color.m3t_surface_variant),
+        onSurfaceVariant = context.themeColor(R.color.m3t_on_surface_variant),
+        outline = context.themeColor(R.color.m3t_outline),
+        outlineVariant = context.themeColor(R.color.m3t_outline_variant),
+        inverseSurface = context.themeColor(R.color.m3t_inverse_surface),
+        inverseOnSurface = context.themeColor(R.color.m3t_inverse_on_surface),
+        surfaceDim = context.themeColor(R.color.m3t_surface_container),
+        surfaceBright = context.themeColor(R.color.m3t_surface),
+        surfaceContainerLowest = context.themeColor(R.color.m3t_background),
+        surfaceContainerLow = context.themeColor(R.color.m3t_surface),
+        surfaceContainer = context.themeColor(R.color.m3t_surface_container),
+        surfaceContainerHigh = context.themeColor(R.color.m3t_surface_container_high),
+        surfaceContainerHighest = context.themeColor(R.color.m3t_surface_variant),
+    )
+
+private fun Context.themeColor(colorResId: Int): Color =
+    Color(ContextCompat.getColor(this, colorResId))
 
 @Composable
 private fun AriesThemePreviewContent() {

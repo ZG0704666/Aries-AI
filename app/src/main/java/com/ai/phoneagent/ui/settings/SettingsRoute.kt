@@ -1,6 +1,7 @@
 package com.ai.phoneagent.ui.settings
 
 import android.Manifest
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -146,7 +147,18 @@ fun SettingsRoute(
                     onApiInputChange = { value -> viewModel.onApiInputChanged(value) },
                     onOpenApiKeyPage = { viewModel.openApiKeyPage(context) },
                     onOpenMembership = { viewModel.openMembershipPage() },
-                    onAriesLoginClick = { viewModel.openAriesLoginDialog() },
+                    onAriesLoginClick = {
+                        val activity = context as? Activity
+                        if (activity == null) {
+                            Toast.makeText(context, context.getString(com.ai.phoneagent.R.string.aries_login_failed), Toast.LENGTH_SHORT).show()
+                        } else {
+                            viewModel.submitAriesSsoLogin(
+                                activity = activity,
+                                onSuccess = { msg -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() },
+                                onError = { msg -> Toast.makeText(context, msg, Toast.LENGTH_LONG).show() },
+                            )
+                        }
+                    },
                     onAriesLogout = {
                         viewModel.ariesLogout()
                         Toast.makeText(context, context.getString(com.ai.phoneagent.R.string.aries_logout_success), Toast.LENGTH_SHORT).show()
@@ -190,69 +202,6 @@ fun SettingsRoute(
                         confirmButton = {},
                         dismissButton = {
                             TextButton(onClick = { viewModel.dismissAriesModelDialog() }) {
-                                Text(stringResource(SettingsR.string.action_cancel))
-                            }
-                        },
-                    )
-                }
-                // Aries 登录对话框
-                if (viewModel.showAriesLoginDialog) {
-                    AlertDialog(
-                        onDismissRequest = { if (!viewModel.ariesLoginLoading) viewModel.dismissAriesLoginDialog() },
-                        title = { Text(stringResource(com.ai.phoneagent.R.string.aries_login_dialog_title)) },
-                        text = {
-                            Column {
-                                OutlinedTextField(
-                                    value = viewModel.ariesLoginUsername,
-                                    onValueChange = { viewModel.onAriesLoginUsernameChange(it) },
-                                    label = { Text(stringResource(com.ai.phoneagent.R.string.aries_login_username_label)) },
-                                    singleLine = true,
-                                    enabled = !viewModel.ariesLoginLoading,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                                Spacer(modifier = Modifier.height(dimensionResource(DesignR.dimen.m3t_spacing_sm)))
-                                OutlinedTextField(
-                                    value = viewModel.ariesLoginPassword,
-                                    onValueChange = { viewModel.onAriesLoginPasswordChange(it) },
-                                    label = { Text(stringResource(com.ai.phoneagent.R.string.aries_login_password_label)) },
-                                    singleLine = true,
-                                    enabled = !viewModel.ariesLoginLoading,
-                                    visualTransformation = PasswordVisualTransformation(),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                                viewModel.ariesLoginError?.let { error ->
-                                    Spacer(modifier = Modifier.height(dimensionResource(DesignR.dimen.m3t_spacing_xs)))
-                                    Text(
-                                        text = error,
-                                        color = androidx.compose.material3.MaterialTheme.colorScheme.error,
-                                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                                    )
-                                }
-                                if (viewModel.ariesLoginLoading) {
-                                    Spacer(modifier = Modifier.height(dimensionResource(DesignR.dimen.m3t_spacing_sm)))
-                                    CircularProgressIndicator()
-                                }
-                            }
-                        },
-                        confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    viewModel.submitAriesLogin(
-                                        onSuccess = { msg -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() },
-                                        onError = { },
-                                    )
-                                },
-                                enabled = !viewModel.ariesLoginLoading,
-                            ) {
-                                Text(stringResource(com.ai.phoneagent.R.string.aries_login_confirm))
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(
-                                onClick = { viewModel.dismissAriesLoginDialog() },
-                                enabled = !viewModel.ariesLoginLoading,
-                            ) {
                                 Text(stringResource(SettingsR.string.action_cancel))
                             }
                         },

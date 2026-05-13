@@ -44,6 +44,7 @@ class AppPreferencesRepository(
 
         // ─── Appearance preferences ──────────────────────────────────────────
         val themeMode = stringPreferencesKey("theme_mode")
+        val themeAccent = stringPreferencesKey("theme_accent")
         val amoledDarkEnabled = booleanPreferencesKey("amoled_dark_enabled")
         val dynamicColorEnabled = booleanPreferencesKey("dynamic_color_enabled")
         val chatFontScale = floatPreferencesKey("chat_font_scale")
@@ -131,6 +132,11 @@ class AppPreferencesRepository(
     val themeModeFlow: Flow<String> =
         context.appPreferencesDataStore.data.map { prefs ->
             prefs[Keys.themeMode] ?: "system"
+        }
+
+    val themeAccentFlow: Flow<String> =
+        context.appPreferencesDataStore.data.map { prefs ->
+            prefs[Keys.themeAccent] ?: "default"
         }
 
     val amoledDarkEnabledFlow: Flow<Boolean> =
@@ -402,6 +408,17 @@ class AppPreferencesRepository(
         }
     }
 
+    suspend fun getThemeAccent(): String {
+        val prefs = context.appPreferencesDataStore.data.first()
+        return prefs[Keys.themeAccent] ?: "default"
+    }
+
+    suspend fun setThemeAccent(value: String) {
+        context.appPreferencesDataStore.edit { prefs ->
+            prefs[Keys.themeAccent] = value
+        }
+    }
+
     suspend fun getAmoledDarkEnabled(): Boolean {
         val prefs = context.appPreferencesDataStore.data.first()
         return prefs[Keys.amoledDarkEnabled] ?: false
@@ -610,6 +627,8 @@ class AppPreferencesRepository(
 
     fun getThemeModeBlocking(): String = runBlocking { getThemeMode() }
     fun setThemeModeBlocking(value: String) = runBlocking { setThemeMode(value) }
+    fun getThemeAccentBlocking(): String = runBlocking { getThemeAccent() }
+    fun setThemeAccentBlocking(value: String) = runBlocking { setThemeAccent(value) }
     fun getAmoledDarkEnabledBlocking(): Boolean = runBlocking { getAmoledDarkEnabled() }
     fun setAmoledDarkEnabledBlocking(value: Boolean) = runBlocking { setAmoledDarkEnabled(value) }
     fun getDynamicColorEnabledBlocking(): Boolean = runBlocking { getDynamicColorEnabled() }
@@ -628,3 +647,4 @@ class AppPreferencesRepository(
 
 /** Canonical definition lives in core/designsystem; re-exported here for convenience. */
 typealias ThemeMode = com.ai.phoneagent.core.designsystem.theme.ThemeMode
+typealias ThemeAccent = com.ai.phoneagent.core.designsystem.theme.ThemeAccent

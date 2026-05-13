@@ -1,6 +1,7 @@
 package com.ai.phoneagent.viewmodel
 
 import android.app.Application
+import android.app.Activity
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -13,6 +14,7 @@ import androidx.lifecycle.viewModelScope
 import com.ai.phoneagent.R
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.net.AriesApiClient
+import com.ai.phoneagent.net.AriesOidcAuthManager
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ModelScopeModelDownloader
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +24,7 @@ import kotlinx.coroutines.withContext
 class SettingsViewModel(
     application: Application,
     private val prefs: AppPreferencesRepository,
+    private val ariesOidcAuthManager: AriesOidcAuthManager,
 ) : AndroidViewModel(application) {
 
     enum class SettingsPage {
@@ -549,7 +552,7 @@ class SettingsViewModel(
     }
 
     fun resolveApiModel(): String {
-        if (useAriesApi) return ariesSelectedModel.ifBlank { "glm-4-flash" }
+        if (useAriesApi) return AriesApiClient.ARIES_CHAT_MODEL
         if (useLocalModel) return ModelScopeModelDownloader.QWEN35_MODEL_NAME
         return resolveRemoteApiModel()
     }
@@ -613,7 +616,7 @@ class SettingsViewModel(
         }
     }
 
-    // ─── Aries 登录对话框 ──────────────────────────────────────────────────
+    // ─── Aries SSO 登录 ────────────────────────────────────────────────────
 
     fun openAriesLoginDialog() {
         ariesLoginUsername = ""
@@ -638,35 +641,25 @@ class SettingsViewModel(
         ariesLoginError = null
     }
 
-    fun submitAriesLogin(onSuccess: (String) -> Unit, onError: (String) -> Unit) {
-        val username = ariesLoginUsername.trim()
-        val password = ariesLoginPassword
-        if (username.isBlank() || password.isBlank()) {
-            ariesLoginError = stringRes(R.string.aries_login_fields_required)
-            return
-        }
+    fun submitAriesSsoLogin(activity: Activity, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
         ariesLoginLoading = true
         ariesLoginError = null
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                AriesApiClient.loginAndGetApiKey(username, password)
-            }
+            val result = ariesOidcAuthManager.signIn(activity)
             ariesLoginLoading = false
             if (result.success) {
-                // Aries API Key 独立保存，不覆盖远程 API 配置。
-                prefs.setAriesApiKey(result.apiKey)
-                prefs.setAriesLoggedInUser(username)
+                prefs.setAriesApiKey(result.accessToken)
+                val displayName = result.displayName.ifBlank { stringRes(R.string.aries_sso_user_display) }
+                prefs.setAriesLoggedInUser(displayName)
                 applyApiModeState(ApiMode.Aries)
                 persistApiModeState(clearCheckResults = true)
-                ariesLoggedInUser = username
+                ariesLoggedInUser = displayName
                 showAriesLoginDialog = false
                 remoteApiOk = null
                 remoteApiChecking = false
                 lastCheckedApiKey = ""
                 updateStatusText()
-                onSuccess(stringRes(R.string.aries_login_success, username))
-                // 自动获取模型列表并展示选择对话框
-                fetchAndShowModels(result.apiKey)
+                onSuccess(stringRes(R.string.aries_login_success, displayName))
             } else {
                 ariesLoginError = result.message.ifBlank { stringRes(R.string.aries_login_failed) }
                 onError(ariesLoginError ?: "")
@@ -676,6 +669,7 @@ class SettingsViewModel(
 
     fun ariesLogout() {
         viewModelScope.launch {
+            ariesOidcAuthManager.signOut()
             prefs.setAriesLoggedInUser("")
             prefs.setAriesApiKey("")
             ariesLoggedInUser = ""
@@ -705,7 +699,7 @@ class SettingsViewModel(
     }
 
     fun openAriesModelSelectionDialog() {
-        val key = prefs.getAriesApiKeyBlocking()
+        val key = prefs.getActiveAriesApiKeyBlocking().trim()
         if (ariesAvailableModels.isEmpty() && key.isNotBlank()) {
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { AriesApiClient.fetchModels(key) }

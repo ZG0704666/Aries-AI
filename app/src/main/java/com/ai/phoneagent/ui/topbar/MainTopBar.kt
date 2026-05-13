@@ -43,10 +43,12 @@ fun MainTopBar(
     onOpenFloatingWindow: () -> Unit,
     modelName: String = "",
 ) {
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingXxxs = dimensionResource(R.dimen.m3t_spacing_xxxs)
     val titleGap = dimensionResource(R.dimen.m3t_top_bar_title_gap)
+    val compactToolbarHeight = dimensionResource(R.dimen.m3t_toolbar_height) - spacingXs
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -60,7 +62,7 @@ fun MainTopBar(
                     .clickable(onClick = onToggleStatus),
         ) {
             TopAppBar(
-                expandedHeight = dimensionResource(R.dimen.m3t_toolbar_height),
+                expandedHeight = compactToolbarHeight,
                 title = {
                     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                         val modelChipMaxWidth = maxWidth * 0.62f
@@ -69,13 +71,13 @@ fun MainTopBar(
                         ) {
                             Text(
                                 text = stringResource(R.string.app_name),
-                                style = MaterialTheme.typography.titleLarge,
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                             if (modelName.isNotBlank()) {
-                                Spacer(modifier = Modifier.width(titleGap))
+                                Spacer(modifier = Modifier.width(titleGap - spacingXxxs))
                                 Surface(
                                     modifier = Modifier.widthIn(max = modelChipMaxWidth),
                                     shape = MaterialTheme.shapes.large,
@@ -83,9 +85,9 @@ fun MainTopBar(
                                 ) {
                                     Text(
                                         text = modelName,
-                                        style = MaterialTheme.typography.labelMedium,
+                                        style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXxxs + spacingXxxs),
+                                        modifier = Modifier.padding(horizontal = spacingXs, vertical = spacingXxxs),
                                         maxLines = 1,
                                         softWrap = false,
                                         overflow = TextOverflow.Ellipsis,

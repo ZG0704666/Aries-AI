@@ -110,6 +110,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
+import com.ai.phoneagent.core.designsystem.theme.ThemeAccent
 import com.ai.phoneagent.core.designsystem.theme.ThemeMode
 import com.ai.phoneagent.net.AriesApiClient
 import com.ai.phoneagent.net.AutoGlmClient
@@ -364,9 +365,7 @@ class FloatingChatService : LifecycleService(), SavedStateRegistryOwner {
                     if (useLocalModel) {
                         ModelScopeModelDownloader.QWEN35_MODEL_NAME
                     } else if (useAriesApi) {
-                        appPrefsRepository.getAriesSelectedModelBlocking()
-                            .trim()
-                            .ifBlank { "glm-4-flash" }
+                        AriesApiClient.ARIES_CHAT_MODEL
                     } else if (!useThirdParty) {
                         AutoGlmClient.DEFAULT_MODEL
                     } else {
@@ -903,6 +902,10 @@ class FloatingChatService : LifecycleService(), SavedStateRegistryOwner {
                         appPrefsRepository.themeModeFlow.collectAsState(
                                 initial = appPrefsRepository.getThemeModeBlocking()
                         )
+                val themeAccentRaw by
+                    appPrefsRepository.themeAccentFlow.collectAsState(
+                        initial = appPrefsRepository.getThemeAccentBlocking()
+                    )
                 val amoledDark by
                         appPrefsRepository.amoledDarkEnabledFlow.collectAsState(
                                 initial = appPrefsRepository.getAmoledDarkEnabledBlocking()
@@ -917,9 +920,11 @@ class FloatingChatService : LifecycleService(), SavedStateRegistryOwner {
                             "dark" -> ThemeMode.DARK
                             else -> ThemeMode.SYSTEM
                         }
+                val themeAccent = ThemeAccent.fromStorage(themeAccentRaw)
 
                 AriesMaterialTheme(
                         themeMode = themeMode,
+                    themeAccent = themeAccent,
                         amoledDark = amoledDark,
                         dynamicColor = dynamicColor,
                 ) {

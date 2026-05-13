@@ -93,6 +93,11 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".net.AriesApiOAuthActivity"
+            android:exported="false"
+            android:theme="@style/Theme.PhoneAgent" />
+
         <!-- FileProvider for camera photos -->
         <provider
             android:name="androidx.core.content.FileProvider"

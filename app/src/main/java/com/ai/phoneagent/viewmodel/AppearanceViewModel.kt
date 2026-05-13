@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
+import com.ai.phoneagent.data.preferences.ThemeAccent
 import com.ai.phoneagent.data.preferences.ThemeMode
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +30,15 @@ class AppearanceViewModel(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
                 initialValue = ThemeMode.SYSTEM,
+            )
+
+    val themeAccent: StateFlow<ThemeAccent> =
+        prefs.themeAccentFlow
+            .map(ThemeAccent::fromStorage)
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = ThemeAccent.DEFAULT,
             )
 
     val amoledDarkEnabled: StateFlow<Boolean> =
@@ -94,6 +104,10 @@ class AppearanceViewModel(
             ThemeMode.SYSTEM -> "system"
         }
         viewModelScope.launch { prefs.setThemeMode(raw) }
+    }
+
+    fun setThemeAccent(value: ThemeAccent) {
+        viewModelScope.launch { prefs.setThemeAccent(value.storageKey) }
     }
 
     fun setAmoledDarkEnabled(value: Boolean) {

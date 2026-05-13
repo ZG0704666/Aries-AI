@@ -166,6 +166,7 @@ import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
 import com.ai.phoneagent.data.preferences.MainUiPreferencesRepository
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
+import com.ai.phoneagent.core.designsystem.theme.ThemeAccent
 import com.ai.phoneagent.core.designsystem.theme.ThemeMode
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -676,6 +677,7 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             val themeModeStr by appPrefsRepository.themeModeFlow.collectAsState(initial = "system")
+            val themeAccentRaw by appPrefsRepository.themeAccentFlow.collectAsState(initial = "default")
             val amoledDark by appPrefsRepository.amoledDarkEnabledFlow.collectAsState(initial = false)
             val dynamicColor by appPrefsRepository.dynamicColorEnabledFlow.collectAsState(initial = true)
             val fontScale by appPrefsRepository.chatFontScaleFlow.collectAsState(initial = 1.0f)
@@ -721,6 +723,7 @@ class MainActivity : AppCompatActivity() {
                 "dark" -> ThemeMode.DARK
                 else -> ThemeMode.SYSTEM
             }
+            val themeAccent = ThemeAccent.fromStorage(themeAccentRaw)
             val resolvedFontFamily =
                 when (fontFamilyRaw.lowercase()) {
                     "sans_serif" -> FontFamily.SansSerif
@@ -737,6 +740,7 @@ class MainActivity : AppCompatActivity() {
 
             AriesMaterialTheme(
                 themeMode = themeMode,
+                themeAccent = themeAccent,
                 amoledDark = amoledDark,
                 dynamicColor = dynamicColor,
                 fontScale = fontScale,
@@ -2737,14 +2741,31 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun resolveApiModel(): String {
+    private fun resolveApiModel(content: Any? = null): String {
         if (isLocalModelModeEnabled()) {
             return ModelScopeModelDownloader.QWEN35_MODEL_NAME
         }
-        if (useAriesApi) return ariesSelectedModel.ifBlank { "glm-4-flash" }
+        if (useAriesApi) {
+            return if (containsImagePayload(content)) {
+                AriesApiClient.ARIES_VISION_MODEL
+            } else {
+                AriesApiClient.ARIES_CHAT_MODEL
+            }
+        }
         if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_MODEL
         return apiModel.trim().ifBlank { AutoGlmClient.DEFAULT_MODEL }
     }
+
+    private fun containsImagePayload(content: Any?): Boolean =
+        when (content) {
+            is List<*> -> {
+                content.filterIsInstance<Map<*, *>>().any { item ->
+                    item["type"] == "image_url"
+                }
+            }
+            is Map<*, *> -> content["type"] == "image_url"
+            else -> false
+        }
 
     /** 获取用于显示的模型名称（简化版） */
     private fun getDisplayNameForModel(model: String): String {
@@ -2782,6 +2803,13 @@ class MainActivity : AppCompatActivity() {
         } else {
             prefs.getString("api_key", "").orEmpty()
         }.trim()
+    }
+
+    private suspend fun resolveFreshActiveApiKey(): String {
+        if (!appPrefsRepository.getUseAriesApiBlocking()) {
+            return prefs.getString("api_key", "").orEmpty().trim()
+        }
+        return appPrefsRepository.getActiveAriesApiKeyBlocking().trim()
     }
 
     private fun updateStatusText() {
@@ -3151,6 +3179,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val localModeEnabled = isLocalModelModeEnabled()
+        val usingAriesApi = appPrefsRepository.getUseAriesApiBlocking()
         val apiKey = if (localModeEnabled) "" else resolveActiveApiKey()
 
         if (localModeEnabled && !localModelReady) {
@@ -3162,7 +3191,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (!localModeEnabled && apiKey.isBlank()) {
+        if (!localModeEnabled && apiKey.isBlank() && !usingAriesApi) {
 
             Toast.makeText(this, getString(R.string.settings_api_key_missing_entry), Toast.LENGTH_SHORT).show()
             navigateToRoute(Routes.Settings.route)
@@ -3180,8 +3209,6 @@ class MainActivity : AppCompatActivity() {
             }
             maybeWarnInsecureHttpBaseUrl(resolvedBaseUrl)
         }
-        val resolvedModel = resolveApiModel()
-
         val c = requireActiveConversation()
         
         // 提取文本用于标题（如果content是多模态数组，提取第一个文本）
@@ -3201,6 +3228,23 @@ class MainActivity : AppCompatActivity() {
         
         // 使用 ViewModel 处理附件，构建完整消息内容
         lifecycleScope.launch {
+            val requestApiKey =
+                if (localModeEnabled) {
+                    ""
+                } else if (usingAriesApi) {
+                    resolveFreshActiveApiKey()
+                } else {
+                    apiKey
+                }
+            if (!localModeEnabled && requestApiKey.isBlank()) {
+                Toast.makeText(
+                    this@MainActivity,
+                    getString(R.string.settings_model_api_aries_login_required),
+                    Toast.LENGTH_SHORT,
+                ).show()
+                navigateToRoute(Routes.Settings.route)
+                return@launch
+            }
             val baseUserText = when (content) {
                 is String -> content
                 is List<*> -> {
@@ -3217,6 +3261,7 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     content
                 }
+            val resolvedModel = resolveApiModel(messageContent)
 
             // 用户消息展示保持纯文本，附件通过图标展示
             val messageContentStr = baseUserText
@@ -3437,7 +3482,7 @@ class MainActivity : AppCompatActivity() {
                             )
                         } else {
                             AutoGlmClient.sendChatStreamResult(
-                                apiKey = apiKey,
+                                apiKey = requestApiKey,
                                 baseUrl = resolvedBaseUrl,
                                 model = resolvedModel,
                                 messages = chatHistory,
@@ -3881,8 +3926,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         val localModeEnabled = isLocalModelModeEnabled()
+        val usingAriesApi = appPrefsRepository.getUseAriesApiBlocking()
         val apiKey = if (localModeEnabled) "" else resolveActiveApiKey()
-        if (!localModeEnabled && apiKey.isBlank()) {
+        if (!localModeEnabled && apiKey.isBlank() && !usingAriesApi) {
             onDone(text)
             return
         }
@@ -3892,6 +3938,18 @@ class MainActivity : AppCompatActivity() {
         }
 
         lifecycleScope.launch {
+            val requestApiKey =
+                if (localModeEnabled) {
+                    ""
+                } else if (usingAriesApi) {
+                    resolveFreshActiveApiKey()
+                } else {
+                    apiKey
+                }
+            if (!localModeEnabled && requestApiKey.isBlank()) {
+                onDone(text)
+                return@launch
+            }
             val punctuationMessages =
                 listOf(
                     ChatRequestMessage(
@@ -3913,7 +3971,7 @@ class MainActivity : AppCompatActivity() {
                     val resolvedBaseUrl = resolveApiBaseUrl()
                     val resolvedModel = resolveApiModel()
                     AutoGlmClient.sendChatResult(
-                        apiKey = apiKey,
+                        apiKey = requestApiKey,
                         baseUrl = resolvedBaseUrl,
                         model = resolvedModel,
                         messages = punctuationMessages,

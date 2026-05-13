@@ -183,7 +183,7 @@ fun ConversationDrawer(
                                 ?: navController?.navigate(Routes.Settings.route)
                         },
                     ),
-            color = MaterialTheme.colorScheme.background,
+            color = Color.Transparent,
         ) {
             Row(
                 modifier =

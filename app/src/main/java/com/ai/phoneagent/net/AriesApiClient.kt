@@ -33,10 +33,27 @@ import java.util.concurrent.TimeUnit
  * 获取的 API Key 可直接用于 OpenAI 兼容接口。
  */
 object AriesApiClient {
-
     const val BASE_URL = "https://api.aries.org.cn"
     const val ARIES_API_V1_BASE_URL = "https://api.aries.org.cn/v1"
+    const val ARIES_CHAT_MODEL = "星环"
+    const val ARIES_VISION_MODEL = "星环 Pro"
+    const val ARIES_AUTOMATION_MODEL = "GUI"
     private const val ARIES_TOKEN_NAME = "Ariesphone"
+    private val COOKIE_ATTRIBUTE_NAMES =
+        setOf(
+            "comment",
+            "commenturl",
+            "domain",
+            "expires",
+            "httponly",
+            "max-age",
+            "partitioned",
+            "path",
+            "priority",
+            "samesite",
+            "secure",
+            "version",
+        )
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
@@ -96,6 +113,43 @@ object AriesApiClient {
             .build()
     }
 
+    internal fun normalizeCookieHeader(cookieHeader: String): String {
+        if (cookieHeader.isBlank()) return ""
+        val normalizedCookies = linkedMapOf<String, Pair<String, String>>()
+        cookieHeader.split(';').forEach { segment ->
+            val token = segment.trim()
+            if (token.isBlank()) return@forEach
+            val separatorIndex = token.indexOf('=')
+            if (separatorIndex <= 0) return@forEach
+            val name = token.substring(0, separatorIndex).trim()
+            val lowerName = name.lowercase()
+            if (lowerName in COOKIE_ATTRIBUTE_NAMES) return@forEach
+            val value = token.substring(separatorIndex + 1).trim()
+            if (value.isBlank()) return@forEach
+            normalizedCookies[lowerName] = name to value
+        }
+        return normalizedCookies.values.joinToString("; ") { (name, value) -> "$name=$value" }
+    }
+
+    private fun buildCookieHeaderClient(cookieHeader: String): OkHttpClient {
+        val normalizedCookieHeader = normalizeCookieHeader(cookieHeader)
+        return OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val updatedRequest =
+                    request.newBuilder()
+                        .apply {
+                            if (request.header("Cookie").isNullOrBlank() && normalizedCookieHeader.isNotBlank()) {
+                                header("Cookie", normalizedCookieHeader)
+                            }
+                        }.build()
+                chain.proceed(updatedRequest)
+            }.build()
+    }
+
     // ─── 接口实现 ────────────────────────────────────────────────────────────
 
     /**
@@ -131,6 +185,72 @@ object AriesApiClient {
                 apiKey = tokenResult.apiKey,
                 username = username.trim(),
             )
+        }
+
+    suspend fun getOrCreateAriesTokenWithUserAccessToken(
+        userAccessToken: String,
+        userId: Int,
+    ): TokenResult =
+        withContext(Dispatchers.IO) {
+            val token = userAccessToken.trim()
+            if (token.isBlank()) {
+                return@withContext TokenResult(success = false, message = "Aries API 用户登录 token 为空")
+            }
+            val resolvedUserId =
+                if (userId > 0) {
+                    userId
+                } else {
+                    fetchCurrentUserId(buildClient(), token).getOrDefault(0)
+                }
+            getOrCreateAriesToken(
+                client = buildClient(),
+                userId = resolvedUserId,
+                userAccessToken = token,
+            )
+        }
+
+    suspend fun getOrCreateAriesTokenWithAuthenticatedClient(
+        client: OkHttpClient,
+        userId: Int,
+    ): TokenResult =
+        withContext(Dispatchers.IO) {
+            getOrCreateAriesToken(
+                client = client,
+                userId = userId,
+            )
+        }
+
+    suspend fun getOrCreateAriesTokenWithSessionCookie(
+        cookieHeader: String,
+        userId: Int,
+    ): TokenResult =
+        withContext(Dispatchers.IO) {
+            val normalizedCookieHeader = normalizeCookieHeader(cookieHeader)
+            if (normalizedCookieHeader.isBlank()) {
+                return@withContext TokenResult(success = false, message = "Aries API 登录会话 Cookie 为空")
+            }
+            val client = buildCookieHeaderClient(normalizedCookieHeader)
+            val currentUserIdResult =
+                if (userId > 0) {
+                    Result.success(userId)
+                } else {
+                    fetchCurrentUserId(client)
+                }
+            val resolvedUserId = currentUserIdResult.getOrDefault(0)
+            val tokenResult = getOrCreateAriesToken(
+                client = client,
+                userId = resolvedUserId,
+            )
+            val currentUserError = currentUserIdResult.exceptionOrNull()?.message?.trim().orEmpty()
+            if (tokenResult.success) {
+                return@withContext tokenResult
+            }
+            if (resolvedUserId <= 0 && currentUserError.isNotBlank()) {
+                return@withContext tokenResult.copy(
+                    message = "Aries API 登录会话存在，但无法解析当前用户: $currentUserError；${tokenResult.message}",
+                )
+            }
+            tokenResult
         }
 
     // ─── 私有步骤 ────────────────────────────────────────────────────────────
@@ -175,18 +295,56 @@ object AriesApiClient {
         }
     }
 
-    private fun getOrCreateAriesToken(client: OkHttpClient, userId: Int): TokenResult {
-        val existingToken = findTokenByName(client, userId, ARIES_TOKEN_NAME)
+    private fun getOrCreateAriesToken(
+        client: OkHttpClient,
+        userId: Int,
+        userAccessToken: String = "",
+    ): TokenResult {
+        val existingToken = findTokenByName(client, userId, ARIES_TOKEN_NAME, userAccessToken)
             .getOrElse { return TokenResult(success = false, message = it.message.orEmpty()) }
-        existingToken?.let { return fetchTokenKeyById(client, userId, it.id) }
-        return createToken(client, userId)
+        existingToken?.let { return fetchTokenKeyById(client, userId, it.id, userAccessToken) }
+        return createToken(client, userId, userAccessToken)
     }
 
-    private fun findTokenByName(client: OkHttpClient, userId: Int, tokenName: String): Result<TokenSummary?> {
+    private fun fetchCurrentUserId(client: OkHttpClient, userAccessToken: String = ""): Result<Int> {
+        val request = Request.Builder()
+            .url("$BASE_URL/api/user/self")
+            .get()
+            .apply {
+                if (userAccessToken.isNotBlank()) {
+                    addHeader("Authorization", "Bearer $userAccessToken")
+                }
+            }.build()
+        return try {
+            client.newCall(request).execute().use { response ->
+                val raw = response.body?.string().orEmpty()
+                val obj = json.parseToJsonElement(raw).jsonObject
+                if (!isSuccessResponse(obj)) {
+                    return Result.failure(Exception(obj["message"]?.jsonPrimitive?.contentOrNull.orEmpty()))
+                }
+                val id = obj["data"]?.jsonObject?.get("id")?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
+                if (id > 0) {
+                    Result.success(id)
+                } else {
+                    Result.failure(Exception("当前用户信息缺少 id (HTTP ${response.code})"))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("当前用户信息读取失败: ${e.message?.trim()}"))
+        }
+    }
+
+    private fun findTokenByName(
+        client: OkHttpClient,
+        userId: Int,
+        tokenName: String,
+        userAccessToken: String = "",
+    ): Result<TokenSummary?> {
         val request = Request.Builder()
             .url("$BASE_URL/api/token/?p=1&size=100&page_size=100")
             .get()
             .apply {
+                if (userAccessToken.isNotBlank()) addHeader("Authorization", "Bearer $userAccessToken")
                 if (userId > 0) addHeader("New-Api-User", userId.toString())
             }
             .build()
@@ -201,7 +359,11 @@ object AriesApiClient {
         }
     }
 
-    private fun createToken(client: OkHttpClient, userId: Int): TokenResult {
+    private fun createToken(
+        client: OkHttpClient,
+        userId: Int,
+        userAccessToken: String = "",
+    ): TokenResult {
         val body = buildJsonObject {
             put("name", ARIES_TOKEN_NAME)
             put("remain_quota", 0)
@@ -214,6 +376,7 @@ object AriesApiClient {
             .post(body)
             .addHeader("Content-Type", "application/json")
             .apply {
+                if (userAccessToken.isNotBlank()) addHeader("Authorization", "Bearer $userAccessToken")
                 if (userId > 0) addHeader("New-Api-User", userId.toString())
             }
             .build()
@@ -228,8 +391,8 @@ object AriesApiClient {
             val result = parseTokenResponse(raw, code)
             when {
                 result.success -> result
-                result.tokenId > 0 -> fetchTokenKeyById(client, userId, result.tokenId)
-                isSuccessResponse(raw) -> fetchCreatedTokenKeyByName(client, userId, ARIES_TOKEN_NAME)
+                result.tokenId > 0 -> fetchTokenKeyById(client, userId, result.tokenId, userAccessToken)
+                isSuccessResponse(raw) -> fetchCreatedTokenKeyByName(client, userId, ARIES_TOKEN_NAME, userAccessToken)
                 else -> result
             }
         } catch (e: Exception) {
@@ -237,21 +400,32 @@ object AriesApiClient {
         }
     }
 
-    private fun fetchCreatedTokenKeyByName(client: OkHttpClient, userId: Int, tokenName: String): TokenResult {
-        val token = findTokenByName(client, userId, tokenName)
+    private fun fetchCreatedTokenKeyByName(
+        client: OkHttpClient,
+        userId: Int,
+        tokenName: String,
+        userAccessToken: String = "",
+    ): TokenResult {
+        val token = findTokenByName(client, userId, tokenName, userAccessToken)
             .getOrElse { return TokenResult(success = false, message = it.message.orEmpty()) }
         return if (token != null) {
-            fetchTokenKeyById(client, userId, token.id)
+            fetchTokenKeyById(client, userId, token.id, userAccessToken)
         } else {
             TokenResult(success = false, message = "Token 已创建，但未能在列表中找到对应 ID")
         }
     }
 
-    private fun fetchTokenKeyById(client: OkHttpClient, userId: Int, tokenId: Int): TokenResult {
+    private fun fetchTokenKeyById(
+        client: OkHttpClient,
+        userId: Int,
+        tokenId: Int,
+        userAccessToken: String = "",
+    ): TokenResult {
         val request = Request.Builder()
             .url("$BASE_URL/api/token/$tokenId/key")
             .post("{}".toRequestBody(JSON_MEDIA_TYPE))
             .apply {
+                if (userAccessToken.isNotBlank()) addHeader("Authorization", "Bearer $userAccessToken")
                 if (userId > 0) addHeader("New-Api-User", userId.toString())
             }
             .build()

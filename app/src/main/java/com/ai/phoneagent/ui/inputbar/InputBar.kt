@@ -57,15 +57,16 @@ fun InputBar(
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
     val radiusLg = dimensionResource(R.dimen.m3t_radius_lg)
     val inputBarMaxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
-    val inputBarHeight = dimensionResource(R.dimen.m3t_input_bar_height)
-    val inputBarVoiceHeight = dimensionResource(R.dimen.m3t_input_bar_voice_height)
-    val iconButtonSize = dimensionResource(R.dimen.m3t_input_bar_icon_button_size)
-    val iconSize = dimensionResource(R.dimen.m3t_input_bar_icon_size)
-    val sendButtonSize = dimensionResource(R.dimen.m3t_input_bar_send_button_size)
-    val sendIconSize = dimensionResource(R.dimen.m3t_input_bar_send_icon_size)
-    val textMinHeight = dimensionResource(R.dimen.m3t_input_bar_text_min_height)
+    val inputBarHeight = dimensionResource(R.dimen.m3t_input_bar_height) - spacingXs
+    val inputBarVoiceHeight = dimensionResource(R.dimen.m3t_input_bar_voice_height) - spacingXs
+    val iconButtonSize = dimensionResource(R.dimen.m3t_input_bar_icon_button_size) - spacingXs
+    val iconSize = dimensionResource(R.dimen.m3t_input_bar_icon_size) - spacingXxxs
+    val sendButtonSize = dimensionResource(R.dimen.m3t_input_bar_send_button_size) - spacingXs
+    val sendIconSize = dimensionResource(R.dimen.m3t_input_bar_send_icon_size) - spacingXxxs
+    val textMinHeight = dimensionResource(R.dimen.m3t_input_bar_text_min_height) - spacingXs
     val inputShape = RoundedCornerShape(radiusLg)
     val showVoiceOverlay = state is InputState.VoiceRecording || state is InputState.VoiceRecognizing
     val isVoiceMode = state is InputState.VoiceIdle || showVoiceOverlay
@@ -105,7 +106,7 @@ fun InputBar(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = spacingLg)
+                    .padding(horizontal = spacingXl)
                     .widthIn(max = inputBarMaxWidth)
                     .heightIn(min = containerHeight)
                     .animateContentSize(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
@@ -180,7 +181,7 @@ fun InputBar(
                             if (text.isEmpty()) {
                                 Text(
                                     text = stringResource(R.string.input_hint),
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -188,7 +189,7 @@ fun InputBar(
                                 value = text,
                                 onValueChange = onTextChange,
                                 modifier = Modifier.fillMaxWidth(),
-                                textStyle = MaterialTheme.typography.bodyLarge.copy(color = colorScheme.onSurface),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = colorScheme.onSurface),
                                 cursorBrush = SolidColor(colorScheme.primary),
                             )
                         }

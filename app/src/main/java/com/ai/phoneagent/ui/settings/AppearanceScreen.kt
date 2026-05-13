@@ -2,8 +2,10 @@ package com.ai.phoneagent.ui.settings
 
 import android.content.res.Configuration
 import android.os.Build
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,8 +14,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -33,14 +37,18 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import com.ai.phoneagent.R
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
 import com.ai.phoneagent.core.designsystem.theme.AriesSettingsCustomItem
 import com.ai.phoneagent.core.designsystem.theme.AriesSettingsSectionHeader
 import com.ai.phoneagent.core.designsystem.theme.AriesSettingsSwitchItem
+import com.ai.phoneagent.core.designsystem.theme.previewColors
+import com.ai.phoneagent.data.preferences.ThemeAccent
 import com.ai.phoneagent.data.preferences.ThemeMode
 import com.ai.phoneagent.viewmodel.AppearanceViewModel
 import com.composables.icons.lucide.ArrowLeft
@@ -54,6 +62,7 @@ fun AppearanceScreen(
     viewModel: AppearanceViewModel = koinViewModel(),
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
+    val themeAccent by viewModel.themeAccent.collectAsState()
     val amoledDarkEnabled by viewModel.amoledDarkEnabled.collectAsState()
     val dynamicColorEnabled by viewModel.dynamicColorEnabled.collectAsState()
     val chatFontScale by viewModel.chatFontScale.collectAsState()
@@ -66,6 +75,8 @@ fun AppearanceScreen(
         onNavigateBack = onNavigateBack,
         themeMode = themeMode,
         onThemeModeChange = viewModel::setThemeMode,
+        themeAccent = themeAccent,
+        onThemeAccentChange = viewModel::setThemeAccent,
         amoledDarkEnabled = amoledDarkEnabled,
         onAmoledDarkEnabledChange = viewModel::setAmoledDarkEnabled,
         dynamicColorEnabled = dynamicColorEnabled,
@@ -89,6 +100,8 @@ fun AppearanceScreenContent(
     onNavigateBack: () -> Unit,
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
+    themeAccent: ThemeAccent,
+    onThemeAccentChange: (ThemeAccent) -> Unit,
     amoledDarkEnabled: Boolean,
     onAmoledDarkEnabledChange: (Boolean) -> Unit,
     dynamicColorEnabled: Boolean,
@@ -104,6 +117,9 @@ fun AppearanceScreenContent(
     codeAutoCollapse: Boolean,
     onCodeAutoCollapseChange: (Boolean) -> Unit,
 ) {
+    val isDarkThemeActive = themeMode == ThemeMode.DARK ||
+        (themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
@@ -162,14 +178,42 @@ fun AppearanceScreenContent(
             }
 
             item {
-                val isDarkThemeActive = themeMode == ThemeMode.DARK || 
-                    (themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
-                
                 AriesSettingsSwitchItem(
                     headlineText = stringResource(R.string.settings_appearance_amoled),
                     checked = amoledDarkEnabled,
                     onCheckedChange = onAmoledDarkEnabledChange,
                     enabled = isDarkThemeActive,
+                )
+            }
+
+            item {
+                AriesSettingsSectionHeader(title = stringResource(R.string.settings_appearance_theme_palette))
+            }
+
+            item {
+                AriesSettingsCustomItem(
+                    headlineText = stringResource(R.string.settings_appearance_theme_palette),
+                    belowContent = {
+                        val options = listOf(
+                            ThemeAccent.DEFAULT to stringResource(R.string.settings_appearance_theme_palette_default),
+                            ThemeAccent.OCEAN to stringResource(R.string.settings_appearance_theme_palette_ocean),
+                            ThemeAccent.FOREST to stringResource(R.string.settings_appearance_theme_palette_forest),
+                            ThemeAccent.SUNSET to stringResource(R.string.settings_appearance_theme_palette_sunset),
+                            ThemeAccent.ROSE to stringResource(R.string.settings_appearance_theme_palette_rose),
+                        )
+
+                        Column {
+                            options.forEach { (accent, label) ->
+                                ThemeAccentOptionRow(
+                                    accent = accent,
+                                    label = label,
+                                    selected = themeAccent == accent,
+                                    darkPreview = isDarkThemeActive,
+                                    onClick = { onThemeAccentChange(accent) },
+                                )
+                            }
+                        }
+                    },
                 )
             }
 
@@ -282,6 +326,61 @@ fun AppearanceScreenContent(
     }
 }
 
+@Composable
+private fun ThemeAccentOptionRow(
+    accent: ThemeAccent,
+    label: String,
+    selected: Boolean,
+    darkPreview: Boolean,
+    onClick: () -> Unit,
+) {
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val swatchSize = dimensionResource(R.dimen.m3t_spacing_md)
+    val preview = accent.previewColors(isDarkTheme = darkPreview)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = spacingSm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onClick,
+        )
+        Spacer(modifier = Modifier.width(spacingMd))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(spacingXs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ThemeAccentSwatch(color = preview.primary, size = swatchSize)
+            ThemeAccentSwatch(color = preview.secondary, size = swatchSize)
+            ThemeAccentSwatch(color = preview.tertiary, size = swatchSize)
+        }
+        Spacer(modifier = Modifier.width(spacingMd))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun ThemeAccentSwatch(
+    color: Color,
+    size: Dp,
+) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .background(color = color, shape = CircleShape),
+    )
+}
+
 @Preview(name = "AppearanceScreen - Light", showBackground = true)
 @Composable
 private fun AppearanceScreenLightPreview() {
@@ -290,6 +389,8 @@ private fun AppearanceScreenLightPreview() {
             onNavigateBack = {},
             themeMode = ThemeMode.SYSTEM,
             onThemeModeChange = {},
+            themeAccent = ThemeAccent.DEFAULT,
+            onThemeAccentChange = {},
             amoledDarkEnabled = false,
             onAmoledDarkEnabledChange = {},
             dynamicColorEnabled = true,
@@ -316,6 +417,8 @@ private fun AppearanceScreenDarkPreview() {
             onNavigateBack = {},
             themeMode = ThemeMode.DARK,
             onThemeModeChange = {},
+            themeAccent = ThemeAccent.OCEAN,
+            onThemeAccentChange = {},
             amoledDarkEnabled = true,
             onAmoledDarkEnabledChange = {},
             dynamicColorEnabled = true,

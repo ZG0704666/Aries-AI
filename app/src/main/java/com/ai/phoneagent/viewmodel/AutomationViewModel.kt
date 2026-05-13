@@ -722,7 +722,7 @@ class AutomationViewModel(
             if (beforeState.shizukuBinderConnected && beforeState.shizukuPermissionGranted && !beforeState.accessibilityEnabled) {
                 val granted = grantAccessibilityViaShizuku()
                 if (granted) {
-                    appendLog("Shizuku 模式：已自动开启无障碍，等待服务连接…")
+                    appendLog("Shizuku 模式：已自动开启无障碍")
                     refreshStatusAfterOneTapAuthorize()
                 } else {
                     Toast.makeText(appContext, "Shizuku 模式下自动开启无障碍失败，请手动开启", Toast.LENGTH_SHORT).show()
@@ -736,7 +736,7 @@ class AutomationViewModel(
                 val granted = grantAccessibilityViaShizuku()
                 if (granted) {
                     allowAccessibilityPendingConnection = true
-                    appendLog("主页启动：检测到 Shizuku 已就绪，已自动开启无障碍，等待服务连接…")
+                    appendLog("主页启动：检测到 Shizuku 已就绪，已自动开启无障碍")
                     refreshStatusAfterOneTapAuthorize()
                 } else {
                     appendLog("主页启动：Shizuku 自动开启无障碍失败，将按当前连接状态继续校验")
@@ -746,8 +746,14 @@ class AutomationViewModel(
 
         val state = collectRuntimeConnectionState()
         var effectiveUseShizuku = resolveRuntimeInteractionPreference(useShizukuInteraction, state)
-        if (effectiveUseShizuku == null && allowAccessibilityPendingConnection && !useShizukuInteraction && state.accessibilityEnabled) {
-            effectiveUseShizuku = false
+        if (effectiveUseShizuku == null) {
+            effectiveUseShizuku =
+                when {
+                    useShizukuInteraction && state.shizukuReady && state.accessibilityEnabled -> true
+                    !useShizukuInteraction && state.accessibilityEnabled -> false
+                    allowAccessibilityPendingConnection && state.accessibilityEnabled -> false
+                    else -> null
+                }
         }
 
         if (effectiveUseShizuku == null) {
@@ -759,10 +765,6 @@ class AutomationViewModel(
                 } else if (useShizukuInteraction && state.shizukuBinderConnected && !state.shizukuPermissionGranted) {
                     ensureShizukuPermissionGranted()
                     "Shizuku 未授权，已发起授权请求，请授权后重试"
-                } else if (useShizukuInteraction && state.shizukuReady && state.accessibilityEnabled) {
-                    "Shizuku 模式正在等待无障碍服务连接，请稍候重试"
-                } else if (state.accessibilityEnabled) {
-                    "无障碍服务正在连接，请稍候后重试"
                 } else {
                     "当前无可用连接，请检查 Shizuku/无障碍状态"
                 }
@@ -816,9 +818,9 @@ class AutomationViewModel(
                 try {
                     val svc =
                         if (effectiveUseShizuku) {
-                            waitForAccessibilityServiceConnection(timeoutMs = 4500L)
+                            waitForAccessibilityServiceConnection(timeoutMs = 6500L)
                         } else {
-                            waitForAccessibilityServiceConnection()
+                            waitForAccessibilityServiceConnection(timeoutMs = 5000L)
                         }
                     if (!effectiveUseShizuku && svc == null) {
                         appendLog("无障碍服务连接失败：未获取到服务实例")
@@ -1165,9 +1167,7 @@ class AutomationViewModel(
 
     private fun resolveAutomationModel(): String {
         if (appPrefsRepository.getUseAriesApiBlocking()) {
-            return appPrefsRepository.getAriesSelectedModelBlocking()
-                .trim()
-                .ifBlank { "glm-4-flash" }
+            return AriesApiClient.ARIES_AUTOMATION_MODEL
         }
         val useLocalModel = appPrefsRepository.getApiUseLocalModelBlocking()
         val useThirdParty = appPrefsRepository.getApiUseThirdPartyBlocking()

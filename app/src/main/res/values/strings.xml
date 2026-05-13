@@ -353,14 +353,14 @@
     <string name="settings_model_api_local_note_title">本地模型说明</string>
     <!-- Aries API -->
     <string name="settings_model_api_aries_title">Aries API</string>
-    <string name="settings_model_api_aries_subtitle">启用 Aries 官方托管 API，一键接入无需自配。</string>
+    <string name="settings_model_api_aries_subtitle">使用 sso.aries.org.cn 登录后自动接入 api.aries.org.cn。</string>
     <string name="settings_model_api_aries_switch">使用 Aries API</string>
     <string name="settings_model_api_aries_switch_subtitle">启用后将自动切换到 Aries 官方托管服务。</string>
     <string name="settings_model_api_aries_mode">Aries 托管 API</string>
-    <string name="settings_model_api_aries_mode_description">使用 Aries 官方托管 API，无需配置 Key 即可快速体验。</string>
+    <string name="settings_model_api_aries_mode_description">先登录 Aries 通行证，再自动登录 Aries API 并获取调用令牌。</string>
     <string name="settings_model_api_aries_membership">升级会员</string>
     <string name="settings_model_api_aries_membership_subtitle">解锁更多额度与高级功能</string>
-    <string name="settings_model_api_aries_login">登录 Aries 账号</string>
+    <string name="settings_model_api_aries_login">使用 Aries SSO 登录</string>
     <string name="settings_model_api_aries_logged_in">已登录：%1$s</string>
     <string name="settings_model_api_aries_logout">退出 Aries 账号</string>
     <string name="settings_model_api_aries_ready">Aries 账号已就绪</string>
@@ -373,7 +373,8 @@
     <string name="aries_login_confirm">登录</string>
     <string name="aries_login_fields_required">请填写用户名和密码</string>
     <string name="aries_login_success">已登录 %1$s</string>
-    <string name="aries_login_failed">登录失败，请检查用户名和密码</string>
+    <string name="aries_login_failed">Aries SSO 登录失败，请稍后重试</string>
+    <string name="aries_sso_user_display">Aries SSO</string>
     <string name="aries_logout_success">已退出登录</string>
     <string name="aries_api_section_unlocked">隐藏模型入口已显示</string>
     <string name="aries_api_section_locked">隐藏模型入口已隐藏</string>
@@ -456,6 +457,12 @@
     <string name="settings_appearance_theme_system">跟随系统</string>
     <string name="settings_appearance_theme_light">亮色</string>
     <string name="settings_appearance_theme_dark">暗色</string>
+    <string name="settings_appearance_theme_palette">主题配色</string>
+    <string name="settings_appearance_theme_palette_default">默认蓝</string>
+    <string name="settings_appearance_theme_palette_ocean">深海蓝</string>
+    <string name="settings_appearance_theme_palette_forest">森林绿</string>
+    <string name="settings_appearance_theme_palette_sunset">日落橙</string>
+    <string name="settings_appearance_theme_palette_rose">岩玫红</string>
     <string name="settings_appearance_amoled">AMOLED 纯黑</string>
     <string name="settings_appearance_dynamic_color">动态取色</string>
     <string name="settings_appearance_font_size">聊天字体大小</string>
