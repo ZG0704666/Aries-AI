@@ -457,12 +457,15 @@
     <string name="settings_appearance_theme_system">跟随系统</string>
     <string name="settings_appearance_theme_light">亮色</string>
     <string name="settings_appearance_theme_dark">暗色</string>
-    <string name="settings_appearance_theme_palette">主题配色</string>
-    <string name="settings_appearance_theme_palette_default">默认蓝</string>
+    <string name="settings_appearance_theme_palette">配色系统</string>
+    <string name="settings_appearance_theme_palette_summary">配色来源一次只能选择一种：Aries 预设色或系统动态取色。</string>
+    <string name="settings_appearance_theme_palette_default">Aries 默认</string>
     <string name="settings_appearance_theme_palette_ocean">深海蓝</string>
     <string name="settings_appearance_theme_palette_forest">森林绿</string>
     <string name="settings_appearance_theme_palette_sunset">日落橙</string>
     <string name="settings_appearance_theme_palette_rose">岩玫红</string>
+    <string name="settings_appearance_theme_palette_dynamic">壁纸动态取色</string>
+    <string name="settings_appearance_theme_palette_dynamic_description">使用系统壁纸生成整套 Material You 配色，并停用 Aries 预设色。</string>
     <string name="settings_appearance_amoled">AMOLED 纯黑</string>
     <string name="settings_appearance_dynamic_color">动态取色</string>
     <string name="settings_appearance_font_size">聊天字体大小</string>

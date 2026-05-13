@@ -13,6 +13,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 
+typealias ThemeMode = com.ai.phoneagent.core.designsystem.theme.ThemeMode
+typealias ThemeAccent = com.ai.phoneagent.core.designsystem.theme.ThemeAccent
+typealias ThemeColorStyle = com.ai.phoneagent.core.designsystem.theme.ThemeColorStyle
+
 private val Context.appPreferencesDataStore by preferencesDataStore(name = "app_prefs")
 
 class AppPreferencesRepository(
@@ -44,6 +48,7 @@ class AppPreferencesRepository(
 
         // ─── Appearance preferences ──────────────────────────────────────────
         val themeMode = stringPreferencesKey("theme_mode")
+        val themeColorStyle = stringPreferencesKey("theme_color_style")
         val themeAccent = stringPreferencesKey("theme_accent")
         val amoledDarkEnabled = booleanPreferencesKey("amoled_dark_enabled")
         val dynamicColorEnabled = booleanPreferencesKey("dynamic_color_enabled")
@@ -134,6 +139,9 @@ class AppPreferencesRepository(
             prefs[Keys.themeMode] ?: "system"
         }
 
+    val themeColorStyleFlow: Flow<String> =
+        context.appPreferencesDataStore.data.map(::resolveThemeColorStyleStorage)
+
     val themeAccentFlow: Flow<String> =
         context.appPreferencesDataStore.data.map { prefs ->
             prefs[Keys.themeAccent] ?: "default"
@@ -145,9 +153,7 @@ class AppPreferencesRepository(
         }
 
     val dynamicColorEnabledFlow: Flow<Boolean> =
-        context.appPreferencesDataStore.data.map { prefs ->
-            prefs[Keys.dynamicColorEnabled] ?: true
-        }
+        themeColorStyleFlow.map { raw -> ThemeColorStyle.fromStorage(raw).isDynamic }
 
     val chatFontScaleFlow: Flow<Float> =
         context.appPreferencesDataStore.data.map { prefs ->
@@ -402,6 +408,22 @@ class AppPreferencesRepository(
         return prefs[Keys.themeMode] ?: "system"
     }
 
+    suspend fun getThemeColorStyle(): String {
+        val prefs = context.appPreferencesDataStore.data.first()
+        return resolveThemeColorStyleStorage(prefs)
+    }
+
+    suspend fun setThemeColorStyle(value: String) {
+        val style = ThemeColorStyle.fromStorage(value)
+        context.appPreferencesDataStore.edit { prefs ->
+            prefs[Keys.themeColorStyle] = style.storageKey
+            prefs[Keys.dynamicColorEnabled] = style.isDynamic
+            if (!style.isDynamic) {
+                prefs[Keys.themeAccent] = style.accentOrDefault.storageKey
+            }
+        }
+    }
+
     suspend fun setThemeMode(value: String) {
         context.appPreferencesDataStore.edit { prefs ->
             prefs[Keys.themeMode] = value
@@ -410,12 +432,15 @@ class AppPreferencesRepository(
 
     suspend fun getThemeAccent(): String {
         val prefs = context.appPreferencesDataStore.data.first()
-        return prefs[Keys.themeAccent] ?: "default"
+        return prefs[Keys.themeAccent] ?: ThemeColorStyle.DEFAULT.storageKey
     }
 
     suspend fun setThemeAccent(value: String) {
+        val accent = ThemeAccent.fromStorage(value)
         context.appPreferencesDataStore.edit { prefs ->
-            prefs[Keys.themeAccent] = value
+            prefs[Keys.themeAccent] = accent.storageKey
+            prefs[Keys.themeColorStyle] = accent.storageKey
+            prefs[Keys.dynamicColorEnabled] = false
         }
     }
 
@@ -431,14 +456,14 @@ class AppPreferencesRepository(
     }
 
     suspend fun getDynamicColorEnabled(): Boolean {
-        val prefs = context.appPreferencesDataStore.data.first()
-        return prefs[Keys.dynamicColorEnabled] ?: true
+        return ThemeColorStyle.fromStorage(getThemeColorStyle()).isDynamic
     }
 
     suspend fun setDynamicColorEnabled(value: Boolean) {
-        context.appPreferencesDataStore.edit { prefs ->
-            prefs[Keys.dynamicColorEnabled] = value
-        }
+        val accent = getThemeAccent()
+        setThemeColorStyle(
+            if (value) ThemeColorStyle.DYNAMIC.storageKey else accent
+        )
     }
 
     suspend fun getChatFontScale(): Float {
@@ -627,6 +652,8 @@ class AppPreferencesRepository(
 
     fun getThemeModeBlocking(): String = runBlocking { getThemeMode() }
     fun setThemeModeBlocking(value: String) = runBlocking { setThemeMode(value) }
+    fun getThemeColorStyleBlocking(): String = runBlocking { getThemeColorStyle() }
+    fun setThemeColorStyleBlocking(value: String) = runBlocking { setThemeColorStyle(value) }
     fun getThemeAccentBlocking(): String = runBlocking { getThemeAccent() }
     fun setThemeAccentBlocking(value: String) = runBlocking { setThemeAccent(value) }
     fun getAmoledDarkEnabledBlocking(): Boolean = runBlocking { getAmoledDarkEnabled() }
@@ -643,8 +670,14 @@ class AppPreferencesRepository(
     fun setCodeLineNumbersBlocking(value: Boolean) = runBlocking { setCodeLineNumbers(value) }
     fun getCodeAutoCollapseBlocking(): Boolean = runBlocking { getCodeAutoCollapse() }
     fun setCodeAutoCollapseBlocking(value: Boolean) = runBlocking { setCodeAutoCollapse(value) }
-}
 
-/** Canonical definition lives in core/designsystem; re-exported here for convenience. */
-typealias ThemeMode = com.ai.phoneagent.core.designsystem.theme.ThemeMode
-typealias ThemeAccent = com.ai.phoneagent.core.designsystem.theme.ThemeAccent
+    private fun resolveThemeColorStyleStorage(
+        prefs: androidx.datastore.preferences.core.Preferences,
+    ): String {
+        prefs[Keys.themeColorStyle]?.let { return it }
+        if (prefs[Keys.dynamicColorEnabled] == true) {
+            return ThemeColorStyle.DYNAMIC.storageKey
+        }
+        return prefs[Keys.themeAccent] ?: ThemeColorStyle.DEFAULT.storageKey
+    }
+}

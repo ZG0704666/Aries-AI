@@ -32,7 +32,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.selection.SelectionContainer
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Copy
 import com.composables.icons.lucide.Check
@@ -574,14 +573,12 @@ private fun UserMessageBubble(
                     maxLines = 8,
                 )
             } else {
-                SelectionContainer {
-                    Text(
-                        text = item.body,
-                        modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
+                Text(
+                    text = item.body,
+                    modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
             }
         }
 
@@ -987,12 +984,10 @@ private fun AssistantMessageFinalBody(
         segments.forEachIndexed { index, segment ->
             when (segment) {
                 is MessageBodySegment.MarkdownText -> {
-                    SelectionContainer {
-                        Markdown(
-                            text = segment.content,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+                    Markdown(
+                        text = segment.content,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
 
                 is MessageBodySegment.CodeFence -> {
@@ -1444,54 +1439,52 @@ private fun CodeBlockSegment(
     Column(
         verticalArrangement = Arrangement.spacedBy(spacingXs),
     ) {
-        SelectionContainer {
-            Surface(
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceVariant,
+        Surface(
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacingSm, vertical = spacingSm),
+                verticalArrangement = Arrangement.spacedBy(spacingXs),
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = spacingSm, vertical = spacingSm),
-                    verticalArrangement = Arrangement.spacedBy(spacingXs),
-                ) {
-                    if (!language.isNullOrBlank()) {
-                        Text(
-                            text = language,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                if (!language.isNullOrBlank()) {
+                    Text(
+                        text = language,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
 
-                    visibleLines.forEachIndexed { index, line ->
-                        if (prefs.lineNumbers) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(spacingSm),
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                Text(
-                                    text = (index + 1).toString().padStart(lineNumberWidth, ' ') + "|",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text(
-                                    text = line.ifEmpty { " " },
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    softWrap = prefs.autoWrap,
-                                )
-                            }
-                        } else {
+                visibleLines.forEachIndexed { index, line ->
+                    if (prefs.lineNumbers) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(spacingSm),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Text(
+                                text = (index + 1).toString().padStart(lineNumberWidth, ' ') + "|",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                             Text(
                                 text = line.ifEmpty { " " },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.weight(1f),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 softWrap = prefs.autoWrap,
                             )
                         }
+                    } else {
+                        Text(
+                            text = line.ifEmpty { " " },
+                            modifier = Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            softWrap = prefs.autoWrap,
+                        )
                     }
                 }
             }
@@ -1704,12 +1697,10 @@ private fun ThinkingSection(
                             modifier = Modifier.fillMaxWidth(),
                         )
                     } else {
-                        SelectionContainer {
-                            Markdown(
-                                text = thinkingText,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
+                        Markdown(
+                            text = thinkingText,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
             }

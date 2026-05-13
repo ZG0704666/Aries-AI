@@ -42,12 +42,11 @@ import com.ai.phoneagent.core.designsystem.R
 /**
  * Aries Material Theme.
  *
- * Priority: AMOLED > Dynamic/accent semantic colors > Custom token surface ladder.
+ * Priority: AMOLED > Selected color style > Surface ladder.
  *
  * @param themeMode    Controls light/dark selection. Defaults to system setting.
- * @param themeAccent  Overrides the accent roles while preserving surface ladders.
+ * @param themeColorStyle Single source of truth for theme color generation.
  * @param amoledDark   When true and dark is active, forces pure-black backgrounds.
- * @param dynamicColor When true (Android 12+), uses Material You dynamic color.
  * @param fontScale    Multiplier applied to all Material 3 type-scale font sizes.
  * @param fontFamily   Font family applied to all Material 3 text styles.
  * @param content      Composable content within this theme.
@@ -55,9 +54,8 @@ import com.ai.phoneagent.core.designsystem.R
 @Composable
 fun AriesMaterialTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
-    themeAccent: ThemeAccent = ThemeAccent.DEFAULT,
+    themeColorStyle: ThemeColorStyle = ThemeColorStyle.DEFAULT,
     amoledDark: Boolean = false,
-    dynamicColor: Boolean = true,
     fontScale: Float = 1.0f,
     fontFamily: FontFamily = FontFamily.Default,
     content: @Composable () -> Unit,
@@ -79,9 +77,16 @@ fun AriesMaterialTheme(
         context.createConfigurationContext(themedConfiguration)
     }
 
-    // 2. Base color scheme: Dynamic Color (Android 12+) > Custom token scheme
+    val effectiveThemeColorStyle =
+        if (themeColorStyle.isDynamic && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            ThemeColorStyle.DEFAULT
+        } else {
+            themeColorStyle
+        }
+
+    // 2. Base color scheme: Dynamic style or token-backed preset style
     val baseColorScheme: ColorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        effectiveThemeColorStyle.isDynamic -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> {
@@ -92,14 +97,20 @@ fun AriesMaterialTheme(
         }
     }
 
-    // 3. AMOLED override: keep semantic colors, remap only surface roles to deep ladder
-    val accentedColorScheme =
-        baseColorScheme
-            .applyThemeAccent(themeAccent = themeAccent, isDarkTheme = darkTheme)
-            .applyTokenSurfaceLadder(themeResourceContext)
+    val styledColorScheme =
+        if (effectiveThemeColorStyle.isDynamic) {
+            baseColorScheme
+        } else {
+            baseColorScheme
+                .applyThemeAccent(
+                    themeAccent = effectiveThemeColorStyle.accentOrDefault,
+                    isDarkTheme = darkTheme,
+                )
+                .applyTokenSurfaceLadder(themeResourceContext)
+        }
 
     val colorScheme: ColorScheme = if (darkTheme && amoledDark) {
-        accentedColorScheme.copy(
+        styledColorScheme.copy(
             background = Color.Black,
             surface = Color(0xFF050505),
             surfaceVariant = Color(0xFF1A1A1A),
@@ -112,7 +123,7 @@ fun AriesMaterialTheme(
             surfaceContainerHighest = Color(0xFF2A2A2A),
         )
     } else {
-        accentedColorScheme
+        styledColorScheme
     }
 
     val shapes =
@@ -278,8 +289,8 @@ private fun AriesThemePreviewContent() {
 private fun AriesMaterialThemeAmoledDynamicDarkPreview() {
     AriesMaterialTheme(
         themeMode = ThemeMode.DARK,
+        themeColorStyle = ThemeColorStyle.DYNAMIC,
         amoledDark = true,
-        dynamicColor = true,
     ) {
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopStart) {
             AriesThemePreviewContent()
@@ -292,8 +303,8 @@ private fun AriesMaterialThemeAmoledDynamicDarkPreview() {
 private fun AriesMaterialThemeDynamicDarkPreview() {
     AriesMaterialTheme(
         themeMode = ThemeMode.DARK,
+        themeColorStyle = ThemeColorStyle.DYNAMIC,
         amoledDark = false,
-        dynamicColor = true,
     ) {
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopStart) {
             AriesThemePreviewContent()

@@ -110,7 +110,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
-import com.ai.phoneagent.core.designsystem.theme.ThemeAccent
+import com.ai.phoneagent.core.designsystem.theme.ThemeColorStyle
 import com.ai.phoneagent.core.designsystem.theme.ThemeMode
 import com.ai.phoneagent.net.AriesApiClient
 import com.ai.phoneagent.net.AutoGlmClient
@@ -902,17 +902,13 @@ class FloatingChatService : LifecycleService(), SavedStateRegistryOwner {
                         appPrefsRepository.themeModeFlow.collectAsState(
                                 initial = appPrefsRepository.getThemeModeBlocking()
                         )
-                val themeAccentRaw by
-                    appPrefsRepository.themeAccentFlow.collectAsState(
-                        initial = appPrefsRepository.getThemeAccentBlocking()
+                val themeColorStyleRaw by
+                    appPrefsRepository.themeColorStyleFlow.collectAsState(
+                    initial = appPrefsRepository.getThemeColorStyleBlocking()
                     )
                 val amoledDark by
                         appPrefsRepository.amoledDarkEnabledFlow.collectAsState(
                                 initial = appPrefsRepository.getAmoledDarkEnabledBlocking()
-                        )
-                val dynamicColor by
-                        appPrefsRepository.dynamicColorEnabledFlow.collectAsState(
-                                initial = appPrefsRepository.getDynamicColorEnabledBlocking()
                         )
                 val themeMode =
                         when (themeModeStr.lowercase()) {
@@ -920,13 +916,12 @@ class FloatingChatService : LifecycleService(), SavedStateRegistryOwner {
                             "dark" -> ThemeMode.DARK
                             else -> ThemeMode.SYSTEM
                         }
-                val themeAccent = ThemeAccent.fromStorage(themeAccentRaw)
+                val themeColorStyle = ThemeColorStyle.fromStorage(themeColorStyleRaw)
 
                 AriesMaterialTheme(
                         themeMode = themeMode,
-                    themeAccent = themeAccent,
+                    themeColorStyle = themeColorStyle,
                         amoledDark = amoledDark,
-                        dynamicColor = dynamicColor,
                 ) {
                     val listState = rememberLazyListState()
                     val messages = _floatingMessages

@@ -166,7 +166,7 @@ import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
 import com.ai.phoneagent.data.preferences.MainUiPreferencesRepository
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
-import com.ai.phoneagent.core.designsystem.theme.ThemeAccent
+import com.ai.phoneagent.core.designsystem.theme.ThemeColorStyle
 import com.ai.phoneagent.core.designsystem.theme.ThemeMode
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -677,9 +677,8 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             val themeModeStr by appPrefsRepository.themeModeFlow.collectAsState(initial = "system")
-            val themeAccentRaw by appPrefsRepository.themeAccentFlow.collectAsState(initial = "default")
+            val themeColorStyleRaw by appPrefsRepository.themeColorStyleFlow.collectAsState(initial = ThemeColorStyle.DEFAULT.storageKey)
             val amoledDark by appPrefsRepository.amoledDarkEnabledFlow.collectAsState(initial = false)
-            val dynamicColor by appPrefsRepository.dynamicColorEnabledFlow.collectAsState(initial = true)
             val fontScale by appPrefsRepository.chatFontScaleFlow.collectAsState(initial = 1.0f)
             val fontFamilyRaw by appPrefsRepository.chatFontFamilyFlow.collectAsState(initial = "default")
             val codeAutoWrap by appPrefsRepository.codeAutoWrapFlow.collectAsState(initial = true)
@@ -723,7 +722,7 @@ class MainActivity : AppCompatActivity() {
                 "dark" -> ThemeMode.DARK
                 else -> ThemeMode.SYSTEM
             }
-            val themeAccent = ThemeAccent.fromStorage(themeAccentRaw)
+            val themeColorStyle = ThemeColorStyle.fromStorage(themeColorStyleRaw)
             val resolvedFontFamily =
                 when (fontFamilyRaw.lowercase()) {
                     "sans_serif" -> FontFamily.SansSerif
@@ -740,9 +739,8 @@ class MainActivity : AppCompatActivity() {
 
             AriesMaterialTheme(
                 themeMode = themeMode,
-                themeAccent = themeAccent,
+                themeColorStyle = themeColorStyle,
                 amoledDark = amoledDark,
-                dynamicColor = dynamicColor,
                 fontScale = fontScale,
                 fontFamily = resolvedFontFamily,
             ) {

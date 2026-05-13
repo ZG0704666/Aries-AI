@@ -48,7 +48,7 @@ import com.ai.phoneagent.core.designsystem.theme.AriesSettingsCustomItem
 import com.ai.phoneagent.core.designsystem.theme.AriesSettingsSectionHeader
 import com.ai.phoneagent.core.designsystem.theme.AriesSettingsSwitchItem
 import com.ai.phoneagent.core.designsystem.theme.previewColors
-import com.ai.phoneagent.data.preferences.ThemeAccent
+import com.ai.phoneagent.data.preferences.ThemeColorStyle
 import com.ai.phoneagent.data.preferences.ThemeMode
 import com.ai.phoneagent.viewmodel.AppearanceViewModel
 import com.composables.icons.lucide.ArrowLeft
@@ -62,9 +62,8 @@ fun AppearanceScreen(
     viewModel: AppearanceViewModel = koinViewModel(),
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
-    val themeAccent by viewModel.themeAccent.collectAsState()
+    val themeColorStyle by viewModel.themeColorStyle.collectAsState()
     val amoledDarkEnabled by viewModel.amoledDarkEnabled.collectAsState()
-    val dynamicColorEnabled by viewModel.dynamicColorEnabled.collectAsState()
     val chatFontScale by viewModel.chatFontScale.collectAsState()
     val chatFontFamily by viewModel.chatFontFamily.collectAsState()
     val codeAutoWrap by viewModel.codeAutoWrap.collectAsState()
@@ -75,12 +74,10 @@ fun AppearanceScreen(
         onNavigateBack = onNavigateBack,
         themeMode = themeMode,
         onThemeModeChange = viewModel::setThemeMode,
-        themeAccent = themeAccent,
-        onThemeAccentChange = viewModel::setThemeAccent,
+        themeColorStyle = themeColorStyle,
+        onThemeColorStyleChange = viewModel::setThemeColorStyle,
         amoledDarkEnabled = amoledDarkEnabled,
         onAmoledDarkEnabledChange = viewModel::setAmoledDarkEnabled,
-        dynamicColorEnabled = dynamicColorEnabled,
-        onDynamicColorEnabledChange = viewModel::setDynamicColorEnabled,
         chatFontScale = chatFontScale,
         onChatFontScaleChange = viewModel::setChatFontScale,
         chatFontFamily = chatFontFamily,
@@ -100,12 +97,10 @@ fun AppearanceScreenContent(
     onNavigateBack: () -> Unit,
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
-    themeAccent: ThemeAccent,
-    onThemeAccentChange: (ThemeAccent) -> Unit,
+    themeColorStyle: ThemeColorStyle,
+    onThemeColorStyleChange: (ThemeColorStyle) -> Unit,
     amoledDarkEnabled: Boolean,
     onAmoledDarkEnabledChange: (Boolean) -> Unit,
-    dynamicColorEnabled: Boolean,
-    onDynamicColorEnabledChange: (Boolean) -> Unit,
     chatFontScale: Float,
     onChatFontScaleChange: (Float) -> Unit,
     chatFontFamily: String,
@@ -193,38 +188,38 @@ fun AppearanceScreenContent(
             item {
                 AriesSettingsCustomItem(
                     headlineText = stringResource(R.string.settings_appearance_theme_palette),
+                    supportingText = stringResource(R.string.settings_appearance_theme_palette_summary),
                     belowContent = {
-                        val options = listOf(
-                            ThemeAccent.DEFAULT to stringResource(R.string.settings_appearance_theme_palette_default),
-                            ThemeAccent.OCEAN to stringResource(R.string.settings_appearance_theme_palette_ocean),
-                            ThemeAccent.FOREST to stringResource(R.string.settings_appearance_theme_palette_forest),
-                            ThemeAccent.SUNSET to stringResource(R.string.settings_appearance_theme_palette_sunset),
-                            ThemeAccent.ROSE to stringResource(R.string.settings_appearance_theme_palette_rose),
-                        )
+                        val options = buildList {
+                            add(ThemeColorStyle.DEFAULT to stringResource(R.string.settings_appearance_theme_palette_default))
+                            add(ThemeColorStyle.OCEAN to stringResource(R.string.settings_appearance_theme_palette_ocean))
+                            add(ThemeColorStyle.FOREST to stringResource(R.string.settings_appearance_theme_palette_forest))
+                            add(ThemeColorStyle.SUNSET to stringResource(R.string.settings_appearance_theme_palette_sunset))
+                            add(ThemeColorStyle.ROSE to stringResource(R.string.settings_appearance_theme_palette_rose))
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                add(ThemeColorStyle.DYNAMIC to stringResource(R.string.settings_appearance_theme_palette_dynamic))
+                            }
+                        }
 
                         Column {
-                            options.forEach { (accent, label) ->
-                                ThemeAccentOptionRow(
-                                    accent = accent,
+                            options.forEach { (colorStyle, label) ->
+                                ThemeColorStyleOptionRow(
+                                    colorStyle = colorStyle,
                                     label = label,
-                                    selected = themeAccent == accent,
+                                    supportingText =
+                                        if (colorStyle == ThemeColorStyle.DYNAMIC) {
+                                            stringResource(R.string.settings_appearance_theme_palette_dynamic_description)
+                                        } else {
+                                            null
+                                        },
+                                    selected = themeColorStyle == colorStyle,
                                     darkPreview = isDarkThemeActive,
-                                    onClick = { onThemeAccentChange(accent) },
+                                    onClick = { onThemeColorStyleChange(colorStyle) },
                                 )
                             }
                         }
                     },
                 )
-            }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                item {
-                    AriesSettingsSwitchItem(
-                        headlineText = stringResource(R.string.settings_appearance_dynamic_color),
-                        checked = dynamicColorEnabled,
-                        onCheckedChange = onDynamicColorEnabledChange,
-                    )
-                }
             }
 
             item {
@@ -327,9 +322,10 @@ fun AppearanceScreenContent(
 }
 
 @Composable
-private fun ThemeAccentOptionRow(
-    accent: ThemeAccent,
+private fun ThemeColorStyleOptionRow(
+    colorStyle: ThemeColorStyle,
     label: String,
+    supportingText: String?,
     selected: Boolean,
     darkPreview: Boolean,
     onClick: () -> Unit,
@@ -338,7 +334,7 @@ private fun ThemeAccentOptionRow(
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val swatchSize = dimensionResource(R.dimen.m3t_spacing_md)
-    val preview = accent.previewColors(isDarkTheme = darkPreview)
+    val preview = colorStyle.previewColors(isDarkTheme = darkPreview)
 
     Row(
         modifier = Modifier
@@ -352,20 +348,34 @@ private fun ThemeAccentOptionRow(
             onClick = onClick,
         )
         Spacer(modifier = Modifier.width(spacingMd))
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(spacingXs),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacingXs),
         ) {
-            ThemeAccentSwatch(color = preview.primary, size = swatchSize)
-            ThemeAccentSwatch(color = preview.secondary, size = swatchSize)
-            ThemeAccentSwatch(color = preview.tertiary, size = swatchSize)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacingXs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (preview != null) {
+                    ThemeAccentSwatch(color = preview.primary, size = swatchSize)
+                    ThemeAccentSwatch(color = preview.secondary, size = swatchSize)
+                    ThemeAccentSwatch(color = preview.tertiary, size = swatchSize)
+                    Spacer(modifier = Modifier.width(spacingMd))
+                }
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            if (!supportingText.isNullOrBlank()) {
+                Text(
+                    text = supportingText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-        Spacer(modifier = Modifier.width(spacingMd))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
     }
 }
 
@@ -384,17 +394,15 @@ private fun ThemeAccentSwatch(
 @Preview(name = "AppearanceScreen - Light", showBackground = true)
 @Composable
 private fun AppearanceScreenLightPreview() {
-    AriesMaterialTheme(themeMode = ThemeMode.LIGHT) {
+    AriesMaterialTheme(themeMode = ThemeMode.LIGHT, themeColorStyle = ThemeColorStyle.DEFAULT) {
         AppearanceScreenContent(
             onNavigateBack = {},
             themeMode = ThemeMode.SYSTEM,
             onThemeModeChange = {},
-            themeAccent = ThemeAccent.DEFAULT,
-            onThemeAccentChange = {},
+            themeColorStyle = ThemeColorStyle.DEFAULT,
+            onThemeColorStyleChange = {},
             amoledDarkEnabled = false,
             onAmoledDarkEnabledChange = {},
-            dynamicColorEnabled = true,
-            onDynamicColorEnabledChange = {},
             chatFontScale = 1.0f,
             onChatFontScaleChange = {},
             chatFontFamily = "default",
@@ -412,17 +420,15 @@ private fun AppearanceScreenLightPreview() {
 @Preview(name = "AppearanceScreen - Dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 private fun AppearanceScreenDarkPreview() {
-    AriesMaterialTheme(themeMode = ThemeMode.DARK) {
+    AriesMaterialTheme(themeMode = ThemeMode.DARK, themeColorStyle = ThemeColorStyle.OCEAN) {
         AppearanceScreenContent(
             onNavigateBack = {},
             themeMode = ThemeMode.DARK,
             onThemeModeChange = {},
-            themeAccent = ThemeAccent.OCEAN,
-            onThemeAccentChange = {},
+            themeColorStyle = ThemeColorStyle.OCEAN,
+            onThemeColorStyleChange = {},
             amoledDarkEnabled = true,
             onAmoledDarkEnabledChange = {},
-            dynamicColorEnabled = true,
-            onDynamicColorEnabledChange = {},
             chatFontScale = 1.2f,
             onChatFontScaleChange = {},
             chatFontFamily = "monospace",
