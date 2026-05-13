@@ -191,6 +191,7 @@ fun HomeTranscriptPane(
     onRetryMessage: (TranscriptMessageUi) -> Unit,
     onEditMessage: (TranscriptMessageUi) -> Unit,
     onAutomationAction: (TranscriptMessageUi) -> Unit,
+    onEmptySuggestionClick: (String) -> Unit,
     scrollToBottomSignal: Long,
     bottomOverlayPadding: Dp,
     spacingMd: Dp,
@@ -209,6 +210,7 @@ fun HomeTranscriptPane(
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
                     .padding(top = spacingMd),
+                onSuggestionClick = onEmptySuggestionClick,
             )
         }
         return

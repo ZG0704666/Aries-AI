@@ -6,12 +6,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,9 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextOverflow
 import com.ai.phoneagent.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,9 +43,10 @@ fun MainTopBar(
     onOpenFloatingWindow: () -> Unit,
     modelName: String = "",
 ) {
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
     val spacingXxxs = dimensionResource(R.dimen.m3t_spacing_xxxs)
+    val titleGap = dimensionResource(R.dimen.m3t_top_bar_title_gap)
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -59,25 +60,38 @@ fun MainTopBar(
                     .clickable(onClick = onToggleStatus),
         ) {
             TopAppBar(
+                expandedHeight = dimensionResource(R.dimen.m3t_toolbar_height),
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = stringResource(R.string.app_name),
-                            style =
-                                TextStyle(
-                                    fontSize = 20.sp,
-                                    lineHeight = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                ),
-                        )
-                        if (modelName.isNotBlank()) {
-                            Spacer(modifier = Modifier.width(dimensionResource(R.dimen.m3t_spacing_sm)))
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        val modelChipMaxWidth = maxWidth * 0.62f
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Text(
-                                text = "· $modelName",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = stringResource(R.string.app_name),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
+                            if (modelName.isNotBlank()) {
+                                Spacer(modifier = Modifier.width(titleGap))
+                                Surface(
+                                    modifier = Modifier.widthIn(max = modelChipMaxWidth),
+                                    shape = MaterialTheme.shapes.large,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                ) {
+                                    Text(
+                                        text = modelName,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXxxs + spacingXxxs),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
                         }
                     }
                 },
@@ -119,15 +133,20 @@ fun MainTopBar(
                 enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
                 exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
             ) {
-                Text(
-                    text = statusText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(start = spacingXl, top = spacingXxxs, end = spacingMd, bottom = spacingXxxs),
-                )
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacingMd, vertical = spacingXxxs),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                ) {
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingSm),
+                    )
+                }
             }
         }
     }

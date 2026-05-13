@@ -476,12 +476,15 @@ fun MathInlineText(text: String, modifier: Modifier = Modifier) {
         buildMathAnnotated(segments, bitmaps, density, textSizePx, fgColor)
     }
 
-    BasicText(
-        text          = annotated,
-        style         = style.copy(color = fgColor),
-        inlineContent = inlineMap,
-        modifier      = modifier,
-    )
+    Box(
+        modifier = modifier.horizontalScroll(rememberScrollState()),
+    ) {
+        BasicText(
+            text = annotated,
+            style = style.copy(color = fgColor),
+            inlineContent = inlineMap,
+        )
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

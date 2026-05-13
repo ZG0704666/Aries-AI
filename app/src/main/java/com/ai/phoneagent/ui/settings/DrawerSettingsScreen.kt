@@ -252,7 +252,7 @@ private fun SettingsSectionHeader(title: String) {
     Text(
         text = title,
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier =
             Modifier
                 .fillMaxWidth()
@@ -275,18 +275,17 @@ private fun SettingsEntryRow(
     val iconSize = dimensionResource(R.dimen.m3t_about_row_icon_size)
     val chevronSize = dimensionResource(R.dimen.m3t_about_chevron_size)
 
-    Surface(
+    Column(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick),
-        color = MaterialTheme.colorScheme.background,
     ) {
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = spacingLg, vertical = spacingSm),
+                    .padding(horizontal = spacingLg, vertical = spacingMd),
             horizontalArrangement = Arrangement.spacedBy(spacingMd),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -328,6 +327,10 @@ private fun SettingsEntryRow(
                 modifier = Modifier.size(chevronSize).graphicsLayer { rotationZ = 180f },
             )
         }
+        HorizontalDivider(
+            modifier = Modifier.padding(start = spacingLg + iconSize + spacingMd, end = spacingLg),
+            color = MaterialTheme.colorScheme.outlineVariant,
+        )
     }
 }
 

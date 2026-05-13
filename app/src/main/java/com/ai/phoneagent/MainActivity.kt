@@ -50,7 +50,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.content.res.ColorStateList
 import android.content.res.Configuration
 import java.io.File
 import android.graphics.Canvas
@@ -68,8 +67,6 @@ import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.util.LruCache
 import android.text.Editable
-import android.text.TextWatcher
-import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnticipateInterpolator
@@ -79,11 +76,6 @@ import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.AnticipateOvershootInterpolator
 import android.view.inputmethod.InputMethodManager
-import android.widget.LinearLayout
-import android.widget.ImageView
-import android.widget.ImageButton
-import android.widget.TextView
-import android.widget.EditText
 import com.ai.phoneagent.helper.AutomationMessageParser
 import com.ai.phoneagent.helper.AutomationTimelineEntry
 import com.ai.phoneagent.helper.AutomationTimelineFormatter
@@ -93,7 +85,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
-import androidx.appcompat.widget.ActionMenuView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import com.ai.phoneagent.net.AriesApiClient
@@ -122,7 +113,6 @@ import android.view.WindowManager
 import android.graphics.drawable.ColorDrawable
 import android.view.ViewAnimationUtils
 import android.text.Html
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.foundation.background
@@ -159,7 +149,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
@@ -754,12 +743,8 @@ class MainActivity : AppCompatActivity() {
                 fontFamily = resolvedFontFamily,
             ) {
                 val navController = rememberNavController()
-                val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-                val composeScope = rememberCoroutineScope()
                 DisposableEffect(navController) {
                     navControllerState.value = navController
-                    drawerStateHolder.value = drawerState
-                    composeScopeHolder = composeScope
                     routeNavigationActionState.value = { route ->
                         if (navController.currentDestination?.route != route) {
                             navController.navigate(route) {
@@ -771,12 +756,6 @@ class MainActivity : AppCompatActivity() {
                         if (navControllerState.value === navController) {
                             navControllerState.value = null
                         }
-                        if (drawerStateHolder.value === drawerState) {
-                            drawerStateHolder.value = null
-                        }
-                        if (composeScopeHolder === composeScope) {
-                            composeScopeHolder = null
-                        }
                         routeNavigationActionState.value = null
                     }
                 }
@@ -785,8 +764,6 @@ class MainActivity : AppCompatActivity() {
                     navController = navController,
                     homeContent = {
                         HomeRoute(
-                            drawerState = drawerState,
-                            composeScope = composeScope,
                             codeBlockPrefs = codeBlockPrefs,
                         )
                     },
@@ -831,11 +808,11 @@ class MainActivity : AppCompatActivity() {
 
     @Composable
     private fun HomeRoute(
-        drawerState: DrawerState,
-        composeScope: CoroutineScope,
         codeBlockPrefs: CodeBlockPrefs,
     ) {
         DebugRecomposeLogger(scope = "HomeRoute")
+        val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+        val composeScope = rememberCoroutineScope()
         val currentTranscriptItems by remember { transcriptItemsState }
         val currentStreamingConvId by remember { streamingTranscriptConversationIdState }
         val currentStreamingItem by remember { streamingTranscriptItemState }
@@ -849,6 +826,29 @@ class MainActivity : AppCompatActivity() {
         val currentContentScale by remember { homeContentScaleState }
         val modelDisplayName = getDisplayNameForModel(resolveApiModel())
         val aiNoticeText = remember { getString(R.string.ai_generated_notice) }
+
+        DisposableEffect(drawerState, composeScope) {
+            drawerStateHolder.value = drawerState
+            composeScopeHolder = composeScope
+            onDispose {
+                pendingDrawerNavigationAction = null
+                if (drawerStateHolder.value === drawerState) {
+                    drawerStateHolder.value = null
+                }
+                if (composeScopeHolder === composeScope) {
+                    composeScopeHolder = null
+                }
+            }
+        }
+
+        LaunchedEffect(drawerState) {
+            pendingDrawerNavigationAction = null
+            refreshDrawerConversationItems()
+            if (drawerState.currentValue != DrawerValue.Closed) {
+                drawerState.close()
+            }
+        }
+
         val onToggleStatus = remember {
             { statusVisibleState.value = !statusVisibleState.value }
         }
@@ -952,6 +952,15 @@ class MainActivity : AppCompatActivity() {
                 Unit
             }
         }
+        val onEmptySuggestionClick = remember {
+            { suggestion: String ->
+                vibrateLight()
+                if (inputBarState.value !is InputState.Generating) {
+                    inputBarState.value = InputState.Idle
+                }
+                inputTextState.value = suggestion.trim()
+            }
+        }
         val onDrawerClosed = remember {
             { runPendingDrawerNavigationAction() }
         }
@@ -983,6 +992,7 @@ class MainActivity : AppCompatActivity() {
                     onRetryMessage = onRetryMessage,
                     onEditMessage = onEditMessage,
                     onAutomationAction = onAutomationAction,
+                    onEmptySuggestionClick = onEmptySuggestionClick,
                 )
             },
             inputBarContent = { HomeInputBar() },
@@ -1005,6 +1015,7 @@ class MainActivity : AppCompatActivity() {
         onRetryMessage: (TranscriptMessageUi) -> Unit,
         onEditMessage: (TranscriptMessageUi) -> Unit,
         onAutomationAction: (TranscriptMessageUi) -> Unit,
+        onEmptySuggestionClick: (String) -> Unit,
     ) {
         DebugRecomposeLogger(scope = "HomeTranscriptRoute")
         val currentTranscriptItems by remember { transcriptItemsState }
@@ -1030,6 +1041,7 @@ class MainActivity : AppCompatActivity() {
             onRetryMessage = onRetryMessage,
             onEditMessage = onEditMessage,
             onAutomationAction = onAutomationAction,
+            onEmptySuggestionClick = onEmptySuggestionClick,
             scrollToBottomSignal = currentScrollSignal,
             bottomOverlayPadding = bottomOverlayPadding,
             spacingMd = spacingMd,
@@ -2883,6 +2895,8 @@ class MainActivity : AppCompatActivity() {
         attachmentManager: com.ai.phoneagent.helper.AttachmentManager,
     ) {
         DebugRecomposeLogger(scope = "HomeAttachmentPreview")
+        val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+        val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
         val attachments by chatViewModel.attachments.collectAsState()
         if (attachments.isEmpty()) return
 
@@ -2895,7 +2909,7 @@ class MainActivity : AppCompatActivity() {
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(horizontal = spacingSm, vertical = spacingXs),
         )
     }
 

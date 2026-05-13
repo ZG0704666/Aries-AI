@@ -25,6 +25,7 @@ import com.composables.icons.lucide.Settings
 import com.composables.icons.lucide.Trash2
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -111,9 +112,9 @@ fun ConversationDrawer(
             },
             colors =
                 TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,
@@ -170,6 +171,8 @@ fun ConversationDrawer(
 
         Spacer(modifier = Modifier.height(spacingMd))
 
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
         Surface(
             modifier =
                 Modifier
@@ -180,9 +183,7 @@ fun ConversationDrawer(
                                 ?: navController?.navigate(Routes.Settings.route)
                         },
                     ),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            color = MaterialTheme.colorScheme.background,
         ) {
             Row(
                 modifier =
@@ -195,12 +196,14 @@ fun ConversationDrawer(
                 Icon(
                     imageVector = Lucide.Settings,
                     contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(spacingXl),
                 )
                 Text(
                     text = stringResource(R.string.drawer_settings),
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
         }
@@ -215,7 +218,7 @@ private fun DrawerConversationHeader(label: String) {
     Text(
         text = label,
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier =
             Modifier
                 .fillMaxWidth()
@@ -237,7 +240,7 @@ private fun DrawerConversationRow(
     var menuExpanded by remember(item.conversationId) { mutableStateOf(false) }
     val backgroundColor =
         if (item.selected) {
-            MaterialTheme.colorScheme.secondaryContainer
+            MaterialTheme.colorScheme.surfaceContainerHigh
         } else {
             Color.Transparent
         }

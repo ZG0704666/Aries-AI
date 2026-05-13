@@ -70,6 +70,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
@@ -86,6 +87,7 @@ import com.ai.phoneagent.ui.components.markdown.LocalMarkdownSettings
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.sample
 
 private val DESC_DO_REGEX = Regex("""desc\s*=\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
@@ -95,6 +97,8 @@ private val FENCED_CODE_BLOCK_REGEX = Regex("(?s)```([\\w+-]*)\\n(.*?)```")
 private const val CODE_BLOCK_COLLAPSE_LINE_THRESHOLD = 10
 private const val STREAMING_MARKDOWN_RENDER_INTERVAL_MS = 480L
 private const val STREAMING_MARKDOWN_MIN_CHUNK_DELTA = 48
+private const val TRANSCRIPT_EMPTY_SUGGESTION_PAGE_SIZE = 4
+private const val TRANSCRIPT_EMPTY_SUGGESTION_ROTATE_DELAY_MS = 4200L
 private val STREAMING_MARKDOWN_ORDERED_LIST_RE = Regex("""(?m)^\s*\d+\.\s""")
 
 @Immutable
@@ -399,37 +403,112 @@ private fun StreamingTranscriptMessageListItem(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TranscriptEmptyHintCard(
     modifier: Modifier = Modifier,
+    onSuggestionClick: (String) -> Unit = {},
 ) {
+    val context = LocalContext.current
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
+    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
+    val heroIconSize = spacingXl
+    val heroIconBoxSize = spacingXl + spacingLg
+    val suggestionPages = remember {
+        context.resources
+            .getStringArray(R.array.transcript_suggestion_examples)
+            .toList()
+            .chunked(TRANSCRIPT_EMPTY_SUGGESTION_PAGE_SIZE)
+    }
+    var suggestionPageIndex by rememberSaveable { mutableStateOf(0) }
+
+    LaunchedEffect(suggestionPages.size) {
+        suggestionPageIndex = 0
+        if (suggestionPages.size <= 1) return@LaunchedEffect
+        while (true) {
+            delay(TRANSCRIPT_EMPTY_SUGGESTION_ROTATE_DELAY_MS)
+            suggestionPageIndex = (suggestionPageIndex + 1) % suggestionPages.size
+        }
+    }
+
+    val visibleSuggestions = suggestionPages.getOrElse(suggestionPageIndex) { emptyList() }
+
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = messageElevation,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingMd + spacingSm),
-            verticalArrangement = Arrangement.spacedBy(spacingSm),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacingLg, vertical = spacingLg)
+                    .animateContentSize(animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)),
+            verticalArrangement = Arrangement.spacedBy(spacingLg),
         ) {
-            Icon(
-                imageVector = Lucide.Lightbulb,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = stringResource(R.string.transcript_empty_hint),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = stringResource(R.string.input_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacingMd),
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                ) {
+                    Box(
+                        modifier = Modifier.size(heroIconBoxSize),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Lucide.Lightbulb,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(heroIconSize),
+                        )
+                    }
+                }
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(spacingXs),
+                ) {
+                    Text(
+                        text = stringResource(R.string.transcript_empty_hint),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = stringResource(R.string.input_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(spacingXs),
+                verticalArrangement = Arrangement.spacedBy(spacingXs),
+            ) {
+                visibleSuggestions.forEach { suggestion ->
+                    Surface(
+                        modifier = Modifier.clickable { onSuggestionClick(suggestion) },
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    ) {
+                        Text(
+                            text = suggestion,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -449,6 +528,7 @@ private fun UserMessageBubble(
     val actionGap = dimensionResource(R.dimen.m3t_message_action_gap)
     val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
+    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
     var isEditing by remember { mutableStateOf(false) }
     var editText by remember(item.body) { mutableStateOf(item.body) }
     var showActions by remember(item.id) { mutableStateOf(false) }
@@ -467,7 +547,7 @@ private fun UserMessageBubble(
             modifier = Modifier.widthIn(max = bubbleMaxWidth),
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.primaryContainer,
-            tonalElevation = 1.dp,
+            tonalElevation = messageElevation,
         ) {
             if (isEditing) {
                 TextField(
@@ -599,8 +679,8 @@ private fun UserMessageBubble(
                 item.attachments.forEach { attachmentName ->
                     Surface(
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 1.dp,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        tonalElevation = messageElevation,
                     ) {
                         Text(
                             text = attachmentName,
@@ -632,13 +712,14 @@ private fun AssistantMessageBlock(
     val actionGap = dimensionResource(R.dimen.m3t_message_action_gap)
     val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
+    val transcriptBlockGap = dimensionResource(R.dimen.m3t_transcript_block_gap)
     val codeBlockPrefs = LocalCodeBlockPrefs.current
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .widthIn(max = maxWidth),
-        verticalArrangement = Arrangement.spacedBy(spacingSm),
+        verticalArrangement = Arrangement.spacedBy(transcriptBlockGap + spacingXs),
     ) {
         if (item.automation == null) {
             AssistantMessageHeader(
@@ -705,12 +786,13 @@ private fun StreamingAssistantMessageBlock(
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val maxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
+    val transcriptBlockGap = dimensionResource(R.dimen.m3t_transcript_block_gap)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .widthIn(max = maxWidth),
-        verticalArrangement = Arrangement.spacedBy(spacingSm),
+        verticalArrangement = Arrangement.spacedBy(transcriptBlockGap + spacingXs),
     ) {
         AssistantMessageHeader(
             author = itemState.author,
@@ -761,10 +843,12 @@ private fun StreamingAssistantBodyPreview(
     preview: StreamingTranscriptBodyPreview,
     spacingMd: Dp,
 ) {
+    val streamingElevation = dimensionResource(R.dimen.m3t_message_streaming_tonal_elevation)
+    val transcriptBlockGap = dimensionResource(R.dimen.m3t_transcript_block_gap)
     Surface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = streamingElevation,
     ) {
         if (!preview.usesMarkdownPreview || preview.committedBlocks.isEmpty()) {
             Text(
@@ -782,7 +866,7 @@ private fun StreamingAssistantBodyPreview(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = spacingMd, vertical = spacingMd),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(transcriptBlockGap),
             ) {
                 preview.committedBlocks.forEachIndexed { index, block ->
                     key(index, block) {
@@ -819,7 +903,7 @@ private fun AssistantMessageHeader(
     ) {
         Text(
             text = author,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold,
         )
@@ -845,11 +929,14 @@ private fun AssistantMessageBody(
     isStreaming: Boolean,
     spacingMd: Dp,
 ) {
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
+    val streamingElevation = dimensionResource(R.dimen.m3t_message_streaming_tonal_elevation)
     val codeBlockPrefs = LocalCodeBlockPrefs.current
     Surface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = if (isStreaming) 2.dp else 1.dp,
+        color = if (isStreaming) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.surface,
+        tonalElevation = if (isStreaming) streamingElevation else messageElevation,
     ) {
         if (isStreaming && shouldRenderStreamingMarkdown(body)) {
             StreamingMarkdownPreview(
@@ -873,6 +960,7 @@ private fun AssistantMessageBody(
             AssistantMessageFinalBody(
                 body = body,
                 spacingMd = spacingMd,
+                spacingXs = spacingXs,
                 codeBlockPrefs = codeBlockPrefs,
             )
         }
@@ -883,16 +971,18 @@ private fun AssistantMessageBody(
 private fun AssistantMessageFinalBody(
     body: String,
     spacingMd: Dp,
+    spacingXs: Dp,
     codeBlockPrefs: CodeBlockPrefs,
 ) {
+    val transcriptBlockGap = dimensionResource(R.dimen.m3t_transcript_block_gap)
     val segments = remember(body) { parseMessageBodySegments(body) }
     val bodyKeyPrefix = remember(body) { body.hashCode().toString() }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = spacingMd, vertical = spacingMd),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+            .padding(horizontal = spacingMd, vertical = spacingXs),
+        verticalArrangement = Arrangement.spacedBy(transcriptBlockGap),
     ) {
         segments.forEachIndexed { index, segment ->
             when (segment) {
@@ -906,12 +996,14 @@ private fun AssistantMessageFinalBody(
                 }
 
                 is MessageBodySegment.CodeFence -> {
-                    CodeBlockSegment(
-                        language = segment.language,
-                        code = segment.content,
-                        blockKey = "$bodyKeyPrefix-$index",
-                        prefs = codeBlockPrefs,
-                    )
+                    Box(modifier = Modifier.padding(end = spacingMd)) {
+                        CodeBlockSegment(
+                            language = segment.language,
+                            code = segment.content,
+                            blockKey = "$bodyKeyPrefix-$index",
+                            prefs = codeBlockPrefs,
+                        )
+                    }
                 }
             }
         }
@@ -989,6 +1081,7 @@ private fun StreamingMarkdownPreview(
     text: String,
     modifier: Modifier = Modifier,
 ) {
+    val transcriptBlockGap = dimensionResource(R.dimen.m3t_transcript_block_gap)
     val latestTextState = rememberUpdatedState(text)
     var renderedSnapshot by remember {
         mutableStateOf(buildStreamingMarkdownSnapshot(text))
@@ -1029,7 +1122,7 @@ private fun StreamingMarkdownPreview(
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(transcriptBlockGap),
     ) {
         renderedSnapshot.blocks.forEach { block ->
             Markdown(
@@ -1438,6 +1531,7 @@ private fun ThinkingSection(
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val thinkingIconBox = dimensionResource(R.dimen.m3t_message_thinking_icon_box_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
+    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
 
     val thinkingLabel =
         thinkingDurationMs?.let { durationMs ->
@@ -1559,7 +1653,7 @@ private fun ThinkingSection(
             modifier = surfaceModifier,
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.secondaryContainer,
-            tonalElevation = 1.dp,
+            tonalElevation = messageElevation,
         ) {
             val contentModifier =
                 Modifier
@@ -1633,10 +1727,11 @@ private fun StreamingThinkingSection(
     spacingMd: Dp,
     spacingXs: Dp,
 ) {
+    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.secondaryContainer,
-        tonalElevation = 1.dp,
+        tonalElevation = messageElevation,
     ) {
         Column(
             modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
@@ -1778,6 +1873,7 @@ private fun AutomationMessageCard(
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val chipIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
+    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
     val logBlocks = remember(automation.logs.size, automation.logs.lastOrNull()) {
         buildAutomationLogBlocks(automation.logs)
     }
@@ -1803,8 +1899,8 @@ private fun AutomationMessageCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = messageElevation,
     ) {
         Column(
             modifier = Modifier
@@ -1872,8 +1968,8 @@ private fun AutomationMessageCard(
                                     ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.errorContainer,
                                         contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                        disabledContainerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.64f),
-                                        disabledContentColor = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.84f),
+                                        disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 } else {
                                     ButtonDefaults.filledTonalButtonColors()
@@ -2099,10 +2195,11 @@ private fun MessageActionButton(
     buttonSize: androidx.compose.ui.unit.Dp,
     content: @Composable () -> Unit,
 ) {
+    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
     Surface(
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = messageElevation,
         modifier = Modifier.wrapContentWidth(),
     ) {
         IconButton(

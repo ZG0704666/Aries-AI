@@ -11,8 +11,16 @@
     <string name="status_checking_with_voice">已配置语音模型 | API 检查中...</string>
     <string name="common_copy">复制</string>
     <string name="common_edit">编辑</string>
-    <string name="input_hint">请输入你的问题…</string>
+    <string name="input_hint">输入任务，让 Aries 操作手机...</string>
     <string name="voice_input">语音输入</string>
+    <string name="input_attachment">附件</string>
+    <string name="input_switch_keyboard">切换键盘</string>
+    <string name="input_hold_to_talk">按住说话</string>
+    <string name="input_stop_generating">终止生成</string>
+    <string name="voice_status_listening">正在聆听</string>
+    <string name="voice_status_recognizing">正在识别</string>
+    <string name="voice_release_to_cancel">松开取消</string>
+    <string name="voice_release_to_send">松开输入，上滑取消</string>
     <string name="send">发送</string>
     <string name="ai_generated_notice">内容由AI生成</string>
     <string name="retry">重试</string>
@@ -51,7 +59,59 @@
     <string name="message_streaming_placeholder">正在思考...</string>
     <string name="message_connecting_placeholder">连接中</string>
     <string name="message_local_inference_waiting">本地推理中，请等待</string>
-    <string name="transcript_empty_hint">开始一段新对话</string>
+    <string name="transcript_empty_hint">描述任务目标，Aries 会理解并执行操作</string>
+    <string name="transcript_suggestion_open_wechat">打开微信并搜索联系人</string>
+    <string name="transcript_suggestion_summarize_page">截图并总结当前页面</string>
+    <string name="transcript_suggestion_set_alarm">帮我设置明天 8 点闹钟</string>
+    <string-array name="transcript_suggestion_examples">
+        <item>@string/transcript_suggestion_open_wechat</item>
+        <item>@string/transcript_suggestion_summarize_page</item>
+        <item>@string/transcript_suggestion_set_alarm</item>
+        <item>用QQ给妈妈发送“我晚点到家”</item>
+        <item>打开地图并导航到公司</item>
+        <item>查看今天的天气和温度</item>
+        <item>打开相册找出今天拍的照片</item>
+        <item>把这段文字翻译成英文</item>
+        <item>打开日历并创建下午三点会议</item>
+        <item>在浏览器搜索韦达定理</item>
+        <item>打开设置检查电池健康</item>
+        <item>查看剩余存储空间</item>
+        <item>打开淘宝搜索蓝牙耳机</item>
+        <item>比较这两个商品哪个更划算</item>
+        <item>打开美团看看附近咖啡店</item>
+        <item>帮我点开未读短信</item>
+        <item>总结通知栏里的重要消息</item>
+        <item>打开 B 站搜索 Compose 教程</item>
+        <item>打开知乎搜索 AI Agent</item>
+        <item>从当前页面提取所有时间和地点</item>
+        <item>识别图片中的文字并整理成清单</item>
+        <item>打开文件管理找到最近下载的 PDF</item>
+        <item>给这个联系人打电话</item>
+        <item>打开录音机开始录音</item>
+        <item>打开计算器帮我算 256×37</item>
+        <item>查看今天是否有快递信息</item>
+        <item>打开京东搜索显示器支架</item>
+        <item>帮我整理今天的待办事项</item>
+        <item>打开邮箱查看最新未读邮件</item>
+        <item>在备忘录新建一条购物清单</item>
+        <item>打开设置开启深色模式</item>
+        <item>检查蓝牙和 Wi‑Fi 是否已开启</item>
+        <item>打开支付宝查看付款码</item>
+        <item>打开支付宝扫一扫</item>
+        <item>帮我总结这篇文章的三点结论</item>
+        <item>从这段对话中提取待办项</item>
+        <item>打开相机切到前置</item>
+        <item>查看电量并打开省电模式</item>
+        <item>在浏览器搜索附近地铁站</item>
+        <item>打开网易云播放我喜欢的音乐</item>
+        <item>搜索并下载一个天气 App</item>
+        <item>打开通讯录找到最近联系人</item>
+        <item>将当前页面内容改写成更简短版本</item>
+        <item>帮我从截图里找出订单号</item>
+        <item>打开设置检查权限管理</item>
+        <item>帮我预约明早九点提醒</item>
+        <item>打开系统更新页面检查是否有更新</item>
+    </string-array>
     <string name="automation_toolbar_title">Aries AI 自动化控制台</string>
     <string name="automation_console_overview_title">自动化控制中心</string>
     <string name="automation_console_overview_subtitle">先确认通道状态，再选择执行方式并发起任务。</string>

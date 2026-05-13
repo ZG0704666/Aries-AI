@@ -5,6 +5,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,14 +24,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerId
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlin.math.abs
 import kotlin.random.Random
 
@@ -53,137 +51,121 @@ fun InputBar(
     modifier: Modifier = Modifier,
     onUpdateCancelState: (Boolean) -> Unit = {}
 ) {
-    // 基础颜色定义（统一从 MaterialTheme 动态获取）
     val colorScheme = MaterialTheme.colorScheme
-    val colorTextMain = colorScheme.onSurface
-    val colorTextSecondary = colorScheme.onSurfaceVariant
-    val colorHint = colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
-    val colorInputField = colorScheme.surfaceVariant.copy(alpha = 0.9f)
-    val colorButtonDisabled = colorScheme.surfaceVariant.copy(alpha = 0.72f)
-    val colorButtonEnabled = colorScheme.primary
-    val colorButtonIcon = colorScheme.onPrimary
     val spacingXxxs = dimensionResource(R.dimen.m3t_spacing_xxxs)
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
     val radiusLg = dimensionResource(R.dimen.m3t_radius_lg)
     val inputBarMaxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
+    val inputBarHeight = dimensionResource(R.dimen.m3t_input_bar_height)
+    val inputBarVoiceHeight = dimensionResource(R.dimen.m3t_input_bar_voice_height)
+    val iconButtonSize = dimensionResource(R.dimen.m3t_input_bar_icon_button_size)
+    val iconSize = dimensionResource(R.dimen.m3t_input_bar_icon_size)
+    val sendButtonSize = dimensionResource(R.dimen.m3t_input_bar_send_button_size)
+    val sendIconSize = dimensionResource(R.dimen.m3t_input_bar_send_icon_size)
+    val textMinHeight = dimensionResource(R.dimen.m3t_input_bar_text_min_height)
     val inputShape = RoundedCornerShape(radiusLg)
-    // 状态为 Recording (录音中), Recognizing (识别中) 时显示全屏悬浮层
     val showVoiceOverlay = state is InputState.VoiceRecording || state is InputState.VoiceRecognizing
     val isVoiceMode = state is InputState.VoiceIdle || showVoiceOverlay
     val isGenerating = state is InputState.Generating
+    val canSend = isGenerating || text.isNotBlank()
+    val containerColor = colorScheme.surfaceContainerHigh
+    val tertiaryContainerColor = colorScheme.surfaceContainer
 
     Box(
         modifier = modifier
             .fillMaxWidth(),
         contentAlignment = Alignment.BottomCenter,
     ) {
-        // 语音输入时的波形显示区域 - 直接嵌入在输入栏上方，不遮挡全屏
         AnimatedVisibility(
             visible = showVoiceOverlay,
             enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-            exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+            exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
         ) {
             VoiceInputOverlayContent(
-                isVisible = true, // 由父容器控制可见性
                 amplitude = voiceAmplitude,
-                inputState = state
+                inputState = state,
             )
         }
 
-        // 仅保留单个悬浮输入框，不再保留外层整条底栏
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = spacingXxxs),
-            contentAlignment = Alignment.BottomCenter
+            contentAlignment = Alignment.BottomCenter,
         ) {
             val containerHeight by animateDpAsState(
-                targetValue = if (isVoiceMode) 48.dp else 52.dp,
+                targetValue = if (isVoiceMode) inputBarVoiceHeight else inputBarHeight,
                 animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                label = "inputBarContainerHeight"
-            )
-            val containerHorizontalPadding by animateDpAsState(
-                targetValue = if (isVoiceMode) 14.dp else spacingXs,
-                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                label = "inputBarContainerPadding"
+                label = "inputBarContainerHeight",
             )
 
-            if (isVoiceMode) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth(0.92f)
-                        .widthIn(max = inputBarMaxWidth)
-                        .height(containerHeight)
-                        .animateContentSize(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
-                    shape = inputShape,
-                    color = colorInputField
-                ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacingLg)
+                    .widthIn(max = inputBarMaxWidth)
+                    .heightIn(min = containerHeight)
+                    .animateContentSize(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
+                shape = inputShape,
+                color = containerColor,
+            ) {
+                if (isVoiceMode) {
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = containerHorizontalPadding, vertical = spacingSm),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .height(containerHeight)
+                            .padding(horizontal = spacingSm, vertical = spacingXs),
+                        contentAlignment = Alignment.Center,
                     ) {
                         VoiceRecordButtonHandler(
                             onPressStart = onVoiceStart,
                             onPressEnd = onVoiceEnd,
                             onCancel = onVoiceCancel,
-                            onOffsetChange = { offsetY, _ ->
-                                val isCancelling = offsetY < -150f
+                            onOffsetChange = { _, isCancelling ->
                                 onUpdateCancelState(isCancelling)
-                            }
+                            },
                         )
 
                         Text(
-                            text = "按住说话",
-                            style = TextStyle(
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = colorTextMain
-                            )
+                            text = stringResource(R.string.input_hold_to_talk),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = colorScheme.onSurface,
                         )
 
-                        IconButton(
+                        InputBarIconButton(
                             onClick = { onModeChange(false) },
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .size(32.dp)
+                            modifier = Modifier.align(Alignment.CenterStart),
+                            buttonSize = iconButtonSize,
+                            iconSize = iconSize,
                         ) {
                             Icon(
                                 imageVector = Lucide.Keyboard,
-                                contentDescription = "切换键盘",
-                                tint = colorTextSecondary,
-                                modifier = Modifier.size(24.dp)
+                                contentDescription = stringResource(R.string.input_switch_keyboard),
+                                tint = colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(iconSize),
                             )
                         }
                     }
-                }
-            } else {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth(0.92f)
-                        .widthIn(max = inputBarMaxWidth)
-                        .heightIn(min = containerHeight),
-                    shape = inputShape,
-                    color = colorInputField
-                ) {
+                } else {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = spacingSm, vertical = spacingSm),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        IconButton(
+                        InputBarIconButton(
                             onClick = { onModeChange(true) },
-                            modifier = Modifier.size(32.dp)
+                            buttonSize = iconButtonSize,
+                            iconSize = iconSize,
                         ) {
                             Icon(
                                 imageVector = Lucide.Mic,
-                                contentDescription = "语音输入",
-                                tint = colorTextSecondary,
-                                modifier = Modifier.size(24.dp)
+                                contentDescription = stringResource(R.string.voice_input),
+                                tint = colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(iconSize),
                             )
                         }
 
@@ -192,63 +174,70 @@ fun InputBar(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .heightIn(min = 32.dp),
-                            contentAlignment = Alignment.CenterStart
+                                .heightIn(min = textMinHeight),
+                            contentAlignment = Alignment.CenterStart,
                         ) {
                             if (text.isEmpty()) {
                                 Text(
-                                    text = "尽管问...",
-                                    color = colorHint,
-                                    fontSize = 15.sp
+                                    text = stringResource(R.string.input_hint),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = colorScheme.onSurfaceVariant,
                                 )
                             }
                             BasicTextField(
                                 value = text,
                                 onValueChange = onTextChange,
                                 modifier = Modifier.fillMaxWidth(),
-                                textStyle = TextStyle(color = colorTextMain, fontSize = 15.sp),
-                                cursorBrush = SolidColor(colorScheme.primary)
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(color = colorScheme.onSurface),
+                                cursorBrush = SolidColor(colorScheme.primary),
                             )
                         }
 
                         Spacer(modifier = Modifier.width(spacingXs))
 
-                        IconButton(
+                        InputBarIconButton(
                             onClick = onAttachmentClick,
-                            modifier = Modifier.size(32.dp)
+                            buttonSize = iconButtonSize,
+                            iconSize = iconSize,
                         ) {
                             Icon(
                                 imageVector = Lucide.Plus,
-                                contentDescription = "附件",
-                                tint = colorTextSecondary,
-                                modifier = Modifier.size(24.dp)
+                                contentDescription = stringResource(R.string.input_attachment),
+                                tint = colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(iconSize),
                             )
                         }
 
                         Box(
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(sendButtonSize)
                                 .clip(CircleShape)
                                 .background(
                                     when {
                                         isGenerating -> colorScheme.error
-                                        text.isNotEmpty() -> colorButtonEnabled
-                                        else -> colorButtonDisabled
-                                    }
+                                        text.isNotBlank() -> colorScheme.primary
+                                        else -> tertiaryContainerColor
+                                    },
                                 )
                                 .clickable(
-                                    enabled = isGenerating || text.isNotEmpty(),
-                                    onClick = onSend
+                                    enabled = canSend,
+                                    onClick = onSend,
                                 ),
-                            contentAlignment = Alignment.Center
+                            contentAlignment = Alignment.Center,
                         ) {
                             Icon(
                                 painter = painterResource(
-                                    id = if (isGenerating) R.drawable.ic_stop_24 else R.drawable.ic_send_24
+                                    id = if (isGenerating) R.drawable.ic_stop_24 else R.drawable.ic_send_24,
                                 ),
-                                contentDescription = if (isGenerating) "终止生成" else "发送",
-                                tint = if (isGenerating) colorScheme.onError else colorButtonIcon,
-                                modifier = Modifier.size(18.dp)
+                                contentDescription = if (isGenerating) {
+                                    stringResource(R.string.input_stop_generating)
+                                } else {
+                                    stringResource(R.string.send)
+                                },
+                                tint = if (isGenerating) colorScheme.onError else {
+                                    if (text.isNotBlank()) colorScheme.onPrimary else colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.size(sendIconSize),
                             )
                         }
                     }
@@ -259,49 +248,70 @@ fun InputBar(
 }
 
 /**
- * 这是一个叠加层组件，应该放在 UI 树的顶层 (例如 Scaffold 或者 Box)，覆盖整个屏幕内容。
- * 它不再使用 Popup，而是作为一个全屏的 Overlay 直接叠加在内容之上。
- * 背景使用半透明遮罩，而不是全白。
+ * 语音状态条固定展示在输入栏上方，避免模式切换时主布局跳变。
  */
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun VoiceInputOverlayContent(
-    isVisible: Boolean,
     amplitude: Float,
-    inputState: InputState
+    inputState: InputState,
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val overlayBottomOffset = dimensionResource(R.dimen.m3t_input_bar_overlay_bottom_offset)
+    val statusPaddingH = dimensionResource(R.dimen.m3t_input_bar_voice_status_padding_h)
+    val statusPaddingV = dimensionResource(R.dimen.m3t_input_bar_voice_status_padding_v)
     val isRecording = inputState is InputState.VoiceRecording || inputState is InputState.VoiceRecognizing
     val isCancelled = (inputState as? InputState.VoiceRecording)?.isCancelling == true
-    
-    // 改为内容自适应高度，不再全屏覆盖
+    val statusText =
+        when {
+            inputState is InputState.VoiceRecognizing -> stringResource(R.string.voice_status_recognizing)
+            else -> stringResource(R.string.voice_status_listening)
+        }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.Transparent) // 透明背景
-            .padding(bottom = 80.dp), // 为底部的输入栏留出空间
-        horizontalAlignment = Alignment.CenterHorizontally
+            .background(Color.Transparent)
+            .padding(bottom = overlayBottomOffset),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        
+        Surface(
+            shape = MaterialTheme.shapes.large,
+            color = if (isCancelled) colorScheme.errorContainer else colorScheme.secondaryContainer,
+        ) {
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.labelLarge,
+                color = if (isCancelled) colorScheme.onErrorContainer else colorScheme.onSecondaryContainer,
+                modifier = Modifier.padding(horizontal = statusPaddingH, vertical = statusPaddingV),
+            )
+        }
+
+        Spacer(modifier = Modifier.height(spacingSm))
+
         val waveColor = if (isCancelled) colorScheme.error else colorScheme.primary
-        
-        // 模拟波形点
+
         VoiceWaveformDots(amplitude = if (isRecording) amplitude else 0f, color = waveColor)
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(spacingMd))
 
-        // 提示文字
-        Text(
-            text = if (isCancelled) "松开取消" else "松开输入，上滑取消",
-            fontSize = 14.sp,
-            color = colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier
-                .background(colorScheme.surface.copy(alpha = 0.92f), RoundedCornerShape(12.dp))
-                .padding(horizontal = 12.dp, vertical = 6.dp)
-        )
-        
-        // 移除了底部大色块，保持简洁
+        Surface(
+            shape = MaterialTheme.shapes.large,
+            color = colorScheme.surfaceContainer,
+        ) {
+            Text(
+                text = if (isCancelled) {
+                    stringResource(R.string.voice_release_to_cancel)
+                } else {
+                    stringResource(R.string.voice_release_to_send)
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = statusPaddingH, vertical = statusPaddingV),
+            )
+        }
     }
 }
 
@@ -310,14 +320,20 @@ fun VoiceRecordButtonHandler(
     onPressStart: () -> Unit,
     onPressEnd: () -> Unit,
     onCancel: () -> Unit,
-    onOffsetChange: (Float, Boolean) -> Unit
+    onOffsetChange: (Float, Boolean) -> Unit,
 ) {
+    val density = LocalDensity.current
+    val cancelEnterThreshold = with(density) {
+        -dimensionResource(R.dimen.m3t_input_bar_voice_cancel_enter_offset).toPx()
+    }
+    val cancelExitThreshold = with(density) {
+        -dimensionResource(R.dimen.m3t_input_bar_voice_cancel_exit_offset).toPx()
+    }
+    val gestureHeight = dimensionResource(R.dimen.m3t_input_bar_voice_height)
     var totalDy by remember { mutableStateOf(0f) }
     var isLongPressConfirmed by remember { mutableStateOf(false) }
     var isCancelling by remember { mutableStateOf(false) }
     var activePointerId by remember { mutableStateOf<PointerId?>(null) }
-    val cancelEnterThreshold = -150f
-    val cancelExitThreshold = -110f
 
     fun resetGestureState() {
         totalDy = 0f
@@ -343,7 +359,7 @@ fun VoiceRecordButtonHandler(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp) 
+            .height(gestureHeight)
             .pointerInput(Unit) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = {
@@ -376,19 +392,22 @@ fun VoiceRecordButtonHandler(
                     },
                     onDragCancel = {
                         finishGesture(cancelBySystem = true)
-                    }
+                    },
                 )
-            }
+            },
     )
 }
 
 @Composable
 fun VoiceWaveformDots(amplitude: Float, color: Color) {
-    val dotCount = 8 
+    val dotCount = 8
+    val dotGap = dimensionResource(R.dimen.m3t_voice_wave_dot_gap)
+    val waveHeight = dimensionResource(R.dimen.m3t_voice_wave_height)
+    val dotSize = dimensionResource(R.dimen.m3t_voice_wave_dot_size)
     Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(dotGap),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.height(60.dp) 
+        modifier = Modifier.height(waveHeight),
     ) {
         repeat(dotCount) { index ->
             val startScale = 0.6f
@@ -402,17 +421,40 @@ fun VoiceWaveformDots(amplitude: Float, color: Color) {
             val animatedScale by animateFloatAsState(
                 targetValue = targetScale.coerceIn(0.6f, 2.5f),
                 animationSpec = spring(stiffness = Spring.StiffnessLow),
-                label = "dot"
+                label = "dot",
             )
-            
+
             Box(
                 modifier = Modifier
-                    .size(10.dp) 
-                    .scale(animatedScale) 
+                    .size(dotSize)
+                    .scale(animatedScale)
                     .clip(CircleShape)
-                    .background(color)
+                    .background(color),
             )
         }
+    }
+}
+
+@Composable
+private fun InputBarIconButton(
+    onClick: () -> Unit,
+    buttonSize: androidx.compose.ui.unit.Dp,
+    iconSize: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .size(buttonSize)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier.size(iconSize),
+            contentAlignment = Alignment.Center,
+            content = content,
+        )
     }
 }
 
@@ -427,17 +469,17 @@ fun IconButtonWithRipple(
     val resolvedTint = if (tint == Color.Unspecified) MaterialTheme.colorScheme.onSurfaceVariant else tint
     Box(
         modifier = modifier
-            .size(32.dp)
+            .size(dimensionResource(R.dimen.m3t_input_bar_icon_button_size))
             .clip(CircleShape)
             .clickable(onClick = onClick)
-            .padding(4.dp), 
-        contentAlignment = Alignment.Center
+            .padding(dimensionResource(R.dimen.m3t_spacing_xs)),
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             painter = painter,
             contentDescription = contentDescription,
             tint = resolvedTint,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(dimensionResource(R.dimen.m3t_input_bar_icon_size)),
         )
     }
 }
