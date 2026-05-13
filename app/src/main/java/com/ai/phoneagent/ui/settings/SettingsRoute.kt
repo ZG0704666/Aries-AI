@@ -40,7 +40,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
@@ -68,6 +70,17 @@ fun SettingsRoute(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    var isExitingSettingsRoute by remember { mutableStateOf(false) }
+
+    val exitSettingsRoute = remember(navController) {
+        exitSettingsRoute@{
+            if (isExitingSettingsRoute) return@exitSettingsRoute
+            isExitingSettingsRoute = true
+            if (!navController.popBackStack()) {
+                isExitingSettingsRoute = false
+            }
+        }
+    }
 
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer =
@@ -116,7 +129,7 @@ fun SettingsRoute(
         when (page) {
             SettingsViewModel.SettingsPage.Home -> {
                 DrawerSettingsScreen(
-                    onBack = { navController.popBackStack() },
+                    onBack = exitSettingsRoute,
                     onOpenAppearance = { viewModel.navigateTo(SettingsViewModel.SettingsPage.Appearance) },
                     onOpenModelApi = { viewModel.openModelApiPage() },
                     onOpenAutomation = { navController.navigate(Routes.Automation.route) },

@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
@@ -30,9 +33,13 @@ fun AriesNavGraph(
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    var isRoutePopInFlight by remember(currentRoute) { mutableStateOf(false) }
 
-    BackHandler(enabled = currentRoute != null && currentRoute != Routes.Home.route) {
-        navController.popBackStack()
+    BackHandler(enabled = currentRoute != null && currentRoute != Routes.Home.route && !isRoutePopInFlight) {
+        isRoutePopInFlight = true
+        if (!navController.popBackStack()) {
+            isRoutePopInFlight = false
+        }
     }
 
     NavHost(

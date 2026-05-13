@@ -56,7 +56,6 @@ fun InputBar(
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
     val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
     val radiusLg = dimensionResource(R.dimen.m3t_radius_lg)
     val inputBarMaxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
@@ -72,8 +71,34 @@ fun InputBar(
     val isVoiceMode = state is InputState.VoiceIdle || showVoiceOverlay
     val isGenerating = state is InputState.Generating
     val canSend = isGenerating || text.isNotBlank()
-    val containerColor = colorScheme.surfaceContainerHigh
-    val tertiaryContainerColor = colorScheme.surfaceContainer
+    val containerColor = colorScheme.surfaceContainerLow
+    val textFieldContainerColor = colorScheme.surface
+    val actionContainerColor = colorScheme.surfaceContainerHigh
+    val sendContainerColor by animateColorAsState(
+        targetValue =
+            when {
+                isGenerating -> colorScheme.error
+                text.isNotBlank() -> colorScheme.primary
+                else -> colorScheme.surfaceContainerHighest
+            },
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "inputBarSendContainerColor",
+    )
+    val sendContentColor by animateColorAsState(
+        targetValue =
+            when {
+                isGenerating -> colorScheme.onError
+                text.isNotBlank() -> colorScheme.onPrimary
+                else -> colorScheme.onSurfaceVariant
+            },
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "inputBarSendContentColor",
+    )
+    val sendButtonScale by animateFloatAsState(
+        targetValue = if (canSend) 1f else 0.94f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "inputBarSendButtonScale",
+    )
 
     Box(
         modifier = modifier
@@ -118,7 +143,7 @@ fun InputBar(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(containerHeight)
-                            .padding(horizontal = spacingSm, vertical = spacingXs),
+                            .padding(horizontal = spacingXs, vertical = spacingXs),
                         contentAlignment = Alignment.Center,
                     ) {
                         VoiceRecordButtonHandler(
@@ -141,6 +166,7 @@ fun InputBar(
                             modifier = Modifier.align(Alignment.CenterStart),
                             buttonSize = iconButtonSize,
                             iconSize = iconSize,
+                            containerColor = actionContainerColor,
                         ) {
                             Icon(
                                 imageVector = Lucide.Keyboard,
@@ -154,13 +180,14 @@ fun InputBar(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = spacingSm, vertical = spacingSm),
+                            .padding(horizontal = spacingXs, vertical = spacingXs),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         InputBarIconButton(
                             onClick = { onModeChange(true) },
                             buttonSize = iconButtonSize,
                             iconSize = iconSize,
+                            containerColor = actionContainerColor,
                         ) {
                             Icon(
                                 imageVector = Lucide.Mic,
@@ -172,25 +199,39 @@ fun InputBar(
 
                         Spacer(modifier = Modifier.width(spacingXs))
 
-                        Box(
+                        Surface(
                             modifier = Modifier
                                 .weight(1f)
                                 .heightIn(min = textMinHeight),
-                            contentAlignment = Alignment.CenterStart,
+                            shape = inputShape,
+                            color = textFieldContainerColor,
                         ) {
-                            if (text.isEmpty()) {
-                                Text(
-                                    text = stringResource(R.string.input_hint),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = colorScheme.onSurfaceVariant,
-                                )
-                            }
                             BasicTextField(
                                 value = text,
                                 onValueChange = onTextChange,
                                 modifier = Modifier.fillMaxWidth(),
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = colorScheme.onSurface),
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(color = colorScheme.onSurface),
                                 cursorBrush = SolidColor(colorScheme.primary),
+                                minLines = 1,
+                                maxLines = 4,
+                                decorationBox = { innerTextField ->
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = spacingMd, vertical = spacingSm),
+                                        contentAlignment = Alignment.CenterStart,
+                                    ) {
+                                        if (text.isEmpty()) {
+                                            Text(
+                                                text = stringResource(R.string.input_hint),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
+                                },
                             )
                         }
 
@@ -200,6 +241,7 @@ fun InputBar(
                             onClick = onAttachmentClick,
                             buttonSize = iconButtonSize,
                             iconSize = iconSize,
+                            containerColor = actionContainerColor,
                         ) {
                             Icon(
                                 imageVector = Lucide.Plus,
@@ -212,14 +254,9 @@ fun InputBar(
                         Box(
                             modifier = Modifier
                                 .size(sendButtonSize)
+                                .scale(sendButtonScale)
                                 .clip(CircleShape)
-                                .background(
-                                    when {
-                                        isGenerating -> colorScheme.error
-                                        text.isNotBlank() -> colorScheme.primary
-                                        else -> tertiaryContainerColor
-                                    },
-                                )
+                                .background(sendContainerColor)
                                 .clickable(
                                     enabled = canSend,
                                     onClick = onSend,
@@ -235,9 +272,7 @@ fun InputBar(
                                 } else {
                                     stringResource(R.string.send)
                                 },
-                                tint = if (isGenerating) colorScheme.onError else {
-                                    if (text.isNotBlank()) colorScheme.onPrimary else colorScheme.onSurfaceVariant
-                                },
+                                tint = sendContentColor,
                                 modifier = Modifier.size(sendIconSize),
                             )
                         }
@@ -442,12 +477,14 @@ private fun InputBarIconButton(
     buttonSize: androidx.compose.ui.unit.Dp,
     iconSize: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
+    containerColor: Color = Color.Transparent,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(
         modifier = modifier
             .size(buttonSize)
             .clip(CircleShape)
+            .background(containerColor)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
