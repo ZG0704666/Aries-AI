@@ -188,6 +188,7 @@
     <dimen name="m3t_voice_wave_height">60dp</dimen>
     <dimen name="m3t_voice_wave_dot_size">10dp</dimen>
     <dimen name="m3t_voice_wave_dot_gap">8dp</dimen>
+    <dimen name="m3t_transcript_empty_card_max_width">336dp</dimen>
     <dimen name="m3t_message_user_bubble_max_width">392dp</dimen>
     <dimen name="m3t_message_tonal_elevation">1dp</dimen>
     <dimen name="m3t_message_streaming_tonal_elevation">2dp</dimen>

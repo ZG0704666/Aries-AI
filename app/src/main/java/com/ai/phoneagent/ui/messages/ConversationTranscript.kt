@@ -415,8 +415,9 @@ fun TranscriptEmptyHintCard(
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
     val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
     val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
-    val heroIconSize = spacingXl
-    val heroIconBoxSize = spacingXl + spacingLg
+    val emptyHintCardMaxWidth = dimensionResource(R.dimen.m3t_transcript_empty_card_max_width)
+    val heroIconSize = spacingLg
+    val heroIconBoxSize = spacingLg + spacingSm
     val suggestionPages = remember {
         context.resources
             .getStringArray(R.array.transcript_suggestion_examples)
@@ -437,7 +438,7 @@ fun TranscriptEmptyHintCard(
     val visibleSuggestions = suggestionPages.getOrElse(suggestionPageIndex) { emptyList() }
 
     Surface(
-        modifier = modifier,
+        modifier = modifier.widthIn(max = emptyHintCardMaxWidth),
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = messageElevation,
@@ -446,13 +447,13 @@ fun TranscriptEmptyHintCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = spacingLg, vertical = spacingLg)
+                    .padding(horizontal = spacingMd, vertical = spacingSm)
                     .animateContentSize(animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)),
-            verticalArrangement = Arrangement.spacedBy(spacingLg),
+            verticalArrangement = Arrangement.spacedBy(spacingSm),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacingMd),
+                horizontalArrangement = Arrangement.spacedBy(spacingSm),
             ) {
                 Surface(
                     shape = CircleShape,
@@ -476,12 +477,12 @@ fun TranscriptEmptyHintCard(
                 ) {
                     Text(
                         text = stringResource(R.string.transcript_empty_hint),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = stringResource(R.string.input_hint),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -499,7 +500,7 @@ fun TranscriptEmptyHintCard(
                     ) {
                         Text(
                             text = suggestion,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
