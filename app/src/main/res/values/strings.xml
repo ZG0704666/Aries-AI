@@ -112,7 +112,7 @@
         <item>帮我预约明早九点提醒</item>
         <item>打开系统更新页面检查是否有更新</item>
     </string-array>
-    <string name="automation_toolbar_title">Aries AI 自动化控制台</string>
+    <string name="automation_toolbar_title">自动化设置</string>
     <string name="automation_console_overview_title">自动化控制中心</string>
     <string name="automation_console_overview_subtitle">先确认通道状态，再选择执行方式并发起任务。</string>
     <string name="automation_console_runtime_title">运行概览</string>
@@ -130,6 +130,8 @@
     <string name="automation_console_mode_selected">当前已选中</string>
     <string name="automation_refresh_status">刷新状态</string>
     <string name="automation_execution_mode_label">执行模式</string>
+    <string name="automation_execution_background_experimental">后台执行（实验性）</string>
+    <string name="automation_execution_background_experimental_summary">关闭时前台执行，开启后后台执行</string>
     <string name="automation_execution_front_mode">前端执行（当前屏幕可见）</string>
     <string name="automation_mode_description_front">在前台屏幕执行自动化任务，您可以看到操作过程</string>
     <string name="automation_virtual_display_status_default">虚拟屏状态：未初始化</string>
@@ -166,7 +168,7 @@
     <string name="automation_recommend_task_default">点击尝试：查看当前电池状态</string>
     <string name="automation_open_accessibility">去开启</string>
     <string name="automation_one_tap_shizuku_authorize">一键授权</string>
-    <string name="automation_auto_approve_label">自动批准自动化（主页 10 秒）</string>
+    <string name="automation_auto_approve_label">主页自动确认（10 秒）</string>
     <string name="automation_confirm_countdown">确认（%1$d秒）</string>
     <string name="automation_shizuku_not_connected">未检测到 Shizuku 服务连接</string>
     <string name="automation_shizuku_permission_requested">已发起 Shizuku 授权请求，请在弹窗中确认</string>
@@ -325,8 +327,8 @@
     <string name="settings_entry_appearance_subtitle">主题、界面密度与显示风格</string>
     <string name="settings_entry_model_api_title">模型与 API 配置</string>
     <string name="settings_entry_model_api_subtitle">远程 API、本地模型与连接检查</string>
-    <string name="settings_entry_automation_title">自动化配置</string>
-    <string name="settings_entry_automation_subtitle">执行模式、权限与自动化控制</string>
+    <string name="settings_entry_automation_title">自动化设置</string>
+    <string name="settings_entry_automation_subtitle">后台执行、权限与连接状态</string>
     <string name="settings_entry_about_title">关于</string>
     <string name="settings_entry_about_subtitle">版本信息、开源许可与说明</string>
     <string name="settings_appearance_coming_soon">外观设置入口即将开放</string>

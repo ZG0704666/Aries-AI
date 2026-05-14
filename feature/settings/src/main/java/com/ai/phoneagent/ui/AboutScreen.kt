@@ -66,6 +66,7 @@ fun AboutScreen(
     onOpenLicenses: () -> Unit,
     onOpenWebsite: () -> Unit,
     onOpenSourceCode: () -> Unit,
+    onTaskFeedback: () -> Unit,
     onCopyContact: () -> Unit,
     onDeveloperTap: () -> Unit,
     onAliasTap: () -> Unit = {},
@@ -141,7 +142,7 @@ fun AboutScreen(
                     headlineText = stringResource(R.string.about_feedback),
                     supportingText = stringResource(R.string.about_feedback_desc),
                     leadingIcon = { Icon(Lucide.Bug, contentDescription = null) },
-                    onClick = onCopyContact,
+                    onClick = onTaskFeedback,
                 )
                 AriesSettingsNavigationItem(
                     headlineText = stringResource(R.string.user_agreement_title),
@@ -267,6 +268,7 @@ private fun AboutScreenLightPreview() {
             onOpenLicenses = {},
             onOpenWebsite = {},
             onOpenSourceCode = {},
+            onTaskFeedback = {},
             onCopyContact = {},
             onDeveloperTap = {},
         )
@@ -292,6 +294,7 @@ private fun AboutScreenDarkPreview() {
             onOpenLicenses = {},
             onOpenWebsite = {},
             onOpenSourceCode = {},
+            onTaskFeedback = {},
             onCopyContact = {},
             onDeveloperTap = {},
         )

@@ -15,8 +15,15 @@
     <string name="about_source_code">Source Code</string>
     <string name="about_source_code_short">GitHub 仓库</string>
     <string name="about_source_code_url">https://github.com/ZG0704666/Aries-AI</string>
-    <string name="about_feedback">问题反馈</string>
-    <string name="about_feedback_desc">通过邮件提交问题与建议</string>
+    <string name="about_feedback">任务反馈</string>
+    <string name="about_feedback_desc">确认后打包并分享脱敏日志</string>
+    <string name="about_feedback_confirm_title">打包日志包</string>
+    <string name="about_feedback_confirm_message">将打包当前应用日志与最近一次自动化结果，并对邮箱、手机号、Token、API Key、Cookie 等敏感字段做脱敏处理。是否继续？</string>
+    <string name="about_feedback_confirm_action">打包并分享</string>
+    <string name="about_feedback_exporting">正在打包脱敏日志…</string>
+    <string name="about_feedback_export_failed">打包日志包失败：%1$s</string>
+    <string name="about_feedback_share_subject">Aries AI 任务反馈日志包</string>
+    <string name="about_feedback_share_chooser">发送日志包</string>
     <string name="about_action_check_updates_desc">检查新版本并获取更新</string>
     <string name="about_action_changelog_desc">查看版本变更记录</string>
     <string name="about_action_policy_desc">查看服务条款与隐私声明</string>

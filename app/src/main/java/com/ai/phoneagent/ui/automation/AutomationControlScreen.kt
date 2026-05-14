@@ -129,29 +129,6 @@ fun AutomationControlScreen(
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
     val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
     val statusPalette = statusPalette(statusTone)
-    val voiceTransition = rememberInfiniteTransition(label = "automationVoice")
-    val voiceScale by
-        voiceTransition.animateFloat(
-            initialValue = 1f,
-            targetValue = if (isListening) 1.08f else 1f,
-            animationSpec =
-                infiniteRepeatable(
-                    animation = tween(durationMillis = 520),
-                    repeatMode = RepeatMode.Reverse,
-                ),
-            label = "automationVoiceScale",
-        )
-    val voiceAlpha by
-        voiceTransition.animateFloat(
-            initialValue = 1f,
-            targetValue = if (isListening) 0.72f else 1f,
-            animationSpec =
-                infiniteRepeatable(
-                    animation = tween(durationMillis = 520),
-                    repeatMode = RepeatMode.Reverse,
-                ),
-            label = "automationVoiceAlpha",
-        )
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -234,24 +211,15 @@ fun AutomationControlScreen(
                 AutomationSectionCard {
                     SectionHeading(
                         title = stringResource(R.string.automation_execution_mode_label),
-                        tooltipText = stringResource(R.string.automation_console_mode_subtitle),
                     )
                     Spacer(modifier = Modifier.height(spacingMd))
 
-                    Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
-                        AutomationModeOption(
-                            selected = !isBackgroundMode,
-                            title = stringResource(R.string.automation_execution_front_mode),
-                            tooltipText = stringResource(R.string.automation_mode_description_front),
-                            onClick = { if (isBackgroundMode) onExecutionModeChange(false) },
-                        )
-                        AutomationModeOption(
-                            selected = isBackgroundMode,
-                            title = stringResource(R.string.automation_execution_background_mode),
-                            tooltipText = stringResource(R.string.automation_mode_description_background),
-                            onClick = { if (!isBackgroundMode) onExecutionModeChange(true) },
-                        )
-                    }
+                    AutomationSwitchRow(
+                        title = stringResource(R.string.automation_execution_background_experimental),
+                        summary = stringResource(R.string.automation_execution_background_experimental_summary),
+                        checked = isBackgroundMode,
+                        onCheckedChange = onExecutionModeChange,
+                    )
 
                     AnimatedVisibility(
                         visible = isBackgroundMode,
@@ -305,198 +273,6 @@ fun AutomationControlScreen(
                         checked = autoApprove,
                         onCheckedChange = onAutoApproveChange,
                     )
-                }
-            }
-
-            item {
-                AutomationSectionCard {
-                    SectionHeading(
-                        title = stringResource(R.string.automation_task_confirm_label),
-                        tooltipText = stringResource(R.string.automation_console_task_subtitle),
-                    )
-                    Spacer(modifier = Modifier.height(spacingMd))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(spacingSm),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        TextField(
-                            value = taskText,
-                            onValueChange = onTaskChange,
-                            modifier = Modifier.weight(1f),
-                            minLines = 4,
-                            maxLines = 7,
-                            placeholder = {
-                                Text(
-                                    text = taskHint,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                            },
-                            textStyle = MaterialTheme.typography.bodyLarge,
-                            colors =
-                                TextFieldDefaults.colors(
-                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
-                                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f),
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                    disabledIndicatorColor = Color.Transparent,
-                                ),
-                            shape = MaterialTheme.shapes.large,
-                        )
-                        FilledTonalIconButton(
-                             onClick = onVoiceTask,
-                             modifier =
-                                 Modifier
-                                     .size(dimensionResource(R.dimen.m3t_automation_voice_button_size))
-                                     .graphicsLayer {
-                                         scaleX = if (isListening) voiceScale else 1f
-                                         scaleY = if (isListening) voiceScale else 1f
-                                         alpha = if (isListening) voiceAlpha else 1f
-                                     },
-                         ) {
-                             Icon(Lucide.Mic, contentDescription = null)
-                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(spacingMd))
-
-                    Surface(
-                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                        shape = MaterialTheme.shapes.large,
-                        modifier = Modifier.fillMaxWidth().clickable(onClick = onUseRecommendTask),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(spacingMd),
-                            horizontalArrangement = Arrangement.spacedBy(spacingSm),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
-                                shape = MaterialTheme.shapes.medium,
-                            ) {
-                                Box(
-                                    modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(
-                                         imageVector = Lucide.WandSparkles,
-                                         contentDescription = null,
-                                         tint = MaterialTheme.colorScheme.secondary,
-                                     )
-                                }
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(R.string.automation_console_recommend_title),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                )
-                                Text(
-                                    text = recommendText,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                            Text(
-                                text = stringResource(R.string.automation_console_recommend_action),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.secondary,
-                            )
-                        }
-                    }
-                }
-            }
-
-            item {
-                AutomationSectionCard {
-                    SectionHeading(
-                        title = stringResource(R.string.automation_console_controls_title),
-                        tooltipText = stringResource(R.string.automation_console_controls_subtitle),
-                    )
-                    Spacer(modifier = Modifier.height(spacingMd))
-
-                    Button(
-                        onClick = onStart,
-                        enabled = startButtonEnabled,
-                        modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.m3t_button_height)),
-                    ) {
-                        Icon(
-                             imageVector = if (startButtonTerminateStyle) Lucide.CircleStop else Lucide.SlidersHorizontal,
-                             contentDescription = null,
-                         )
-                        Spacer(modifier = Modifier.width(spacingSm))
-                        Text(startButtonText)
-                    }
-
-                    Spacer(modifier = Modifier.height(spacingSm))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(spacingSm),
-                    ) {
-                        FilledTonalButton(
-                            onClick = onPause,
-                            enabled = pauseButtonEnabled,
-                            modifier = Modifier.weight(1f).height(dimensionResource(R.dimen.m3t_compact_button_height)),
-                        ) {
-                            Text(pauseButtonText)
-                        }
-                        FilledTonalButton(
-                            onClick = onStop,
-                            enabled = stopButtonEnabled,
-                            modifier = Modifier.weight(1f).height(dimensionResource(R.dimen.m3t_compact_button_height)),
-                        ) {
-                            Text(stringResource(R.string.automation_stop))
-                        }
-                    }
-                }
-            }
-
-            item {
-                AutomationSectionCard {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(spacingSm),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = stringResource(R.string.automation_log_system_label),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = FontWeight.Medium,
-                                )
-                                Spacer(modifier = Modifier.width(spacingXs))
-                                InfoTooltip(tooltipText = stringResource(R.string.automation_console_log_subtitle))
-                            }
-                        }
-                        FilledTonalButton(onClick = onCopyLog) {
-                            Text(stringResource(R.string.common_copy))
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(spacingMd))
-
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        shape = MaterialTheme.shapes.large,
-                    ) {
-                        SelectionContainer {
-                            Text(
-                                text = logText,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.fillMaxWidth().padding(spacingMd),
-                            )
-                        }
-                    }
                 }
             }
         }

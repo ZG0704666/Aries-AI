@@ -42,6 +42,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.dimensionResource
@@ -52,6 +53,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.ai.phoneagent.feature.settings.R as SettingsR
+import com.ai.phoneagent.helper.FeedbackLogExporter
 import com.ai.phoneagent.navigation.Routes
 import com.ai.phoneagent.ui.AboutScreen
 import com.ai.phoneagent.ui.automation.AutomationControlScreen
@@ -61,6 +63,7 @@ import com.ai.phoneagent.viewmodel.SettingsViewModel
 import com.ai.phoneagent.core.designsystem.R as DesignR
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -254,6 +257,9 @@ private fun SettingsAboutContent(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var showFeedbackConfirmDialog by remember { mutableStateOf(false) }
+    var isExportingFeedbackBundle by remember { mutableStateOf(false) }
 
     val vibrateLight = {
         try {
@@ -329,6 +335,10 @@ private fun SettingsAboutContent(
                 Toast.makeText(context, SettingsR.string.about_open_url_failed, Toast.LENGTH_SHORT).show()
             }
         },
+        onTaskFeedback = {
+            vibrateLight()
+            showFeedbackConfirmDialog = true
+        },
         onCopyContact = {
             vibrateLight()
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -343,6 +353,73 @@ private fun SettingsAboutContent(
             viewModel.handleAliasTap()
         },
     )
+
+    if (showFeedbackConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showFeedbackConfirmDialog = false },
+            title = { Text(stringResource(SettingsR.string.about_feedback_confirm_title)) },
+            text = { Text(stringResource(SettingsR.string.about_feedback_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showFeedbackConfirmDialog = false
+                        isExportingFeedbackBundle = true
+                        scope.launch {
+                            val result = FeedbackLogExporter.exportSanitizedBundle(context)
+                            isExportingFeedbackBundle = false
+                            result.onSuccess { bundleFile ->
+                                FeedbackLogExporter.shareBundle(
+                                    context = context,
+                                    file = bundleFile,
+                                    chooserTitle = context.getString(SettingsR.string.about_feedback_share_chooser),
+                                    subject = context.getString(SettingsR.string.about_feedback_share_subject),
+                                ).onFailure {
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(
+                                            SettingsR.string.about_feedback_export_failed,
+                                            it.message.orEmpty(),
+                                        ),
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                }
+                            }.onFailure {
+                                Toast.makeText(
+                                    context,
+                                    context.getString(
+                                        SettingsR.string.about_feedback_export_failed,
+                                        it.message.orEmpty(),
+                                    ),
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                            }
+                        }
+                    },
+                ) {
+                    Text(stringResource(SettingsR.string.about_feedback_confirm_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFeedbackConfirmDialog = false }) {
+                    Text(stringResource(SettingsR.string.action_cancel))
+                }
+            },
+        )
+    }
+
+    if (isExportingFeedbackBundle) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(SettingsR.string.about_feedback_confirm_title)) },
+            text = {
+                Column {
+                    CircularProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    Text(stringResource(SettingsR.string.about_feedback_exporting))
+                }
+            },
+            confirmButton = {},
+        )
+    }
 
     uiState.updateDialogState?.let { state ->
         AlertDialog(
