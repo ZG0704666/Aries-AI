@@ -2959,6 +2959,7 @@ class MainActivity : AppCompatActivity() {
         val state by remember { inputBarState }
         val amplitude by remember { voiceAmplitudeState }
         val agentModeEnabled by remember { agentModeEnabledState }
+        val attachments by chatViewModel.attachments.collectAsState()
 
         InputBar(
             state = state,
@@ -3032,6 +3033,7 @@ class MainActivity : AppCompatActivity() {
                 vibrateMedium()
                 chatViewModel.toggleAttachmentSelector()
             },
+            hasAttachments = attachments.isNotEmpty(),
             agentModeEnabled = agentModeEnabled,
             onAgentToggle = { enabled ->
                 agentModeEnabledState.value = enabled

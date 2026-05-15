@@ -3,7 +3,9 @@ package com.ai.phoneagent.ui.inputbar
 import com.ai.phoneagent.R
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
@@ -20,11 +22,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -43,6 +50,7 @@ fun InputBar(
     onVoiceEnd: () -> Unit,
     onVoiceCancel: () -> Unit,
     onAttachmentClick: () -> Unit,
+    hasAttachments: Boolean = false,
     agentModeEnabled: Boolean,
     onAgentToggle: (Boolean) -> Unit,
     onModelSelect: () -> Unit,
@@ -52,34 +60,42 @@ fun InputBar(
     onUpdateCancelState: (Boolean) -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val keyboardController = LocalSoftwareKeyboardController.current
     val spacingXxxs = dimensionResource(R.dimen.m3t_spacing_xxxs)
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
-    val radiusLg = dimensionResource(R.dimen.m3t_radius_lg)
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val radiusXl = dimensionResource(R.dimen.m3t_radius_xl)
+    val strokeThin = dimensionResource(R.dimen.m3t_stroke_thin)
     val inputBarMaxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
     val inputBarHeight = dimensionResource(R.dimen.m3t_input_bar_height) - spacingXs
     val inputBarVoiceHeight = dimensionResource(R.dimen.m3t_input_bar_voice_height) - spacingXs
     val iconButtonSize = dimensionResource(R.dimen.m3t_input_bar_icon_button_size) - spacingXs
     val iconSize = dimensionResource(R.dimen.m3t_input_bar_icon_size) - spacingXxxs
-    val sendButtonSize = dimensionResource(R.dimen.m3t_input_bar_send_button_size) - spacingXs
+    val outerButtonSize = inputBarHeight
+    val collapsedPrimaryButtonSize = outerButtonSize - spacingXs - spacingXxxs
     val sendIconSize = dimensionResource(R.dimen.m3t_input_bar_send_icon_size) - spacingXxxs
     val textMinHeight = dimensionResource(R.dimen.m3t_input_bar_text_min_height) - spacingXs
-    val inputShape = RoundedCornerShape(radiusLg)
+    val inputShape = RoundedCornerShape(radiusXl)
     val showVoiceOverlay = state is InputState.VoiceRecording || state is InputState.VoiceRecognizing
     val isVoiceMode = state is InputState.VoiceIdle || showVoiceOverlay
     val isGenerating = state is InputState.Generating
-    val canSend = isGenerating || text.isNotBlank()
-    val containerColor = colorScheme.surfaceContainerLow
-    val textFieldContainerColor = colorScheme.surface
-    val actionContainerColor = colorScheme.surfaceContainerHigh
+    val hasText = text.isNotBlank()
+    val canSubmit = isGenerating || hasText || hasAttachments
+    val showAssistantEntry = !canSubmit
+    var wantsExpandedComposer by remember { mutableStateOf(false) }
+    var isTextFieldFocused by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+    val isComposerExpanded = !showAssistantEntry || wantsExpandedComposer || isTextFieldFocused
+    val containerColor = colorScheme.surfaceContainerHigh
+    val actionContainerColor = colorScheme.surfaceContainerHighest
     val sendContainerColor by animateColorAsState(
         targetValue =
             when {
                 isGenerating -> colorScheme.error
-                text.isNotBlank() -> colorScheme.primary
-                else -> colorScheme.surfaceContainerHighest
+                canSubmit -> colorScheme.primary
+                else -> colorScheme.primary
             },
         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
         label = "inputBarSendContainerColor",
@@ -88,21 +104,45 @@ fun InputBar(
         targetValue =
             when {
                 isGenerating -> colorScheme.onError
-                text.isNotBlank() -> colorScheme.onPrimary
-                else -> colorScheme.onSurfaceVariant
+                canSubmit -> colorScheme.onPrimary
+                else -> colorScheme.onPrimary
             },
         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
         label = "inputBarSendContentColor",
     )
     val sendButtonScale by animateFloatAsState(
-        targetValue = if (canSend) 1f else 0.94f,
+        targetValue = if (showAssistantEntry || canSubmit) 1f else 0.94f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "inputBarSendButtonScale",
     )
+    val assistantEntryBrush = remember(colorScheme) {
+        Brush.horizontalGradient(
+            colors = listOf(colorScheme.primary, colorScheme.secondary),
+        )
+    }
+
+    LaunchedEffect(isComposerExpanded, isVoiceMode) {
+        if (isVoiceMode) {
+            wantsExpandedComposer = false
+            isTextFieldFocused = false
+            return@LaunchedEffect
+        }
+        if (isComposerExpanded && showAssistantEntry) {
+            focusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
+
+    LaunchedEffect(showAssistantEntry) {
+        if (!showAssistantEntry) {
+            wantsExpandedComposer = true
+        } else if (!isTextFieldFocused) {
+            wantsExpandedComposer = false
+        }
+    }
 
     Box(
-        modifier = modifier
-            .fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.BottomCenter,
     ) {
         AnimatedVisibility(
@@ -128,153 +168,332 @@ fun InputBar(
                 label = "inputBarContainerHeight",
             )
 
-            Surface(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = spacingXl)
+                    .padding(horizontal = spacingLg)
                     .widthIn(max = inputBarMaxWidth)
-                    .heightIn(min = containerHeight)
                     .animateContentSize(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
-                shape = inputShape,
-                color = containerColor,
+                horizontalArrangement = Arrangement.spacedBy(spacingSm),
+                verticalAlignment = Alignment.Bottom,
             ) {
                 if (isVoiceMode) {
-                    Box(
+                    Surface(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(containerHeight)
-                            .padding(horizontal = spacingXs, vertical = spacingXs),
-                        contentAlignment = Alignment.Center,
+                            .weight(1f)
+                            .height(containerHeight),
+                        shape = inputShape,
+                        color = containerColor,
+                        border = BorderStroke(strokeThin, colorScheme.outlineVariant),
                     ) {
-                        VoiceRecordButtonHandler(
-                            onPressStart = onVoiceStart,
-                            onPressEnd = onVoiceEnd,
-                            onCancel = onVoiceCancel,
-                            onOffsetChange = { _, isCancelling ->
-                                onUpdateCancelState(isCancelling)
-                            },
-                        )
-
-                        Text(
-                            text = stringResource(R.string.input_hold_to_talk),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = colorScheme.onSurface,
-                        )
-
-                        InputBarIconButton(
-                            onClick = { onModeChange(false) },
-                            modifier = Modifier.align(Alignment.CenterStart),
-                            buttonSize = iconButtonSize,
-                            iconSize = iconSize,
-                            containerColor = actionContainerColor,
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(containerHeight)
+                                .padding(horizontal = spacingXs, vertical = spacingXs),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            Icon(
-                                imageVector = Lucide.Keyboard,
-                                contentDescription = stringResource(R.string.input_switch_keyboard),
-                                tint = colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(iconSize),
+                            VoiceRecordButtonHandler(
+                                onPressStart = onVoiceStart,
+                                onPressEnd = onVoiceEnd,
+                                onCancel = onVoiceCancel,
+                                onOffsetChange = { _, isCancelling ->
+                                    onUpdateCancelState(isCancelling)
+                                },
                             )
+
+                            Text(
+                                text = stringResource(R.string.input_hold_to_talk),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = colorScheme.onSurface,
+                            )
+
+                            InputBarIconButton(
+                                onClick = { onModeChange(false) },
+                                modifier = Modifier.align(Alignment.CenterStart),
+                                buttonSize = iconButtonSize,
+                                iconSize = iconSize,
+                                containerColor = actionContainerColor,
+                                border = BorderStroke(strokeThin, colorScheme.outlineVariant),
+                            ) {
+                                Icon(
+                                    imageVector = Lucide.Keyboard,
+                                    contentDescription = stringResource(R.string.input_switch_keyboard),
+                                    tint = colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(iconSize),
+                                )
+                            }
                         }
                     }
                 } else {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = spacingXs, vertical = spacingXs),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        InputBarIconButton(
-                            onClick = { onModeChange(true) },
-                            buttonSize = iconButtonSize,
-                            iconSize = iconSize,
-                            containerColor = actionContainerColor,
-                        ) {
-                            Icon(
-                                imageVector = Lucide.Mic,
-                                contentDescription = stringResource(R.string.voice_input),
-                                tint = colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(iconSize),
+                    AnimatedContent(
+                        targetState = isComposerExpanded,
+                        modifier = Modifier.fillMaxWidth(),
+                        transitionSpec = {
+                            val enterTransition =
+                                fadeIn(
+                                    animationSpec = tween(durationMillis = 240, delayMillis = 40, easing = FastOutSlowInEasing),
+                                ) + scaleIn(
+                                    initialScale = 0.985f,
+                                    animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
+                                )
+                            val exitTransition =
+                                fadeOut(
+                                    animationSpec = tween(durationMillis = 140, easing = LinearOutSlowInEasing),
+                                ) + scaleOut(
+                                    targetScale = 0.985f,
+                                    animationSpec = tween(durationMillis = 180, easing = LinearOutSlowInEasing),
+                                )
+
+                            enterTransition.togetherWith(exitTransition).using(
+                                SizeTransform(
+                                    clip = false,
+                                    sizeAnimationSpec = { _, _ ->
+                                        spring(
+                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                            stiffness = Spring.StiffnessLow,
+                                        )
+                                    },
+                                ),
                             )
-                        }
+                        },
+                        label = "inputBarComposerAnimatedContent",
+                    ) { expanded ->
+                        if (expanded) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .animateContentSize(
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                            stiffness = Spring.StiffnessLow,
+                                        ),
+                                    ),
+                                horizontalArrangement = Arrangement.spacedBy(spacingSm),
+                                verticalAlignment = Alignment.Bottom,
+                            ) {
+                                InputBarIconButton(
+                                    onClick = onAttachmentClick,
+                                    modifier = Modifier.animateEnterExit(
+                                        enter = slideInHorizontally(
+                                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                                            initialOffsetX = { -it / 3 },
+                                        ) + fadeIn(
+                                            animationSpec = tween(durationMillis = 220, delayMillis = 30),
+                                        ),
+                                        exit = slideOutHorizontally(
+                                            animationSpec = tween(durationMillis = 120, easing = LinearOutSlowInEasing),
+                                            targetOffsetX = { -it / 4 },
+                                        ) + fadeOut(
+                                            animationSpec = tween(durationMillis = 90),
+                                        ),
+                                    ),
+                                    buttonSize = outerButtonSize,
+                                    iconSize = iconSize,
+                                    containerColor = actionContainerColor,
+                                    border = BorderStroke(strokeThin, colorScheme.outlineVariant),
+                                ) {
+                                    Icon(
+                                        imageVector = Lucide.Plus,
+                                        contentDescription = stringResource(R.string.input_attachment),
+                                        tint = colorScheme.onSurface,
+                                        modifier = Modifier.size(iconSize),
+                                    )
+                                }
 
-                        Spacer(modifier = Modifier.width(spacingXs))
+                                Row(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .heightIn(min = containerHeight)
+                                        .clip(inputShape)
+                                        .background(containerColor)
+                                        .border(BorderStroke(strokeThin, colorScheme.outlineVariant), inputShape)
+                                        .padding(horizontal = spacingMd, vertical = spacingXs)
+                                        .animateEnterExit(
+                                            enter = fadeIn(
+                                                animationSpec = tween(durationMillis = 220, delayMillis = 50),
+                                            ) + expandHorizontally(
+                                                animationSpec = spring(
+                                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                                    stiffness = Spring.StiffnessLow,
+                                                ),
+                                                expandFrom = Alignment.Start,
+                                            ),
+                                            exit = fadeOut(
+                                                animationSpec = tween(durationMillis = 100, easing = LinearOutSlowInEasing),
+                                            ) + shrinkHorizontally(
+                                                animationSpec = tween(durationMillis = 140, easing = LinearOutSlowInEasing),
+                                                shrinkTowards = Alignment.Start,
+                                            ),
+                                        ),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    BasicTextField(
+                                        value = text,
+                                        onValueChange = onTextChange,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .heightIn(min = textMinHeight)
+                                            .focusRequester(focusRequester)
+                                            .onFocusChanged { focusState ->
+                                                isTextFieldFocused = focusState.isFocused
+                                                if (!focusState.isFocused && showAssistantEntry) {
+                                                    wantsExpandedComposer = false
+                                                }
+                                            },
+                                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = colorScheme.onSurface),
+                                        cursorBrush = SolidColor(colorScheme.primary),
+                                        minLines = 1,
+                                        maxLines = 4,
+                                        decorationBox = { innerTextField ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = spacingSm, vertical = spacingSm),
+                                                contentAlignment = Alignment.CenterStart,
+                                            ) {
+                                                if (text.isEmpty()) {
+                                                    Text(
+                                                        text = stringResource(R.string.input_hint),
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                    )
+                                                }
+                                                innerTextField()
+                                            }
+                                        },
+                                    )
+                                }
 
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = textMinHeight),
-                            shape = inputShape,
-                            color = textFieldContainerColor,
-                        ) {
-                            BasicTextField(
-                                value = text,
-                                onValueChange = onTextChange,
-                                modifier = Modifier.fillMaxWidth(),
-                                textStyle = MaterialTheme.typography.bodyLarge.copy(color = colorScheme.onSurface),
-                                cursorBrush = SolidColor(colorScheme.primary),
-                                minLines = 1,
-                                maxLines = 4,
-                                decorationBox = { innerTextField ->
+                                PrimaryInputBarActionButton(
+                                    onClick = if (showAssistantEntry) {
+                                        { onModeChange(true) }
+                                    } else {
+                                        onSend
+                                    },
+                                    modifier = Modifier
+                                        .animateEnterExit(
+                                            enter = slideInHorizontally(
+                                                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                                                initialOffsetX = { it / 3 },
+                                            ) + fadeIn(
+                                                animationSpec = tween(durationMillis = 220, delayMillis = 30),
+                                            ),
+                                            exit = slideOutHorizontally(
+                                                animationSpec = tween(durationMillis = 120, easing = LinearOutSlowInEasing),
+                                                targetOffsetX = { it / 4 },
+                                            ) + fadeOut(
+                                                animationSpec = tween(durationMillis = 90),
+                                            ),
+                                        )
+                                        .size(outerButtonSize)
+                                        .scale(sendButtonScale),
+                                    containerColor = sendContainerColor,
+                                    contentColor = sendContentColor,
+                                    brush = if (showAssistantEntry) assistantEntryBrush else null,
+                                ) {
+                                    if (showAssistantEntry) {
+                                        Icon(
+                                            imageVector = Lucide.Mic,
+                                            contentDescription = stringResource(R.string.voice_input),
+                                            tint = sendContentColor,
+                                            modifier = Modifier.size(iconSize),
+                                        )
+                                    } else {
+                                        Icon(
+                                            painter = painterResource(
+                                                id = if (isGenerating) R.drawable.ic_stop_24 else R.drawable.ic_send_24,
+                                            ),
+                                            contentDescription = if (isGenerating) {
+                                                stringResource(R.string.input_stop_generating)
+                                            } else {
+                                                stringResource(R.string.send)
+                                            },
+                                            tint = sendContentColor,
+                                            modifier = Modifier.size(sendIconSize),
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = containerHeight)
+                                    .animateEnterExit(
+                                        enter = fadeIn(
+                                            animationSpec = tween(durationMillis = 220, delayMillis = 40, easing = FastOutSlowInEasing),
+                                        ) + scaleIn(
+                                            initialScale = 0.99f,
+                                            animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                        ),
+                                        exit = fadeOut(
+                                            animationSpec = tween(durationMillis = 100, easing = LinearOutSlowInEasing),
+                                        ) + scaleOut(
+                                            targetScale = 0.99f,
+                                            animationSpec = tween(durationMillis = 140, easing = LinearOutSlowInEasing),
+                                        ),
+                                    ),
+                                shape = inputShape,
+                                color = containerColor,
+                                border = BorderStroke(strokeThin, colorScheme.outlineVariant),
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = spacingMd, vertical = spacingXs),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    InputBarIconButton(
+                                        onClick = onAttachmentClick,
+                                        buttonSize = iconButtonSize,
+                                        iconSize = iconSize,
+                                        containerColor = Color.Transparent,
+                                    ) {
+                                        Icon(
+                                            imageVector = Lucide.Plus,
+                                            contentDescription = stringResource(R.string.input_attachment),
+                                            tint = colorScheme.onSurface,
+                                            modifier = Modifier.size(iconSize),
+                                        )
+                                    }
+
                                     Box(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = spacingMd, vertical = spacingSm),
+                                            .weight(1f)
+                                            .clickable {
+                                                wantsExpandedComposer = true
+                                            }
+                                            .padding(horizontal = spacingXs, vertical = spacingSm),
                                         contentAlignment = Alignment.CenterStart,
                                     ) {
-                                        if (text.isEmpty()) {
-                                            Text(
-                                                text = stringResource(R.string.input_hint),
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                            )
-                                        }
-                                        innerTextField()
+                                        Text(
+                                            text = stringResource(R.string.input_hint),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                        )
                                     }
-                                },
-                            )
-                        }
 
-                        Spacer(modifier = Modifier.width(spacingXs))
-
-                        InputBarIconButton(
-                            onClick = onAttachmentClick,
-                            buttonSize = iconButtonSize,
-                            iconSize = iconSize,
-                            containerColor = actionContainerColor,
-                        ) {
-                            Icon(
-                                imageVector = Lucide.Plus,
-                                contentDescription = stringResource(R.string.input_attachment),
-                                tint = colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(iconSize),
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(sendButtonSize)
-                                .scale(sendButtonScale)
-                                .clip(CircleShape)
-                                .background(sendContainerColor)
-                                .clickable(
-                                    enabled = canSend,
-                                    onClick = onSend,
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                painter = painterResource(
-                                    id = if (isGenerating) R.drawable.ic_stop_24 else R.drawable.ic_send_24,
-                                ),
-                                contentDescription = if (isGenerating) {
-                                    stringResource(R.string.input_stop_generating)
-                                } else {
-                                    stringResource(R.string.send)
-                                },
-                                tint = sendContentColor,
-                                modifier = Modifier.size(sendIconSize),
-                            )
+                                    PrimaryInputBarActionButton(
+                                        onClick = { onModeChange(true) },
+                                        modifier = Modifier
+                                            .size(collapsedPrimaryButtonSize)
+                                            .scale(sendButtonScale),
+                                        containerColor = sendContainerColor,
+                                        contentColor = sendContentColor,
+                                        brush = assistantEntryBrush,
+                                    ) {
+                                        Icon(
+                                            imageVector = Lucide.Mic,
+                                            contentDescription = stringResource(R.string.voice_input),
+                                            tint = sendContentColor,
+                                            modifier = Modifier.size(iconSize),
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -478,10 +697,12 @@ private fun InputBarIconButton(
     iconSize: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
     containerColor: Color = Color.Transparent,
+    border: BorderStroke? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(
         modifier = modifier
+            .then(if (border != null) Modifier.border(border, CircleShape) else Modifier)
             .size(buttonSize)
             .clip(CircleShape)
             .background(containerColor)
@@ -495,6 +716,29 @@ private fun InputBarIconButton(
         )
     }
 }
+
+@Composable
+private fun PrimaryInputBarActionButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    containerColor: Color,
+    contentColor: Color,
+    brush: Brush? = null,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(brush = brush ?: Brush.linearGradient(listOf(containerColor, containerColor)))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        CompositionLocalProvider(LocalContentColor provides contentColor) {
+            content()
+        }
+    }
+}
+
 
 @Composable
 fun IconButtonWithRipple(
