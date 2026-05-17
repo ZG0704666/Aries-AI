@@ -6,7 +6,7 @@
     <string name="about_back">返回</string>
     <string name="about_title">关于</string>
     <string name="about_version_format">v%1$s</string>
-    <string name="about_subtitle">一个面向任务执行与对话协作的移动智能助手</string>
+    <string name="about_subtitle">开启手机智能新交互时代</string>
     <string name="about_prompt_version_format">Prompt 版本：%1$s</string>
     <string name="about_runtime_info_title">运行信息</string>
     <string name="about_check_updates">检查更新</string>

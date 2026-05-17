@@ -81,7 +81,7 @@ data class MarkdownSettings(
     /** Auto-wrap long code lines. */
     val autoWrap: Boolean     = true,
     /** Show line numbers in code blocks. */
-    val lineNumbers: Boolean  = false,
+    val lineNumbers: Boolean  = true,
     /** Auto-collapse code blocks with more than 10 lines. */
     val autoCollapse: Boolean = false,
     /** Syntax-highlight code blocks. Disable during streaming to avoid layout churn. */

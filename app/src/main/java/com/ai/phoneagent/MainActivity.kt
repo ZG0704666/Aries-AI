@@ -689,7 +689,7 @@ class MainActivity : AppCompatActivity() {
             val fontScale by appPrefsRepository.chatFontScaleFlow.collectAsState(initial = 1.0f)
             val fontFamilyRaw by appPrefsRepository.chatFontFamilyFlow.collectAsState(initial = "default")
             val codeAutoWrap by appPrefsRepository.codeAutoWrapFlow.collectAsState(initial = true)
-            val codeLineNumbers by appPrefsRepository.codeLineNumbersFlow.collectAsState(initial = false)
+            val codeLineNumbers by appPrefsRepository.codeLineNumbersFlow.collectAsState(initial = true)
             val codeAutoCollapse by appPrefsRepository.codeAutoCollapseFlow.collectAsState(initial = false)
 
             // Reactively observe API config so settings changes take effect immediately

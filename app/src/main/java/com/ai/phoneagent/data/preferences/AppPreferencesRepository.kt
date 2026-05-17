@@ -172,7 +172,7 @@ class AppPreferencesRepository(
 
     val codeLineNumbersFlow: Flow<Boolean> =
         context.appPreferencesDataStore.data.map { prefs ->
-            prefs[Keys.codeLineNumbers] ?: false
+            prefs[Keys.codeLineNumbers] ?: true
         }
 
     val codeAutoCollapseFlow: Flow<Boolean> =
@@ -501,7 +501,7 @@ class AppPreferencesRepository(
 
     suspend fun getCodeLineNumbers(): Boolean {
         val prefs = context.appPreferencesDataStore.data.first()
-        return prefs[Keys.codeLineNumbers] ?: false
+        return prefs[Keys.codeLineNumbers] ?: true
     }
 
     suspend fun setCodeLineNumbers(value: Boolean) {
