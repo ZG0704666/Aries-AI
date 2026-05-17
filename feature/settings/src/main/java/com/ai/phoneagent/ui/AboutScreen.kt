@@ -226,7 +226,7 @@ private fun AboutHeroSection(
         verticalArrangement = Arrangement.spacedBy(spacingSm),
     ) {
         Image(
-            painter = painterResource(R.drawable.ic_launcher_monochrome),
+            painter = painterResource(R.drawable.ic_launcher_foreground),
             contentDescription = stringResource(R.string.app_name),
             modifier = Modifier
                 .size(80.dp)
