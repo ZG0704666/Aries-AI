@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.selection.SelectionContainer
 import com.composables.icons.lucide.Lucide
@@ -72,6 +74,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import com.ai.phoneagent.R
 import com.ai.phoneagent.ui.components.InfoTooltip
 
@@ -87,11 +90,15 @@ private data class AutomationStatusPalette(
     val accent: Color,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AutomationControlScreen(
-    statusText: String,
+    statusSummary: String,
+    interactionModeText: String,
+    accessibilityStatusText: String,
+    shizukuStatusText: String,
     statusTone: AutomationStatusTone,
+    showShizukuControls: Boolean,
     isBackgroundMode: Boolean,
     virtualDisplayStatus: String,
     useShizukuInteraction: Boolean,
@@ -167,17 +174,69 @@ fun AutomationControlScreen(
             verticalArrangement = Arrangement.spacedBy(spacingMd),
         ) {
             item {
-                AutomationSectionCard {
-                    SectionHeading(
-                        title = stringResource(R.string.automation_console_runtime_title),
-                    )
+                AutomationSectionCard(containerColor = statusPalette.container.copy(alpha = 0.52f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(spacingXs),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.automation_console_runtime_title),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = statusPalette.content.copy(alpha = 0.8f),
+                            )
+                            Text(
+                                text = stringResource(R.string.automation_console_runtime_subtitle),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = statusPalette.content.copy(alpha = 0.72f),
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(spacingSm))
+                        AutomationStatusBadge(
+                            text = statusTone.badgeText(),
+                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+                            contentColor = statusPalette.accent,
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(spacingMd))
 
-                    AutomationInfoRow(
-                        label = stringResource(R.string.automation_status_label),
-                        value = statusText,
-                        accentColor = statusPalette.accent,
+                    Text(
+                        text = statusSummary,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = statusPalette.content,
+                        fontWeight = FontWeight.SemiBold,
                     )
+                    Spacer(modifier = Modifier.height(spacingXs))
+                    Text(
+                        text = interactionModeText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = statusPalette.content.copy(alpha = 0.82f),
+                    )
+
+                    Spacer(modifier = Modifier.height(spacingMd))
+
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(spacingSm),
+                        verticalArrangement = Arrangement.spacedBy(spacingSm),
+                    ) {
+                        AutomationConnectionBadge(
+                            value = accessibilityStatusText,
+                            modifier = if (showShizukuControls) Modifier else Modifier.fillMaxWidth(),
+                            accentColor = statusPalette.accent,
+                        )
+                        if (showShizukuControls) {
+                            AutomationConnectionBadge(
+                                value = shizukuStatusText,
+                                accentColor = statusPalette.accent,
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(spacingMd))
 
@@ -260,13 +319,15 @@ fun AutomationControlScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(modifier = Modifier.height(spacingMd))
 
-                    AutomationSwitchRow(
-                        title = stringResource(R.string.automation_shizuku_mode_label),
-                        tooltipText = stringResource(R.string.automation_console_shizuku_subtitle),
-                        checked = useShizukuInteraction,
-                        onCheckedChange = onShizukuModeChange,
-                    )
-                    Spacer(modifier = Modifier.height(spacingSm))
+                    if (showShizukuControls) {
+                        AutomationSwitchRow(
+                            title = stringResource(R.string.automation_shizuku_mode_label),
+                            tooltipText = stringResource(R.string.automation_console_shizuku_subtitle),
+                            checked = useShizukuInteraction,
+                            onCheckedChange = onShizukuModeChange,
+                        )
+                        Spacer(modifier = Modifier.height(spacingSm))
+                    }
                     AutomationSwitchRow(
                         title = stringResource(R.string.automation_auto_approve_label),
                         tooltipText = stringResource(R.string.automation_console_auto_approve_subtitle),
@@ -275,6 +336,40 @@ fun AutomationControlScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AutomationConnectionBadge(
+    value: String,
+    modifier: Modifier = Modifier,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+) {
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+        shape = RoundedCornerShape(dimensionResource(R.dimen.m3t_radius_lg)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingSm),
+            horizontalArrangement = Arrangement.spacedBy(spacingSm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier.size(dimensionResource(R.dimen.m3t_automation_status_dot)).background(
+                    color = accentColor,
+                    shape = MaterialTheme.shapes.small,
+                ),
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
         }
     }
 }
@@ -390,42 +485,12 @@ private fun AutomationStatusBadge(
     }
 }
 
-@Composable
-private fun AutomationInfoRow(
-    label: String,
-    value: String,
-    accentColor: Color? = null,
-) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = spacingMd),
-        horizontalArrangement = Arrangement.spacedBy(spacingSm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
-        if (accentColor != null) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(dimensionResource(R.dimen.m3t_automation_status_dot))
-                        .background(accentColor, MaterialTheme.shapes.small),
-            )
-        }
+private fun AutomationStatusTone.badgeText(): String =
+    when (this) {
+        AutomationStatusTone.Ready -> "已就绪"
+        AutomationStatusTone.Partial -> "待补齐"
+        AutomationStatusTone.Inactive -> "未连接"
     }
-}
 
 @Composable
 private fun AutomationModeOption(

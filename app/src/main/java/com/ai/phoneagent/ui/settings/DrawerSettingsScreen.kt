@@ -205,14 +205,6 @@ fun DrawerSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(spacingSm),
         ) {
             item {
-                SettingsHomeHeader(
-                    title = stringResource(R.string.settings_title),
-                    subtitle = stringResource(R.string.settings_subtitle),
-                    entryCount = entries.size,
-                )
-            }
-
-            item {
                 SettingsSearchField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -244,68 +236,6 @@ fun DrawerSettingsScreen(
                 item {
                     SettingsEmptySearchState(text = stringResource(R.string.settings_search_empty))
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsHomeHeader(
-    title: String,
-    subtitle: String,
-    entryCount: Int,
-) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.primaryContainer,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(spacingLg),
-            horizontalArrangement = Arrangement.spacedBy(spacingMd),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary,
-            ) {
-                Icon(
-                    imageVector = Lucide.Sparkles,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.padding(spacingSm),
-                )
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs)),
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
-            Surface(
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface,
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_entry_count_format, entryCount),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingSm),
-                )
             }
         }
     }
