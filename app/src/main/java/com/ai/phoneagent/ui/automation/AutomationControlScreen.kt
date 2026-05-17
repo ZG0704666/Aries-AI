@@ -39,10 +39,10 @@ import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.WandSparkles
 import com.composables.icons.lucide.Mic
 import com.composables.icons.lucide.RefreshCw
-import com.composables.icons.lucide.Accessibility
 import com.composables.icons.lucide.Shield
 import com.composables.icons.lucide.CircleStop
 import com.composables.icons.lucide.SlidersHorizontal
+import com.composables.icons.lucide.Smartphone
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -189,7 +189,7 @@ fun AutomationControlScreen(
                              onClick = onOpenAccessibility,
                              modifier = Modifier.weight(1f),
                          ) {
-                             Icon(Lucide.Accessibility, contentDescription = null)
+                             Icon(Lucide.Smartphone, contentDescription = null)
                              Spacer(modifier = Modifier.width(spacingXs))
                              Text(stringResource(R.string.automation_open_accessibility))
                          }

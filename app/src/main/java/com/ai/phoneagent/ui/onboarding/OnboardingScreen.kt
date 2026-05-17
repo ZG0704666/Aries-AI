@@ -71,12 +71,12 @@ import androidx.navigation.NavController
 import com.ai.phoneagent.PermissionSetupSupport
 import com.ai.phoneagent.R
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
-import com.composables.icons.lucide.Accessibility
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.ExternalLink
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Mic
 import com.composables.icons.lucide.Shield
+import com.composables.icons.lucide.Smartphone
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -553,7 +553,7 @@ private fun PermissionPanel(
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         PermissionRow(
-                            icon = Lucide.Accessibility,
+                            icon = Lucide.Smartphone,
                             title = stringResource(R.string.perm_sheet_accessibility_title),
                             description = stringResource(R.string.perm_sheet_accessibility_desc),
                             ready = permissionUiState.accessibilityReady,

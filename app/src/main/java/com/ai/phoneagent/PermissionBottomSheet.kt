@@ -10,10 +10,10 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
-import com.composables.icons.lucide.Accessibility
 import com.composables.icons.lucide.ExternalLink
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Mic
+import com.composables.icons.lucide.Smartphone
 import com.composables.icons.lucide.Shield
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -112,7 +112,7 @@ fun PermissionBottomSheetContent(
             shape = MaterialTheme.shapes.large,
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                PermissionRow(Lucide.Accessibility, stringResource(R.string.perm_sheet_accessibility_title), stringResource(R.string.perm_sheet_accessibility_desc), permissionUiState.accessibilityReady, stringResource(R.string.perm_sheet_action_enable), onOpenAccessibility, compactButtonHeight)
+                PermissionRow(Lucide.Smartphone, stringResource(R.string.perm_sheet_accessibility_title), stringResource(R.string.perm_sheet_accessibility_desc), permissionUiState.accessibilityReady, stringResource(R.string.perm_sheet_action_enable), onOpenAccessibility, compactButtonHeight)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 PermissionRow(Lucide.ExternalLink, stringResource(R.string.perm_sheet_overlay_title), stringResource(R.string.perm_sheet_overlay_desc), permissionUiState.overlayReady, stringResource(R.string.perm_sheet_action_settings), onOpenOverlay, compactButtonHeight)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

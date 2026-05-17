@@ -24,6 +24,7 @@
     <string name="voice_release_to_send">松开输入，上滑取消</string>
     <string name="send">发送</string>
     <string name="ai_generated_notice">内容由AI生成</string>
+    <string name="chat_server_busy">当前服务器访问量过高，请稍后再试</string>
     <string name="retry">重试</string>
     <string name="retrying">重试中...</string>
     <string name="automation_confirm">确认</string>
