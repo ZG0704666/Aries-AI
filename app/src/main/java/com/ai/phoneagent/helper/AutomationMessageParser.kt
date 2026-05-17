@@ -1,6 +1,6 @@
 package com.ai.phoneagent.helper
 
-import android.util.Base64
+import java.util.Base64
 
 object AutomationMessageParser {
 
@@ -19,13 +19,13 @@ object AutomationMessageParser {
     }
 
     fun encodeAutomationLogMarker(logLine: String): String {
-        val encoded = Base64.encodeToString(logLine.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+        val encoded = Base64.getEncoder().encodeToString(logLine.toByteArray(Charsets.UTF_8))
         return "[[AUTO_LOG_B64:$encoded]]"
     }
 
     fun decodeAutomationLogMarker(markerPayload: String): String? {
         return runCatching {
-            val bytes = Base64.decode(markerPayload, Base64.DEFAULT)
+            val bytes = Base64.getDecoder().decode(markerPayload)
             String(bytes, Charsets.UTF_8).trim()
         }.getOrNull()?.takeIf { it.isNotBlank() }
     }
@@ -96,6 +96,14 @@ object AutomationMessageParser {
         val withoutConfirmed = extractAutomationConfirmedMarker(withoutConfirm).first
         val withoutRejected = extractAutomationRejectedMarker(withoutConfirmed).first
         return extractAutomationLogMarkers(withoutRejected).first
+    }
+
+    fun stripAutomationRuntimeMarkers(rawText: String): String {
+        val withoutLogs = extractAutomationLogMarkers(rawText).first
+        val withoutConfirm = extractAutomationConfirmInstruction(withoutLogs).first
+        val withoutConfirmed = extractAutomationConfirmedMarker(withoutConfirm).first
+        val withoutRejected = extractAutomationRejectedMarker(withoutConfirmed).first
+        return withoutRejected.trim()
     }
 
     fun normalizeAutomationLogLine(rawLine: String): String {

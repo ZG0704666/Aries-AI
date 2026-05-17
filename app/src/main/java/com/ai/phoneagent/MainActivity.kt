@@ -1542,6 +1542,7 @@ class MainActivity : AppCompatActivity() {
                 ).show()
                 return
             }
+            resetAutomationPanelForRetry(item, automation.retryInstruction)
             AutomationViewModel.pendingLaunchArgs = AutomationViewModel.LaunchArgs(
                 automationTask = automation.retryInstruction,
                 automationSource = AutomationInstructionRequest.Source.ADVANCED_AI.wireValue,
@@ -1568,6 +1569,36 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return conversation.messages.findLast { it.isUser && it.content.isNotBlank() }?.content
+    }
+
+    private fun resetAutomationPanelForRetry(
+        item: TranscriptMessageUi,
+        retryInstruction: String,
+    ) {
+        val conversation =
+            conversations.firstOrNull { it.id == item.conversationId }
+                ?: activeConversation?.takeIf { it.id == item.conversationId }
+                ?: return
+        val messageIndex = item.messageIndex
+        if (messageIndex !in conversation.messages.indices) return
+
+        val origin = conversation.messages[messageIndex]
+        if (origin.isUser) return
+
+        val commandBody =
+            AutomationMessageParser
+                .stripAutomationRuntimeMarkers(origin.content)
+                .ifBlank { "待转交自动化命令：\n$retryInstruction" }
+        val updated = (commandBody.trimEnd() + "\n[[AUTO_CONFIRMED]]").trim()
+        if (updated == origin.content) return
+
+        val messageRef = AutomationMessageRef(item.conversationId, messageIndex)
+        clearAutomationTerminatePending(messageRef)
+        clearAutomationAutoConfirm(messageRef)
+        conversation.messages[messageIndex] = origin.copy(content = updated)
+        conversation.updatedAt = System.currentTimeMillis()
+        syncMessageTranscript(conversation)
+        persistConversations()
     }
 
     private fun copyTranscriptMessage(text: String) {
@@ -1657,7 +1688,7 @@ class MainActivity : AppCompatActivity() {
         setupMessageSyncListener()
 
         if (pendingAutomationLogUiRefresh) {
-            activeConversation?.let { renderConversation(it) }
+            activeConversation?.let { syncMessageTranscript(it) }
             pendingAutomationLogUiRefresh = false
         }
 
@@ -2240,34 +2271,6 @@ class MainActivity : AppCompatActivity() {
         if (appendAutomationLogToExistingPanel(logLine)) {
             return
         }
-
-        val messageContent = "【自动化】$logLine"
-        val c = requireActiveConversation()
-        val last = c.messages.lastOrNull()
-        if (last != null && !last.isUser && last.content == messageContent) {
-            return
-        }
-
-        c.messages.add(
-                UiMessage(
-                        author = "Aries AI",
-                        content = messageContent,
-                        isUser = false,
-                )
-        )
-        c.updatedAt = System.currentTimeMillis()
-
-        val canRenderNow =
-                lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) &&
-                        activeConversation?.id == c.id
-        if (canRenderNow) {
-            syncMessageTranscript(c)
-            smoothScrollToBottom()
-        } else {
-            pendingAutomationLogUiRefresh = true
-        }
-        syncMessageTranscript(c)
-        persistConversations()
     }
 
     private fun filterAutomationLogForHome(rawLogLine: String): String? {
