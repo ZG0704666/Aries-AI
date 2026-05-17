@@ -1,6 +1,8 @@
 package com.ai.phoneagent.core.common
 
 object VersionComparator {
+    private val numberRegex = Regex("""\d+""")
+
     private data class ParsedVersion(
         val major: Int,
         val minor: Int,
@@ -9,15 +11,24 @@ object VersionComparator {
     )
 
     private fun parse(v: String): ParsedVersion {
-        val s0 = v.trim().removePrefix("v")
-        val plusIdx = s0.indexOf('+')
-        val base = if (plusIdx >= 0) s0.substring(0, plusIdx) else s0
-        val build = if (plusIdx >= 0) s0.substring(plusIdx + 1).toIntOrNull() ?: 0 else 0
+        val normalized =
+            v.trim()
+                .removePrefix("v")
+                .removePrefix("V")
 
-        val parts = base.split(".")
-        val major = parts.getOrNull(0)?.toIntOrNull() ?: 0
-        val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
-        val patch = parts.getOrNull(2)?.toIntOrNull() ?: 0
+        val plusIdx = normalized.indexOf('+')
+        val base = if (plusIdx >= 0) normalized.substring(0, plusIdx) else normalized
+        val buildPart = if (plusIdx >= 0) normalized.substring(plusIdx + 1) else ""
+
+        val baseNumbers = numberRegex.findAll(base).map { it.value.toIntOrNull() ?: 0 }.toList()
+        val build =
+            numberRegex.find(buildPart)?.value?.toIntOrNull()
+                ?: baseNumbers.getOrNull(3)
+                ?: 0
+
+        val major = baseNumbers.getOrNull(0) ?: 0
+        val minor = baseNumbers.getOrNull(1) ?: 0
+        val patch = baseNumbers.getOrNull(2) ?: 0
 
         return ParsedVersion(major = major, minor = minor, patch = patch, build = build)
     }

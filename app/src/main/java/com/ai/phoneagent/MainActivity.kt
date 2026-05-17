@@ -192,6 +192,7 @@ import androidx.compose.material3.DrawerState
 import androidx.compose.material3.rememberDrawerState
 import java.io.InputStream
 import kotlinx.coroutines.runBlocking
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import org.koin.android.ext.android.inject
@@ -338,6 +339,7 @@ class MainActivity : AppCompatActivity() {
         const val EXTRA_SCROLL_TO_BOTTOM = "extra_scroll_to_bottom"
         const val EXTRA_SHOW_AUTOMATION_STOP = "extra_show_automation_stop"
         private const val STREAMING_UI_FRAME_DELAY_MS = 80L
+        private const val HOME_AUTOMATION_AUTO_CONFIRM_SECONDS = 10
     }
 
     private data class UiMessage(
@@ -413,6 +415,11 @@ class MainActivity : AppCompatActivity() {
             val conversationId: Long,
             val messageIndex: Int,
     )
+
+        private data class PendingAutomationConfirmTarget(
+            val messageRef: AutomationMessageRef,
+            val instruction: String,
+        )
 
     private lateinit var onboardingOverlay: MainOnboardingOverlay
     private val drawerStateHolder = mutableStateOf<DrawerState?>(null)
@@ -746,6 +753,15 @@ class MainActivity : AppCompatActivity() {
             ) {
                 val navController = rememberNavController()
                 DisposableEffect(navController) {
+                    val destinationListener =
+                        NavController.OnDestinationChangedListener { _, destination, _ ->
+                            if (destination.route == Routes.Home.route) {
+                                refreshAutomationCardsForCurrentConversation()
+                            } else {
+                                clearAutomationAutoConfirm()
+                            }
+                        }
+                    navController.addOnDestinationChangedListener(destinationListener)
                     navControllerState.value = navController
                     routeNavigationActionState.value = { route ->
                         if (navController.currentDestination?.route != route) {
@@ -755,6 +771,7 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                     onDispose {
+                        navController.removeOnDestinationChangedListener(destinationListener)
                         if (navControllerState.value === navController) {
                             navControllerState.value = null
                         }
@@ -1136,6 +1153,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
                 .orEmpty()
+        syncAutomationAutoConfirmState(conversation)
     }
 
     private fun replaceStreamingTranscriptWithConversation(
@@ -1156,6 +1174,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     .orEmpty()
         }
+        syncAutomationAutoConfirmState(conversation)
     }
 
     private fun refreshAutomationCardsForCurrentConversation() {
@@ -1519,27 +1538,7 @@ class MainActivity : AppCompatActivity() {
 
         val messageRef = AutomationMessageRef(item.conversationId, item.messageIndex)
         if (!automation.confirmInstruction.isNullOrBlank()) {
-            clearAutomationAutoConfirm(messageRef)
-            val readyState = resolveAutomationReadyState()
-            if (!readyState.ready) {
-                Toast.makeText(
-                    this,
-                    resolveAutomationNotReadyToast(readyState.reason),
-                    Toast.LENGTH_LONG,
-                ).show()
-                return
-            }
-
-            // 从主页面直接启动自动化，不跳转到控制台
-            markAutomationCommandConfirmed(automation.confirmInstruction, messageRef)
-            AutomationViewModel.pendingLaunchArgs = AutomationViewModel.LaunchArgs(
-                automationTask = automation.confirmInstruction,
-                automationSource = AutomationInstructionRequest.Source.ADVANCED_AI.wireValue,
-                automationAutoStart = true,
-                keepMainOnTop = true,
-                popBackImmediately = true,
-            )
-            navigateToRoute(Routes.Automation.route)
+            confirmAutomationFromHome(automation.confirmInstruction, messageRef)
             return
         }
 
@@ -2103,6 +2102,110 @@ class MainActivity : AppCompatActivity() {
             val hasCommandPrefix = stripAutomationMarker(msg.content).contains("待转交自动化命令：")
             hasConfirmMarker || hasConfirmedMarker || hasCommandPrefix
         }
+    }
+
+    private fun findLatestPendingAutomationConfirmTarget(
+        conversation: Conversation?,
+    ): PendingAutomationConfirmTarget? {
+        val targetConversation = conversation ?: return null
+        val targetIndex =
+            targetConversation.messages.indexOfLast { msg ->
+                if (msg.isUser) return@indexOfLast false
+                val confirmInstruction = extractAutomationConfirmInstruction(msg.content).second
+                val hasConfirmed = extractAutomationConfirmedMarker(msg.content).second
+                val hasRejected = extractAutomationRejectedMarker(msg.content).second
+                !confirmInstruction.isNullOrBlank() && !hasConfirmed && !hasRejected
+            }
+        if (targetIndex !in targetConversation.messages.indices) return null
+
+        val instruction =
+            extractAutomationConfirmInstruction(targetConversation.messages[targetIndex].content).second
+                ?: return null
+
+        return PendingAutomationConfirmTarget(
+            messageRef = AutomationMessageRef(targetConversation.id, targetIndex),
+            instruction = instruction,
+        )
+    }
+
+    private fun isHomeAutomationAutoConfirmEnabled(): Boolean {
+        if (navControllerState.value?.currentDestination?.route != Routes.Home.route) return false
+        return VirtualDisplayConfig.getAutoApproveAutomation(this)
+    }
+
+    private fun syncAutomationAutoConfirmState(conversation: Conversation? = activeConversation) {
+        val targetConversation = conversation ?: run {
+            clearAutomationAutoConfirm()
+            return
+        }
+        if (targetConversation.id != activeConversation?.id) {
+            clearAutomationAutoConfirm()
+            return
+        }
+
+        val target = findLatestPendingAutomationConfirmTarget(targetConversation) ?: run {
+            clearAutomationAutoConfirm()
+            return
+        }
+
+        if (!isHomeAutomationAutoConfirmEnabled()) {
+            clearAutomationAutoConfirm()
+            return
+        }
+
+        if (!resolveAutomationReadyState().ready) {
+            clearAutomationAutoConfirm()
+            return
+        }
+
+        if (
+            automationAutoConfirmRef == target.messageRef &&
+            automationAutoConfirmJob?.isActive == true &&
+            automationCountdownSeconds[target.messageRef] != null
+        ) {
+            return
+        }
+
+        startAutomationAutoConfirm(target)
+    }
+
+    private fun startAutomationAutoConfirm(target: PendingAutomationConfirmTarget) {
+        val previousRef = dropAutomationAutoConfirmState(syncUi = false)
+        automationAutoConfirmRef = target.messageRef
+        automationCountdownSeconds[target.messageRef] = HOME_AUTOMATION_AUTO_CONFIRM_SECONDS
+        automationAutoConfirmJob =
+            lifecycleScope.launch {
+                repeat(HOME_AUTOMATION_AUTO_CONFIRM_SECONDS) { elapsedSeconds ->
+                    if (automationAutoConfirmRef != target.messageRef) return@launch
+                    automationCountdownSeconds[target.messageRef] =
+                        HOME_AUTOMATION_AUTO_CONFIRM_SECONDS - elapsedSeconds
+                    syncTranscriptForAutomationMessage(target.messageRef)
+                    delay(1000L)
+                }
+
+                if (!shouldContinueAutomationAutoConfirm(target)) {
+                    clearAutomationAutoConfirm(target.messageRef)
+                    return@launch
+                }
+
+                confirmAutomationFromHome(target.instruction, target.messageRef)
+            }
+
+        if (previousRef != null && previousRef != target.messageRef) {
+            syncTranscriptForAutomationMessage(previousRef)
+        }
+        syncTranscriptForAutomationMessage(target.messageRef)
+    }
+
+    private fun shouldContinueAutomationAutoConfirm(target: PendingAutomationConfirmTarget): Boolean {
+        if (!isHomeAutomationAutoConfirmEnabled()) return false
+        if (automationAutoConfirmRef != target.messageRef) return false
+        if (!resolveAutomationReadyState().ready) return false
+
+        val conversation = conversations.firstOrNull { it.id == target.messageRef.conversationId } ?: return false
+        if (conversation.id != activeConversation?.id) return false
+
+        return findLatestPendingAutomationConfirmTarget(conversation) == target
     }
 
     private fun appendAutomationLogToExistingPanel(logLine: String): Boolean {
@@ -3637,20 +3740,51 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
+    private fun confirmAutomationFromHome(
+        instruction: String,
+        messageRef: AutomationMessageRef,
+    ) {
+        val readyState = resolveAutomationReadyState()
+        if (!readyState.ready) {
+            Toast.makeText(
+                this,
+                resolveAutomationNotReadyToast(readyState.reason),
+                Toast.LENGTH_LONG,
+            ).show()
+            refreshAutomationCardsForCurrentConversation()
+            return
+        }
+
+        dropAutomationAutoConfirmState(syncUi = false)
+        markAutomationCommandConfirmed(instruction, messageRef)
+        AutomationViewModel.pendingLaunchArgs = AutomationViewModel.LaunchArgs(
+            automationTask = instruction,
+            automationSource = AutomationInstructionRequest.Source.ADVANCED_AI.wireValue,
+            automationAutoStart = true,
+            keepMainOnTop = true,
+            popBackImmediately = true,
+        )
+        navigateToRoute(Routes.Automation.route)
+    }
+
     private fun clearAutomationAutoConfirm(messageRef: AutomationMessageRef? = null) {
-        var resolvedRef: AutomationMessageRef? = null
         if (messageRef != null) {
             val resolved = resolveAutomationMessageRef(messageRef) ?: return
             if (automationAutoConfirmRef != resolved) return
-            resolvedRef = resolved
-        } else {
-            resolvedRef = automationAutoConfirmRef
         }
+        dropAutomationAutoConfirmState(syncUi = true)
+    }
+
+    private fun dropAutomationAutoConfirmState(syncUi: Boolean): AutomationMessageRef? {
+        val previousRef = automationAutoConfirmRef
         automationAutoConfirmJob?.cancel()
         automationAutoConfirmJob = null
-        resolvedRef?.let { automationCountdownSeconds.remove(it) }
+        previousRef?.let { automationCountdownSeconds.remove(it) }
         automationAutoConfirmRef = null
-        syncTranscriptForAutomationMessage(resolvedRef)
+        if (syncUi) {
+            syncTranscriptForAutomationMessage(previousRef)
+        }
+        return previousRef
     }
 
     private fun requestAutomationStopFromHome() {
