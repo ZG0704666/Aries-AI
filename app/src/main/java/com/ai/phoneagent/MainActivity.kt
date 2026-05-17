@@ -1176,19 +1176,8 @@ class MainActivity : AppCompatActivity() {
             } else {
                 "streaming-assistant"
             }
-        val pendingText =
-            getString(
-                if (isLocalModelModeEnabled()) {
-                    R.string.message_local_inference_waiting
-                } else {
-                    R.string.message_connecting_placeholder
-                },
-            )
         val nextConversationId = conversationId.takeIf { it >= 0L }
-        val nextBody =
-            answer.ifBlank {
-                if (thinking.isBlank()) pendingText else ""
-            }
+        val nextBody = answer
         val nextThinking = thinking.ifBlank { null }
 
         if (streamingTranscriptConversationIdState.value != nextConversationId) {

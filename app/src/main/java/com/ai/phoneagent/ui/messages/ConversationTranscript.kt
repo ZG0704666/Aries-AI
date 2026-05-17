@@ -97,11 +97,17 @@ private val DESC_JSON_REGEX = Regex("""\"desc\"\s*:\s*\"([^\"]+)\"""", RegexOpti
 private val DESCRIPTION_JSON_REGEX = Regex("""\"description\"\s*:\s*\"([^\"]+)\"""", RegexOption.IGNORE_CASE)
 private val FENCED_CODE_BLOCK_REGEX = Regex("(?s)```([\\w+-]*)\\n(.*?)```")
 private const val CODE_BLOCK_COLLAPSE_LINE_THRESHOLD = 10
-private const val STREAMING_MARKDOWN_RENDER_INTERVAL_MS = 480L
-private const val STREAMING_MARKDOWN_MIN_CHUNK_DELTA = 48
+private const val STREAMING_MARKDOWN_RENDER_INTERVAL_MS = 80L
+private const val STREAMING_MARKDOWN_MIN_CHUNK_DELTA = 12
+private const val STREAMING_PENDING_INLINE_TAIL_LIMIT = 32
 private const val TRANSCRIPT_EMPTY_SUGGESTION_PAGE_SIZE = 3
 private const val TRANSCRIPT_EMPTY_SUGGESTION_ROTATE_DELAY_MS = 4200L
 private val STREAMING_MARKDOWN_ORDERED_LIST_RE = Regex("""(?m)^\s*\d+\.\s""")
+private val STREAMING_MARKDOWN_FENCE_LINE_RE = Regex("""(?m)^[ \t]*`{3,}.*$""")
+private val STREAMING_MARKDOWN_STRUCTURE_RE = Regex(
+    """(?m)(^#{1,6}\s|^\s*[-*+]\s|^\s*\d+\.\s|^\s*>\s|`|\*\*|__|\]\(|\$\$|\|)"""
+)
+private val STREAMING_DANGLING_BLOCK_MARKER_RE = Regex("""^\s{0,3}(?:#{1,6}|[-*+]|\d+\.)\s?$""")
 
 @Immutable
 data class CodeBlockPrefs(
@@ -154,6 +160,8 @@ data class StreamingTranscriptBodyPreview(
     val committedBlocks: ImmutableList<String>,
     val committedPrefixLength: Int,
     val tailText: String,
+    val renderMarkdownText: String,
+    val showLoadingIndicator: Boolean,
     val fullTextLength: Int,
     val layoutVersion: Int,
 )
@@ -202,8 +210,13 @@ class StreamingTranscriptMessageState(
         if (bodyText != nextBody) {
             bodyText = nextBody
             val resolvedBodyPreview = nextBodyPreview ?: buildStreamingTranscriptBodyPreview(nextBody)
-            if (bodyPreview != resolvedBodyPreview) {
-                bodyPreview = resolvedBodyPreview
+            val selectedBodyPreview =
+                selectStreamingBodyPreview(
+                    current = bodyPreview,
+                    next = resolvedBodyPreview,
+                )
+            if (bodyPreview != selectedBodyPreview) {
+                bodyPreview = selectedBodyPreview
             }
         } else if (nextBodyPreview != null && bodyPreview != nextBodyPreview) {
             bodyPreview = nextBodyPreview
@@ -827,10 +840,13 @@ private fun StreamingAssistantBodySection(
 ) {
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val bodyPreview = itemState.bodyPreview
-    if (bodyPreview.fullTextLength == 0) return
+    val showLoadingIndicator =
+        bodyPreview.showLoadingIndicator && itemState.thinking.isNullOrBlank()
+    if (bodyPreview.fullTextLength == 0 && !showLoadingIndicator) return
 
     StreamingAssistantBodyPreview(
         preview = bodyPreview,
+        showLoadingIndicator = showLoadingIndicator,
         spacingMd = spacingMd,
     )
 }
@@ -838,6 +854,7 @@ private fun StreamingAssistantBodySection(
 @Composable
 private fun StreamingAssistantBodyPreview(
     preview: StreamingTranscriptBodyPreview,
+    showLoadingIndicator: Boolean,
     spacingMd: Dp,
 ) {
     val streamingElevation = dimensionResource(R.dimen.m3t_message_streaming_tonal_elevation)
@@ -847,11 +864,16 @@ private fun StreamingAssistantBodyPreview(
         color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = streamingElevation,
     ) {
-        if (!preview.usesMarkdownPreview || preview.committedBlocks.isEmpty()) {
-            Text(
-                text = preview.tailText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+        if (showLoadingIndicator) {
+            StreamingLoadingIndicator(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacingMd, vertical = spacingMd),
+            )
+        } else if (!preview.usesMarkdownPreview || preview.committedBlocks.isEmpty()) {
+            Markdown(
+                text = preview.renderMarkdownText,
                 modifier =
                     Modifier
                         .fillMaxWidth()
@@ -874,17 +896,27 @@ private fun StreamingAssistantBodyPreview(
                     }
                 }
 
-                if (preview.tailText.isNotBlank()) {
-                    Text(
-                        text = preview.tailText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
+                if (preview.renderMarkdownText.isNotBlank()) {
+                    Markdown(
+                        text = preview.renderMarkdownText,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun StreamingLoadingIndicator(
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = "...",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -944,10 +976,8 @@ private fun AssistantMessageBody(
                         .padding(horizontal = spacingMd, vertical = spacingMd),
             )
         } else if (isStreaming) {
-            Text(
-                text = body,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+            Markdown(
+                text = buildStreamingSafeMarkdown(body),
                 modifier =
                     Modifier
                         .fillMaxWidth()
@@ -1106,10 +1136,8 @@ private fun StreamingMarkdownPreview(
     }
 
     if (renderedSnapshot.blocks.isEmpty()) {
-        Text(
-            text = renderedTailText.ifBlank { text },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+        Markdown(
+            text = buildStreamingSafeMarkdown(renderedTailText.ifBlank { text }),
             modifier = modifier.fillMaxWidth(),
         )
         return
@@ -1127,10 +1155,8 @@ private fun StreamingMarkdownPreview(
         }
 
         if (renderedTailText.isNotBlank()) {
-            Text(
-                text = renderedTailText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+            Markdown(
+                text = buildStreamingSafeMarkdown(renderedTailText),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -1150,33 +1176,75 @@ fun buildStreamingTranscriptBodyPreview(text: String): StreamingTranscriptBodyPr
             committedBlocks = emptyList<String>().toImmutableList(),
             committedPrefixLength = 0,
             tailText = "",
+            renderMarkdownText = "",
+            showLoadingIndicator = true,
             fullTextLength = 0,
-            layoutVersion = 0,
+            layoutVersion = 1,
         )
     }
 
     if (!shouldRenderStreamingMarkdown(text)) {
+        val renderText = buildStreamingSafeMarkdown(text)
         return StreamingTranscriptBodyPreview(
             usesMarkdownPreview = false,
             committedBlocks = emptyList<String>().toImmutableList(),
             committedPrefixLength = 0,
             tailText = text,
+            renderMarkdownText = renderText,
+            showLoadingIndicator = false,
             fullTextLength = text.length,
-            layoutVersion = computeStreamingTextLayoutVersion(text),
+            layoutVersion = computeStreamingTextLayoutVersion(renderText),
         )
     }
 
     val snapshot = buildStreamingMarkdownSnapshot(text)
     val tailText = renderableStreamingTailText(text, snapshot.committedPrefixLength)
     val renderedTailText = if (snapshot.blocks.isEmpty()) text else tailText
+    val renderMarkdownText = buildStreamingSafeMarkdown(renderedTailText)
     return StreamingTranscriptBodyPreview(
         usesMarkdownPreview = true,
         committedBlocks = snapshot.blocks,
         committedPrefixLength = snapshot.committedPrefixLength,
         tailText = renderedTailText,
+        renderMarkdownText = renderMarkdownText,
+        showLoadingIndicator = false,
         fullTextLength = text.length,
-        layoutVersion = computeStreamingBodyLayoutVersion(snapshot.blocks.size, renderedTailText),
+        layoutVersion = computeStreamingBodyLayoutVersion(snapshot.blocks.size, renderMarkdownText),
     )
+}
+
+private fun selectStreamingBodyPreview(
+    current: StreamingTranscriptBodyPreview,
+    next: StreamingTranscriptBodyPreview,
+): StreamingTranscriptBodyPreview {
+    if (next.showLoadingIndicator) return next
+    if (current.showLoadingIndicator) {
+        return if (next.renderMarkdownText.length >= 2 || hasStreamingRenderBoundary(next.renderMarkdownText)) {
+            next
+        } else {
+            current
+        }
+    }
+    if (next.renderMarkdownText.isBlank()) return current
+    if (current.renderMarkdownText.isBlank()) return next
+    if (next.committedBlocks.size != current.committedBlocks.size) return next
+    if (next.usesMarkdownPreview != current.usesMarkdownPreview) return next
+    if (!next.renderMarkdownText.startsWith(current.renderMarkdownText)) return next
+    if (hasStreamingRenderBoundary(next.renderMarkdownText)) return next
+
+    val visibleDelta = next.renderMarkdownText.length - current.renderMarkdownText.length
+    return if (visibleDelta >= STREAMING_MARKDOWN_MIN_CHUNK_DELTA) next else current
+}
+
+private fun hasStreamingRenderBoundary(text: String): Boolean {
+    val last = text.lastOrNull() ?: return false
+    if (last == '\n' || last == '\r') return true
+    if (last in listOf('.', '!', '?', ':', ';')) return true
+    if (last in listOf('。', '！', '？', '：', '；', '，', ',')) return true
+    val recentTail = text.takeLast(STREAMING_MARKDOWN_MIN_CHUNK_DELTA + 4)
+    return text.endsWith("```") ||
+        text.endsWith("$$") ||
+        STREAMING_MARKDOWN_STRUCTURE_RE.containsMatchIn(recentTail)
 }
 
 private fun renderableStreamingTailText(
@@ -1186,6 +1254,155 @@ private fun renderableStreamingTailText(
     text
         .drop(committedPrefixLength.coerceAtMost(text.length))
         .trimStart('\n', '\r')
+
+private fun buildStreamingSafeMarkdown(text: String): String {
+    if (text.isBlank()) return ""
+    val withoutDanglingBlockMarker = suppressDanglingBlockMarkerTail(text)
+    val withoutDanglingInlineTail = suppressDanglingInlineMarkdownTail(withoutDanglingBlockMarker)
+    return closeStreamingMarkdownBlocks(withoutDanglingInlineTail)
+}
+
+private fun suppressDanglingBlockMarkerTail(text: String): String {
+    val lineStart = text.lastIndexOf('\n').let { if (it < 0) 0 else it + 1 }
+    val lastLine = text.substring(lineStart)
+    if (!STREAMING_DANGLING_BLOCK_MARKER_RE.matches(lastLine)) return text
+    return text.substring(0, lineStart).trimEnd('\n', '\r')
+}
+
+private fun suppressDanglingInlineMarkdownTail(text: String): String {
+    if (hasOpenStreamingCodeFence(text) || hasOpenStreamingBlockMath(text)) {
+        return text
+    }
+
+    val pendingStart =
+        listOfNotNull(
+            findDanglingInlineCodeStart(text),
+            findDanglingStrongStart(text),
+            findDanglingEmphasisStart(text),
+            findDanglingLinkStart(text),
+        )
+            .minOrNull()
+            ?: return text
+
+    return if (text.length - pendingStart <= STREAMING_PENDING_INLINE_TAIL_LIMIT) {
+        text.substring(0, pendingStart).trimEnd()
+    } else {
+        text
+    }
+}
+
+private fun closeStreamingMarkdownBlocks(text: String): String {
+    if (text.isBlank()) return text
+    val builder = StringBuilder(text)
+    if (hasOpenStreamingCodeFence(text)) {
+        if (!builder.endsWithLineBreak()) builder.append('\n')
+        builder.append("```")
+    } else if (hasOpenStreamingBlockMath(text)) {
+        if (!builder.endsWithLineBreak()) builder.append('\n')
+        builder.append("$$")
+    }
+    return builder.toString()
+}
+
+private fun hasOpenStreamingCodeFence(text: String): Boolean {
+    var open = false
+    STREAMING_MARKDOWN_FENCE_LINE_RE.findAll(text).forEach {
+        open = !open
+    }
+    return open
+}
+
+private fun hasOpenStreamingBlockMath(text: String): Boolean {
+    if (hasOpenStreamingCodeFence(text)) return false
+    var count = 0
+    var index = 0
+    while (index < text.length - 1) {
+        if (text.startsWith("$$", index) && !isEscapedMarkdownChar(text, index)) {
+            count += 1
+            index += 2
+        } else {
+            index += 1
+        }
+    }
+    return count % 2 == 1
+}
+
+private fun findDanglingInlineCodeStart(text: String): Int? =
+    findLastUnclosedDelimiterStart(text, "`")
+
+private fun findDanglingStrongStart(text: String): Int? =
+    findLastUnclosedDelimiterStart(text, "**")
+
+private fun findDanglingEmphasisStart(text: String): Int? {
+    val positions = mutableListOf<Int>()
+    var index = 0
+    while (index < text.length) {
+        val ch = text[index]
+        val isSingleAsterisk =
+            ch == '*' &&
+                !isEscapedMarkdownChar(text, index) &&
+                !text.startsWith("**", index) &&
+                !(index > 0 && text[index - 1] == '*') &&
+                !isListMarkerAsterisk(text, index)
+        if (isSingleAsterisk) {
+            positions += index
+        }
+        index += 1
+    }
+    return if (positions.size % 2 == 1) positions.last() else null
+}
+
+private fun findDanglingLinkStart(text: String): Int? {
+    val lastOpenBracket = findLastUnescapedChar(text, '[') ?: return null
+    val lastCloseBracket = findLastUnescapedChar(text, ']')
+    if (lastCloseBracket == null || lastCloseBracket < lastOpenBracket) {
+        return lastOpenBracket
+    }
+    val linkStart = text.indexOf("](", startIndex = lastOpenBracket)
+    if (linkStart >= 0 && text.indexOf(')', startIndex = linkStart + 2) < 0) {
+        return lastOpenBracket
+    }
+    return null
+}
+
+private fun findLastUnclosedDelimiterStart(
+    text: String,
+    delimiter: String,
+): Int? {
+    val positions = mutableListOf<Int>()
+    var index = 0
+    while (index <= text.length - delimiter.length) {
+        if (text.startsWith(delimiter, index) && !isEscapedMarkdownChar(text, index)) {
+            positions += index
+            index += delimiter.length
+        } else {
+            index += 1
+        }
+    }
+    return if (positions.size % 2 == 1) positions.last() else null
+}
+
+private fun findLastUnescapedChar(text: String, target: Char): Int? {
+    var index = text.lastIndex
+    while (index >= 0) {
+        if (text[index] == target && !isEscapedMarkdownChar(text, index)) {
+            return index
+        }
+        index -= 1
+    }
+    return null
+}
+
+private fun isListMarkerAsterisk(text: String, index: Int): Boolean {
+    if (text[index] != '*') return false
+    val lineStart = text.lastIndexOf('\n', startIndex = index).let { if (it < 0) 0 else it + 1 }
+    val before = text.substring(lineStart, index)
+    val after = text.getOrNull(index + 1)
+    return before.isBlank() && after == ' '
+}
+
+private fun StringBuilder.endsWithLineBreak(): Boolean =
+    isNotEmpty() && (last() == '\n' || last() == '\r')
 
 private fun computeStreamingBodyLayoutVersion(
     committedBlockCount: Int,
