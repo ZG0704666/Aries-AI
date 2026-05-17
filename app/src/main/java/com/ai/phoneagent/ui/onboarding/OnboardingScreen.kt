@@ -71,12 +71,12 @@ import androidx.navigation.NavController
 import com.ai.phoneagent.PermissionSetupSupport
 import com.ai.phoneagent.R
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
-import com.composables.icons.lucide.Accessibility
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.ExternalLink
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Mic
 import com.composables.icons.lucide.Shield
+import com.composables.icons.lucide.Smartphone
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -553,7 +553,7 @@ private fun PermissionPanel(
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         PermissionRow(
-                            icon = Lucide.Accessibility,
+                            icon = Lucide.Smartphone,
                             title = stringResource(R.string.perm_sheet_accessibility_title),
                             description = stringResource(R.string.perm_sheet_accessibility_desc),
                             ready = permissionUiState.accessibilityReady,
@@ -630,54 +630,59 @@ private fun PermissionRow(
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
 
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth().padding(spacingLg),
-        horizontalArrangement = Arrangement.spacedBy(spacingMd),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(spacingMd),
     ) {
-        Surface(
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
-            shape = MaterialTheme.shapes.large,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacingMd),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier.padding(spacingSm),
-                contentAlignment = Alignment.Center,
+            Surface(
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
+                shape = MaterialTheme.shapes.large,
             ) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Box(
+                    modifier = Modifier.padding(spacingSm),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
             }
-        }
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(spacingSm),
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text =
-                    stringResource(
-                        if (ready) {
-                            R.string.perm_sheet_status_ready
-                        } else {
-                            R.string.perm_sheet_status_pending
-                        },
-                    ),
-                style = MaterialTheme.typography.labelMedium,
-                color = if (ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(spacingSm),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text =
+                        stringResource(
+                            if (ready) {
+                                R.string.perm_sheet_status_ready
+                            } else {
+                                R.string.perm_sheet_status_pending
+                            },
+                        ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         FilledTonalButton(
             onClick = onAction,
             enabled = !ready,
-            modifier = Modifier.height(buttonHeight),
+            modifier = Modifier.fillMaxWidth().height(buttonHeight),
         ) {
             Text(
                 if (ready) {

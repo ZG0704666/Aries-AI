@@ -72,8 +72,12 @@ fun AutomationScreen(
     }
 
     AutomationControlScreen(
-        statusText = viewModel.statusText,
+        statusSummary = viewModel.statusSummary,
+        interactionModeText = viewModel.interactionModeText,
+        accessibilityStatusText = viewModel.accessibilityStatusText,
+        shizukuStatusText = viewModel.shizukuStatusText,
         statusTone = viewModel.statusTone(),
+        showShizukuControls = viewModel.showShizukuControls,
         isBackgroundMode = viewModel.isBackgroundMode,
         virtualDisplayStatus = viewModel.virtualDisplayStatus,
         useShizukuInteraction = viewModel.useShizukuInteraction,

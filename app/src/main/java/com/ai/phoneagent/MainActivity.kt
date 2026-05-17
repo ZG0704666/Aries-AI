@@ -2837,6 +2837,14 @@ class MainActivity : AppCompatActivity() {
         return if (raw.length <= 6) raw else raw.substring(0, 6) + "*".repeat(raw.length - 6)
     }
 
+    private fun formatChatRequestFailure(t: Throwable?): String {
+        return if (t is AutoGlmClient.ApiException && t.code == 429) {
+            getString(R.string.chat_server_busy)
+        } else {
+            "请求失败: ${t?.message ?: "Unknown error"}"
+        }
+    }
+
     /** 轻微震动反馈 - 30ms */
     private fun vibrateLight() {
         try {
@@ -3507,8 +3515,7 @@ class MainActivity : AppCompatActivity() {
                         } else if (streamOk) {
                             synchronized(streamBufferLock) { contentSb.toString() }
                         } else {
-                            val err = lastError?.message ?: "Unknown error"
-                            "请求失败: $err"
+                            formatChatRequestFailure(lastError)
                         }
 
                 if (floatingStreamStarted && FloatingChatService.isRunning()) {

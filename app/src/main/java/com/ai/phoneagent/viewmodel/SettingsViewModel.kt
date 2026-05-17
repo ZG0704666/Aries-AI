@@ -18,6 +18,7 @@ import com.ai.phoneagent.net.AriesOidcAuthManager
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ModelScopeModelDownloader
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -48,6 +49,7 @@ class SettingsViewModel(
     private var lastCheckedApiKey: String = ""
     private var qwenDownloadInFlight: Boolean = false
     private var apiInputTag: String = ""
+    private var apiModePersistJob: Job? = null
 
     var localModelReady by mutableStateOf(false)
         private set
@@ -239,6 +241,7 @@ class SettingsViewModel(
     }
 
     fun onApiModeChange(mode: ApiMode, onToast: (String) -> Unit) {
+        if (apiModePersistJob?.isActive == true) return
         if (mode == currentApiMode) return
         if (!showAriesApiSection && (mode == ApiMode.Local || mode == ApiMode.Aries)) return
         applyApiModeState(mode)
@@ -759,7 +762,8 @@ class SettingsViewModel(
     }
 
     private fun persistApiMode(clearCheckResults: Boolean) {
-        viewModelScope.launch {
+        apiModePersistJob?.cancel()
+        apiModePersistJob = viewModelScope.launch {
             persistApiModeState(clearCheckResults = clearCheckResults)
         }
     }

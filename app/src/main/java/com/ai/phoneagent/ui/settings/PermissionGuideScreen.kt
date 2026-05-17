@@ -22,9 +22,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.ArrowLeft
-import com.composables.icons.lucide.Accessibility
 import com.composables.icons.lucide.Layers
 import com.composables.icons.lucide.Mic
+import com.composables.icons.lucide.Smartphone
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -139,7 +139,7 @@ fun PermissionGuideScreen(
             )
 
             PermissionRow(
-                icon = { Icon(Lucide.Accessibility, contentDescription = null) },
+                icon = { Icon(Lucide.Smartphone, contentDescription = null) },
                 title = stringResource(R.string.perm_sheet_accessibility_title),
                 subtitle = stringResource(R.string.perm_sheet_accessibility_desc),
                 isGranted = accOk,

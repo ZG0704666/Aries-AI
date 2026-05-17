@@ -139,6 +139,14 @@ class AutomationViewModel(
 
     var statusText by mutableStateOf("")
         private set
+    var statusSummary by mutableStateOf("")
+        private set
+    var interactionModeText by mutableStateOf("")
+        private set
+    var accessibilityStatusText by mutableStateOf("")
+        private set
+    var shizukuStatusText by mutableStateOf("")
+        private set
     var taskText by mutableStateOf("")
         private set
     var taskHint by mutableStateOf("")
@@ -154,6 +162,8 @@ class AutomationViewModel(
     var useShizukuInteraction by mutableStateOf(false)
         private set
     var autoApprove by mutableStateOf(false)
+        private set
+    var showShizukuControls by mutableStateOf(false)
         private set
     var showShizukuAuthorize by mutableStateOf(false)
         private set
@@ -244,7 +254,12 @@ class AutomationViewModel(
     }
 
     fun onExecutionModeChange(backgroundMode: Boolean) {
+        if (backgroundMode && !ensureBackgroundModeReady()) {
+            checkAccessibilityStatus()
+            return
+        }
         setExecutionMode(backgroundMode)
+        checkAccessibilityStatus()
     }
 
     fun onShizukuModeChange(checked: Boolean) {
@@ -355,7 +370,9 @@ class AutomationViewModel(
     fun checkAccessibilityStatus() {
         try {
             val state = collectRuntimeConnectionState()
-            val canStart = resolveRuntimeInteractionPreference(useShizukuInteraction, state) != null
+            val shouldShowShizuku = state.shizukuBinderConnected
+            val effectiveUseShizuku = useShizukuInteraction && shouldShowShizuku
+            val canStart = resolveRuntimeInteractionPreference(effectiveUseShizuku, state) != null
             composeCanStart = canStart
             composeHasPartialConnection = state.accessibilityConnected || state.shizukuReady
 
@@ -365,9 +382,10 @@ class AutomationViewModel(
                 } else {
                     "请先满足当前模式的连接条件后再开始"
                 }
-            showShizukuAuthorize = state.shizukuBinderConnected
+            showShizukuControls = shouldShowShizuku
+            showShizukuAuthorize = shouldShowShizuku
             updateComposeControlState(canStart)
-            updateComposeStatusSnapshot(useShizukuInteraction, state, canStart)
+            updateComposeStatusSnapshot(effectiveUseShizuku, state, canStart)
         } catch (e: Exception) {
             Log.e("AutomationViewModel", "检查无障碍服务状态失败: ${e.message}", e)
         }
@@ -445,6 +463,21 @@ class AutomationViewModel(
         stopButtonEnabled = running
     }
 
+    private fun ensureBackgroundModeReady(): Boolean {
+        val state = collectRuntimeConnectionState()
+        if (!state.shizukuBinderConnected) {
+            Toast.makeText(appContext, R.string.automation_background_requires_shizuku, Toast.LENGTH_SHORT).show()
+            return false
+        }
+        if (!state.shizukuPermissionGranted) {
+            ensureShizukuPermissionGranted()
+            Toast.makeText(appContext, R.string.automation_background_requires_shizuku_permission, Toast.LENGTH_SHORT)
+                .show()
+            return false
+        }
+        return true
+    }
+
     private fun setExecutionMode(backgroundMode: Boolean) {
         isBackgroundMode = backgroundMode
         VirtualDisplayController.setShouldUseVirtualDisplay(backgroundMode)
@@ -467,8 +500,6 @@ class AutomationViewModel(
         checked: Boolean,
         userInitiated: Boolean = true,
     ) {
-        useShizukuInteraction = checked
-        VirtualDisplayConfig.setUseShizukuInteraction(appContext, checked)
         if (checked && userInitiated) {
             val state = collectRuntimeConnectionState()
             if (!state.shizukuBinderConnected) {
@@ -482,7 +513,12 @@ class AutomationViewModel(
                 checkAccessibilityStatus()
                 return
             }
+        }
 
+        useShizukuInteraction = checked
+        VirtualDisplayConfig.setUseShizukuInteraction(appContext, checked)
+
+        if (checked && userInitiated) {
             val latestState = collectRuntimeConnectionState()
             if (!latestState.accessibilityEnabled && latestState.shizukuReady) {
                 val granted = grantAccessibilityViaShizuku()
@@ -520,6 +556,10 @@ class AutomationViewModel(
         val summary =
             when {
                 canStart -> appContext.getString(R.string.automation_status_summary_ready)
+                isBackgroundMode && !state.shizukuBinderConnected ->
+                    appContext.getString(R.string.automation_status_summary_need_background_shizuku)
+                isBackgroundMode && !state.shizukuPermissionGranted ->
+                    appContext.getString(R.string.automation_status_summary_need_shizuku_permission)
                 useShizukuInteraction && !state.shizukuBinderConnected ->
                     appContext.getString(R.string.automation_status_summary_need_shizuku_connection)
                 useShizukuInteraction && !state.shizukuPermissionGranted ->
@@ -537,7 +577,11 @@ class AutomationViewModel(
             } else {
                 appContext.getString(R.string.automation_status_mode_accessibility)
             }
-        statusText = "$summary\n$modeLine\n$accLine | $shizukuLine"
+        statusSummary = summary
+        interactionModeText = modeLine
+        accessibilityStatusText = accLine
+        shizukuStatusText = shizukuLine
+        statusText = listOf(summary, modeLine, "$accLine | $shizukuLine").joinToString("\n")
     }
 
     private fun scheduleAccessibilityStatusSync(
@@ -659,6 +703,7 @@ class AutomationViewModel(
         state: RuntimeConnectionState,
     ): Boolean? {
         return when {
+            isBackgroundMode && !state.shizukuReady -> null
             preferShizuku && state.shizukuReady && state.accessibilityConnected -> true
             !preferShizuku && state.accessibilityConnected -> false
             else -> null
@@ -697,6 +742,10 @@ class AutomationViewModel(
         val task = taskText.trim()
         if (task.isBlank()) {
             Toast.makeText(appContext, "请输入任务", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (isBackgroundMode && !ensureBackgroundModeReady()) {
+            checkAccessibilityStatus()
             return
         }
         val fromHomeDispatch = overlayClickReturnToMain && lastDispatchedTask == task
@@ -745,12 +794,13 @@ class AutomationViewModel(
         }
 
         val state = collectRuntimeConnectionState()
-        var effectiveUseShizuku = resolveRuntimeInteractionPreference(useShizukuInteraction, state)
+        val preferShizukuInteraction = useShizukuInteraction && state.shizukuBinderConnected
+        var effectiveUseShizuku = resolveRuntimeInteractionPreference(preferShizukuInteraction, state)
         if (effectiveUseShizuku == null) {
             effectiveUseShizuku =
                 when {
-                    useShizukuInteraction && state.shizukuReady && state.accessibilityEnabled -> true
-                    !useShizukuInteraction && state.accessibilityEnabled -> false
+                    preferShizukuInteraction && state.shizukuReady && state.accessibilityEnabled -> true
+                    !preferShizukuInteraction && state.accessibilityEnabled -> false
                     allowAccessibilityPendingConnection && state.accessibilityEnabled -> false
                     else -> null
                 }
@@ -758,11 +808,16 @@ class AutomationViewModel(
 
         if (effectiveUseShizuku == null) {
             val msg =
-                if (!state.shizukuBinderConnected && !state.accessibilityConnected) {
+                if (isBackgroundMode && !state.shizukuBinderConnected) {
+                    appContext.getString(R.string.automation_background_requires_shizuku)
+                } else if (isBackgroundMode && !state.shizukuPermissionGranted) {
+                    ensureShizukuPermissionGranted()
+                    appContext.getString(R.string.automation_background_requires_shizuku_permission)
+                } else if (!state.shizukuBinderConnected && !state.accessibilityConnected) {
                     "未检测到可用连接，请先连接 Shizuku 或无障碍服务"
-                } else if (!useShizukuInteraction && !state.accessibilityConnected) {
+                } else if (!preferShizukuInteraction && !state.accessibilityConnected) {
                     "Shizuku 模式已关闭且无障碍未开启，请先开启无障碍或切换到 Shizuku 模式"
-                } else if (useShizukuInteraction && state.shizukuBinderConnected && !state.shizukuPermissionGranted) {
+                } else if (preferShizukuInteraction && state.shizukuBinderConnected && !state.shizukuPermissionGranted) {
                     ensureShizukuPermissionGranted()
                     "Shizuku 未授权，已发起授权请求，请授权后重试"
                 } else {
@@ -773,7 +828,7 @@ class AutomationViewModel(
             return
         }
 
-        if (useShizukuInteraction && !effectiveUseShizuku) {
+        if (preferShizukuInteraction && !effectiveUseShizuku) {
             appendLog("Shizuku 未就绪，已自动回退到无障碍执行")
         }
 
