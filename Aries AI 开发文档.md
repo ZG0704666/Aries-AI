@@ -1,6 +1,7 @@
 # Aries AI 开发文档
 
-> 最后更新：2026-02-28  
+> 最后更新：2026-05-17
+>
 > 当前版本：1.4.0 (versionCode 16)
 
 ## 📖 阅读指南
@@ -41,7 +42,8 @@
 - versionName: 1.4.0
 - targetSdk: 36 (Android 16)
 - minSdk: 30 (Android 11)
-- Kotlin: 2.0.21
+- Kotlin: 2.2.21
+- Gradle: 8.13
 - AGP: 8.13.2
 
 **核心功能状态**：
@@ -61,6 +63,62 @@
 - 复杂 UI 场景下的元素识别准确率有待提升
 - 长时间自动化任务的稳定性需要更多测试
 
+### 近期开发状态（2026-05-17）
+
+| 项目 | 状态 |
+|------|------|
+| 当前分支 | `pr-10` |
+| 对齐目标 | `beiyuge/alpha` |
+| 最近审查范围 | 2026-05-13 至 2026-05-17 的主页、设置、权限、自动化和 Markdown 渲染提交 |
+| 主要风险 | 流式 Markdown 渲染与最终 Markdown 渲染路径需要保持一致 |
+| 验证阻塞 | 当前本机环境未配置 `JAVA_HOME`，Gradle 测试无法执行 |
+
+#### 近期提交审查
+
+| 提交 | 主题 | 文档影响 |
+|------|------|----------|
+| `1591e6a` | 修复流式输出渲染 Markdown 问题 | 已补充流式 Markdown 缓冲、临时补全、代码高亮禁用策略 |
+| `59e18dd` | 自动化控制界面状态摘要和交互模式文本 | 已补充自动化控制 UI 与后台执行依赖提示说明 |
+| `fd369b2` | 429 与无障碍按钮 | 已补充错误恢复和权限入口相关状态 |
+| `4626ccf` | 权限行布局与 API 模式持久化 | 已补充设置页 API 模式持久化和权限布局说明 |
+| `9cb53e9` | 输入框、设置界面、附件提示文本 | 已补充主页输入栏和附件提示的开发注意点 |
+| `d14b51a` | 反馈日志打包与分享 | 已补充反馈日志作为问题排查路径 |
+
+#### 审查结论
+
+- 主页对话已经迁移到 Compose transcript 路径，`ConversationTranscript.kt` 是消息正文、思考折叠、自动化卡片和 Markdown 渲染的主要维护点。
+- 流式回复不能再走“裸 Markdown 文本 -> 最终 Markdown 渲染”的两阶段视觉路径；应使用渲染缓冲区和 `safeMarkdown` 快照，从一开始保持 Markdown 形态。
+- 代码块渲染应统一走 `ui.components.markdown.CodeBlock`，避免流式和最终消息使用两套代码块 UI。
+- 流式阶段应禁用代码高亮的异步重算，最终消息再启用完整高亮和工具栏，减少文本和容器跳动。
+- 设置页、权限引导、自动化控制页的用户可见文案持续增加，新增文案必须进入 `strings.xml`。
+
+#### 当前开发重点
+
+| 方向 | 当前约定 |
+|------|----------|
+| 主页流式 Markdown | 原始输出保留在 raw buffer，UI 使用节流后的 render preview |
+| 代码块 | 流式阶段保留代码块形态但禁用高亮，结束后使用完整 Markdown/CodeBlock 渲染 |
+| 自动化控制 | UI 显示状态摘要、交互模式和后台执行依赖，文案统一走字符串资源 |
+| 权限与设置 | 权限入口保持可见且可恢复；API 模式选择需要持久化到 SettingsViewModel 对应状态 |
+| 问题反馈 | 日志打包和分享是 429、权限、模型请求失败的首选排查材料 |
+
+#### 验证记录
+
+建议执行：
+
+```bash
+./gradlew :app:testDebugUnitTest --tests "com.ai.phoneagent.ui.messages.StreamingTranscriptPreviewTest"
+./gradlew :app:compileDebugKotlin
+```
+
+当前阻塞：
+
+```text
+ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
+```
+
+处理方式：安装 JDK 17 或使用 Android Studio 自带 JBR，设置 `JAVA_HOME` 后重新执行上述 Gradle 任务。
+
 ---
 
 ## 🏗️ 技术架构
@@ -71,8 +129,10 @@
 Aries AI
 ├── 对话系统
 │   ├── MainActivity.kt - 主对话界面
+│   ├── ui/messages/ConversationTranscript.kt - Compose 消息列表与流式 Markdown
+│   ├── ui/components/markdown/ - Markdown 与代码块渲染
 │   ├── FloatingChatService.kt - 小窗模式
-│   └── helper/ - 流式解析、Markdown 渲染
+│   └── helper/ - 流式解析与兼容辅助
 ├── 自动化系统
 │   ├── UiAutomationAgent.kt - Agent 主循环
 │   ├── core/executor/ - 动作执行器
@@ -150,7 +210,7 @@ export JAVA_HOME=/path/to/jdk-17
 
 ### 代码规范
 
-详见 [CODING_STANDARDS.md](./CODING_STANDARDS.md)
+详见 [CODING_STANDARDS.md](./docs/CODING_STANDARDS.md)
 
 **核心原则**：
 - Kotlin 优先，遵循官方风格指南
@@ -313,6 +373,20 @@ AutoGlmClient.sendChatResult(
 完整版本历史见 [更新记录](#更新记录)。
 
 ### 更新记录
+
+#### 2026-05-17 - 开发状态整合与流式 Markdown 优化
+
+**文档整合**：
+- 将近期提交审查、当前开发重点和验证状态合并到本开发文档，避免 `docs/` 下出现临时状态文档。
+- 后续 Wiki 同步以本文件作为主开发文档入口，专题文档继续保留在 `docs/` 目录。
+
+**主页 Markdown 渲染**：
+- 主页流式回复使用渲染缓冲区和 `safeMarkdown` 快照，减少裸 Markdown 到最终渲染的跳变。
+- 流式阶段保留代码块形态但禁用高亮，最终消息再启用完整 Markdown/CodeBlock 渲染。
+
+**验证状态**：
+- 已记录建议验证命令。
+- 当前本机缺少 `JAVA_HOME`/`java`，Gradle 验证需配置 JDK 后执行。
 
 #### 2026-02-28 - v1.4.0
 
@@ -482,15 +556,16 @@ app/src/main/java/com/ai/phoneagent/
 **核心依赖**：
 - Kotlin Coroutines - 异步编程
 - OkHttp/Retrofit - 网络请求
-- Markwon - Markdown 渲染
+- JetBrains Markdown / Compose Markdown Renderer - Markdown 解析与渲染
 - Sherpa-ncnn - 语音识别
 - Shizuku - 系统级权限
 
 **版本要求**：
-- Kotlin: 2.0.21
-- Coroutines: 1.7.3
-- OkHttp: 4.12.0
-- Retrofit: 2.9.0
+- Kotlin: 2.2.21
+- Compose BOM: 2024.12.01
+- kotlinx.serialization-json: 1.7.3
+- JetBrains Markdown: 0.7.3
+- Compose Markdown Renderer: 0.27.0
 
 ### 常用应用包名
 
@@ -598,6 +673,6 @@ val commonApps = mapOf(
 
 ---
 
-**文档版本**：v2.0  
-**最后更新**：2026-02-28  
+**文档版本**：v2.1
+**最后更新**：2026-05-17
 **维护者**：ZG0704666

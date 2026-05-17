@@ -96,8 +96,13 @@ fun CodeBlock(
     var tokens by remember(code, language) {
         mutableStateOf<List<HighlightToken>>(listOf(HighlightToken.Plain(code)))
     }
-    LaunchedEffect(code, language) {
-        tokens = Highlighter.highlight(code, language)
+    LaunchedEffect(code, language, settings.enableCodeHighlight) {
+        tokens =
+            if (settings.enableCodeHighlight) {
+                Highlighter.highlight(code, language)
+            } else {
+                listOf(HighlightToken.Plain(code))
+            }
     }
 
     // ── UI state ──────────────────────────────────────────────────────────────
