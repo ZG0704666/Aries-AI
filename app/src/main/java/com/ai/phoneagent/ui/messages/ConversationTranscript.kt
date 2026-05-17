@@ -1198,6 +1198,20 @@ fun buildStreamingTranscriptBodyPreview(text: String): StreamingTranscriptBodyPr
     }
 
     val snapshot = buildStreamingMarkdownSnapshot(text)
+    if (snapshot.committedPrefixLength >= text.length) {
+        val renderText = buildStreamingSafeMarkdown(text)
+        return StreamingTranscriptBodyPreview(
+            usesMarkdownPreview = true,
+            committedBlocks = emptyList<String>().toImmutableList(),
+            committedPrefixLength = 0,
+            tailText = text,
+            renderMarkdownText = renderText,
+            showLoadingIndicator = false,
+            fullTextLength = text.length,
+            layoutVersion = computeStreamingBodyLayoutVersion(0, renderText),
+        )
+    }
+
     val tailText = renderableStreamingTailText(text, snapshot.committedPrefixLength)
     val renderedTailText = if (snapshot.blocks.isEmpty()) text else tailText
     val renderMarkdownText = buildStreamingSafeMarkdown(renderedTailText)
