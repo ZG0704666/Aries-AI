@@ -10,7 +10,7 @@
 
 [![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android%2011+-green.svg)]()
-[![Kotlin](https://img.shields.io/badge/Kotlin-1.9+-purple.svg)]()
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.2-purple.svg)]()
 [![Stars](https://img.shields.io/github/stars/ZG0704666/Aries-AI?style=social)](https://github.com/ZG0704666/Aries-AI)
 
 [快速开始](#-快速开始) • [核心特性](#-核心特性) • [技术文档](./docs/TECHNICAL_OVERVIEW.md) • [FAQ](./docs/FAQ.md)
@@ -107,7 +107,7 @@ cd Aries-AI
 adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
-**环境要求**：JDK 17+、Android SDK 34+、Gradle 8.0+
+**环境要求**：JDK 17+、Android SDK 36、Gradle 8.13
 
 详细构建指南请查看 [BUILDING.md](./docs/BUILDING.md)
 
@@ -184,7 +184,7 @@ val result = agent.run(
 - IME 完全隔离（防止焦点死锁）
 - 多重降级兼容（支持各版本 Android 和 ROM）
 
-> 📚 **详细技术文档**：[TECHNICAL_OVERVIEW.md](./TECHNICAL_OVERVIEW.md)
+> 📚 **详细技术文档**：[TECHNICAL_OVERVIEW.md](./docs/TECHNICAL_OVERVIEW.md)
 
 ---
 
@@ -205,6 +205,7 @@ Aries-AI/
 │   ├── CODING_STANDARDS.md   # 代码规范
 │   ├── GIT_WORKFLOW.md       # Git 工作流
 │   └── TECHNICAL_OVERVIEW.md # 技术文档 ⭐
+├── Aries AI 开发文档.md       # 主开发文档与当前状态
 └── README.md
 ```
 
@@ -212,17 +213,19 @@ Aries-AI/
 
 | 文档 | 说明 |
 |------|------|
+| [Aries AI 开发文档.md](<./Aries AI 开发文档.md>) | 主开发文档、近期提交审查、当前开发状态、验证记录 |
 | [BUILDING.md](./docs/BUILDING.md) | 环境配置、依赖安装、编译运行 |
 | [CODING_STANDARDS.md](./docs/CODING_STANDARDS.md) | 代码规范、命名规则、注释要求 |
 | [GIT_WORKFLOW.md](./docs/GIT_WORKFLOW.md) | Git 使用规范、分支管理、提交规范 |
-| [TECHNICAL_OVERVIEW.md](./TECHNICAL_OVERVIEW.md) | 核心技术实现与优势 ⭐ |
+| [TECHNICAL_OVERVIEW.md](./docs/TECHNICAL_OVERVIEW.md) | 核心技术实现与优势 ⭐ |
 
 ### 技术栈
 
-- **语言**：Kotlin 1.9+
-- **构建**：Gradle 8.0+
+- **语言**：Kotlin 2.2.x
+- **构建**：Gradle 8.13 + AGP 8.13.x
 - **异步**：Kotlin Coroutines
 - **权限管理**：Shizuku（系统级权限）
+- **界面**：Jetpack Compose + Material 3
 - **图形处理**：OpenGL ES 3.0+
 - **虚拟屏**：VirtualDisplay + SurfaceTexture
 

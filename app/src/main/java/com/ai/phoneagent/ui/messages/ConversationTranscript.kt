@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -723,7 +724,6 @@ private fun AssistantMessageBlock(
     val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
     val transcriptBlockGap = dimensionResource(R.dimen.m3t_transcript_block_gap)
-    val codeBlockPrefs = LocalCodeBlockPrefs.current
 
     Column(
         modifier = Modifier
@@ -863,6 +863,7 @@ private fun StreamingAssistantBodyPreview(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = streamingElevation,
+        modifier = Modifier.heightIn(min = 44.dp),
     ) {
         if (showLoadingIndicator) {
             StreamingLoadingIndicator(
@@ -878,6 +879,7 @@ private fun StreamingAssistantBodyPreview(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = spacingMd, vertical = spacingMd),
+                settings = LocalMarkdownSettings.current.copy(enableCodeHighlight = false),
             )
         } else {
             Column(
@@ -892,6 +894,7 @@ private fun StreamingAssistantBodyPreview(
                         Markdown(
                             text = block,
                             modifier = Modifier.fillMaxWidth(),
+                            settings = LocalMarkdownSettings.current.copy(enableCodeHighlight = false),
                         )
                     }
                 }
@@ -900,6 +903,7 @@ private fun StreamingAssistantBodyPreview(
                     Markdown(
                         text = preview.renderMarkdownText,
                         modifier = Modifier.fillMaxWidth(),
+                        settings = LocalMarkdownSettings.current.copy(enableCodeHighlight = false),
                     )
                 }
             }
@@ -961,7 +965,6 @@ private fun AssistantMessageBody(
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
     val streamingElevation = dimensionResource(R.dimen.m3t_message_streaming_tonal_elevation)
-    val codeBlockPrefs = LocalCodeBlockPrefs.current
     Surface(
         shape = MaterialTheme.shapes.large,
         color = if (isStreaming) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.surface,
@@ -982,13 +985,13 @@ private fun AssistantMessageBody(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = spacingMd, vertical = spacingMd),
+                settings = LocalMarkdownSettings.current.copy(enableCodeHighlight = false),
             )
         } else {
             AssistantMessageFinalBody(
                 body = body,
                 spacingMd = spacingMd,
                 spacingXs = spacingXs,
-                codeBlockPrefs = codeBlockPrefs,
             )
         }
     }
@@ -999,39 +1002,16 @@ private fun AssistantMessageFinalBody(
     body: String,
     spacingMd: Dp,
     spacingXs: Dp,
-    codeBlockPrefs: CodeBlockPrefs,
 ) {
-    val transcriptBlockGap = dimensionResource(R.dimen.m3t_transcript_block_gap)
-    val segments = remember(body) { parseMessageBodySegments(body) }
-    val bodyKeyPrefix = remember(body) { body.hashCode().toString() }
-
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = spacingMd, vertical = spacingXs),
-        verticalArrangement = Arrangement.spacedBy(transcriptBlockGap),
     ) {
-        segments.forEachIndexed { index, segment ->
-            when (segment) {
-                is MessageBodySegment.MarkdownText -> {
-                    Markdown(
-                        text = segment.content,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-
-                is MessageBodySegment.CodeFence -> {
-                    Box(modifier = Modifier.padding(end = spacingMd)) {
-                        CodeBlockSegment(
-                            language = segment.language,
-                            code = segment.content,
-                            blockKey = "$bodyKeyPrefix-$index",
-                            prefs = codeBlockPrefs,
-                        )
-                    }
-                }
-            }
-        }
+        Markdown(
+            text = body,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -1139,6 +1119,7 @@ private fun StreamingMarkdownPreview(
         Markdown(
             text = buildStreamingSafeMarkdown(renderedTailText.ifBlank { text }),
             modifier = modifier.fillMaxWidth(),
+            settings = LocalMarkdownSettings.current.copy(enableCodeHighlight = false),
         )
         return
     }
@@ -1158,6 +1139,7 @@ private fun StreamingMarkdownPreview(
             Markdown(
                 text = buildStreamingSafeMarkdown(renderedTailText),
                 modifier = Modifier.fillMaxWidth(),
+                settings = LocalMarkdownSettings.current.copy(enableCodeHighlight = false),
             )
         }
     }

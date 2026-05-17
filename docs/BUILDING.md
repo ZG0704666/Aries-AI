@@ -25,7 +25,7 @@
 | JDK | 17 | 21（Android Studio 自带 JBR） | https://developer.android.com/studio |
 | Android Studio | Hedgehog (2023.1.1) | Ladybug (2024.2.1) 或更高 | https://developer.android.com/studio |
 | Gradle | 8.13（Wrapper） | 8.13（Wrapper） | 使用项目自带 gradlew |
-| Kotlin | 2.0.21 | 2.0.21 | 由项目配置 |
+| Kotlin | 2.2.21 | 2.2.21 | 由项目配置 |
 | AGP | 8.13.2 | 8.13.2 | 由项目配置 |
 | Git | 2.30+ | 2.40+ | https://git-scm.com/downloads |
 
@@ -53,7 +53,7 @@ git --version
 
 # 检查 Kotlin 版本
 ./gradlew --version | grep Kotlin
-# 应输出：Kotlin version 2.0.21
+# 应输出：Kotlin version 2.2.21
 
 # 检查 AGP 版本
 cat gradle/libs.versions.toml | grep agp
@@ -64,7 +64,7 @@ cat gradle/libs.versions.toml | grep agp
 
 - **Gradle 版本**：`gradle/wrapper/gradle-wrapper.properties` → `distributionUrl`
 - **AGP 版本**：`gradle/libs.versions.toml` → `agp = "8.13.2"`
-- **Kotlin 版本**：`gradle/libs.versions.toml` → `kotlin = "2.0.21"`
+- **Kotlin 版本**：`gradle/libs.versions.toml` → `kotlin = "2.2.21"`
 - **应用版本**：`app/build.gradle.kts` → `defaultConfig` 中的 `versionCode` 和 `versionName`
 - **仓库配置**：`settings.gradle.kts` → `repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)`
 
@@ -99,14 +99,14 @@ adb --version
 | AndroidX AppCompat | 1.7.1 | 向后兼容 |
 | Material Design | 1.13.0 | UI 组件 |
 
-### 2.2 其他依赖（在 app/build.gradle.kts 中直接声明）
+### 2.2 核心运行依赖
 
-以下依赖未在 Version Catalog 中定义，而是在 `app/build.gradle.kts` 中直接声明：
+以下是项目主要运行依赖，具体版本以 `gradle/libs.versions.toml` 和 `app/build.gradle.kts` 为准：
 
 - Kotlin Coroutines（异步编程）
 - OkHttp / Retrofit（网络请求）
-- Gson（JSON 序列化）
-- Markwon（Markdown 渲染）
+- kotlinx.serialization / Gson 遗留路径（JSON 序列化）
+- JetBrains Markdown / Compose Markdown Renderer（Markdown 渲染）
 - Shizuku（系统级权限）
 - Sherpa-ncnn（语音识别）
 
@@ -508,8 +508,10 @@ Heap Size: 4096 MB
 ## 📚 八、相关文档
 
 - [FEISHU_COLLABORATION.md](./FEISHU_COLLABORATION.md) - 飞书协作文档模板
+- [Aries AI 开发文档.md](<../Aries AI 开发文档.md>) - 主开发文档与当前状态
 - [CODING_STANDARDS.md](./CODING_STANDARDS.md) - 代码规范
 - [GIT_WORKFLOW.md](./GIT_WORKFLOW.md) - Git工作流
+- [TECHNICAL_OVERVIEW.md](./TECHNICAL_OVERVIEW.md) - 技术架构
 - [README.md](../README.md) - 项目概述
 
 ---
@@ -531,6 +533,6 @@ Heap Size: 4096 MB
 
 ---
 
-**文档版本**：v1.3
-**最后更新**：2026-02-28
+**文档版本**：v1.4
+**最后更新**：2026-05-17
 **维护人**：ZG0704666

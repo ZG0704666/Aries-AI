@@ -11,6 +11,7 @@
 - [三、Git提交规范](#三git提交规范)
 - [四、测试规范](#四测试规范)
 - [五、文档规范](#五文档规范)
+- [六、Compose 与 Markdown 渲染规范](#六compose-与-markdown-渲染规范)
 
 ---
 
@@ -790,6 +791,62 @@ cd phone-agent
 
 ---
 
+## 六、Compose 与 Markdown 渲染规范
+
+### 6.1 流式 UI 状态分层
+
+流式回复必须区分原始数据和渲染快照：
+
+| 层级 | 说明 |
+|------|------|
+| raw buffer | 保存模型原始输出，用于复制、持久化和最终消息 |
+| render preview | 节流后的 UI 可见快照，用于减少重组频率 |
+| safe Markdown | 只用于展示的临时 Markdown 补全结果 |
+
+要求：
+
+- 不要每个 token 都直接驱动 Compose 树重组。
+- 不要把临时补全写回原始消息。
+- `copyText` 和持久化内容必须保留模型原文。
+
+### 6.2 Markdown 渲染路径
+
+主页消息正文统一走 `ui.components.markdown.Markdown`。
+
+要求：
+
+- 流式阶段从一开始就渲染 Markdown，不先展示裸 Markdown 原文。
+- 最终消息与流式消息使用同一套 Markdown/CodeBlock 组件，避免结束后代码块样式回退。
+- 流式阶段可通过 `MarkdownSettings(enableCodeHighlight = false)` 禁用代码高亮异步重算。
+- 最终消息再启用完整代码高亮、复制、保存、换行和行号工具栏。
+
+### 6.3 防跳布局
+
+流式消息需要控制布局稳定性：
+
+- 消息容器应设置合理的最小高度，避免首包和短文本阶段高度抖动。
+- 不要在流式正文上叠加复杂动画或频繁 `animateContentSize`。
+- 宽度必须稳定，避免滚动条、内外层卡片或临时按钮导致换行点变化。
+- 新增颜色、间距、尺寸优先使用 `m3t.xml` token。
+
+### 6.4 测试要求
+
+修改 Markdown 或流式 transcript 时，至少覆盖：
+
+- 首包前 loading 状态
+- 普通文本缓冲推进
+- 标题、列表、代码块等 Markdown 结构识别
+- 未闭合 Markdown 的临时补全
+- 最终原文不被临时补全污染
+
+优先补充或运行：
+
+```bash
+./gradlew :app:testDebugUnitTest --tests "com.ai.phoneagent.ui.messages.StreamingTranscriptPreviewTest"
+```
+
+---
+
 ## 📋 检查清单
 
 在提交代码前，请确认：
@@ -811,6 +868,7 @@ cd phone-agent
 ### 文档要求
 - [ ] 公共API有文档
 - [ ] README已更新
+- [ ] `Aries AI 开发文档.md` 已记录重要近期变化
 - [ ] 变更说明完整
 
 ### Git要求
@@ -821,6 +879,6 @@ cd phone-agent
 
 ---
 
-**文档版本**：v1.3
-**最后更新**：2026-02-28
+**文档版本**：v1.4
+**最后更新**：2026-05-17
 **维护人**：ZG0704666

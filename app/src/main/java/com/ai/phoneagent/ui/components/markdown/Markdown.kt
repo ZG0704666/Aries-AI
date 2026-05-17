@@ -84,6 +84,8 @@ data class MarkdownSettings(
     val lineNumbers: Boolean  = false,
     /** Auto-collapse code blocks with more than 10 lines. */
     val autoCollapse: Boolean = false,
+    /** Syntax-highlight code blocks. Disable during streaming to avoid layout churn. */
+    val enableCodeHighlight: Boolean = true,
     /** Render LaTeX formulas using JLatexMath (falls back to monospace if false). */
     val enableLatex: Boolean  = true,
 )
