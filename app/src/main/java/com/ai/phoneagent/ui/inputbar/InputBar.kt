@@ -3,9 +3,7 @@ package com.ai.phoneagent.ui.inputbar
 import com.ai.phoneagent.R
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
@@ -26,15 +24,18 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import kotlin.random.Random
@@ -60,6 +61,8 @@ fun InputBar(
     onUpdateCancelState: (Boolean) -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val density = LocalDensity.current
+    val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val spacingXxxs = dimensionResource(R.dimen.m3t_spacing_xxxs)
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
@@ -67,7 +70,6 @@ fun InputBar(
     val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
     val radiusXl = dimensionResource(R.dimen.m3t_radius_xl)
-    val strokeThin = dimensionResource(R.dimen.m3t_stroke_thin)
     val inputBarMaxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
     val inputBarHeight = dimensionResource(R.dimen.m3t_input_bar_height) - spacingXs
     val inputBarVoiceHeight = dimensionResource(R.dimen.m3t_input_bar_voice_height) - spacingXs
@@ -81,15 +83,24 @@ fun InputBar(
     val showVoiceOverlay = state is InputState.VoiceRecording || state is InputState.VoiceRecognizing
     val isVoiceMode = state is InputState.VoiceIdle || showVoiceOverlay
     val isGenerating = state is InputState.Generating
+    val imeVisible = WindowInsets.ime.getBottom(density) > 0
     val hasText = text.isNotBlank()
     val canSubmit = isGenerating || hasText || hasAttachments
     val showAssistantEntry = !canSubmit
     var wantsExpandedComposer by remember { mutableStateOf(false) }
     var isTextFieldFocused by remember { mutableStateOf(false) }
+    var imeWasVisible by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
-    val isComposerExpanded = !showAssistantEntry || wantsExpandedComposer || isTextFieldFocused
+    val isComposerExpanded = wantsExpandedComposer || isTextFieldFocused
     val containerColor = colorScheme.surfaceContainerHigh
     val actionContainerColor = colorScheme.surfaceContainerHighest
+    val collapsedDisplayText =
+        when {
+            hasText -> text.replace("\n", " ").trim()
+            hasAttachments -> stringResource(R.string.input_attachment_ready)
+            else -> stringResource(R.string.input_hint)
+        }
+    val collapsedDisplayColor = if (canSubmit) colorScheme.onSurface else colorScheme.onSurfaceVariant
     val sendContainerColor by animateColorAsState(
         targetValue =
             when {
@@ -125,19 +136,29 @@ fun InputBar(
         if (isVoiceMode) {
             wantsExpandedComposer = false
             isTextFieldFocused = false
+            imeWasVisible = false
             return@LaunchedEffect
         }
-        if (isComposerExpanded && showAssistantEntry) {
+        if (isComposerExpanded) {
             focusRequester.requestFocus()
             keyboardController?.show()
         }
     }
 
-    LaunchedEffect(showAssistantEntry) {
-        if (!showAssistantEntry) {
-            wantsExpandedComposer = true
-        } else if (!isTextFieldFocused) {
-            wantsExpandedComposer = false
+    LaunchedEffect(imeVisible, isVoiceMode) {
+        if (isVoiceMode) {
+            imeWasVisible = false
+            return@LaunchedEffect
+        }
+        if (imeVisible) {
+            imeWasVisible = true
+        } else if (imeWasVisible) {
+            collapseComposer(
+                focusManager = focusManager,
+                onFocusChanged = { isTextFieldFocused = it },
+                onExpandedChanged = { wantsExpandedComposer = it },
+            )
+            imeWasVisible = false
         }
     }
 
@@ -184,7 +205,6 @@ fun InputBar(
                             .height(containerHeight),
                         shape = inputShape,
                         color = containerColor,
-                        border = BorderStroke(strokeThin, colorScheme.outlineVariant),
                     ) {
                         Box(
                             modifier = Modifier
@@ -214,7 +234,6 @@ fun InputBar(
                                 buttonSize = iconButtonSize,
                                 iconSize = iconSize,
                                 containerColor = actionContainerColor,
-                                border = BorderStroke(strokeThin, colorScheme.outlineVariant),
                             ) {
                                 Icon(
                                     imageVector = Lucide.Keyboard,
@@ -291,7 +310,6 @@ fun InputBar(
                                     buttonSize = outerButtonSize,
                                     iconSize = iconSize,
                                     containerColor = actionContainerColor,
-                                    border = BorderStroke(strokeThin, colorScheme.outlineVariant),
                                 ) {
                                     Icon(
                                         imageVector = Lucide.Plus,
@@ -307,7 +325,6 @@ fun InputBar(
                                         .heightIn(min = containerHeight)
                                         .clip(inputShape)
                                         .background(containerColor)
-                                        .border(BorderStroke(strokeThin, colorScheme.outlineVariant), inputShape)
                                         .padding(horizontal = spacingMd, vertical = spacingXs)
                                         .animateEnterExit(
                                             enter = fadeIn(
@@ -337,8 +354,12 @@ fun InputBar(
                                             .focusRequester(focusRequester)
                                             .onFocusChanged { focusState ->
                                                 isTextFieldFocused = focusState.isFocused
-                                                if (!focusState.isFocused && showAssistantEntry) {
-                                                    wantsExpandedComposer = false
+                                                if (!focusState.isFocused && !imeVisible) {
+                                                    collapseComposer(
+                                                        focusManager = focusManager,
+                                                        onFocusChanged = { isTextFieldFocused = it },
+                                                        onExpandedChanged = { wantsExpandedComposer = it },
+                                                    )
                                                 }
                                             },
                                         textStyle = MaterialTheme.typography.bodyLarge.copy(color = colorScheme.onSurface),
@@ -437,7 +458,6 @@ fun InputBar(
                                     ),
                                 shape = inputShape,
                                 color = containerColor,
-                                border = BorderStroke(strokeThin, colorScheme.outlineVariant),
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -469,28 +489,48 @@ fun InputBar(
                                         contentAlignment = Alignment.CenterStart,
                                     ) {
                                         Text(
-                                            text = stringResource(R.string.input_hint),
+                                            text = collapsedDisplayText,
                                             style = MaterialTheme.typography.bodyMedium,
-                                            color = colorScheme.onSurfaceVariant,
+                                            color = collapsedDisplayColor,
                                             maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
                                         )
                                     }
 
                                     PrimaryInputBarActionButton(
-                                        onClick = { onModeChange(true) },
+                                        onClick = if (showAssistantEntry) {
+                                            { onModeChange(true) }
+                                        } else {
+                                            onSend
+                                        },
                                         modifier = Modifier
                                             .size(collapsedPrimaryButtonSize)
                                             .scale(sendButtonScale),
                                         containerColor = sendContainerColor,
                                         contentColor = sendContentColor,
-                                        brush = assistantEntryBrush,
+                                        brush = if (showAssistantEntry) assistantEntryBrush else null,
                                     ) {
-                                        Icon(
-                                            imageVector = Lucide.Mic,
-                                            contentDescription = stringResource(R.string.voice_input),
-                                            tint = sendContentColor,
-                                            modifier = Modifier.size(iconSize),
-                                        )
+                                        if (showAssistantEntry) {
+                                            Icon(
+                                                imageVector = Lucide.Mic,
+                                                contentDescription = stringResource(R.string.voice_input),
+                                                tint = sendContentColor,
+                                                modifier = Modifier.size(iconSize),
+                                            )
+                                        } else {
+                                            Icon(
+                                                painter = painterResource(
+                                                    id = if (isGenerating) R.drawable.ic_stop_24 else R.drawable.ic_send_24,
+                                                ),
+                                                contentDescription = if (isGenerating) {
+                                                    stringResource(R.string.input_stop_generating)
+                                                } else {
+                                                    stringResource(R.string.send)
+                                                },
+                                                tint = sendContentColor,
+                                                modifier = Modifier.size(sendIconSize),
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -697,12 +737,10 @@ private fun InputBarIconButton(
     iconSize: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
     containerColor: Color = Color.Transparent,
-    border: BorderStroke? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(
         modifier = modifier
-            .then(if (border != null) Modifier.border(border, CircleShape) else Modifier)
             .size(buttonSize)
             .clip(CircleShape)
             .background(containerColor)
@@ -737,6 +775,16 @@ private fun PrimaryInputBarActionButton(
             content()
         }
     }
+}
+
+private fun collapseComposer(
+    focusManager: FocusManager,
+    onFocusChanged: (Boolean) -> Unit,
+    onExpandedChanged: (Boolean) -> Unit,
+) {
+    focusManager.clearFocus(force = true)
+    onFocusChanged(false)
+    onExpandedChanged(false)
 }
 
 

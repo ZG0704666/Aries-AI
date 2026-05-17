@@ -3,6 +3,7 @@ package com.ai.phoneagent.ui.settings
 import android.content.res.Configuration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.composables.icons.lucide.Lucide
@@ -43,7 +43,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -84,6 +83,12 @@ private data class SettingsEntryUi(
     val type: SettingsEntryType,
     val title: String,
     val subtitle: String,
+    val icon: ImageVector,
+)
+
+private data class SettingsSectionUi(
+    val title: String,
+    val entries: List<SettingsEntryUi>,
 )
 
 private data class ApiModeOptionUi(
@@ -103,10 +108,8 @@ fun DrawerSettingsScreen(
     onOpenAbout: () -> Unit,
 ) {
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
     val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
-    val radiusXl = dimensionResource(R.dimen.m3t_radius_xl)
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
     val entries =
@@ -115,21 +118,25 @@ fun DrawerSettingsScreen(
                 type = SettingsEntryType.Appearance,
                 title = stringResource(R.string.settings_entry_appearance_title),
                 subtitle = stringResource(R.string.settings_entry_appearance_subtitle),
+                icon = Lucide.Sparkles,
             ),
             SettingsEntryUi(
                 type = SettingsEntryType.ModelApi,
                 title = stringResource(R.string.settings_entry_model_api_title),
                 subtitle = stringResource(R.string.settings_entry_model_api_subtitle),
+                icon = Lucide.KeyRound,
             ),
             SettingsEntryUi(
                 type = SettingsEntryType.Automation,
                 title = stringResource(R.string.settings_entry_automation_title),
                 subtitle = stringResource(R.string.settings_entry_automation_subtitle),
+                icon = Lucide.Cpu,
             ),
             SettingsEntryUi(
                 type = SettingsEntryType.About,
                 title = stringResource(R.string.settings_entry_about_title),
                 subtitle = stringResource(R.string.settings_entry_about_subtitle),
+                icon = Lucide.Info,
             ),
         )
 
@@ -142,12 +149,29 @@ fun DrawerSettingsScreen(
         }
     val sections =
         listOf(
-            stringResource(R.string.settings_section_appearance) to entries.filter { it.type == SettingsEntryType.Appearance },
-            stringResource(R.string.settings_section_model_automation) to entries.filter {
-                it.type == SettingsEntryType.ModelApi || it.type == SettingsEntryType.Automation
-            },
-            stringResource(R.string.settings_section_about) to entries.filter { it.type == SettingsEntryType.About },
+            SettingsSectionUi(
+                title = stringResource(R.string.settings_section_appearance),
+                entries = entries.filter { it.type == SettingsEntryType.Appearance },
+            ),
+            SettingsSectionUi(
+                title = stringResource(R.string.settings_section_model_automation),
+                entries = entries.filter {
+                    it.type == SettingsEntryType.ModelApi || it.type == SettingsEntryType.Automation
+                },
+            ),
+            SettingsSectionUi(
+                title = stringResource(R.string.settings_section_about),
+                entries = entries.filter { it.type == SettingsEntryType.About },
+            ),
         )
+    val openEntry: (SettingsEntryType) -> Unit = { type ->
+        when (type) {
+            SettingsEntryType.Appearance -> onOpenAppearance()
+            SettingsEntryType.ModelApi -> onOpenModelApi()
+            SettingsEntryType.Automation -> onOpenAutomation()
+            SettingsEntryType.About -> onOpenAbout()
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -177,69 +201,175 @@ fun DrawerSettingsScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
                     .navigationBarsPadding(),
-            contentPadding = PaddingValues(top = spacingSm, bottom = spacingXl),
+            contentPadding = PaddingValues(start = spacingLg, top = spacingSm, end = spacingLg, bottom = spacingXl),
+            verticalArrangement = Arrangement.spacedBy(spacingSm),
         ) {
             item {
-                OutlinedTextField(
+                SettingsHomeHeader(
+                    title = stringResource(R.string.settings_title),
+                    subtitle = stringResource(R.string.settings_subtitle),
+                    entryCount = entries.size,
+                )
+            }
+
+            item {
+                SettingsSearchField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = spacingLg, vertical = spacingSm),
-                    singleLine = true,
-                    leadingIcon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_search_24),
-                            contentDescription = null,
-                        )
-                    },
-                    placeholder = { Text(text = stringResource(R.string.settings_search_hint)) },
-                    shape = RoundedCornerShape(radiusXl),
+                    placeholder = stringResource(R.string.settings_search_hint),
                 )
             }
 
             if (searchQuery.isBlank()) {
-                sections.forEach { (header, sectionEntries) ->
-                    item(key = "header_$header") {
-                        SettingsSectionHeader(title = header)
-                    }
-                    items(sectionEntries, key = { it.type.name }) { entry ->
-                        SettingsEntryRow(
-                            entry = entry,
-                            onClick = {
-                                when (entry.type) {
-                                    SettingsEntryType.Appearance -> onOpenAppearance()
-                                    SettingsEntryType.ModelApi -> onOpenModelApi()
-                                    SettingsEntryType.Automation -> onOpenAutomation()
-                                    SettingsEntryType.About -> onOpenAbout()
-                                }
-                            },
+                sections.forEach { section ->
+                    item(key = "section_${section.title}") {
+                        SettingsSectionCard(
+                            title = section.title,
+                            entries = section.entries,
+                            onEntryClick = openEntry,
                         )
                     }
                 }
             } else {
-                items(filteredEntries, key = { it.type.name }) { entry ->
-                    SettingsEntryRow(
-                        entry = entry,
-                        onClick = {
-                            when (entry.type) {
-                                SettingsEntryType.Appearance -> onOpenAppearance()
-                                SettingsEntryType.ModelApi -> onOpenModelApi()
-                                SettingsEntryType.Automation -> onOpenAutomation()
-                                SettingsEntryType.About -> onOpenAbout()
-                            }
-                        },
+                item(key = "search_results") {
+                    SettingsSectionCard(
+                        title = stringResource(R.string.settings_search_results),
+                        entries = filteredEntries,
+                        onEntryClick = openEntry,
                     )
                 }
             }
 
             if (filteredEntries.isEmpty()) {
                 item {
-                    Text(
-                        text = stringResource(R.string.settings_search_empty),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = spacingLg, vertical = spacingMd),
+                    SettingsEmptySearchState(text = stringResource(R.string.settings_search_empty))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsHomeHeader(
+    title: String,
+    subtitle: String,
+    entryCount: Int,
+) {
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.primaryContainer,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(spacingLg),
+            horizontalArrangement = Arrangement.spacedBy(spacingMd),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary,
+            ) {
+                Icon(
+                    imageVector = Lucide.Sparkles,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.padding(spacingSm),
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs)),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_entry_count_format, entryCount),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingSm),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsSearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+) {
+    val radiusXl = dimensionResource(R.dimen.m3t_radius_xl)
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        leadingIcon = {
+            Icon(
+                painter = painterResource(R.drawable.ic_search_24),
+                contentDescription = null,
+            )
+        },
+        placeholder = { Text(text = placeholder) },
+        shape = RoundedCornerShape(radiusXl),
+        colors =
+            TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                disabledContainerColor = MaterialTheme.colorScheme.surface,
+                focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                disabledIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+            ),
+    )
+}
+
+@Composable
+private fun SettingsSectionCard(
+    title: String,
+    entries: List<SettingsEntryUi>,
+    onEntryClick: (SettingsEntryType) -> Unit,
+) {
+    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(vertical = spacingMd)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = spacingLg, vertical = spacingXs),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(spacingXs)) {
+                entries.forEach { entry ->
+                    SettingsEntryRow(
+                        entry = entry,
+                        onClick = { onEntryClick(entry.type) },
                     )
                 }
             }
@@ -248,20 +378,24 @@ fun DrawerSettingsScreen(
 }
 
 @Composable
-private fun SettingsSectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = dimensionResource(R.dimen.m3t_spacing_lg))
-                .padding(
-                    top = dimensionResource(R.dimen.m3t_spacing_lg),
-                    bottom = dimensionResource(R.dimen.m3t_spacing_xs),
-                ),
-    )
+private fun SettingsEmptySearchState(text: String) {
+    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Box(
+            modifier = Modifier.fillMaxWidth().padding(spacingLg),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }
 
 @Composable
@@ -275,33 +409,30 @@ private fun SettingsEntryRow(
     val iconSize = dimensionResource(R.dimen.m3t_about_row_icon_size)
     val chevronSize = dimensionResource(R.dimen.m3t_about_chevron_size)
 
-    Column(
+    Surface(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = spacingLg, vertical = spacingMd),
+                    .padding(horizontal = spacingLg, vertical = spacingSm),
             horizontalArrangement = Arrangement.spacedBy(spacingMd),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (entry.type == SettingsEntryType.About) {
+            Surface(
+                shape = CircleShape,
+                color = settingsEntryIconContainerColor(entry.type),
+            ) {
                 Icon(
-                    imageVector = Lucide.Info,
+                    imageVector = entry.icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(iconSize),
-                )
-            } else {
-                Icon(
-                    painter = painterResource(resolveEntryIcon(entry.type)),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(iconSize),
+                    tint = settingsEntryIconContentColor(entry.type),
+                    modifier = Modifier.padding(spacingSm).size(iconSize),
                 )
             }
             Column(
@@ -327,12 +458,26 @@ private fun SettingsEntryRow(
                 modifier = Modifier.size(chevronSize).graphicsLayer { rotationZ = 180f },
             )
         }
-        HorizontalDivider(
-            modifier = Modifier.padding(start = spacingLg + iconSize + spacingMd, end = spacingLg),
-            color = MaterialTheme.colorScheme.outlineVariant,
-        )
     }
 }
+
+@Composable
+private fun settingsEntryIconContainerColor(type: SettingsEntryType): androidx.compose.ui.graphics.Color =
+    when (type) {
+        SettingsEntryType.Appearance -> MaterialTheme.colorScheme.primaryContainer
+        SettingsEntryType.ModelApi -> MaterialTheme.colorScheme.secondaryContainer
+        SettingsEntryType.Automation -> MaterialTheme.colorScheme.surfaceVariant
+        SettingsEntryType.About -> MaterialTheme.colorScheme.surfaceVariant
+    }
+
+@Composable
+private fun settingsEntryIconContentColor(type: SettingsEntryType): androidx.compose.ui.graphics.Color =
+    when (type) {
+        SettingsEntryType.Appearance -> MaterialTheme.colorScheme.onPrimaryContainer
+        SettingsEntryType.ModelApi -> MaterialTheme.colorScheme.onSecondaryContainer
+        SettingsEntryType.Automation -> MaterialTheme.colorScheme.onSurfaceVariant
+        SettingsEntryType.About -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -911,14 +1056,6 @@ private fun FilledInputField(
             ),
     )
 }
-
-private fun resolveEntryIcon(type: SettingsEntryType): Int =
-    when (type) {
-        SettingsEntryType.Appearance -> R.drawable.palette_24px
-        SettingsEntryType.ModelApi -> R.drawable.ic_key_24
-        SettingsEntryType.Automation -> R.drawable.ic_settings_24
-        SettingsEntryType.About -> R.drawable.ic_settings_24
-    }
 
 @Preview(name = "DrawerSettingsScreen - Light", showBackground = true)
 @Composable

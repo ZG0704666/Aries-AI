@@ -202,14 +202,12 @@ fun HomeTranscriptPane(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = spacingMd)
-                .padding(top = spacingXxxs),
+                .padding(horizontal = spacingMd),
         ) {
             TranscriptEmptyHintCard(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .padding(top = spacingMd),
+                    .align(Alignment.BottomStart)
+                    .padding(bottom = bottomOverlayPadding + spacingMd),
                 onSuggestionClick = onEmptySuggestionClick,
             )
         }

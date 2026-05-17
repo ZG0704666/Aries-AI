@@ -38,8 +38,10 @@ import com.composables.icons.lucide.Check
 import com.composables.icons.lucide.X
 import com.composables.icons.lucide.Pencil
 import com.composables.icons.lucide.ChevronDown
-import com.composables.icons.lucide.Lightbulb
+import com.composables.icons.lucide.FileText
 import com.composables.icons.lucide.RefreshCw
+import com.composables.icons.lucide.Search
+import com.composables.icons.lucide.Sparkles
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -67,6 +69,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -96,7 +99,7 @@ private val FENCED_CODE_BLOCK_REGEX = Regex("(?s)```([\\w+-]*)\\n(.*?)```")
 private const val CODE_BLOCK_COLLAPSE_LINE_THRESHOLD = 10
 private const val STREAMING_MARKDOWN_RENDER_INTERVAL_MS = 480L
 private const val STREAMING_MARKDOWN_MIN_CHUNK_DELTA = 48
-private const val TRANSCRIPT_EMPTY_SUGGESTION_PAGE_SIZE = 4
+private const val TRANSCRIPT_EMPTY_SUGGESTION_PAGE_SIZE = 3
 private const val TRANSCRIPT_EMPTY_SUGGESTION_ROTATE_DELAY_MS = 4200L
 private val STREAMING_MARKDOWN_ORDERED_LIST_RE = Regex("""(?m)^\s*\d+\.\s""")
 
@@ -136,6 +139,13 @@ data class TranscriptMessageUi(
     val retryText: String?,
     val isStreaming: Boolean = false,
     val thinkingDurationMs: Long? = null,
+)
+
+@Immutable
+private data class TranscriptEmptySuggestionItem(
+    val label: String,
+    val prompt: String,
+    val icon: ImageVector,
 )
 
 @Immutable
@@ -402,7 +412,6 @@ private fun StreamingTranscriptMessageListItem(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TranscriptEmptyHintCard(
     modifier: Modifier = Modifier,
@@ -413,16 +422,41 @@ fun TranscriptEmptyHintCard(
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
-    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
     val emptyHintCardMaxWidth = dimensionResource(R.dimen.m3t_transcript_empty_card_max_width)
-    val heroIconSize = spacingLg
-    val heroIconBoxSize = spacingLg + spacingSm
-    val suggestionPages = remember {
+    val suggestionIconSize = spacingLg
+    val suggestions = remember(context) {
+        val shortLabels = mapOf(
+            context.getString(R.string.transcript_suggestion_open_wechat) to
+                context.getString(R.string.transcript_suggestion_open_wechat_label),
+            context.getString(R.string.transcript_suggestion_summarize_page) to
+                context.getString(R.string.transcript_suggestion_summarize_page_label),
+            context.getString(R.string.transcript_suggestion_set_alarm) to
+                context.getString(R.string.transcript_suggestion_set_alarm_label),
+        )
         context.resources
             .getStringArray(R.array.transcript_suggestion_examples)
             .toList()
-            .chunked(TRANSCRIPT_EMPTY_SUGGESTION_PAGE_SIZE)
+            .map { prompt ->
+                val normalized = prompt.lowercase()
+                TranscriptEmptySuggestionItem(
+                    label = shortLabels[prompt] ?: prompt,
+                    prompt = prompt,
+                    icon = when {
+                        prompt.contains("截图") ||
+                            prompt.contains("总结") ||
+                            prompt.contains("提取") ||
+                            prompt.contains("识别") ||
+                            prompt.contains("PDF") -> Lucide.FileText
+                        prompt.contains("搜索") ||
+                            prompt.contains("查找") ||
+                            normalized.contains("search") -> Lucide.Search
+                        else -> Lucide.Sparkles
+                    },
+                )
+            }
+    }
+    val suggestionPages = remember(suggestions) {
+        suggestions.chunked(TRANSCRIPT_EMPTY_SUGGESTION_PAGE_SIZE)
     }
     var suggestionPageIndex by rememberSaveable { mutableStateOf(0) }
 
@@ -437,77 +471,42 @@ fun TranscriptEmptyHintCard(
 
     val visibleSuggestions = suggestionPages.getOrElse(suggestionPageIndex) { emptyList() }
 
-    Surface(
-        modifier = modifier.widthIn(max = emptyHintCardMaxWidth),
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = messageElevation,
+    Column(
+        modifier = modifier
+            .widthIn(max = emptyHintCardMaxWidth)
+            .animateContentSize(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)),
+        verticalArrangement = Arrangement.spacedBy(spacingXs),
     ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacingMd, vertical = spacingSm)
-                    .animateContentSize(animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)),
-            verticalArrangement = Arrangement.spacedBy(spacingSm),
-        ) {
+        Text(
+            text = stringResource(R.string.transcript_empty_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = spacingSm),
+        )
+
+        visibleSuggestions.forEach { suggestion ->
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSuggestionClick(suggestion.prompt) }
+                    .padding(vertical = spacingXs),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacingSm),
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                ) {
-                    Box(
-                        modifier = Modifier.size(heroIconBoxSize),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Lucide.Lightbulb,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(heroIconSize),
-                        )
-                    }
-                }
+                Icon(
+                    imageVector = suggestion.icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(suggestionIconSize),
+                )
 
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(spacingXs),
-                ) {
-                    Text(
-                        text = stringResource(R.string.transcript_empty_hint),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = stringResource(R.string.input_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(spacingXs),
-                verticalArrangement = Arrangement.spacedBy(spacingXs),
-            ) {
-                visibleSuggestions.forEach { suggestion ->
-                    Surface(
-                        modifier = Modifier.clickable { onSuggestionClick(suggestion) },
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    ) {
-                        Text(
-                            text = suggestion,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = spacingSm, vertical = spacingXs),
-                        )
-                    }
-                }
+                Text(
+                    text = suggestion.label,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
