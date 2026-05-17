@@ -38,6 +38,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
@@ -54,7 +55,7 @@ import java.io.File
 
 /**
  * 附件选择器面板 - 千问风格底部弹出
- * 支持拖动关闭、背景变暗（包括状态栏区域）
+ * 支持拖动关闭，不额外覆盖背景内容
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -152,7 +153,7 @@ fun AttachmentSelectorPanel(
         )
     )
     
-    // 使用 ModalBottomSheet 实现可拖动关闭 + 背景变暗（包括状态栏）
+    // 使用 ModalBottomSheet 实现可拖动关闭，不再叠加整屏遮罩
     if (visible) {
         ModalBottomSheet(
             onDismissRequest = onDismiss,
@@ -176,7 +177,7 @@ fun AttachmentSelectorPanel(
                     )
                 }
             },
-            scrimColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f) // 背景变暗效果（包括状态栏）
+            scrimColor = Color.Transparent
         ) {
             Column(
                 modifier = Modifier

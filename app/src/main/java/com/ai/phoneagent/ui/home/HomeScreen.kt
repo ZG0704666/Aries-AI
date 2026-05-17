@@ -206,8 +206,8 @@ fun HomeTranscriptPane(
         ) {
             TranscriptEmptyHintCard(
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(bottom = bottomOverlayPadding + spacingMd),
+                    .align(Alignment.Center)
+                    .padding(bottom = bottomOverlayPadding / 3),
                 onSuggestionClick = onEmptySuggestionClick,
             )
         }

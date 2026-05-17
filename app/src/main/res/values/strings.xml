@@ -62,8 +62,10 @@
     <string name="message_connecting_placeholder">连接中</string>
     <string name="message_local_inference_waiting">本地推理中，请等待</string>
     <string name="transcript_empty_hint">描述任务目标，Aries 会理解并执行操作</string>
-    <string name="transcript_empty_suggestion_title">推荐示例</string>
+    <string name="transcript_empty_suggestion_title">你可以试着说</string>
     <string name="transcript_empty_suggestion_subtitle">点一下即可填入输入框，直接发起自动化任务</string>
+    <string name="transcript_empty_brand_tagline">你的手机任务帮手</string>
+    <string name="transcript_empty_brand_caption">一句话帮你完成订票、点外卖、发消息等操作</string>
     <string name="transcript_suggestion_open_wechat_label">打开并搜索</string>
     <string name="transcript_suggestion_summarize_page_label">总结当前页面</string>
     <string name="transcript_suggestion_set_alarm_label">设置明早闹钟</string>
@@ -71,12 +73,9 @@
     <string name="transcript_suggestion_summarize_page">截图并总结当前页面</string>
     <string name="transcript_suggestion_set_alarm">帮我设置明天 8 点闹钟</string>
     <string-array name="transcript_suggestion_examples">
-        <item>打开高德地图，导航到公司</item>
-        <item>打开 12306，帮我订明早去北京的高铁票</item>
-        <item>打开大众点评，帮我选一家附近人气最高的火锅店</item>
-        <item>打开微信，给妈妈发送“我今天晚点回家”</item>
-        <item>打开美团外卖，点一杯少冰的美式咖啡</item>
-        <item>打开系统设置，开启深色模式</item>
+        <item>帮我订明天去上海的高铁票</item>
+        <item>点一杯美式咖啡，少冰，外卖</item>
+        <item>给妈妈发微信说我今天晚点回家</item>
     </string-array>
     <string name="automation_toolbar_title">自动化设置</string>
     <string name="automation_console_overview_title">自动化控制中心</string>
