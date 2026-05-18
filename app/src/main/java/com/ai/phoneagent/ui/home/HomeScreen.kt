@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -198,6 +199,7 @@ fun HomeTranscriptPane(
     spacingXxxs: Dp,
 ) {
     DebugRecomposeLogger(scope = "HomeTranscriptPane")
+    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     if (transcriptItems.isEmpty() && streamingTranscriptItem == null) {
         Box(
             modifier = Modifier
@@ -207,6 +209,7 @@ fun HomeTranscriptPane(
             TranscriptEmptyHintCard(
                 modifier = Modifier
                     .align(Alignment.Center)
+                    .offset(y = -spacingSm)
                     .padding(bottom = bottomOverlayPadding / 3),
                 onSuggestionClick = onEmptySuggestionClick,
             )

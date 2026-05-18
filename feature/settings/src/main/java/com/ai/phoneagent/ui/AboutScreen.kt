@@ -27,14 +27,13 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
 import com.ai.phoneagent.core.designsystem.theme.AriesSettingsNavigationItem
 import com.ai.phoneagent.core.designsystem.theme.AriesSettingsSectionHeader
@@ -215,6 +214,8 @@ private fun AboutHeroSection(
     val spacingSm = dimensionResource(DesignSystemR.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(DesignSystemR.dimen.m3t_spacing_md)
     val spacingXxl = dimensionResource(DesignSystemR.dimen.m3t_spacing_xxl)
+    val appIconSize = dimensionResource(DesignSystemR.dimen.m3t_about_icon_card_size)
+    val appIconVisualSize = appIconSize - spacingXs
 
     Column(
         modifier =
@@ -228,9 +229,8 @@ private fun AboutHeroSection(
         Image(
             painter = painterResource(R.drawable.ic_launcher_foreground),
             contentDescription = stringResource(R.string.app_name),
-            modifier = Modifier
-                .size(80.dp)
-                .clip(RoundedCornerShape(20.dp)),
+            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
+            modifier = Modifier.size(appIconVisualSize),
         )
 
         Text(

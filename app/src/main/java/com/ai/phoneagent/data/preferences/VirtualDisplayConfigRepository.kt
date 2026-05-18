@@ -58,7 +58,7 @@ class VirtualDisplayConfigRepository(
 
     val autoApproveAutomationFlow: Flow<Boolean> =
         context.virtualDisplayConfigDataStore.data.map { prefs ->
-            prefs[Keys.autoApproveAutomation] ?: false
+            prefs[Keys.autoApproveAutomation] ?: true
         }
 
     suspend fun getResolutionPreset(): String {
@@ -135,7 +135,7 @@ class VirtualDisplayConfigRepository(
 
     suspend fun getAutoApproveAutomation(): Boolean {
         val prefs = context.virtualDisplayConfigDataStore.data.first()
-        return prefs[Keys.autoApproveAutomation] ?: false
+        return prefs[Keys.autoApproveAutomation] ?: true
     }
 
     fun getResolutionPresetBlocking(): String = runBlocking { getResolutionPreset() }

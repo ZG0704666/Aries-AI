@@ -64,7 +64,7 @@
     <string name="transcript_empty_hint">描述任务目标，Aries 会理解并执行操作</string>
     <string name="transcript_empty_suggestion_title">你可以试着说</string>
     <string name="transcript_empty_suggestion_subtitle">点一下即可填入输入框，直接发起自动化任务</string>
-    <string name="transcript_empty_brand_tagline">你的手机任务帮手</string>
+    <string name="transcript_empty_brand_tagline">开启手机智能新交互时代</string>
     <string name="transcript_empty_brand_caption">一句话帮你完成订票、点外卖、发消息等操作</string>
     <string name="transcript_suggestion_open_wechat_label">打开并搜索</string>
     <string name="transcript_suggestion_summarize_page_label">总结当前页面</string>

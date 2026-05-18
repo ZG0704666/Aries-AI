@@ -73,6 +73,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
@@ -435,6 +436,7 @@ fun TranscriptEmptyHintCard(
     val suggestionIconSize = spacingLg
     val suggestionArrowSize = dimensionResource(R.dimen.m3t_input_bar_icon_size)
     val cardElevation = dimensionResource(R.dimen.m3t_message_streaming_tonal_elevation)
+    val brandIconSize = appIconSize - spacingXs
     val suggestions = remember(context) {
         val suggestionIcons = listOf(
             Lucide.Search,
@@ -473,7 +475,8 @@ fun TranscriptEmptyHintCard(
             Image(
                 painter = painterResource(R.drawable.ic_launcher_foreground),
                 contentDescription = null,
-                modifier = Modifier.size(appIconSize),
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
+                modifier = Modifier.size(brandIconSize),
             )
 
             Column(
@@ -491,11 +494,6 @@ fun TranscriptEmptyHintCard(
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = stringResource(R.string.transcript_empty_brand_caption),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
