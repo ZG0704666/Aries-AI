@@ -5,8 +5,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Aries AI 文档中心</title>
-  <link rel="icon" type="image/png" href="./assets/favicon.png?v=4">
-  <link rel="apple-touch-icon" href="./assets/favicon.png?v=4">
+  <link rel="icon" type="image/png" href="./assets/brand-mark-color.png?v=5">
+  <link rel="apple-touch-icon" href="./assets/brand-mark-color.png?v=5">
   <link rel="preconnect" href="https://fonts.font.im">
   <link rel="preconnect" href="https://fonts.gstatic.font.im" crossorigin>
   <link rel="dns-prefetch" href="//fonts.font.im">
@@ -58,6 +58,21 @@
 
     html.light * {
       color: inherit;
+    }
+
+    .brand-mark {
+      display: block;
+      object-fit: contain;
+      flex-shrink: 0;
+      transition: filter 0.3s ease, opacity 0.3s ease;
+    }
+
+    html.dark .brand-mark {
+      filter: none;
+    }
+
+    html.light .brand-mark {
+      filter: brightness(0) saturate(100%);
     }
 
     .scrollbar-visible {
@@ -1204,8 +1219,8 @@
     <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 py-4 h-screen flex flex-col">
       <div class="flex items-center justify-between gap-4">
         <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.href='index.html'">
-          <img src="./assets/favicon.png?v=4" alt="Aries AI"
-            class="w-10 h-10 rounded-xl shadow-lg border border-white/10 object-cover">
+          <img src="./assets/brand-mark-mono.png?v=5" alt="Aries AI"
+            class="brand-mark w-10 h-10">
           <div class="font-extrabold text-lg dark:text-white text-slate-900">Aries AI</div>
         </div>
 
@@ -1347,8 +1362,8 @@
     <div class="backdrop"></div>
     <div class="download-panel glass">
       <div class="flex items-start gap-4 pr-14">
-        <img src="./assets/favicon.png?v=4" alt="Aries AI"
-          class="w-16 h-16 rounded-2xl shadow-xl border border-white/10 flex-shrink-0 object-cover">
+        <img src="./assets/brand-mark-mono.png?v=5" alt="Aries AI"
+          class="brand-mark w-16 h-16">
         <div class="flex-1 pt-1">
           <div class="text-xs uppercase tracking-[0.2em] text-sky-300 mb-1">ARIES AI</div>
           <div class="text-2xl sm:text-3xl font-extrabold">获取安装包</div>

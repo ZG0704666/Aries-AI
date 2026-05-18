@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aries AI - 开启手机智能新交互</title>
     <!-- Favicons -->
-    <link rel="icon" type="image/png" href="./assets/favicon.png?v=4">
-    <link rel="apple-touch-icon" href="./assets/favicon.png?v=4">
+    <link rel="icon" type="image/png" href="./assets/brand-mark-color.png?v=5">
+    <link rel="apple-touch-icon" href="./assets/brand-mark-color.png?v=5">
     <link rel="stylesheet" href="./styles/model-marquee.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -101,6 +101,21 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             scroll-behavior: smooth;
+        }
+
+        .brand-mark {
+            display: block;
+            object-fit: contain;
+            flex-shrink: 0;
+            transition: filter 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        html.dark .brand-mark {
+            filter: none;
+        }
+
+        html.light .brand-mark {
+            filter: brightness(0) saturate(100%);
         }
 
         /* ============================================
@@ -1745,8 +1760,8 @@
             <div class="flex justify-between h-20 items-center">
                 <!-- Logo -->
                 <div class="flex items-center gap-3 cursor-pointer group" onclick="window.scrollTo(0,0)">
-                    <img src="./assets/favicon.png?v=4" alt="Aries AI"
-                        class="w-10 h-10 rounded-xl shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300 object-cover">
+                    <img src="./assets/brand-mark-mono.png?v=5" alt="Aries AI"
+                        class="brand-mark w-10 h-10 group-hover:opacity-80">
                     <span class="text-xl font-bold tracking-tight dark:text-white text-gray-900 transition-colors">Aries
                         AI</span>
                 </div>
@@ -2329,8 +2344,8 @@
                 type="button" aria-label="关闭" onclick="closeDownloadModal()">✕</button>
 
             <div class="flex items-start gap-3 sm:gap-4 mb-6 pr-12">
-                <img src="./assets/favicon.png?v=4" alt="Aries AI 图标"
-                    class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl shadow-xl border border-white/20 flex-shrink-0 object-cover" />
+                <img src="./assets/brand-mark-mono.png?v=5" alt="Aries AI 图标"
+                    class="brand-mark w-16 h-16 sm:w-20 sm:h-20" />
                 <div class="flex-1 pt-1">
                     <p class="text-xs uppercase tracking-[0.2em] text-blue-400 mb-1 sm:mb-2">Aries AI</p>
                     <h3 class="text-xl sm:text-2xl md:text-3xl font-bold leading-tight">获取安装包</h3>
