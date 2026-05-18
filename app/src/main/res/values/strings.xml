@@ -75,7 +75,7 @@
     <string-array name="transcript_suggestion_examples">
         <item>帮我订明天去上海的高铁票</item>
         <item>点一杯美式咖啡，少冰，外卖</item>
-        <item>给妈妈发微信说我今天晚点回家</item>
+        <item>找一家附近评分最高的火锅店，订明晚的4人座</item>
     </string-array>
     <string name="automation_toolbar_title">自动化设置</string>
     <string name="automation_console_overview_title">自动化控制中心</string>
