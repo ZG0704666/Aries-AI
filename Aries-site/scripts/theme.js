@@ -6,10 +6,22 @@
 (function() {
   'use strict';
 
+  function syncThemeAwareImages(theme) {
+    const selector = '[data-dark-src][data-light-src]';
+    document.querySelectorAll(selector).forEach((img) => {
+      const targetSrc = theme === 'light' ? img.dataset.lightSrc : img.dataset.darkSrc;
+      if (targetSrc && img.getAttribute('src') !== targetSrc) {
+        img.setAttribute('src', targetSrc);
+      }
+    });
+  }
+
   function applyThemeClass(theme) {
     const html = document.documentElement;
     html.classList.remove('dark', 'light');
     html.classList.add(theme);
+
+    syncThemeAwareImages(theme);
 
     const label = document.getElementById('theme-label');
     if (label) label.textContent = theme === 'dark' ? '切换到日间' : '切换到夜间';
