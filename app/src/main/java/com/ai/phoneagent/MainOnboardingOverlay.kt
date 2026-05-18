@@ -18,9 +18,11 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -154,6 +156,7 @@ class MainOnboardingOverlay(
     ): Boolean {
         if (requestCode != REQ_RECORD_AUDIO) return false
         refreshPermissionUi()
+        PermissionSetupSupport.handleMicPermissionResult(activity, grantResults)
         return true
     }
 
@@ -499,73 +502,85 @@ private fun PermissionPanel(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = MaterialTheme.shapes.extraLarge,
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(spacingLg),
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding(),
+            contentPadding = PaddingValues(spacingLg),
             verticalArrangement = Arrangement.spacedBy(spacingMd),
         ) {
-            Text(
-                text = stringResource(R.string.perm_sheet_title),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
-                shape = MaterialTheme.shapes.large,
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(spacingLg),
-                    horizontalArrangement = Arrangement.spacedBy(spacingMd),
-                    verticalAlignment = Alignment.CenterVertically,
+            item {
+                Text(
+                    text = stringResource(R.string.perm_sheet_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+
+            item {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
+                    shape = MaterialTheme.shapes.large,
                 ) {
-                    Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), shape = CircleShape) {
-                        Box(modifier = Modifier.padding(spacingSm), contentAlignment = Alignment.Center) {
-                            Icon(Lucide.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(spacingLg),
+                        horizontalArrangement = Arrangement.spacedBy(spacingMd),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), shape = CircleShape) {
+                            Box(modifier = Modifier.padding(spacingSm), contentAlignment = Alignment.Center) {
+                                Icon(Lucide.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                            }
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
+                            Text(
+                                text = stringResource(R.string.perm_sheet_shizuku_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                text = stringResource(R.string.perm_sheet_shizuku_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
                         }
                     }
-                    Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
-                        Text(
-                            text = stringResource(R.string.perm_sheet_shizuku_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Text(
-                            text = stringResource(R.string.perm_sheet_shizuku_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
+                }
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)),
+                    shape = MaterialTheme.shapes.large,
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        PermissionRow(Lucide.Smartphone, stringResource(R.string.perm_sheet_accessibility_title), stringResource(R.string.perm_sheet_accessibility_desc), permissionUiState.accessibilityReady, stringResource(R.string.perm_sheet_action_enable), onOpenAccessibility, compactButtonHeight)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        PermissionRow(Lucide.ExternalLink, stringResource(R.string.perm_sheet_overlay_title), stringResource(R.string.perm_sheet_overlay_desc), permissionUiState.overlayReady, stringResource(R.string.perm_sheet_action_settings), onOpenOverlay, compactButtonHeight)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        PermissionRow(Lucide.Mic, stringResource(R.string.perm_sheet_microphone_title), stringResource(R.string.perm_sheet_microphone_desc), permissionUiState.microphoneReady, stringResource(R.string.perm_sheet_action_grant), onOpenMic, compactButtonHeight)
                     }
                 }
             }
 
-            Card(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)),
-                shape = MaterialTheme.shapes.large,
-            ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    PermissionRow(Lucide.Smartphone, stringResource(R.string.perm_sheet_accessibility_title), stringResource(R.string.perm_sheet_accessibility_desc), permissionUiState.accessibilityReady, stringResource(R.string.perm_sheet_action_enable), onOpenAccessibility, compactButtonHeight)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    PermissionRow(Lucide.ExternalLink, stringResource(R.string.perm_sheet_overlay_title), stringResource(R.string.perm_sheet_overlay_desc), permissionUiState.overlayReady, stringResource(R.string.perm_sheet_action_settings), onOpenOverlay, compactButtonHeight)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    PermissionRow(Lucide.Mic, stringResource(R.string.perm_sheet_microphone_title), stringResource(R.string.perm_sheet_microphone_desc), permissionUiState.microphoneReady, stringResource(R.string.perm_sheet_action_grant), onOpenMic, compactButtonHeight)
+            item {
+                Button(
+                    onClick = onGuideAll,
+                    modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                ) {
+                    Text(stringResource(if (permissionUiState.allReady) R.string.perm_sheet_primary_action_ready else R.string.perm_sheet_primary_action))
                 }
-            }
-
-            Button(
-                onClick = onGuideAll,
-                modifier = Modifier.fillMaxWidth().height(buttonHeight),
-            ) {
-                Text(stringResource(if (permissionUiState.allReady) R.string.perm_sheet_primary_action_ready else R.string.perm_sheet_primary_action))
             }
 
             if (!permissionUiState.allReady || flowMode == MainOnboardingOverlay.FlowMode.PERMISSION_ONLY) {
-                FilledTonalButton(
-                    onClick = onDone,
-                    modifier = Modifier.fillMaxWidth().height(buttonHeight),
-                ) {
-                    Text(stringResource(R.string.perm_sheet_secondary_action))
+                item {
+                    FilledTonalButton(
+                        onClick = onDone,
+                        modifier = Modifier.fillMaxWidth().height(buttonHeight),
+                    ) {
+                        Text(stringResource(R.string.perm_sheet_secondary_action))
+                    }
                 }
             }
         }

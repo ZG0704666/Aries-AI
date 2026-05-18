@@ -123,6 +123,15 @@ object PermissionSetupSupport {
         )
     }
 
+    fun openAppDetailsSettings(activity: AppCompatActivity) {
+        activity.startActivity(
+            Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:${activity.packageName}"),
+            ),
+        )
+    }
+
     fun requestMicPermission(
         activity: AppCompatActivity,
         requestCode: Int,
@@ -136,6 +145,24 @@ object PermissionSetupSupport {
             return
         }
         activity.requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), requestCode)
+    }
+
+    fun handleMicPermissionResult(
+        activity: AppCompatActivity,
+        grantResults: IntArray,
+    ) {
+        val granted =
+            grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED
+        if (granted) return
+        if (!shouldOpenMicPermissionSettings(activity)) return
+
+        Toast.makeText(
+            activity,
+            activity.getString(R.string.perm_sheet_microphone_settings_hint),
+            Toast.LENGTH_SHORT,
+        ).show()
+        openAppDetailsSettings(activity)
     }
 
     fun guideAll(
@@ -191,6 +218,14 @@ object PermissionSetupSupport {
         }
 
         onReady()
+    }
+
+    private fun shouldOpenMicPermissionSettings(activity: AppCompatActivity): Boolean {
+        val granted =
+            ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED
+        if (granted) return false
+        return !activity.shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO)
     }
 
     private fun grantPermissionsViaShizuku(context: Context): Boolean {

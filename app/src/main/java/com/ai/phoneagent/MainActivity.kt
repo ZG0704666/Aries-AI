@@ -2489,6 +2489,7 @@ class MainActivity : AppCompatActivity() {
                 clearVoiceSession()
                 Toast.makeText(this, getString(R.string.voice_permission_granted_retry_hold), Toast.LENGTH_SHORT).show()
             } else {
+                PermissionSetupSupport.handleMicPermissionResult(this, grantResults)
                 clearVoiceSession()
             }
         }

@@ -93,7 +93,15 @@ fun PermissionGuideScreen(
     val micLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        micOk = isGranted
+        updateUi()
+        if (!isGranted) {
+            activity?.let {
+                PermissionSetupSupport.handleMicPermissionResult(
+                    activity = it,
+                    grantResults = intArrayOf(PackageManager.PERMISSION_DENIED)
+                )
+            }
+        }
     }
 
     val spacingSm = dimensionResource(DesignSystemR.dimen.m3t_spacing_sm)

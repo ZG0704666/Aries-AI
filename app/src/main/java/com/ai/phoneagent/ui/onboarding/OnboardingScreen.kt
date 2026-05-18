@@ -9,6 +9,8 @@ import android.view.View
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -49,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,12 +64,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.ai.phoneagent.PermissionSetupSupport
 import com.ai.phoneagent.R
@@ -137,6 +143,7 @@ fun OnboardingScreen(
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findAppCompatActivity() }
+    val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
     val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
@@ -152,6 +159,32 @@ fun OnboardingScreen(
             )
         }
     var permissionUiState by remember { mutableStateOf(readPermissionUiState(context)) }
+
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { isGranted ->
+        permissionUiState = readPermissionUiState(context)
+        if (!isGranted) {
+            activity?.let {
+                PermissionSetupSupport.handleMicPermissionResult(
+                    activity = it,
+                    grantResults = intArrayOf(android.content.pm.PackageManager.PERMISSION_DENIED),
+                )
+            }
+        }
+    }
+
+    DisposableEffect(lifecycleOwner, currentStep, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && currentStep == OnboardingStep.PERMISSION) {
+                permissionUiState = readPermissionUiState(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     LaunchedEffect(currentStep, flowMode) {
         if (currentStep == OnboardingStep.PERMISSION && flowMode != OnboardingFlowMode.VIEW_ONLY) {
@@ -282,13 +315,7 @@ fun OnboardingScreen(
                                     activity?.let { PermissionSetupSupport.openOverlaySettings(it) }
                                 },
                                 onOpenMic = {
-                                    activity?.let {
-                                        it.requestPermissions(
-                                            arrayOf(android.Manifest.permission.RECORD_AUDIO),
-                                            101,
-                                        )
-                                        permissionUiState = readPermissionUiState(context)
-                                    }
+                                    micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
                                 },
                                 onGuideAll = {
                                     activity?.let { hostActivity ->
@@ -296,10 +323,7 @@ fun OnboardingScreen(
                                             activity = hostActivity,
                                             requestShizukuPermissionCode = REQ_SHIZUKU_PERMISSION,
                                             requestMicPermission = {
-                                                hostActivity.requestPermissions(
-                                                    arrayOf(android.Manifest.permission.RECORD_AUDIO),
-                                                    101,
-                                                )
+                                                micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
                                             },
                                             onReady = {
                                                 permissionUiState = readPermissionUiState(context)

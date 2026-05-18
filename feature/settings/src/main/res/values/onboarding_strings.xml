@@ -61,6 +61,7 @@
     <string name="perm_sheet_action_settings">去设置</string>
     <string name="perm_sheet_action_grant">授权</string>
     <string name="perm_sheet_action_ready">已完成</string>
+    <string name="perm_sheet_microphone_settings_hint">麦克风权限已被禁止，请在应用设置中开启</string>
     <string name="perm_sheet_primary_action">一键完成配置</string>
     <string name="perm_sheet_primary_action_ready">开始使用</string>
     <string name="perm_sheet_secondary_action">稍后再说</string>
