@@ -56,10 +56,21 @@
     return cores <= 4 || memory <= 4;
   }
 
+  function syncThemeAwareImages(theme) {
+    document.querySelectorAll('[data-dark-src][data-light-src]').forEach((img) => {
+      const targetSrc = theme === 'light' ? img.dataset.lightSrc : img.dataset.darkSrc;
+      if (targetSrc && img.getAttribute('src') !== targetSrc) {
+        img.setAttribute('src', targetSrc);
+      }
+    });
+  }
+
   function applyThemeClass(theme) {
     const html = document.documentElement;
     html.classList.remove('dark', 'light');
     html.classList.add(theme);
+
+    syncThemeAwareImages(theme);
 
     const label = document.getElementById('theme-label');
     if (label) label.textContent = theme === 'dark' ? '切换到日间' : '切换到夜间';
@@ -722,17 +733,22 @@
     const tooltip = document.getElementById('theme-tooltip');
     if (!tooltip) return;
 
-    let hasScrolled = false;
+    let isHidden = false;
 
-    function onScroll() {
-      if (hasScrolled) return;
-      hasScrolled = true;
+    function hideTooltip() {
+      if (isHidden) return;
+      isHidden = true;
       tooltip.style.opacity = '0';
       tooltip.style.pointerEvents = 'none';
       window.removeEventListener('scroll', onScroll);
     }
 
+    function onScroll() {
+      hideTooltip();
+    }
+
     window.addEventListener('scroll', onScroll, { passive: true });
+    window.setTimeout(hideTooltip, 2600);
   }
 
   function initCommon() {
