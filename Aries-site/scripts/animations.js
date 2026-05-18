@@ -3,7 +3,7 @@
  * 负责星空、星座连线、流星等视觉效果
  */
 
-(function() {
+(function () {
   'use strict';
 
   function throttle(fn, delay) {
@@ -31,24 +31,61 @@
     if (!container) return;
 
     const isMobile = window.innerWidth <= 640;
-    const starCount = isMobile ? 20 : 80;
     container.innerHTML = '';
 
-    for (let i = 0; i < starCount; i++) {
-      const star = document.createElement('div');
-      star.className = 'star';
-      const size = Math.random() * 2.2 + 0.6;
-      const opacity = Math.random() * 0.65 + 0.25;
-      const duration = Math.random() * 4 + 2;
-      const delay = Math.random() * 5;
-      star.style.width = size + 'px';
-      star.style.height = size + 'px';
-      star.style.left = Math.random() * 100 + '%';
-      star.style.top = Math.random() * 100 + '%';
-      star.style.setProperty('--opacity', opacity.toString());
-      star.style.setProperty('--duration', duration + 's');
-      star.style.setProperty('--delay', delay + 's');
-      container.appendChild(star);
+    if (isMobile) {
+      // 移动端：采用网格化分布分布星星，避免随机打点导致的聚集和杂乱
+      const cols = 4;
+      const rows = 6;
+      const cellWidth = 100 / cols;
+      const cellHeight = 100 / rows;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          // 随机跳过一些网格，让星星看起来不死板，控制总数在 15 颗左右
+          if (Math.random() > 0.6) continue;
+
+          const star = document.createElement('div');
+          star.className = 'star';
+          const size = Math.random() * 1.5 + 0.5; // 减小尺寸，显得更精致
+          const opacity = Math.random() * 0.4 + 0.15; // 整体亮度降低，不刺眼
+          const duration = Math.random() * 5 + 3; // 呼吸变慢
+          const delay = Math.random() * 5;
+          star.style.width = size + 'px';
+          star.style.height = size + 'px';
+
+          // 在网格内部加上随机偏移
+          const offsetX = Math.random() * (cellWidth * 0.7) + cellWidth * 0.15;
+          const offsetY = Math.random() * (cellHeight * 0.7) + cellHeight * 0.15;
+
+          star.style.left = (c * cellWidth + offsetX) + '%';
+          star.style.top = (r * cellHeight + offsetY) + '%';
+
+          star.style.setProperty('--opacity', opacity.toString());
+          star.style.setProperty('--duration', duration + 's');
+          star.style.setProperty('--delay', delay + 's');
+          container.appendChild(star);
+        }
+      }
+    } else {
+      // 电脑端：保持数量不变并继续全屏随机分布，但可稍微调节极值
+      const starCount = 80;
+      for (let i = 0; i < starCount; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        const size = Math.random() * 2.2 + 0.6;
+        const opacity = Math.random() * 0.65 + 0.25;
+        const duration = Math.random() * 4 + 2;
+        const delay = Math.random() * 5;
+        star.style.width = size + 'px';
+        star.style.height = size + 'px';
+        star.style.left = Math.random() * 100 + '%';
+        star.style.top = Math.random() * 100 + '%';
+        star.style.setProperty('--opacity', opacity.toString());
+        star.style.setProperty('--duration', duration + 's');
+        star.style.setProperty('--delay', delay + 's');
+        container.appendChild(star);
+      }
     }
   }
 

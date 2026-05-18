@@ -47,6 +47,87 @@ if(ANDROID)
         set(SHERPA_NCNN_ENABLE_FFMPEG_EXAMPLES OFF CACHE BOOL "" FORCE)
         set(SHERPA_NCNN_ENABLE_GENERATE_INT8_SCALE_TABLE OFF CACHE BOOL "" FORCE)
 
+        # 某些网络环境下 github.com 可能超时，因此这里提前准备依赖本地归档。
+        # 这些文件名与上游 cmake 脚本的 possible_file_locations 保持一致。
+        set(ARIES_KALDI_NATIVE_FBANK_ARCHIVE "${CMAKE_BINARY_DIR}/kaldi-native-fbank-1.22.3.tar.gz")
+        if(NOT EXISTS "${ARIES_KALDI_NATIVE_FBANK_ARCHIVE}")
+            set(ARIES_KALDI_NATIVE_FBANK_FALLBACK_URL "https://codeload.github.com/csukuangfj/kaldi-native-fbank/tar.gz/refs/tags/v1.22.3")
+            message(STATUS "Prefetching kaldi-native-fbank from fallback URL: ${ARIES_KALDI_NATIVE_FBANK_FALLBACK_URL}")
+
+            file(DOWNLOAD
+                    "${ARIES_KALDI_NATIVE_FBANK_FALLBACK_URL}"
+                    "${ARIES_KALDI_NATIVE_FBANK_ARCHIVE}"
+                    EXPECTED_HASH "SHA256=9176cc66fc7ce1edf85cf355b06e320c57db6297df74277f575183468893cf61"
+                    STATUS ARIES_KALDI_NATIVE_FBANK_DOWNLOAD_STATUS
+                    TLS_VERIFY ON
+                    TIMEOUT 180
+                    INACTIVITY_TIMEOUT 30)
+
+            list(GET ARIES_KALDI_NATIVE_FBANK_DOWNLOAD_STATUS 0 ARIES_KALDI_NATIVE_FBANK_DOWNLOAD_CODE)
+            list(GET ARIES_KALDI_NATIVE_FBANK_DOWNLOAD_STATUS 1 ARIES_KALDI_NATIVE_FBANK_DOWNLOAD_MESSAGE)
+            if(NOT ARIES_KALDI_NATIVE_FBANK_DOWNLOAD_CODE EQUAL 0)
+                file(REMOVE "${ARIES_KALDI_NATIVE_FBANK_ARCHIVE}")
+                message(WARNING
+                        "Failed to prefetch kaldi-native-fbank archive (code=${ARIES_KALDI_NATIVE_FBANK_DOWNLOAD_CODE}): ${ARIES_KALDI_NATIVE_FBANK_DOWNLOAD_MESSAGE}.\n"
+                        "CMake will continue and may still try remote fetch via original URLs.")
+            else()
+                message(STATUS "Prepared local kaldi-native-fbank archive: ${ARIES_KALDI_NATIVE_FBANK_ARCHIVE}")
+            endif()
+        endif()
+
+        set(ARIES_KALDIFST_ARCHIVE "${CMAKE_BINARY_DIR}/kaldifst-1.7.17.tar.gz")
+        if(NOT EXISTS "${ARIES_KALDIFST_ARCHIVE}")
+            set(ARIES_KALDIFST_FALLBACK_URL "https://codeload.github.com/k2-fsa/kaldifst/tar.gz/refs/tags/v1.7.17")
+            message(STATUS "Prefetching kaldifst from fallback URL: ${ARIES_KALDIFST_FALLBACK_URL}")
+
+            file(DOWNLOAD
+                    "${ARIES_KALDIFST_FALLBACK_URL}"
+                    "${ARIES_KALDIFST_ARCHIVE}"
+                    EXPECTED_HASH "SHA256=c4b701a23a400bda8032586b02c7e0d5e813a765832df60c23e6df9e62b010f4"
+                    STATUS ARIES_KALDIFST_DOWNLOAD_STATUS
+                    TLS_VERIFY ON
+                    TIMEOUT 180
+                    INACTIVITY_TIMEOUT 30)
+
+            list(GET ARIES_KALDIFST_DOWNLOAD_STATUS 0 ARIES_KALDIFST_DOWNLOAD_CODE)
+            list(GET ARIES_KALDIFST_DOWNLOAD_STATUS 1 ARIES_KALDIFST_DOWNLOAD_MESSAGE)
+            if(NOT ARIES_KALDIFST_DOWNLOAD_CODE EQUAL 0)
+                file(REMOVE "${ARIES_KALDIFST_ARCHIVE}")
+                message(WARNING
+                        "Failed to prefetch kaldifst archive (code=${ARIES_KALDIFST_DOWNLOAD_CODE}): ${ARIES_KALDIFST_DOWNLOAD_MESSAGE}.\n"
+                        "CMake will continue and may still try remote fetch via original URLs.")
+            else()
+                message(STATUS "Prepared local kaldifst archive: ${ARIES_KALDIFST_ARCHIVE}")
+            endif()
+        endif()
+
+        # kaldi-native-fbank 在构建时还会下载 kissfft。
+        set(ARIES_KISSFFT_ARCHIVE "${CMAKE_BINARY_DIR}/kissfft-febd4caeed32e33ad8b2e0bb5ea77542c40f18ec.zip")
+        if(NOT EXISTS "${ARIES_KISSFFT_ARCHIVE}")
+            set(ARIES_KISSFFT_FALLBACK_URL "https://codeload.github.com/mborgerding/kissfft/zip/febd4caeed32e33ad8b2e0bb5ea77542c40f18ec")
+            message(STATUS "Prefetching kissfft from fallback URL: ${ARIES_KISSFFT_FALLBACK_URL}")
+
+            file(DOWNLOAD
+                    "${ARIES_KISSFFT_FALLBACK_URL}"
+                    "${ARIES_KISSFFT_ARCHIVE}"
+                    EXPECTED_HASH "SHA256=497103e664168ebe39580b757adbe616f6cf85a16572af581ca7bc42d0ab13fd"
+                    STATUS ARIES_KISSFFT_DOWNLOAD_STATUS
+                    TLS_VERIFY ON
+                    TIMEOUT 180
+                    INACTIVITY_TIMEOUT 30)
+
+            list(GET ARIES_KISSFFT_DOWNLOAD_STATUS 0 ARIES_KISSFFT_DOWNLOAD_CODE)
+            list(GET ARIES_KISSFFT_DOWNLOAD_STATUS 1 ARIES_KISSFFT_DOWNLOAD_MESSAGE)
+            if(NOT ARIES_KISSFFT_DOWNLOAD_CODE EQUAL 0)
+                file(REMOVE "${ARIES_KISSFFT_ARCHIVE}")
+                message(WARNING
+                        "Failed to prefetch kissfft archive (code=${ARIES_KISSFFT_DOWNLOAD_CODE}): ${ARIES_KISSFFT_DOWNLOAD_MESSAGE}.\n"
+                        "CMake will continue and may still try remote fetch via original URLs.")
+            else()
+                message(STATUS "Prepared local kissfft archive: ${ARIES_KISSFFT_ARCHIVE}")
+            endif()
+        endif()
+
         # 将 sherpa/ncnn 静态链接进 libsherpa-ncnn-jni，避免 OpenMP 异常中止问题。
         set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
         set(NCNN_OPENMP OFF CACHE BOOL "" FORCE)

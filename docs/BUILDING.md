@@ -20,9 +20,9 @@
 
 ### 1.1 必需软件
 
-| 软件 | 最低版本 | 推荐版本 | 下载地址 |
+| 软件 | 最低版本 | 推荐版本 | 下载/说明 |
 |------|----------|----------|----------|
-| JDK | 17 | 21（Android Studio 自带 JBR） | https://developer.android.com/studio |
+| JDK | 17 | 21（Android Studio 自带 JBR 或外部配置） | https://adoptium.net/ |
 | Android Studio | Hedgehog (2023.1.1) | Ladybug (2024.2.1) 或更高 | https://developer.android.com/studio |
 | Gradle | 8.13（Wrapper） | 8.13（Wrapper） | 使用项目自带 gradlew |
 | Kotlin | 2.2.21 | 2.2.21 | 由项目配置 |
@@ -46,6 +46,7 @@ java -version
 # 检查Git版本
 git --version
 # 应输出：git version 2.x.x
+
 
 # 检查Gradle版本（在项目根目录）
 ./gradlew --version
@@ -74,8 +75,8 @@ cat gradle/libs.versions.toml | grep agp
 
 ```bash
 # Windows (PowerShell)
-# 推荐：不需要手动配置 JAVA_HOME，优先让 Android Studio 使用自带 JBR (Java 21)
-# 兼容：如果你想使用外部 JDK，可设置为 JDK 17 或 21 的安装目录
+# 推荐：不需手动配置，直接使用 Android Studio 自带 JBR (Java 21)
+# 若一定要设置环境变量，需指向 JDK 17 或 21 的安装目录
 [System.Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.x-hotspot")
 [System.Environment]::SetEnvironmentVariable("ANDROID_HOME", "C:\Users\YourName\AppData\Local\Android\Sdk")
 
@@ -173,13 +174,15 @@ git checkout -b feature/ui-tree-张三
 
 ## 四、VSCode配置
 
+> ⚠️ **重要提示**：本项目环境下 Kotlin Language Server (LSP) 不可用，导致 VS Code 无法提供准确的智能代码补全和严格的实时类型检查。在使用 VS Code 开发时，请必须通过执行 Gradle 任务来验证代码逻辑的正确性。
+
 ### 4.1 安装推荐插件
 
 打开VSCode，按`Ctrl+Shift+X`打开扩展市场，搜索并安装以下插件：
 
 | 插件名称 | 用途 | 是否必需 |
 |----------|------|---------|
-| Kotlin Language | Kotlin语法高亮 | |
+| Kotlin Language | Kotlin语法高亮（仅提供高亮，无LSP支持）| |
 | Android Code Snippet | Android代码片段 | |
 | Gradle Language Support | Gradle语法支持 | |
 | GitLens | Git增强 | |
