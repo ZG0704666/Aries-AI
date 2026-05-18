@@ -15,7 +15,7 @@ object UpdateNotificationUtil {
 
     const val EXTRA_SHOW_UPDATE_DIALOG = "extra_show_update_dialog"
 
-    private const val ABOUT_ACTIVITY_CLASS = "com.ai.phoneagent.AboutActivity"
+    private const val MAIN_ACTIVITY_CLASS = "com.ai.phoneagent.MainActivity"
     private const val CHANNEL_ID = "update_channel"
     private const val NOTIFICATION_ID = 3101
 
@@ -33,7 +33,7 @@ object UpdateNotificationUtil {
 
         val intent =
             Intent()
-                .setClassName(context, ABOUT_ACTIVITY_CLASS)
+                .setClassName(context, MAIN_ACTIVITY_CLASS)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 .putExtra(EXTRA_SHOW_UPDATE_DIALOG, true)
 

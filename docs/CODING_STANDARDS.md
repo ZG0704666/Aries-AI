@@ -203,10 +203,8 @@ try {
     val result = service.getUiHierarchy()
     return result
 } catch (e: IllegalStateException) {
-    Log.e(TAG, "UI获取失败", e)
+    AppLogger.e(TAG, "UI状态异常", e)
     return null
-}
-```
 } catch (e: AccessibilityServiceException) {
     AppLogger.e(TAG, "无障碍服务异常", e)
     return null
@@ -888,5 +886,5 @@ cd phone-agent
 ---
 
 **文档版本**：v1.4
-**最后更新**：2026-05-17
+**最后更新**：2026-05-18
 **维护人**：ZG0704666

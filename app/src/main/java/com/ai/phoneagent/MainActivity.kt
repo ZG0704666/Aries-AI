@@ -92,6 +92,7 @@ import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ChatRequestMessage
 import com.ai.phoneagent.net.LocalMnnInferenceEngine
 import com.ai.phoneagent.net.ModelScopeModelDownloader
+import com.ai.phoneagent.updates.UpdateNotificationUtil
 import com.ai.phoneagent.updates.UpdateStartupCoordinator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
@@ -820,6 +821,8 @@ class MainActivity : AppCompatActivity() {
 
         silentCheckUpdatesOnLaunch()
         refreshMainChatPromptOnLaunch()
+
+        handleUpdateNotificationIntent()
 
         // Handle automation intent extras from cold-start launch
         handleAutomationLaunchIntent()
@@ -1701,6 +1704,7 @@ class MainActivity : AppCompatActivity() {
         setIntent(intent)
         handleReturnFromFloatingWindow()
         handleAutomationOverlayReturnIntent()
+        handleUpdateNotificationIntent()
         handleAutomationLaunchIntent()
     }
 
@@ -1789,6 +1793,14 @@ class MainActivity : AppCompatActivity() {
 
         revealActionAreasForMessages()
         smoothScrollToBottom()
+    }
+
+    private fun handleUpdateNotificationIntent() {
+        val currentIntent = intent ?: return
+        if (!currentIntent.getBooleanExtra(UpdateNotificationUtil.EXTRA_SHOW_UPDATE_DIALOG, false)) return
+
+        currentIntent.removeExtra(UpdateNotificationUtil.EXTRA_SHOW_UPDATE_DIALOG)
+        navigateToRoute(Routes.UpdateHistory.route)
     }
 
     private fun handleAutomationLaunchIntent() {

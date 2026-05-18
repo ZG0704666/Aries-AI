@@ -1,8 +1,8 @@
 # Aries AI 开发文档
 
-> 最后更新：2026-05-17
+> 最后更新：2026-05-18
 >
-> 当前版本：1.4.0 (versionCode 16)
+> 当前版本：1.4.3 (versionCode 18)
 
 ## 📖 阅读指南
 
@@ -35,10 +35,11 @@
 
 ## 🎯 最新状态
 
-### 版本 1.4.3 beta (2026-04-09)
+### 版本 1.4.3 (2026-04-09)
 
 **当前版本信息**：
-- versionName: 1.4.3 beta
+- versionCode: 18
+- versionName: v1.4.3
 - targetSdk: 36 (Android 16)
 - minSdk: 30 (Android 11)
 - Kotlin: 2.2.21
@@ -370,7 +371,7 @@ AutoGlmClient.sendChatResult(
 
 | 版本 | versionCode | 发布日期 | 主要功能 | 状态 |
 |------|-------------|---------|---------|------|
-| **1.4.3 beta** | | 2026-04-09 | Stream WebView深度重构、UX Program | 预发布 |
+| **1.4.3** | 18 | 2026-04-09 | Stream WebView深度重构、UX Program | 当前 |
 | 1.4.0 | 16 | 2026-02-28 | 架构优化、配置统一、文档重构 | 稳定 |
 | 1.3.2 | 15 | 2026-02-25 | Shizuku 优化、OpenAI 兼容 API | 稳定 |
 
@@ -391,6 +392,18 @@ AutoGlmClient.sendChatResult(
 **验证状态**：
 - 已记录建议验证命令。
 - 当前本机缺少 `JAVA_HOME`/`java`，Gradle 验证需配置 JDK 后执行。
+
+#### 2026-04-09 - v1.4.3 beta (预发布版)
+
+**核心重构**：
+- **流式思考内容深度重构 (Stream WebView Render)**：优化 `StreamRenderHelper` 的流处理链路，支持复杂 Markdown 和 `<think>` 标签拦截展示，修复异常收缩和乱码渲染导致的崩溃现象。
+
+**新增功能**：
+- 新增「用户体验改进计划（UX Program）」入口，默认关闭，并同步补充隐私说明。
+- 在关于页链路中补充更新检查与版本信息展示能力。
+
+**修复与优化**：
+- 修复若干导致崩溃的潜在问题，提升预发布版稳定性。
 
 #### 2026-02-28 - v1.4.0
 
