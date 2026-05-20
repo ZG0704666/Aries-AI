@@ -4,6 +4,7 @@
 .idea/
 .kotlin/
 .vscode/
+wiki/
 
 # Android / Gradle local state
 .android/
