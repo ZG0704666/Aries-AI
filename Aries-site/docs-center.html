@@ -1456,11 +1456,246 @@
         }
       }
 
-      function postProcessMarkdown(rootEl) {
+      function normalizeDocPath(path) {
+        const parts = [];
+        String(path || '')
+          .replaceAll('\\', '/')
+          .split('/')
+          .forEach((segment) => {
+            let decoded = segment.trim();
+            if (!decoded) return;
+            try {
+              decoded = decodeURIComponent(decoded);
+            } catch {
+              // 保留原始 segment。
+            }
+            if (!decoded || decoded === '.') return;
+            if (decoded === '..') {
+              parts.pop();
+              return;
+            }
+            parts.push(decoded);
+          });
+        return parts.join('/');
+      }
+
+      function stripHrefSearchAndHash(href) {
+        const noHash = href.split('#')[0] || '';
+        return noHash.split('?')[0] || '';
+      }
+
+      function docPathToUrlPath(docPath) {
+        return normalizeDocPath(docPath)
+          .split('/')
+          .map((segment) => encodeURIComponent(segment))
+          .join('/');
+      }
+
+      const DOC_GROUPS = [
+        {
+          title: { CN: '项目概览', EN: 'Project Overview' },
+          items: [
+            { id: 'overview-intro', title: { CN: '简介与核心特性', EN: '简介与核心特性' }, docPath: '项目概览/简介与核心特性' },
+            { id: 'overview-license', title: { CN: '许可证与社区', EN: '许可证与社区' }, docPath: '项目概览/许可证与社区' },
+          ],
+        },
+        {
+          title: { CN: '快速开始', EN: 'Quick Start' },
+          items: [
+            { id: 'quickstart-permissions', title: { CN: '环境与权限配置', EN: '环境与权限配置' }, docPath: '快速开始/环境与权限配置' },
+            { id: 'quickstart-model-api', title: { CN: 'API Key 与模型配置', EN: 'API Key 与模型配置' }, docPath: '快速开始/API Key 与模型配置' },
+          ],
+        },
+        {
+          title: { CN: '技术架构', EN: 'Architecture' },
+          items: [
+            { id: 'architecture-overall', title: { CN: '整体架构设计', EN: '整体架构设计' }, docPath: '技术架构/整体架构设计' },
+            { id: 'architecture-modules', title: { CN: '模块组织结构', EN: '模块组织结构' }, docPath: '技术架构/模块组织结构' },
+            { id: 'architecture-dataflow', title: { CN: '数据流与核心链路', EN: '数据流与核心链路' }, docPath: '技术架构/数据流与核心链路' },
+            { id: 'architecture-di', title: { CN: 'DI 依赖注入 (Koin)', EN: 'DI 依赖注入 (Koin)' }, docPath: '技术架构/DI 依赖注入 (Koin)' },
+            { id: 'architecture-navigation', title: { CN: '导航与路由系统', EN: '导航与路由系统' }, docPath: '技术架构/导航与路由系统' },
+          ],
+        },
+        {
+          title: { CN: '对话系统', EN: 'Conversation System' },
+          items: [
+            { id: 'chat-home-screen', title: { CN: '主对话界面 (HomeScreen)', EN: '主对话界面 (HomeScreen)' }, docPath: '对话系统/主对话界面 (HomeScreen)' },
+            { id: 'chat-streaming-markdown', title: { CN: '流式 Markdown 渲染', EN: '流式 Markdown 渲染' }, docPath: '对话系统/流式 Markdown 渲染' },
+            { id: 'chat-transcript-cards', title: { CN: '消息转录与卡片系统', EN: '消息转录与卡片系统' }, docPath: '对话系统/消息转录与卡片系统' },
+            { id: 'chat-markdown-components', title: { CN: 'Markdown 组件体系', EN: 'Markdown 组件体系' }, docPath: '对话系统/Markdown 组件体系' },
+            { id: 'chat-input-waveform', title: { CN: '输入栏与语音波形', EN: '输入栏与语音波形' }, docPath: '对话系统/输入栏与语音波形' },
+            { id: 'chat-history-sessions', title: { CN: '对话历史与会话管理', EN: '对话历史与会话管理' }, docPath: '对话系统/对话历史与会话管理' },
+          ],
+        },
+        {
+          title: { CN: '自动化引擎', EN: 'Automation Engine' },
+          items: [
+            { id: 'automation-agent-loop', title: { CN: '自动化 Agent 主循环', EN: '自动化 Agent 主循环' }, docPath: '自动化引擎/自动化 Agent 主循环' },
+            { id: 'automation-state-model', title: { CN: 'Agent 数据模型与状态', EN: 'Agent 数据模型与状态' }, docPath: '自动化引擎/Agent 数据模型与状态' },
+            { id: 'automation-action-parser', title: { CN: '动作解析器 (ActionParser)', EN: '动作解析器 (ActionParser)' }, docPath: '自动化引擎/动作解析器 (ActionParser)' },
+            { id: 'automation-action-executor', title: { CN: '动作执行器 (ActionExecutor)', EN: '动作执行器 (ActionExecutor)' }, docPath: '自动化引擎/动作执行器 (ActionExecutor)' },
+            { id: 'automation-agent-config', title: { CN: '配置管理 (AgentConfiguration)', EN: '配置管理 (AgentConfiguration)' }, docPath: '自动化引擎/配置管理 (AgentConfiguration)' },
+          ],
+        },
+        {
+          title: { CN: '系统服务与权限', EN: 'System Services & Permissions' },
+          items: [
+            { id: 'system-device-controller', title: { CN: '设备控制器 (DeviceController)', EN: '设备控制器 (DeviceController)' }, docPath: '系统服务与权限/设备控制器 (DeviceController)' },
+          ],
+        },
+        {
+          title: { CN: '多模型接入', EN: 'Model Integration' },
+          items: [
+            { id: 'models-overview', title: { CN: '多模型接入总览', EN: '多模型接入总览' }, docPath: '多模型接入/多模型接入总览' },
+            { id: 'models-switching', title: { CN: '模型模式切换与配置链路', EN: '模型模式切换与配置链路' }, docPath: '多模型接入/模型模式切换与配置链路' },
+          ],
+        },
+        {
+          title: { CN: '虚拟屏隔离系统', EN: 'Virtual Display Isolation' },
+          items: [
+            { id: 'vdiso-overview', title: { CN: '虚拟屏完全隔离总览', EN: '虚拟屏完全隔离总览' }, docPath: '虚拟屏隔离系统/虚拟屏完全隔离总览' },
+            { id: 'vdiso-focus-input', title: { CN: '焦点管理与输入注入链路', EN: '焦点管理与输入注入链路' }, docPath: '虚拟屏隔离系统/焦点管理与输入注入链路' },
+          ],
+        },
+        {
+          title: { CN: 'AI 工具框架', EN: 'AI Tooling' },
+          items: [
+            { id: 'tools-architecture', title: { CN: '工具系统架构', EN: '工具系统架构' }, docPath: 'AI 工具框架/工具系统架构' },
+            { id: 'tools-registration', title: { CN: '工具注册与权限管理', EN: '工具注册与权限管理' }, docPath: 'AI 工具框架/工具注册与权限管理' },
+            { id: 'tools-network', title: { CN: '网络工具执行器', EN: '网络工具执行器' }, docPath: 'AI 工具框架/网络工具执行器' },
+            { id: 'tools-file', title: { CN: '文件工具执行器', EN: '文件工具执行器' }, docPath: 'AI 工具框架/文件工具执行器' },
+            { id: 'tools-packages', title: { CN: '应用包名管理', EN: '应用包名管理' }, docPath: 'AI 工具框架/应用包名管理' },
+          ],
+        },
+        {
+          title: { CN: 'UI 组件与设计系统', EN: 'UI & Design System' },
+          items: [
+            { id: 'ui-theme', title: { CN: 'Material 3 主题系统', EN: 'Material 3 主题系统' }, docPath: 'UI 组件与设计系统/Material 3 主题系统' },
+            { id: 'ui-settings', title: { CN: '设置界面体系', EN: '设置界面体系' }, docPath: 'UI 组件与设计系统/设置界面体系' },
+            { id: 'ui-onboarding', title: { CN: '引导页 (Onboarding)', EN: '引导页 (Onboarding)' }, docPath: 'UI 组件与设计系统/引导页 (Onboarding)' },
+            { id: 'ui-drawer', title: { CN: '侧边栏与抽屉导航', EN: '侧边栏与抽屉导航' }, docPath: 'UI 组件与设计系统/侧边栏与抽屉导航' },
+            { id: 'ui-attachments', title: { CN: '附件组件与文件展示', EN: '附件组件与文件展示' }, docPath: 'UI 组件与设计系统/附件组件与文件展示' },
+            { id: 'ui-icons', title: { CN: '图标系统', EN: '图标系统' }, docPath: 'UI 组件与设计系统/图标系统' },
+          ],
+        },
+        {
+          title: { CN: '数据持久化', EN: 'Persistence' },
+          items: [
+            { id: 'data-room', title: { CN: 'Room 数据库 (AriesDatabase)', EN: 'Room 数据库 (AriesDatabase)' }, docPath: '数据持久化/Room 数据库 (AriesDatabase)' },
+            { id: 'data-session', title: { CN: '会话存储与仓储', EN: '会话存储与仓储' }, docPath: '数据持久化/会话存储与仓储' },
+            { id: 'data-preferences', title: { CN: '偏好设置仓储 (Preferences)', EN: '偏好设置仓储 (Preferences)' }, docPath: '数据持久化/偏好设置仓储 (Preferences)' },
+            { id: 'data-screenshot', title: { CN: '截图缓存与节流', EN: '截图缓存与节流' }, docPath: '数据持久化/截图缓存与节流' },
+          ],
+        },
+        {
+          title: { CN: '更新与分发', EN: 'Release & Distribution' },
+          items: [
+            { id: 'release-in-app-updates', title: { CN: '应用内更新系统', EN: '应用内更新系统' }, docPath: '更新与分发/应用内更新系统' },
+            { id: 'release-github-release', title: { CN: 'GitHub Release 集成', EN: 'GitHub Release 集成' }, docPath: '更新与分发/GitHub Release 集成' },
+            { id: 'release-apk-download', title: { CN: 'APK 下载与安装', EN: 'APK 下载与安装' }, docPath: '更新与分发/APK 下载与安装' },
+            { id: 'release-version-notes', title: { CN: '版本发布说明', EN: '版本发布说明' }, docPath: '更新与分发/版本发布说明' },
+          ],
+        },
+        {
+          title: { CN: '开发规范与工具', EN: 'Development Practices' },
+          items: [
+            { id: 'dev-coding-standards', title: { CN: '代码规范 (CODING_STANDARDS)', EN: '代码规范 (CODING_STANDARDS)' }, docPath: '开发规范与工具/代码规范 (CODING_STANDARDS)' },
+            { id: 'dev-git-workflow', title: { CN: 'Git 工作流', EN: 'Git 工作流' }, docPath: '开发规范与工具/Git 工作流' },
+            { id: 'dev-ai-pr-review', title: { CN: 'AI PR Review 流程', EN: 'AI PR Review 流程' }, docPath: '开发规范与工具/AI PR Review 流程' },
+            { id: 'dev-feedback-debugging', title: { CN: '反馈日志与问题排查', EN: '反馈日志与问题排查' }, docPath: '开发规范与工具/反馈日志与问题排查' },
+            { id: 'dev-build-toolchain', title: { CN: '构建脚本与工具链', EN: '构建脚本与工具链' }, docPath: '开发规范与工具/构建脚本与工具链' },
+          ],
+        },
+        {
+          title: { CN: '常见问题与支持', EN: 'Support' },
+          items: [
+            { id: 'support-faq', title: { CN: 'FAQ 常见问题', EN: 'FAQ 常见问题' }, docPath: '常见问题与支持/FAQ 常见问题' },
+            { id: 'support-troubleshooting', title: { CN: '故障排查指南', EN: '故障排查指南' }, docPath: '常见问题与支持/故障排查指南' },
+            { id: 'support-vdiso-debugging', title: { CN: '虚拟屏调试提示', EN: '虚拟屏调试提示' }, docPath: '常见问题与支持/虚拟屏调试提示' },
+          ],
+        },
+      ];
+
+      const HIDDEN_DOCS = [
+        { id: 'compat-building', title: { CN: '构建总览（BUILDING）', EN: 'BUILDING' }, docPath: 'BUILDING', description: { CN: '兼容旧链接的构建总览入口。', EN: 'Compatibility entry for BUILDING.' } },
+        { id: 'compat-technical', title: { CN: '技术总览（TECHNICAL_OVERVIEW）', EN: 'TECHNICAL_OVERVIEW' }, docPath: 'TECHNICAL_OVERVIEW', description: { CN: '兼容旧链接的技术总览入口。', EN: 'Compatibility entry for TECHNICAL_OVERVIEW.' } },
+        { id: 'compat-coding', title: { CN: '代码规范（兼容入口）', EN: 'CODING_STANDARDS' }, docPath: 'CODING_STANDARDS', description: { CN: '兼容旧链接的代码规范入口。', EN: 'Compatibility entry for CODING_STANDARDS.' } },
+        { id: 'compat-workflow', title: { CN: 'Git 工作流（兼容入口）', EN: 'GIT_WORKFLOW' }, docPath: 'GIT_WORKFLOW', description: { CN: '兼容旧链接的 Git 工作流入口。', EN: 'Compatibility entry for GIT_WORKFLOW.' } },
+        { id: 'compat-faq', title: { CN: 'FAQ（兼容入口）', EN: 'FAQ' }, docPath: 'FAQ', description: { CN: '兼容旧链接的 FAQ 入口。', EN: 'Compatibility entry for FAQ.' } },
+        { id: 'compat-ai-pr-review', title: { CN: 'AI PR Review（兼容入口）', EN: 'AI_PR_REVIEW' }, docPath: 'AI_PR_REVIEW', description: { CN: '兼容旧链接的 AI PR Review 入口。', EN: 'Compatibility entry for AI_PR_REVIEW.' } },
+        { id: 'compat-feishu', title: { CN: '飞书协作（兼容入口）', EN: 'FEISHU_COLLABORATION' }, docPath: 'FEISHU_COLLABORATION', description: { CN: '保留历史飞书协作文档入口。', EN: 'Compatibility entry for Feishu collaboration.' } },
+      ];
+
+      const DOC_ITEMS = [...DOC_GROUPS.flatMap((group) => group.items), ...HIDDEN_DOCS];
+      const DOC_BY_ID = Object.fromEntries(DOC_ITEMS.map((item) => [item.id, item]));
+      const DOC_BY_PATH = Object.fromEntries(DOC_ITEMS.map((item) => [normalizeDocPath(item.docPath), item]));
+      const ROUTE_ALIASES = {
+        'quick-5min': 'compat-building',
+        'doc-building': 'compat-building',
+        'doc-technical': 'compat-technical',
+        'doc-workflow': 'dev-git-workflow',
+        'doc-standards': 'dev-coding-standards',
+        'doc-feishu': 'compat-feishu',
+        faq: 'support-faq',
+        'model-key': 'quickstart-model-api',
+        'automation-permissions': 'quickstart-permissions',
+        'automation-accessibility': 'quickstart-permissions',
+        'ui-buttons': 'chat-home-screen',
+        'dev-contribute': 'dev-git-workflow',
+      };
+      const HOME_CARDS = [
+        { id: 'overview-intro', title: { CN: '项目概览', EN: 'Overview' }, desc: { CN: '先看产品定位、核心特性和整体能力边界。', EN: 'Start from product scope and core capabilities.' } },
+        { id: 'quickstart-permissions', title: { CN: '快速开始', EN: 'Quick Start' }, desc: { CN: '从权限、Shizuku 和基础运行条件开始。', EN: 'Start with permissions, Shizuku, and setup.' } },
+        { id: 'quickstart-model-api', title: { CN: '模型配置', EN: 'Model Setup' }, desc: { CN: '了解第三方 API、Aries API 与本地模型入口。', EN: 'Understand third-party, Aries, and local model paths.' } },
+        { id: 'architecture-overall', title: { CN: '技术架构', EN: 'Architecture' }, desc: { CN: '阅读整体架构、模块边界与关键设计目标。', EN: 'Read the architecture and module boundaries.' } },
+        { id: 'automation-agent-loop', title: { CN: '自动化引擎', EN: 'Automation' }, desc: { CN: '关注 Agent 主循环、动作解析和执行路径。', EN: 'Follow the agent loop, parsing, and execution.' } },
+        { id: 'vdiso-overview', title: { CN: '虚拟屏隔离', EN: 'Virtual Display' }, desc: { CN: '查看后台隔离、截图链路和输入定向机制。', EN: 'See background isolation, capture, and input routing.' } },
+        { id: 'models-overview', title: { CN: '多模型接入', EN: 'Model Integration' }, desc: { CN: '了解多模型模式切换、Provider 抽象和鉴权方式。', EN: 'Understand provider abstraction and API modes.' } },
+        { id: 'tools-architecture', title: { CN: 'AI 工具框架', EN: 'AI Tools' }, desc: { CN: '查看工具注册、权限与执行器分层。', EN: 'Inspect tool registration, permissions, and executors.' } },
+        { id: 'support-faq', title: { CN: 'FAQ 与排障', EN: 'FAQ & Troubleshooting' }, desc: { CN: '排查权限、构建、网络和虚拟屏常见问题。', EN: 'Troubleshoot permissions, build, network, and vdiso.' } },
+      ];
+
+      function resolveDocRouteId(href, currentDocPath) {
+        const rawHref = String(href || '').trim();
+        if (!rawHref || rawHref.startsWith('#') || /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(rawHref)) {
+          return null;
+        }
+        const rawPath = stripHrefSearchAndHash(href);
+        if (!rawPath || !rawPath.toLowerCase().endsWith('.md')) return null;
+
+        const currentDir = currentDocPath && currentDocPath.includes('/')
+          ? currentDocPath.slice(0, currentDocPath.lastIndexOf('/'))
+          : '';
+        const relativeTarget = rawPath.startsWith('/')
+          ? normalizeDocPath(rawPath)
+          : normalizeDocPath([currentDir, rawPath].filter(Boolean).join('/'));
+        const normalizedDocPath = relativeTarget.replace(/\.md$/i, '');
+
+        if (DOC_BY_PATH[normalizedDocPath]) {
+          return DOC_BY_PATH[normalizedDocPath].id;
+        }
+
+        const fileName = normalizeDocPath(rawPath).split('/').pop() || '';
+        const baseName = fileName.replace(/\.md$/i, '');
+        if (DOC_BY_PATH[baseName]) {
+          return DOC_BY_PATH[baseName].id;
+        }
+
+        return null;
+      }
+
+      function postProcessMarkdown(rootEl, currentDocPath) {
         if (!rootEl) return;
 
         rootEl.querySelectorAll('a[href]').forEach((a) => {
           const href = a.getAttribute('href') || '';
+          const routeId = resolveDocRouteId(href, currentDocPath || '');
+          if (routeId) {
+            a.setAttribute('href', `#/${routeId}`);
+            a.removeAttribute('target');
+            a.removeAttribute('rel');
+            return;
+          }
           if (isExternalHref(href)) {
             a.setAttribute('target', '_blank');
             a.setAttribute('rel', 'noreferrer');
@@ -1515,12 +1750,7 @@
         if (e.key === 'Escape') closeLightbox();
       });
 
-      const IMG_MAP = {
-        'quick-5min': { download: '', accessibility: '', overlay: '' },
-        'automation-permissions': { accessibility: '', screenshot: '', overlay: '' },
-      };
-
-      async function loadDocText(docName) {
+      async function loadDocText(docPath) {
         // 尝试加载文档
         // 如果通过 file:// 协议访问，提示需要本地服务
         if (location.protocol === 'file:') {
@@ -1529,7 +1759,7 @@
         }
 
         const baseDir = location.pathname.replace(/[^/]+$/, '');
-        const fileName = `${encodeURIComponent(docName)}.md`;
+        const fileName = `${docPathToUrlPath(docPath)}.md`;
         const cacheBuster = `v=${Date.now()}`;
         // 优化路径猜测顺序：优先尝试 docs/ 下
         const candidates = [
@@ -1556,12 +1786,18 @@
         throw lastErr || new Error('Failed to fetch doc content');
       }
 
-      function docPage(titleCn, titleEn, docName) {
+      function docPage(entry) {
+        const titleCn = entry.title && entry.title.CN ? entry.title.CN : '';
+        const titleEn = entry.title && entry.title.EN ? entry.title.EN : titleCn;
+        const descCn = entry.description && entry.description.CN ? entry.description.CN : '';
+        const descEn = entry.description && entry.description.EN ? entry.description.EN : descCn;
+        const pageDesc = lang === 'CN' ? descCn : descEn;
         return `
           <div class="doc-page">
             <div class="doc-prose">
               <h1>${lang === 'CN' ? escapeHtml(titleCn) : escapeHtml(titleEn)}</h1>
-              <div class="md-content" data-doc="${escapeHtml(docName)}"></div>
+              ${pageDesc ? `<p>${escapeHtml(pageDesc)}</p>` : ''}
+              <div class="md-content" data-doc="${escapeHtml(entry.docPath)}"></div>
             </div>
             <div class="doc-page-footer">
               <div class="text-center text-xs dark:text-slate-400 text-slate-500">关于：本页内容来自仓库文档，随项目更新。若发现不一致，请在 GitHub 提交 Issue/PR。</div>
@@ -1570,53 +1806,11 @@
         `;
       }
 
-      function imgSlot(pageId, key, title) {
-        const src = (IMG_MAP[pageId] && IMG_MAP[pageId][key]) ? IMG_MAP[pageId][key] : '';
-        const label = title || ('图片占位：' + key);
-        if (!src) {
-          return `
-            <div class="img-slot px-4 py-4 mt-3" data-img-src="">
-              <div class="text-sm font-semibold">${escapeHtml(label)}</div>
-              <div class="mt-1 text-xs dark:text-slate-400 text-slate-600">点击占位块（后续替换为你上传的截图，并支持点击放大）</div>
-            </div>
-          `;
-        }
-        return `
-          <div class="img-slot p-3 mt-3" data-img-src="${escapeHtml(src)}" data-img-alt="${escapeHtml(label)}">
-            <div class="text-xs dark:text-slate-300 text-slate-600 mb-2">${escapeHtml(label)}（点击查看大图）</div>
-            <img src="${escapeHtml(src)}" alt="${escapeHtml(label)}" loading="lazy" decoding="async" class="w-full rounded-xl" />
-          </div>
-        `;
-      }
-
-      const NAV = [
-        {
-          title: { CN: '欢迎', EN: 'Welcome' },
-          items: [{ id: 'home', title: { CN: '文档中心首页', EN: 'Home' } }]
-        },
-        {
-          title: { CN: '技术文档', EN: 'Technical Docs' },
-          items: [
-            { id: 'doc-technical', title: { CN: '技术概览（TECHNICAL_OVERVIEW）', EN: 'Technical Overview' } },
-          ]
-        },
-        {
-          title: { CN: '开发与共创', EN: 'Co-Create' },
-          items: [
-            { id: 'doc-building', title: { CN: '构建指南（BUILDING）', EN: 'Building Guide' } },
-            { id: 'doc-workflow', title: { CN: '工作流（GIT_WORKFLOW）', EN: 'Git Workflow' } },
-            { id: 'doc-standards', title: { CN: '代码规范（CODING_STANDARDS）', EN: 'Coding Standards' } },
-            { id: 'doc-feishu', title: { CN: '飞书协作（FEISHU）', EN: 'Feishu Collaboration' } },
-          ]
-        },
-        {
-          title: { CN: '常见问题 Q&A', EN: 'Q&A' },
-          items: [{ id: 'faq', title: { CN: '常见问题 Q&A', EN: 'FAQ' } }]
-        },
-      ];
-
       function buildNav() {
-        const html = NAV.map(group => {
+        const html = [{
+          title: { CN: '欢迎', EN: 'Welcome' },
+          items: [{ id: 'home', title: { CN: '文档中心首页', EN: 'Home' } }],
+        }, ...DOC_GROUPS].map(group => {
           const title = lang === 'CN' ? group.title.CN : group.title.EN;
           const links = group.items.map(it => {
             const itTitle = lang === 'CN' ? it.title.CN : it.title.EN;
@@ -1648,113 +1842,48 @@
         }
       }
 
-      const PAGES = {
-        home: () => {
-          return `
-            <div class="doc-prose">
-              <div class="text-center">
-                <div class="text-3xl sm:text-4xl font-extrabold tracking-tight">${lang === 'CN' ? '欢迎来到 Aries AI 文档中心' : 'Welcome to Aries AI Docs'}</div>
-                <div class="mt-4 text-sm sm:text-base dark:text-slate-300 text-slate-600 leading-relaxed max-w-4xl mx-auto">
-                  ${lang === 'CN'
-              ? 'Aries AI 是一款“手机上的智能执行助手（Phone Agent）”：你用自然语言下达目标，它能在真实 App 里理解界面并自动完成点击、输入、滑动等操作。'
-              : 'Aries AI is a mobile Phone Agent that understands UI and executes real app interactions from natural language goals.'}
-                </div>
-              </div>
-              <h2>${lang === 'CN' ? '三步上手' : 'Get started in 3 steps'}</h2>
-              <ol class="mt-3 space-y-2" style="list-style: decimal; padding-left: 1.25rem;">
-                <li>${lang === 'CN' ? '安装：下载并安装最新 APK。' : 'Install: download and install the latest APK.'}</li>
-                <li>${lang === 'CN' ? '授权：开启无障碍（必须），悬浮窗（推荐），截图（按需）。' : 'Permissions: accessibility (required), overlay (recommended), screenshots (optional).'}</li>
-                <li>${lang === 'CN' ? '第一次任务：输入一句话任务并观察悬浮窗日志。' : 'First task: run a one-sentence task and watch overlay logs.'}</li>
-              </ol>
-              <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                <a class="doc-card p-5" href="#/quick-5min"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '快速开始' : 'Quick Start'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '从安装到跑通一个任务。' : 'Install and complete a first task.'}</div></a>
-                <a class="doc-card p-5" href="#/doc-technical"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '技术文档' : 'Technical Docs'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '核心技术实现与架构设计。' : 'Core technology and architecture.'}</div></a>
-                <a class="doc-card p-5" href="#/faq"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '常见问题 Q&A' : 'Q&A'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '集中收录典型问题与解决方案。' : 'Common questions & answers.'}</div></a>
-                <a class="doc-card p-5" href="#/doc-building"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '构建指南' : 'Building Guide'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '从源码编译到打包发布。' : 'Build from source to release.'}</div></a>
-                <a class="doc-card p-5" href="#/doc-workflow"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? 'Git 工作流' : 'Git Workflow'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? '分支管理与协作规范。' : 'Branch management and collaboration.'}</div></a>
-                <a class="doc-card p-5" href="#/doc-standards"><div class="shine"></div><div class="text-sm font-semibold">${lang === 'CN' ? '代码规范' : 'Coding Standards'}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${lang === 'CN' ? 'Kotlin 编码风格与最佳实践。' : 'Kotlin style guide and best practices.'}</div></a>
-              </div>
-            </div>
-          `;
-        },
-        'quick-5min': () => {
-          return `
-            <div class="doc-page">
-              <div class="doc-prose">
-                <h1>${lang === 'CN' ? '快速开始（开发）' : 'Quick Start (Dev)'}</h1>
-                <p>${lang === 'CN' ? '本页直接接入项目的 BUILDING.md（编译指南）。如你只想“先跑起来”，优先按这里做。' : 'This page embeds BUILDING.md for building the project.'}</p>
-                <h2>${lang === 'CN' ? '编译指南（BUILDING.md）' : 'BUILDING.md'}</h2>
-                <div class="md-content" data-doc="BUILDING"></div>
-              </div>
+      function buildHomePage() {
+        const visibleDocCount = DOC_GROUPS.reduce((count, group) => count + group.items.length, 0);
+        const cards = HOME_CARDS.map((card) => {
+          const title = lang === 'CN' ? card.title.CN : card.title.EN;
+          const desc = lang === 'CN' ? card.desc.CN : card.desc.EN;
+          return `<a class="doc-card p-5" href="#/${escapeHtml(card.id)}"><div class="shine"></div><div class="text-sm font-semibold">${escapeHtml(title)}</div><div class="mt-1 text-xs dark:text-slate-400 text-slate-500">${escapeHtml(desc)}</div></a>`;
+        }).join('');
 
-              <div class="doc-page-footer">
-                <div class="text-center text-xs dark:text-slate-400 text-slate-500">关于：本页内容来自仓库文档，随项目更新。若发现步骤与实际不一致，请在 GitHub 提交 Issue/PR。</div>
+        return `
+          <div class="doc-prose">
+            <div class="text-center">
+              <div class="text-3xl sm:text-4xl font-extrabold tracking-tight">${lang === 'CN' ? 'Aries AI 文档中心' : 'Aries AI Docs Center'}</div>
+              <div class="mt-4 text-sm sm:text-base dark:text-slate-300 text-slate-600 leading-relaxed max-w-4xl mx-auto">
+                ${lang === 'CN'
+                  ? `当前文档中心已切换为新的专题结构，覆盖项目概览、快速开始、技术架构、对话系统、自动化引擎、虚拟屏隔离、多模型接入、工具框架、UI、数据层、更新分发与排障支持，共 ${visibleDocCount} 篇专题文档。`
+                  : `The docs center now follows the new topic-based structure across overview, quick start, architecture, conversation, automation, virtual display, model integration, tooling, UI, persistence, release, and support.`}
               </div>
             </div>
-          `;
-        },
-        'ui-buttons': () => {
-          return `
-            <div class="doc-prose">
-              <h1>${lang === 'CN' ? '界面与按钮说明' : 'UI & Controls'}</h1>
-              <p>${lang === 'CN' ? '本页帮助你快速认识 Aries AI 的关键界面：悬浮窗、日志、暂停/继续/停止等。' : 'Key UI elements: overlay, logs, pause/resume/stop.'}</p>
-              ${imgSlot('quick-5min', 'overlay', lang === 'CN' ? '悬浮窗示意图（待补充）' : 'Overlay (placeholder)')}
-              <h2>${lang === 'CN' ? '日志怎么看？' : 'How to read logs?'}</h2>
-              <ul>
-                <li>${lang === 'CN' ? '权限缺失：提示开启无障碍/悬浮窗/截图。' : 'Missing permissions: asks to enable accessibility/overlay/screenshot.'}</li>
-                <li>${lang === 'CN' ? '页面变化：控件找不到，建议回到正确页面后重试。' : 'UI changed: element not found; navigate back and retry.'}</li>
-              </ul>
+            <h2>${lang === 'CN' ? '建议阅读顺序' : 'Suggested Reading Order'}</h2>
+            <ol class="mt-3 space-y-2" style="list-style: decimal; padding-left: 1.25rem;">
+              <li>${lang === 'CN' ? '先看“项目概览”和“快速开始”，建立功能与运行前提的整体认知。' : 'Start with Overview and Quick Start.'}</li>
+              <li>${lang === 'CN' ? '再看“技术架构”“自动化引擎”和“虚拟屏隔离系统”，理解核心执行链路。' : 'Then read Architecture, Automation, and Virtual Display.'}</li>
+              <li>${lang === 'CN' ? '最后按需要进入“多模型接入”“AI 工具框架”“数据持久化”和“FAQ/排障”专题。' : 'Then move into model integration, tooling, persistence, and support.'}</li>
+            </ol>
+            <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              ${cards}
             </div>
-          `;
-        },
-        'model-key': () => {
-          return `
-            <div class="doc-prose">
-              <h1>${lang === 'CN' ? '模型与 Key 配置' : 'Model & API Key'}</h1>
-              <p>${lang === 'CN' ? '在此页面补充：支持的模型服务、Key 填写位置、网络要求与常见报错。' : 'Placeholder: providers, where to set key, network requirements, common errors.'}</p>
-            </div>
-          `;
-        },
-        'automation-permissions': () => {
-          return `
-            <div class="doc-prose">
-              <h1>${lang === 'CN' ? '自动化能力与权限' : 'Automation & Permissions'}</h1>
-              <p>${lang === 'CN' ? '说明三类关键权限：无障碍（必须）、悬浮窗（推荐）、截图（按需）。后续可补不同机型路径截图。' : 'Explain accessibility (required), overlay (recommended), screenshots (optional).'}
-              </p>
-              ${imgSlot('automation-permissions', 'accessibility', lang === 'CN' ? '无障碍开启路径（待补充）' : 'Accessibility path (placeholder)')}
-              ${imgSlot('automation-permissions', 'screenshot', lang === 'CN' ? '截图权限路径（待补充）' : 'Screenshot permission (placeholder)')}
-            </div>
-          `;
-        },
-        'automation-accessibility': () => {
-          return `
-            <div class="doc-prose">
-              <h1>${lang === 'CN' ? '无障碍开启指南（占位）' : 'Accessibility Guide (placeholder)'}</h1>
-              <p>${lang === 'CN' ? '后续按手机厂商补齐：小米/华为/OPPO/VIVO/三星等。' : 'To be completed per OEM: Xiaomi/Huawei/OPPO/VIVO/Samsung...'}
-              </p>
-            </div>
-          `;
-        },
-        'dev-contribute': () => {
-          return `
-            <div class="doc-prose">
-              <h1>${lang === 'CN' ? '开发 / 共创' : 'Dev / Co-Create'}</h1>
-              <p>${lang === 'CN' ? '此页面入口已从网站导航隐藏（后续接入共创体系时再开放）。' : 'This entry is hidden from nav for now.'}</p>
-            </div>
-          `;
-        },
-        'doc-technical': () => docPage('技术概览（TECHNICAL_OVERVIEW）', 'Technical Overview', 'TECHNICAL_OVERVIEW'),
-        'doc-building': () => docPage('构建指南（BUILDING）', 'Building Guide', 'BUILDING'),
-        'doc-workflow': () => docPage('工作流（GIT_WORKFLOW）', 'Git Workflow', 'GIT_WORKFLOW'),
-        'doc-standards': () => docPage('代码规范（CODING_STANDARDS）', 'Coding Standards', 'CODING_STANDARDS'),
-        'doc-feishu': () => docPage('飞书协作（FEISHU）', 'Feishu Collaboration', 'FEISHU_COLLABORATION'),
-        faq: () => docPage('常见问题 Q&A', 'FAQ', 'FAQ'),
+          </div>
+        `;
+      }
+
+      const PAGES = {
+        home: buildHomePage,
+        ...Object.fromEntries(DOC_ITEMS.map((entry) => [entry.id, () => docPage(entry)])),
       };
 
       function getRoute() {
         const raw = (location.hash || '').trim();
         const m = raw.match(/^#\/(.+)$/);
-        return m && m[1] ? m[1] : 'home';
+        const routeId = m && m[1] ? (ROUTE_ALIASES[m[1]] || m[1]) : 'home';
+        if (routeId === 'home') return 'home';
+        return DOC_BY_ID[routeId] ? routeId : 'home';
       }
 
       function bindImgSlots() {
@@ -1776,14 +1905,14 @@
         contentEl.innerHTML = page();
         const docEls = Array.from(contentEl.querySelectorAll('[data-doc]'));
         await Promise.all(docEls.map(async (el) => {
-          const docName = el.getAttribute('data-doc') || '';
-          if (!docName) return;
+          const docPath = el.getAttribute('data-doc') || '';
+          if (!docPath) return;
           try {
             el.textContent = '加载中...';
-            const txt = await loadDocText(docName);
+            const txt = await loadDocText(docPath);
             if (window.marked && typeof window.marked.parse === 'function') {
               el.innerHTML = window.marked.parse(txt);
-              postProcessMarkdown(el);
+              postProcessMarkdown(el, docPath);
             } else {
               el.textContent = txt;
             }

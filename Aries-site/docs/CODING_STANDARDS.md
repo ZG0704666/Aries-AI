@@ -1,28 +1,74 @@
-# Phone Agent 代码规范
+﻿# 代码规范 (CODING_STANDARDS)
 
-> 本文档定义Phone Agent项目的代码编写规范，确保团队代码风格一致性和可维护性。
+Aries AI (Phone Agent) 项目的代码编写规范，确保团队代码风格一致性和可维护性。
+
+## 概述
+
+本文档定义了 Aries AI 项目中所有代码、资源、Git 提交、测试和文档的编写标准。规范覆盖项目中的 Kotlin 代码、Android 资源文件、Git 工作流、单元测试与集成测试、API 文档以及 Compose UI 渲染等多个维度。
+
+**核心目标：**
+- **一致性**：统一的编码风格，降低团队成员之间的阅读成本
+- **可维护性**：清晰的注释和命名，便于长期迭代
+- **可审查性**：标准化格式，方便 Code Review 与自动化检查
+- **质量保障**：通过测试规范和覆盖率要求保证代码质量
+
+**适用范围：** 所有 `app/`、`core/`、`accessibility/` 等模块下的 Kotlin 源码、XML 资源文件、Gradle 构建脚本以及文档。
+
+## 规范体系架构
+
+```mermaid
+flowchart TD
+    subgraph Standards["📋 代码规范体系"]
+        direction TB
+        K["一、Kotlin 代码规范<br/>命名/注释/格式/异常/协程"]
+        R["二、Android 资源规范<br/>布局/ID/字符串/颜色/尺寸"]
+        G["三、Git 提交规范<br/>提交信息/分支命名"]
+        T["四、测试规范<br/>单元测试/集成测试/覆盖率"]
+        D["五、文档规范<br/>API文档/README/设计说明"]
+        C["六、Compose 渲染规范<br/>流式状态/防跳布局/Markdown"]
+    end
+
+    subgraph Enforcement["🔧 规范执行机制"]
+        direction LR
+        CR["👤 Code Review"]
+        CI["⚙️ GitHub Actions CI"]
+        QA["🤖 Qodo AI Review"]
+    end
+
+    subgraph Codebase["📁 项目代码模块"]
+        direction LR
+        AppModule["app/ - 主应用"]
+        CoreModule["core/ - 核心引擎"]
+        DSModule["designsystem/ - 设计系统"]
+        ShizukuModule["shizuku/ - Shizuku 桥接"]
+    end
+
+    K --> Enforcement
+    R --> Enforcement
+    G --> Enforcement
+    T --> Enforcement
+    D --> Enforcement
+    C --> Enforcement
+    Enforcement --> Codebase
+```
+
+规范分为 **六大领域**，每一领域都有明确的条目和示例。所有规范通过 **Code Review**、**CI 自动检查** 和 **Qodo AI 审查** 三道防线落实，覆盖项目的四个核心代码模块。
 
 ---
 
-## 📋 目录
-
-- [一、Kotlin代码规范](#一kotlin代码规范)
-- [二、Android资源规范](#二android资源规范)
-- [三、Git提交规范](#三git提交规范)
-- [四、测试规范](#四测试规范)
-- [五、文档规范](#五文档规范)
-
----
-
-## 一、Kotlin代码规范
+## 一、Kotlin 代码规范
 
 ### 1.1 命名规范
 
-#### 1.1.1 类和接口命名
+#### 类和接口命名
+
+使用 PascalCase（大驼峰）命名。`fun interface` 仅包含一个抽象方法，用于简洁声明函数式接口。
+
+> Source: [ToolExecutor.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/tools/ToolExecutor.kt#L10-L16)
 
 ```kotlin
 // ✅ 正确：PascalCase
-class PhoneAgentService { }
+class ScreenshotCache { }
 interface IToolExecutor { }
 data class ScreenshotData { }
 object AppPackageManager { }
@@ -32,7 +78,11 @@ class phoneAgentService { }
 interface iToolExecutor { }
 ```
 
-#### 1.1.2 函数和变量命名
+#### 函数和变量命名
+
+使用 camelCase（小驼峰）命名。
+
+> Source: [ScreenshotThrottler.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/cache/ScreenshotThrottler.kt#L9-L14)
 
 ```kotlin
 // ✅ 正确：camelCase
@@ -45,69 +95,84 @@ fun GetUiHierarchy() { }
 val ScreenshotCache = ScreenshotCache()
 ```
 
-#### 1.1.3 常量命名
+#### 常量命名
+
+使用 UPPER_SNAKE_CASE 命名。
+
+> Source: [ScreenshotOverlayGuard.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/cache/ScreenshotOverlayGuard.kt#L18-L19)
 
 ```kotlin
 // ✅ 正确：UPPER_SNAKE_CASE
 const val MAX_CACHE_SIZE = 3
 const val SCREENSHOT_QUALITY = 75
 const val DEFAULT_TIMEOUT = 5000L
+private const val STUCK_HIDE_TIMEOUT_MS = 10_000L
 
 // ❌ 错误：小写或驼峰
 const val maxCacheSize = 3
 const val screenshotQuality = 75
 ```
 
-#### 1.1.4 私有属性命名
+#### 属性命名（Backing Property 约定）
+
+公开只读属性与私有可变属性分离时，私有属性使用下划线前缀：
 
 ```kotlin
-// ✅ 正确：下划线开头
-private val _context: Context
-private val _isBound = false
+// ✅ 正确：公开只读 + 私有可变下划线前缀
+private val _context: MutableLiveData<Context> = MutableLiveData()
+val context: LiveData<Context> get() = _context
 
-// ❌ 错误：无下划线
-private val context: Context
+// ✅ 正确：普通私有属性直接用驼峰命名，不加下划线
 private val isBound = false
+private val cache = ScreenshotCache()
+
+// ❌ 错误：滥用下划线前缀
+private val _isBound = false
 ```
 
 ### 1.2 文件注释规范
 
-#### 1.2.1 类注释（必须）
+#### 类注释（必须）
+
+每个公开类都必须包含 KDoc 注释，说明职责和设计意图。
+
+> Source: [ScreenshotCache.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/cache/ScreenshotCache.kt#L5-L11)
 
 ```kotlin
 /**
- * UI层次结构管理器
- * 负责与无障碍服务通信，获取UI树
- * 
- * @author 张三
- * @since 2026-01-09
- * @see UIHierarchyManager
+ * 截图缓存管理器
+ * 实现LRU缓存策略，避免短时间内重复截图
  */
-class UIHierarchyManager {
+class ScreenshotCache(
+    private val maxSize: Int = 3,           // 最大缓存条目数
+    private val ttlMs: Long = 2000L         // 缓存过期时间（2秒）
+) {
     // ...
 }
 ```
 
-#### 1.2.2 函数注释（复杂函数必须）
+#### 函数注释（复杂函数必须）
+
+> Source: [ScreenshotManager.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/cache/ScreenshotManager.kt#L44-L53)
 
 ```kotlin
 /**
- * 获取UI层次结构
- * 
- * @param format 输出格式(xml/json)
- * @param detail 详细程度(minimal/summary/full)
- * @return UI树字符串
- * @throws IllegalStateException 当无障碍服务未启用时
+ * 优化的截图获取方法
+ * 1. 检查是否启用虚拟屏模式，如是则使用虚拟屏截图
+ * 2. 检查节流器，防止频繁截图
+ * 3. 检查缓存，避免重复截图
+ * 4. 执行截图并压缩优化
  */
-suspend fun getUiHierarchy(
-    format: String = "xml",
-    detail: String = "summary"
-): String {
+suspend fun getOptimizedScreenshot(
+    service: PhoneAgentAccessibilityService?
+): PhoneAgentAccessibilityService.ScreenshotData? {
     // ...
 }
 ```
 
-#### 1.2.3 行内注释（关键逻辑必须）
+#### 行内注释（关键逻辑必须）
+
+关键分支、复杂算法和性能敏感点必须添加行内注释说明 WHY：
 
 ```kotlin
 if (shouldTakeScreenshot()) {
@@ -123,81 +188,50 @@ if (System.currentTimeMillis() - timestamp > TTL) {
 
 ### 1.3 代码格式规范
 
-#### 1.3.1 缩进
+| 规则 | 要求 | 说明 |
+|------|------|------|
+| 缩进 | 4 个空格 | 不使用 Tab |
+| 行宽 | 120 字符 | 超出则换行 |
+| 文件编码 | UTF-8 | 默认编码 |
+| 大括号 | 左大括号不换行 | K&R 风格 |
+| 空行 | 逻辑块之间一个空行 | 避免连续多个空行 |
 
 ```kotlin
-// 使用4个空格缩进
-class PhoneAgentService {
-    private val cache = ScreenshotCache()
-    
-    fun execute() {
-        val result = cache.get("key")
-        return result
-    }
-}
-```
-
-#### 1.3.2 大括号
-
-```kotlin
-// ✅ 正确：左大括号不换行
-if (condition) {
-    doSomething()
-}
-
-// ❌ 错误：左大括号换行
-if (condition)
-{
-    doSomething()
-}
-```
-
-#### 1.3.3 空行
-
-```kotlin
-// ✅ 正确：适当使用空行
-class PhoneAgentService {
-    private val cache = ScreenshotCache()
-    
-    fun execute() {
-        val result = cache.get("key")
-        
-        if (result != null) {
-            return result
+// ✅ 正确：4空格缩进，左大括号不换行
+class ScreenshotCache {
+    private val cache = object : LinkedHashMap<String, CacheEntry>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CacheEntry>?): Boolean {
+            return size > maxSize
         }
-        
-        return defaultValue
     }
-}
 
-// ❌ 错误：过多空行
-class PhoneAgentService {
-    private val cache = ScreenshotCache()
-    
-    
-    fun execute() {
-        val result = cache.get("key")
-        
-        
-        if (result != null) {
-            return result
+    @Synchronized
+    fun get(key: String): Any? {
+        val entry = cache[key] ?: return null
+        // 检查是否过期
+        if (System.currentTimeMillis() - entry.timestamp > ttlMs) {
+            cache.remove(key)
+            return null
         }
-        
-        
-        return defaultValue
+        return entry.screenshot
     }
 }
 ```
 
 ### 1.4 异常处理规范
 
-#### 1.4.1 异常捕获
+#### 异常捕获
+
+捕获具体的异常类型，**禁止**使用 `catch (e: Exception)` 吞噬所有异常：
 
 ```kotlin
 // ✅ 正确：捕获特定异常
 try {
     val result = service.getUiHierarchy()
     return result
+} catch (e: IllegalStateException) {
+    AppLogger.e(TAG, "UI状态异常", e)
+    return null
 } catch (e: AccessibilityServiceException) {
     AppLogger.e(TAG, "无障碍服务异常", e)
     return null
@@ -205,40 +239,35 @@ try {
 
 // ❌ 错误：捕获所有异常
 try {
-    val result = service.getUiHierarchy()
-    return result
+    return service.getUiHierarchy()
 } catch (e: Exception) {
-    AppLogger.e(TAG, "异常", e)
     return null
 }
 ```
 
-#### 1.4.2 异常抛出
+#### 异常抛出
+
+抛出具体的异常类型，附带清晰的错误消息：
 
 ```kotlin
 // ✅ 正确：抛出具体异常
 fun getUiHierarchy(): String {
     val service = PhoneAgentAccessibilityService.instance
         ?: throw IllegalStateException("无障碍服务未启用")
-    
-    return service.dumpUiTree()
-}
-
-// ❌ 错误：抛出通用异常
-fun getUiHierarchy(): String {
-    val service = PhoneAgentAccessibilityService.instance
-        ?: throw Exception("无障碍服务未启用")
-    
     return service.dumpUiTree()
 }
 ```
 
 ### 1.5 协程使用规范
 
-#### 1.5.1 协程作用域
+#### 协程作用域
+
+- 在 `ViewModel` 中使用 `viewModelScope`
+- 在 Composable 中使用 `rememberCoroutineScope()`
+- **严禁**使用 `GlobalScope`（除非有充分理由并注释说明）
 
 ```kotlin
-// ✅ 正确：使用viewModelScope
+// ✅ 正确：使用 viewModelScope
 class AutomationViewModel : ViewModel() {
     fun startAutomation() {
         viewModelScope.launch {
@@ -249,94 +278,111 @@ class AutomationViewModel : ViewModel() {
         }
     }
 }
-
-// ❌ 错误：使用GlobalScope（除非特殊场景）
-class AutomationViewModel : ViewModel() {
-    fun startAutomation() {
-        GlobalScope.launch {
-            val result = service.executeAction()
-            _uiState.value = result
-        }
-    }
-}
 ```
 
-#### 1.5.2 协程上下文切换
+#### 协程上下文切换
+
+明确使用 `withContext` 切换线程：
 
 ```kotlin
 // ✅ 正确：明确切换上下文
 suspend fun executeAction(): Result<String> {
     return withContext(Dispatchers.IO) {
-        // IO操作
         val result = networkCall()
-        
-        withContext(Dispatchers.Main) {
-            // UI更新
-            updateUI(result)
-        }
-        
+        // IO 操作完成后返回
         Result.success(result)
+    }
+}
+```
+
+#### 并发安全
+
+使用 `@Synchronized`、`@Volatile` 或 `Mutex` 保护共享状态：
+
+> Source: [ScreenshotThrottler.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/cache/ScreenshotThrottler.kt#L13-L21)
+
+```kotlin
+class ScreenshotThrottler(
+    private val minIntervalMs: Long = 1100L
+) {
+    @Volatile
+    private var lastScreenshotTime: Long = 0L
+
+    @Synchronized
+    fun canTakeScreenshot(): Boolean {
+        val currentTime = System.currentTimeMillis()
+        val timeSinceLastScreenshot = currentTime - lastScreenshotTime
+        if (timeSinceLastScreenshot >= minIntervalMs) {
+            lastScreenshotTime = currentTime
+            return true
+        }
+        return false
+    }
+}
+```
+
+`suspend` 函数中的共享状态推荐使用 `kotlinx.coroutines.sync.Mutex`：
+
+> Source: [ScreenshotManager.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/cache/ScreenshotManager.kt#L42)
+
+```kotlin
+class ScreenshotManager(private val config: AgentConfiguration = AgentConfiguration.DEFAULT) {
+    private val mutex = Mutex()
+
+    suspend fun getOptimizedScreenshot(service: PhoneAgentAccessibilityService?) {
+        mutex.withLock {
+            // 临界区逻辑
+        }
     }
 }
 ```
 
 ---
 
-## 二、Android资源规范
+## 二、Android 资源规范
 
 ### 2.1 布局文件命名
 
-```xml
-<!-- ✅ 正确：小写+下划线 -->
-activity_main.xml
-fragment_automation.xml
-item_screenshot.xml
-dialog_permission.xml
+使用小写字母 + 下划线格式：
 
-<!-- ❌ 错误：大写或驼峰 -->
-ActivityMain.xml
-FragmentAutomation.xml
-ItemScreenshot.xml
+```
+✅ activity_main.xml
+✅ fragment_automation.xml
+✅ item_screenshot.xml
+✅ dialog_permission.xml
+
+❌ ActivityMain.xml
+❌ FragmentAutomation.xml
 ```
 
-### 2.2 ID命名规范
+### 2.2 ID 命名规范
+
+格式：`前缀_功能描述`，使用小写字母 + 下划线：
+
+| 前缀 | 组件类型 | 示例 |
+|------|---------|------|
+| `btn_` | Button | `btn_submit` |
+| `et_` | EditText | `et_search` |
+| `tv_` | TextView | `tv_title` |
+| `iv_` | ImageView | `iv_avatar` |
+| `rv_` | RecyclerView | `rv_list` |
+| `cl_` | ConstraintLayout | `cl_container` |
 
 ```xml
-<!-- ✅ 正确：前缀+下划线+驼峰 -->
-<LinearLayout
-    <Button
-        android:id="@+id/btn_submit"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/btn_submit" />
-    
-    <EditText
-        android:id="@+id/et_search"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/hint_search" />
-    
-    <TextView
-        android:id="@+id/tv_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/tv_title" />
-</LinearLayout>
+<Button
+    android:id="@+id/btn_submit"
+    android:text="@string/btn_submit" />
 
-<!-- ❌ 错误：无前缀或驼峰 -->
-<LinearLayout>
-    <Button
-        android:id="@+id/BtnSubmit"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/BtnSubmit" />
-</LinearLayout>
+<EditText
+    android:id="@+id/et_search"
+    android:hint="@string/hint_search" />
 ```
 
 ### 2.3 字符串资源命名
 
+格式：`前缀_描述`，使用小写字母 + 下划线：
+
 ```xml
-<!-- ✅ 正确：前缀+下划线+驼峰 -->
 <resources>
     <string name="btn_submit">提交</string>
     <string name="et_search_hint">搜索</string>
@@ -344,62 +390,43 @@ ItemScreenshot.xml
     <string name="msg_success">操作成功</string>
     <string name="error_network">网络错误</string>
 </resources>
-
-<!-- ❌ 错误：无前缀或大写 -->
-<resources>
-    <string name="Submit">提交</string>
-    <string name="SearchHint">搜索</string>
-    <string name="Title">标题</string>
-</resources>
 ```
 
-### 2.4 颜色资源命名
+### 2.4 颜色与尺寸资源
+
+格式：`用途_描述`，使用小写字母 + 下划线：
 
 ```xml
-<!-- ✅ 正确：前缀+下划线+驼峰 -->
-<resources>
-    <color name="color_primary">#6200EE</color>
-    <color name="color_secondary">#03DAC6</color>
-    <color name="color_success">#4CAF50</color>
-    <color name="color_error">#F44336</color>
-    <color name="color_background">#FFFFFF</color>
-</resources>
+<!-- 颜色 -->
+<color name="color_primary">#6200EE</color>
+<color name="color_background">#FFFFFF</color>
 
-<!-- ❌ 错误：无前缀或大写 -->
-<resources>
-    <color name="Primary">#6200EE</color>
-    <color name="Secondary">#03DAC6</color>
-</resources>
+<!-- 尺寸 -->
+<dimen name="margin_small">8dp</dimen>
+<dimen name="text_size_medium">16sp</dimen>
 ```
 
-### 2.5 尺寸资源命名
+### 2.5 禁止硬编码
 
-```xml
-<!-- ✅ 正确：前缀+下划线+驼峰 -->
-<resources>
-    <dimen name="margin_small">8dp</dimen>
-    <dimen name="margin_medium">16dp</dimen>
-    <dimen name="margin_large">24dp</dimen>
-    <dimen name="text_size_small">14sp</dimen>
-    <dimen name="text_size_medium">16sp</dimen>
-    <dimen name="text_size_large">18sp</dimen>
-</resources>
+> Source: [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md#L216-L224)
 
-<!-- ❌ 错误：无前缀或大写 -->
-<resources>
-    <dimen name="Small">8dp</dimen>
-    <dimen name="Medium">16dp</dimen>
-</resources>
+```kotlin
+// ❌ 错误：硬编码
+textView.textSize = 16f
+textView.setTextColor(Color.parseColor("#FF0000"))
+
+// ✅ 正确：使用资源
+textView.textSize = resources.getDimension(R.dimen.text_size_medium)
+textView.setTextColor(ContextCompat.getColor(context, R.color.error))
 ```
 
 ---
 
-## 三、Git提交规范
+## 三、Git 提交规范
 
 ### 3.1 提交信息格式
 
-```bash
-# 标准格式
+```
 <type>(<scope>): <subject>
 
 <body>
@@ -407,96 +434,55 @@ ItemScreenshot.xml
 <footer>
 ```
 
-#### 3.1.1 类型（type）
+#### 类型（type）
 
 | 类型 | 说明 | 示例 |
 |------|------|------|
-| feat | 新功能 | feat(tool): 新增get_page_info工具 |
-| fix | 修复bug | fix(ui): 修复UI树解析失败 |
-| perf | 性能优化 | perf(cache): 优化截图缓存策略 |
-| refactor | 重构代码 | refactor(service): 重构无障碍服务 |
-| docs | 文档更新 | docs(readme): 更新README |
-| test | 测试相关 | test(unit): 添加单元测试 |
-| chore | 构建/工具链 | chore(deps): 更新依赖版本 |
+| `feat` | 新功能 | `feat(tool): 新增get_page_info工具` |
+| `fix` | 修复 bug | `fix(ui): 修复UI树解析失败` |
+| `perf` | 性能优化 | `perf(cache): 优化截图缓存策略` |
+| `refactor` | 重构代码 | `refactor(service): 重构无障碍服务` |
+| `docs` | 文档更新 | `docs(readme): 更新README` |
+| `test` | 测试相关 | `test(unit): 添加单元测试` |
+| `style` | 代码格式（不影响功能） | `style(core): 统一格式化` |
+| `chore` | 构建/工具链 | `chore(deps): 更新依赖版本` |
 
-#### 3.1.2 范围（scope）
+#### 范围（scope）
 
-| 范围 | 说明 | 示例 |
-|------|------|------|
-| tool | 工具相关 | feat(tool): 新增工具 |
-| ui | UI相关 | fix(ui): 修复布局问题 |
-| service | 服务相关 | perf(service): 优化服务性能 |
-| cache | 缓存相关 | feat(cache): 新增缓存机制 |
-| agent | Agent相关 | refactor(agent): 重构Agent逻辑 |
-| config | 配置相关 | chore(config): 更新配置 |
+| 范围 | 说明 |
+|------|------|
+| `tool` | 工具系统 |
+| `ui` | UI 及 Compose |
+| `service` | 无障碍服务 |
+| `cache` | 缓存相关 |
+| `agent` | Agent 逻辑 |
+| `config` | 配置相关 |
+| `vdiso` | 虚拟屏模块 |
+| `input` | 输入注入 |
+| `shizuku` | Shizuku 桥接 |
 
-#### 3.1.3 主题（subject）
-
-```bash
-# ✅ 正确：简洁明了，不超过50字符
-feat(tool): 新增get_page_info工具
-
-# ❌ 错误：过长或模糊
-feat(tool): 新增get_page_info工具用于获取页面信息包括package和activity和UI树支持xml和json格式
-```
-
-#### 3.1.4 正文（body）
+#### 提交示例
 
 ```bash
-# ✅ 正确：详细说明变更内容
-feat(tool): 新增get_page_info工具
-
-- 支持获取页面信息(package+activity+UI树)
-- 支持format参数(xml/json)
-- 支持detail参数(minimal/summary/full)
-- 对齐Operit工具接口
-
-Closes #001
-
-# ❌ 错误：无详细说明
-feat(tool): 新增get_page_info工具
-
-Closes #001
-```
-
-#### 3.1.5 页脚（footer）
-
-```bash
-# ✅ 正确：关联Issue或PR
-Closes #001
-Related to #002
-Refs #003
-
-# ❌ 错误：无关联信息
-```
-
-### 3.2 提交示例
-
-```bash
-# 功能开发
-git add .
-git commit -m "feat(tool): 新增click_element工具-张三
+# ✅ 功能开发
+git commit -m "feat(tool): 新增click_element工具
 
 - 支持resourceId/text/className/index点击
 - selector优先，坐标兜底
 - 支持模糊匹配(partialMatch)
-- 对齐Operit工具接口
 
 Closes #005"
 
-# Bug修复
-git add .
-git commit -m "fix(ui): 修复UI树解析失败-李四
+# ✅ Bug修复
+git commit -m "fix(ui): 修复UI树解析失败
 
 - XML格式不兼容，调整解析器
 - 添加异常处理
-- 增加单元测试
 
 Fixes #003"
 
-# 性能优化
-git add .
-git commit -m "perf(cache): 优化截图缓存策略-王五
+# ✅ 性能优化
+git commit -m "perf(cache): 优化截图缓存策略
 
 - 调整TTL从2秒到1.5秒
 - 增加LRU淘汰策略
@@ -505,180 +491,111 @@ git commit -m "perf(cache): 优化截图缓存策略-王五
 Related to #013"
 ```
 
-### 3.3 分支命名规范
+### 3.2 分支命名规范
 
 ```bash
 # 功能分支
-feature/xxx-开发者名
 feature/ui-tree-张三
 feature/tool-click-element-李四
-feature/perf-cache-王五
 
 # 修复分支
-fix/xxx-开发者名
 fix/ui-parse-error-张三
-fix/cache-bug-李四
 
 # 热修复分支
-hotfix/xxx-开发者名
 hotfix/crash-fix-张三
-hotfix/memory-leak-李四
 ```
 
 ---
 
 ## 四、测试规范
 
-### 4.1 单元测试规范
+### 4.1 测试类与方法命名
 
-#### 4.1.1 测试类命名
+- 测试类：`被测试类名 + Test`（如 `ScreenshotCacheTest`）
+- 测试方法：使用反引号包裹的中文描述，清晰表达测试意图
 
-```kotlin
-// ✅ 正确：类名+Test
-class ScreenshotCacheTest { }
-class PhoneAgentServiceTest { }
-class ToolRegistrationTest { }
+### 4.2 测试结构
 
-// ❌ 错误：Test前缀
-class TestScreenshotCache { }
-class TestPhoneAgentService { }
-```
+使用 Given-When-Then（AAA）模式编写测试：
 
-#### 4.1.2 测试方法命名
+> Source: [CoreModuleTest.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/test/java/com/ai/phoneagent/core/CoreModuleTest.kt#L14-L40)
 
 ```kotlin
-// ✅ 正确：test + 方法名
-@Test
-fun `test cache hit`() { }
+class CoreModuleTest {
 
-@Test
-fun `test cache eviction`() { }
+    // ========== 配置层测试 ==========
 
-@Test
-fun `test cache expiration`() { }
+    @Test
+    fun `AgentConfiguration 默认值测试`() {
+        val config = AgentConfiguration.DEFAULT
 
-// ❌ 错误：无test前缀
-@Test
-fun `cache hit`() { }
+        assertEquals(100, config.maxSteps)
+        assertEquals(160L, config.stepDelayMs)
+        assertEquals(3, config.maxModelRetries)
+        assertEquals(20000, config.maxContextTokens)
+        assertTrue(config.enableScreenshotCache)
+        assertTrue(config.enableScreenshotThrottle)
+    }
 
-@Test
-fun `cache eviction`() { }
+    @Test
+    fun `AgentConfiguration getActionDelayMs 测试`() {
+        val config = AgentConfiguration.DEFAULT
+
+        assertEquals(1050L, config.getActionDelayMs("launch"))
+        assertEquals(260L, config.getActionDelayMs("type"))
+        assertEquals(320L, config.getActionDelayMs("tap"))
+        assertEquals(420L, config.getActionDelayMs("swipe"))
+    }
+}
 ```
 
-#### 4.1.3 测试示例
+### 4.3 单元测试示例
+
+> Source: [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md#L240-L254)
 
 ```kotlin
 class ScreenshotCacheTest {
     private lateinit var cache: ScreenshotCache
-    
+
     @Before
     fun setup() {
         cache = ScreenshotCache(maxSize = 3)
     }
-    
+
     @Test
     fun `test cache hit`() {
         // Given
         val data = ScreenshotData("base64", System.currentTimeMillis(), "hash")
         cache.put("key1", data)
-        
+
         // When
         val result = cache.get("key1")
-        
+
         // Then
         assertNotNull(result)
         assertEquals("base64", result.base64)
     }
-    
-    @Test
-    fun `test cache eviction`() {
-        // Given
-        val data1 = ScreenshotData("base64_1", System.currentTimeMillis(), "hash1")
-        val data2 = ScreenshotData("base64_2", System.currentTimeMillis(), "hash2")
-        val data3 = ScreenshotData("base64_3", System.currentTimeMillis(), "hash3")
-        
-        cache.put("key1", data1)
-        cache.put("key2", data2)
-        cache.put("key3", data3)
-        
-        // When
-        val result1 = cache.get("key1")
-        val result2 = cache.get("key2")
-        val result3 = cache.get("key3")
-        
-        // Then
-        assertNull(result1) // 应该被淘汰
-        assertNotNull(result2)
-        assertNotNull(result3)
-    }
-    
-    @Test
-    fun `test cache expiration`() {
-        // Given
-        val oldData = ScreenshotData("old", System.currentTimeMillis() - 3000, "hash")
-        val newData = ScreenshotData("new", System.currentTimeMillis(), "hash")
-        
-        cache.put("key", oldData)
-        Thread.sleep(2500) // 等待超过TTL
-        
-        // When
-        val result = cache.get("key")
-        
-        // Then
-        assertNull(result) // 应该过期
-    }
 }
 ```
 
-### 4.2 集成测试规范
-
-```kotlin
-@RunWith(AndroidJUnit4::class)
-@LargeTest
-class AutomationFlowTest {
-    
-    @get:Rule
-    val activityRule = ActivityScenarioRule(AutomationActivity::class.java)
-    
-    @Test
-    fun `test complete automation flow`() {
-        // Given
-        val scenario = activityRule.scenario
-        scenario.moveToState(Lifecycle.State.RESUMED)
-        
-        // When
-        onView(withId(R.id.btn_launch)).perform(click())
-        
-        // Then
-        onView(withId(R.id.btn_search)).check(matches(isDisplayed()))
-        
-        // When
-        onView(withId(R.id.et_search)).perform(typeText("测试"))
-        
-        // Then
-        onView(withId(R.id.btn_submit)).perform(click())
-        
-        // Verify
-        onView(withText("成功")).check(matches(isDisplayed()))
-    }
-}
-```
-
-### 4.3 测试覆盖率要求
+### 4.4 测试覆盖率要求
 
 | 模块 | 最低覆盖率 | 推荐覆盖率 |
 |------|-----------|-----------|
-| 核心模块（Service、Agent） | 70% | 80% |
+| 核心模块（core/） | 70% | 80% |
 | 工具模块（Tools） | 60% | 70% |
-| UI模块（Activity、Fragment） | 50% | 60% |
+| UI 模块（Activity、Fragment） | 50% | 60% |
+| 网络模块（net/） | 50% | 60% |
 | 工具类（Utils） | 40% | 50% |
 
-运行测试覆盖率：
 ```bash
-# Windows
-.\gradlew jacocoTestReport
+# 运行所有单元测试
+./gradlew testDebugUnitTest
 
-# Linux/Mac
+# 运行特定测试类
+./gradlew testDebugUnitTest --tests "com.ai.phoneagent.core.CoreModuleTest"
+
+# 生成覆盖率报告
 ./gradlew jacocoTestReport
 ```
 
@@ -686,22 +603,22 @@ class AutomationFlowTest {
 
 ## 五、文档规范
 
-### 5.1 代码文档
+### 5.1 公共 API 文档
 
-#### 5.1.1 公共API文档
+使用标准 KDoc 标签：`@param`、`@return`、`@throws`、`@see`、`@since`：
 
 ```kotlin
 /**
  * 获取UI层次结构
- * 
+ *
  * 支持XML和JSON两种格式输出
- * 
+ *
  * @param format 输出格式，可选值：xml, json，默认xml
  * @param detail 详细程度，可选值：minimal, summary, full，默认summary
  * @return UI树字符串，格式取决于format参数
- * 
+ *
  * @throws IllegalStateException 当无障碍服务未启用时抛出
- * 
+ *
  * @see UIHierarchyManager
  * @since 1.0.0
  */
@@ -711,116 +628,182 @@ suspend fun getUiHierarchy(
 ): String
 ```
 
-#### 5.1.2 复杂逻辑文档
+### 5.2 复杂逻辑文档
+
+复杂算法和决策逻辑必须在注释中说明设计意图和决策原因。
+
+> Source: [AgentConfiguration.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/config/AgentConfiguration.kt#L20-L37)
 
 ```kotlin
 /**
- * 执行智能等待策略
- * 
- * 根据动作类型动态调整等待时间：
- * - launch: 500ms - 应用启动需要较长时间
- * - tap/click: 100ms - 点击操作响应快
- * - type/input: 200ms - 输入操作需要等待
- * - swipe/scroll: 300ms - 滑动操作需要动画时间
- * - back/home: 150ms - 系统按键响应快
- * - long_press: 400ms - 长按需要等待
- * - double_tap: 150ms - 双击需要快速响应
- * 
- * @param actionName 动作名称
- * @return 等待时间（毫秒）
+ * Agent配置 - 统一的配置管理中心
+ *
+ * 整合了原有分散的Config类，提供完整的配置管理
+ * 所有参数都有合理的默认值，可按需覆盖。
+ *
+ * 设计原则：
+ * 1) **默认可用**：不传入任何参数即可完成一次完整的端到端自动化任务。
+ * 2) **可解释**：每个参数对应明确的"稳定性/性能/体验"目标，尽量避免魔法数。
+ * 3) **可分层调参**：
+ *    - 首先调"重试/修复/等待"以提升稳定性
+ *    - 其次调"截图/上下文截断"以控制 token 与延迟
+ *    - 最后调"动作延迟"以优化动画与观感
+ *
+ * 约定：
+ * - 所有 `*Ms` 字段单位均为毫秒。
+ * - `maxTokens/maxContextTokens` 等为"近似上限"，实际仍受模型与服务端限制影响。
  */
-private fun getActionDelay(actionName: String): Long {
-    return when (actionName) {
-        "launch" -> 500L
-        "tap", "click" -> 100L
-        "type", "input" -> 200L
-        "swipe", "scroll" -> 300L
-        "back" -> 150L
-        "home" -> 200L
-        "long_press" -> 400L
-        "double_tap" -> 150L
-        else -> 200L
-    }
-}
+data class AgentConfiguration(
+    // ...
+)
 ```
 
-### 5.2 README文档
+### 5.3 项目文档维护规则
 
-#### 5.2.1 项目概述
+- 公共 API 变更 → 更新 API 文档注释
+- 重要功能新增/变更 → 更新 `Aries AI 开发文档.md`
+- 构建流程变更 → 更新 `docs/BUILDING.md`
+- 规范变更 → 更新 `docs/CODING_STANDARDS.md`
 
-```markdown
-# Phone Agent
+---
 
-基于安卓无障碍功能的AI手机自动化助手，通过智谱AI模型实现智能任务执行。
+## 六、Compose 与 Markdown 渲染规范
 
-## 特性
+### 6.1 流式 UI 状态分层
 
-- ✅ 智能UI理解：通过视觉语言模型理解屏幕内容
-- ✅ 自动化操作：支持点击、滑动、输入等操作
-- ✅ 多应用支持：支持微信、淘宝、美团等100+应用
-- ✅ 性能优化：截图缓存、智能节流、流式响应
-- ✅ 工具系统：25+工具，支持灵活扩展
+流式回复必须严格区分三层数据：
 
-## 快速开始
+| 层级 | 说明 |
+|------|------|
+| raw buffer | 保存模型原始输出，用于复制、持久化和最终消息 |
+| render preview | 节流后的 UI 可见快照，用于减少重组频率 |
+| safe Markdown | 只用于展示的临时 Markdown 补全结果 |
 
-\`\`\`bash
-# 1. 克隆项目
-git clone https://github.com/your-org/phone-agent.git
-cd phone-agent
+**要求：**
+- 不要每个 token 都直接驱动 Compose 树重组
+- 不要把临时补全写回原始消息
+- `copyText` 和持久化内容必须保留模型原文
 
-# 2. 安装依赖
-./gradlew build
+### 6.2 Markdown 渲染路径
 
-# 3. 运行应用
-./gradlew installDebug
-\`\`\`
+主页消息正文统一走 `ui.components.markdown.Markdown` 组件：
 
-## 开发指南
+- 流式阶段从一开始就渲染 Markdown，不先展示裸 Markdown 原文
+- 最终消息与流式消息使用同一套 Markdown/CodeBlock 组件，避免结束后代码块样式回退
+- 流式阶段可通过 `MarkdownSettings(enableCodeHighlight = false)` 禁用代码高亮异步重算
+- 最终消息再启用完整代码高亮、复制、保存、换行和行号工具栏
 
-详见 [BUILDING.md](./BUILDING.md)
+### 6.3 防跳布局
 
-## 代码规范
+流式消息需要控制布局稳定性：
 
-详见 [CODING_STANDARDS.md](docs/CODING_STANDARDS.md)
+- 消息容器应设置合理的最小高度，避免首包和短文本阶段高度抖动
+- 不要在流式正文上叠加复杂动画或频繁 `animateContentSize`
+- 宽度必须稳定，避免滚动条、内外层卡片或临时按钮导致换行点变化
+- 新增颜色、间距、尺寸优先使用 `m3t.xml` token
 
-## 贡献指南
+### 6.4 测试要求
 
-详见 [GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)
+修改 Markdown 或流式 transcript 时，至少覆盖：
+
+- 首包前 loading 状态
+- 普通文本缓冲推进
+- 标题、列表、代码块等 Markdown 结构识别
+- 未闭合 Markdown 的临时补全
+- 最终原文不被临时补全污染
+
+```bash
+./gradlew :app:testDebugUnitTest --tests "com.ai.phoneagent.ui.messages.StreamingTranscriptPreviewTest"
 ```
 
 ---
 
-## 📋 检查清单
+## 核心流程：从代码到合入
 
-在提交代码前，请确认：
+```mermaid
+flowchart TD
+    Start([开发者编写代码]) --> Lint{本地检查}
+    Lint -->|assembleDebug| Build[编译验证]
+    Build -->|testDebugUnitTest| Test[运行测试]
+    Test -->|lint| LintCheck[Lint 检查]
+    LintCheck --> Commit{提交代码}
+    
+    Commit -->|规范提交信息| Push[推送分支]
+    Push --> PR[创建 Pull Request]
+    
+    PR --> CI["🔧 CI 自动检查"]
+    CI --> CI_Build[编译检查]
+    CI --> CI_Test[单元测试]
+    CI --> CI_Lint[Lint 分析]
+    
+    PR --> Qodo["🤖 Qodo AI 审查"]
+    Qodo --> Qodo_Security[安全分析]
+    Qodo --> Qodo_Perf[性能建议]
+    Qodo --> Qodo_Quality[代码质量]
+    
+    CI_Build --> Result{全部通过?}
+    CI_Test --> Result
+    CI_Lint --> Result
+    Qodo_Security --> Result
+    Qodo_Perf --> Result
+    Qodo_Quality --> Result
+    
+    Result -->|是| Review["👤 人工 Code Review"]
+    Result -->|否| Fix[修复问题]
+    Fix --> Commit
+    
+    Review --> Approved{审查通过?}
+    Approved -->|是| Merge[合并到主分支]
+    Approved -->|否| Fix
+    
+    Merge --> End([完成])
+```
+
+---
+
+## 检查清单
+
+在提交代码前，请逐项确认：
 
 ### 代码质量
-- [ ] 代码符合命名规范
-- [ ] 公共API有完整注释
-- [ ] 复杂逻辑有详细说明
-- [ ] 异常处理完善
-- [ ] 无硬编码（除常量）
-- [ ] 无调试代码（System.out.println等）
+- [ ] 代码符合命名规范（PascalCase 类名、camelCase 函数/变量、UPPER_SNAKE_CASE 常量）
+- [ ] 公共 API 有完整 KDoc 注释
+- [ ] 复杂逻辑有详细的行内注释说明
+- [ ] 异常处理完善（捕获具体异常类型）
+- [ ] 无硬编码（颜色、尺寸、字符串均使用资源引用）
+- [ ] 无调试代码（`System.out.println`、`Log.wtf` 等）
+- [ ] 并发共享状态使用 `@Synchronized` / `Mutex` / `@Volatile` 保护
 
 ### 测试要求
 - [ ] 新功能有单元测试
-- [ ] 测试覆盖率≥70%
-- [ ] 测试通过
-- [ ] 无测试失败
+- [ ] 测试覆盖率达到模块最低要求
+- [ ] 所有测试通过（`./gradlew testDebugUnitTest`）
+- [ ] 新增测试遵循 Given-When-Then 模式
 
 ### 文档要求
-- [ ] 公共API有文档
-- [ ] README已更新
-- [ ] 变更说明完整
+- [ ] 公共 API 有完整的 KDoc 文档
+- [ ] 重要功能变更已更新 `Aries AI 开发文档.md`
+- [ ] 变更说明完整清晰
 
-### Git要求
-- [ ] 提交信息符合规范
-- [ ] 分支命名正确
-- [ ] 无敏感信息提交
-- [ ] 合并前已更新文档
+### Git 要求
+- [ ] 提交信息符合 `<type>(<scope>): <subject>` 格式
+- [ ] 分支命名正确（`feature/xxx`、`fix/xxx`、`hotfix/xxx`）
+- [ ] 无敏感信息提交（API Key、Token、密码等）
+- [ ] 合并前已更新相关文档
 
 ---
 
-**文档版本**：v1.3
-**最后更新**：2026-02-28
+## 相关链接
+
+- [CODING_STANDARDS.md (源文件)](https://github.com/ZG0704666/Aries-AI/blob/main/docs/CODING_STANDARDS.md) — 完整规范源文档
+- [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md) — 贡献者指南
+- [BUILDING.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/BUILDING.md) — 构建指南
+- [GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md) — Git 工作流规范
+- [TECHNICAL_OVERVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/TECHNICAL_OVERVIEW.md) — 技术架构文档
+- [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md) — AI PR 审阅指南
+
+---
+
+**文档版本**：v1.0  
+**最后更新**：基于仓库 main 分支  
 **维护人**：ZG0704666

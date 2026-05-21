@@ -1,64 +1,143 @@
-# Phone Agent Git工作流
+﻿# Git 工作流
 
-> 本文档定义Phone Agent项目的Git工作流规范，确保团队协作顺畅和版本管理规范。
+> 本文档定义 Aries AI 项目的 Git 工作流规范，涵盖分支策略、提交规范、Pull Request 流程、代码审查、合并与冲突解决、版本管理以及 CI/CD 自动化集成，确保团队协作顺畅和版本管理规范。
+
+## 概述
+
+Aries AI 项目采用基于 **GitHub Flow + 语义化版本** 的 Git 工作流模型。所有代码变更必须通过 Pull Request（PR）合并到主分支，并在合并前经过自动化 CI 检查和人工代码审查。
+
+### 核心原则
+
+- **分支隔离**：每个功能/修复在独立分支开发，不直接在 `main` 分支提交
+- **提交规范**：遵循 `type(scope): subject` 格式，提交信息清晰可追溯
+- **审查门禁**：所有 PR 必须通过 CI 自动化检查和至少 1 人的人工审查
+- **语义化版本**：采用 `MAJOR.MINOR.PATCH` 版本号，明确变更影响范围
+- **AI 辅助审阅**：由 Qodo AI 自动审阅代码，OpenCode 按需执行修复任务
+
+### 适用对象
+
+- 项目维护者（Owner/Member）：负责合并 PR、版本发布、代码审查
+- 贡献者（Collaborator）：负责功能开发、Bug 修复、文档更新
+- 外部贡献者：通过 Fork → PR 流程参与贡献
 
 ---
 
-## 📋 目录
+## 架构总览
 
-- [一、分支策略](#一分支策略)
-- [二、提交规范](#二提交规范)
-- [三、Pull Request流程](#三pull-request流程)
-- [四、代码审查流程](#四代码审查流程)
-- [五、合并流程](#五合并流程)
-- [六、冲突解决](#六冲突解决)
-- [七、版本管理](#七版本管理)
+```mermaid
+flowchart TD
+    subgraph Remote["远程仓库 (GitHub)"]
+        MainBranch["main 分支<br/>稳定生产版本"]
+        DevBranch["dev 分支<br/>开发集成分支"]
+        Release["Releases<br/>语义化版本标签"]
+        PRs["Pull Requests<br/>代码审查门禁"]
+    end
+
+    subgraph Local["本地开发环境"]
+        Fork["Fork 仓库<br/>（外部贡献者）"]
+        FeatureBranch["feature/xxx-开发者名<br/>功能开发分支"]
+        FixBranch["fix/xxx-开发者名<br/>Bug 修复分支"]
+        HotfixBranch["hotfix/xxx-开发者名<br/>紧急修复分支"]
+    end
+
+    subgraph CI["CI/CD 自动化"]
+        GHA["GitHub Actions CI<br/>编译 / 单元测试 / Lint"]
+        QodoMerge["Qodo Merge<br/>AI 代码审阅 / 安全分析"]
+        QodoCover["Qodo Cover<br/>测试缺口检测 / 生成测试"]
+        OpenCode["OpenCode<br/>按需 AI 代码修复"]
+    end
+
+    subgraph Review["审查流程"]
+        AutoReview["自动审阅 (Qodo AI)"]
+        HumanReview["人工审查 (维护者)"]
+        Approve{审查通过?}
+    end
+
+    Fork --> FeatureBranch
+    FeatureBranch --> PRs
+    FixBranch --> PRs
+    HotfixBranch --> PRs
+    PRs --> GHA
+    PRs --> QodoMerge
+    PRs --> QodoCover
+    GHA --> AutoReview
+    QodoMerge --> AutoReview
+    QodoCover --> AutoReview
+    AutoReview --> HumanReview
+    HumanReview --> Approve
+    Approve -->|通过| MainBranch
+    Approve -->|需修改| PRs
+    MainBranch --> DevBranch
+    MainBranch --> Release
+    PRs -.->|评论 /oc 命令| OpenCode
+    OpenCode -.->|自动提交修复| PRs
+```
+
+**架构说明：**
+
+- **本地开发层**：开发者在本地从 `main` 或 `dev` 分支创建特性分支，完成开发后推送至远程仓库
+- **PR 门禁层**：所有代码变更通过 Pull Request 提交，触发 CI 自动化流水线
+- **CI/CD 层**：GitHub Actions 执行编译和测试，Qodo AI 进行代码审阅，确保代码质量
+- **审查层**：AI 自动审阅 + 人工审查双重保障，审查通过后方可合并
+- **发布层**：合并到 `main` 后创建语义化版本标签，通过 GitHub Releases 发布
 
 ---
 
 ## 一、分支策略
 
-### 1.1 分支类型
+### 1.1 分支类型与用途
 
-| 分支类型 | 命名格式 | 用途 | 生命周期 |
-|----------|----------|------|----------|
-| main | main | 稳定版本，生产代码 | 永久 |
-| dev | dev | 开发集成分支 | 永久 |
-| feature | feature/xxx-开发者名 | 功能开发 | 临时 |
-| fix | fix/xxx-开发者名 | Bug修复 | 临时 |
-| hotfix | hotfix/xxx-开发者名 | 紧急修复 | 临时 |
+| 分支类型 | 命名格式 | 用途 | 生命周期 | 基准分支 |
+|----------|----------|------|----------|----------|
+| `main` | main | 稳定版本，生产就绪代码 | 永久 | - |
+| `dev` | dev | 开发集成分支 | 永久 | main |
+| `feature` | feature/xxx-开发者名 | 新功能开发 | 临时 | main/dev |
+| `fix` | fix/xxx-开发者名 | Bug 修复 | 临时 | main/dev |
+| `hotfix` | hotfix/xxx-开发者名 | 紧急线上修复 | 临时 | main |
 
-### 1.2 分支命名示例
+### 1.2 分支命名规范
+
+分支名必须包含**功能描述**和**开发者标识**，使用连字符分隔：
 
 ```bash
-# 功能分支（推荐）
+# ✅ 功能分支（推荐）
 feature/ui-tree-张三
 feature/tool-click-element-李四
 feature/perf-cache-王五
+feature/virtual-screen-optimization
 
-# 修复分支
+# ✅ 修复分支
 fix/ui-parse-error-张三
 fix/cache-bug-李四
 fix/crash-fix-王五
+fix/screenshot-black-frame
 
-# 热修复分支
+# ✅ 热修复分支
 hotfix/crash-fix-张三
 hotfix/memory-leak-李四
 hotfix/security-fix-王五
+
+# ❌ 不推荐的分支名
+test           # 无意义
+temp           # 无意义
+my-branch      # 缺乏功能描述和开发者标识
 ```
+
+> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L34-L48)
 
 ### 1.3 分支使用规则
 
-✅ **必须**：
-- 所有功能开发必须从`feature/xxx-开发者名`分支开始
-- 所有Bug修复必须从`fix/xxx-开发者名`分支开始
-- 紧急修复必须从`hotfix/xxx-开发者名`分支开始
-- 分支名必须包含开发者标识，便于追踪
+**✅ 必须遵守：**
+- 所有功能开发从 `feature/xxx-开发者名` 分支开始
+- 所有 Bug 修复从 `fix/xxx-开发者名` 分支开始
+- 紧急修复从 `hotfix/xxx-开发者名` 分支开始
+- 分支名必须包含开发者标识，便于追踪和归属
 
-❌ **禁止**：
-- 不要直接在`main`分支开发
-- 不要在`dev`分支开发（除非是集成）
-- 不要创建无意义的分支名（如`test`、`temp`）
+**❌ 严格禁止：**
+- 不要直接在 `main` 分支开发
+- 不要在 `dev` 分支直接开发（除非是集成测试）
+- 不要创建无意义的分支名（如 `test`、`temp`）
+- 不要提交敏感信息（API 密钥、密码等）
 
 ---
 
@@ -66,7 +145,9 @@ hotfix/security-fix-王五
 
 ### 2.1 提交信息格式
 
-```bash
+提交信息遵循 **Conventional Commits** 规范，在此基础上增加了**开发者标识**：
+
+```
 <type>(<scope>): <subject>-<developer>
 
 <body>
@@ -74,69 +155,49 @@ hotfix/security-fix-王五
 <footer>
 ```
 
-### 2.2 类型（type）
+> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L69-L75)
 
-| 类型 | 说明 | 示例 |
-|------|------|------|
-| feat | 新功能 | feat(tool): 新增get_page_info工具 |
-| fix | 修复bug | fix(ui): 修复UI树解析失败 |
-| perf | 性能优化 | perf(cache): 优化截图缓存策略 |
-| refactor | 重构代码 | refactor(service): 重构无障碍服务 |
-| docs | 文档更新 | docs(readme): 更新README |
-| test | 测试相关 | test(unit): 添加单元测试 |
-| chore | 构建/工具链 | chore(deps): 更新依赖版本 |
+### 2.2 提交类型（type）
+
+| 类型 | 说明 | 使用场景 |
+|------|------|---------|
+| `feat` | 新功能 | 新增工具、模块、API |
+| `fix` | Bug 修复 | 修复已知问题 |
+| `perf` | 性能优化 | 缓存策略优化、算法改进 |
+| `refactor` | 代码重构 | 架构调整、代码清理 |
+| `docs` | 文档更新 | README、API 文档、注释 |
+| `test` | 测试相关 | 单元测试、集成测试 |
+| `chore` | 构建/工具链 | 依赖更新、Gradle 配置 |
+| `style` | 代码格式 | 不影响功能的格式调整 |
+
+> Sources:
+> - [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L79-L87)
+> - [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md#L118-L127)
 
 ### 2.3 范围（scope）
 
+范围用于标识变更影响的模块：
+
 | 范围 | 说明 | 示例 |
 |------|------|------|
-| tool | 工具相关 | feat(tool): 新增工具 |
-| ui | UI相关 | fix(ui): 修复布局问题 |
-| service | 服务相关 | perf(service): 优化服务性能 |
-| cache | 缓存相关 | feat(cache): 新增缓存机制 |
-| agent | Agent相关 | refactor(agent): 重构Agent逻辑 |
-| config | 配置相关 | chore(config): 更新配置 |
-| readme | README相关 | docs(readme): 更新README |
+| `tool` | 工具相关 | `feat(tool): 新增get_page_info工具` |
+| `ui` | UI 相关 | `fix(ui): 修复UI树解析失败` |
+| `service` | 服务相关 | `perf(service): 优化无障碍服务` |
+| `cache` | 缓存相关 | `feat(cache): 新增缓存机制` |
+| `agent` | Agent 相关 | `refactor(agent): 重构Agent逻辑` |
+| `config` | 配置相关 | `chore(config): 更新Gradle配置` |
+| `input` | 输入注入 | `fix(input): 修复IME焦点死锁` |
+| `vdiso` | 虚拟屏模块 | `feat(vdiso): 新增OpenGL帧分发器` |
+| `core` | 核心模块 | `test(core): 添加AgentConfiguration测试` |
 
-### 2.4 主题（subject）
+> Sources:
+> - [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L91-L99)
+> - [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md#L131-L139)
 
-✅ **要求**：
-- 简洁明了，不超过50字符
-- 使用中文，便于理解
-- 描述做了什么，而不是怎么做
+### 2.4 完整提交示例
 
-❌ **示例**：
-- ❌ 新增get_page_info工具用于获取页面信息包括package和activity和UI树支持xml和json格式
-- ✅ 新增get_page_info工具
-
-### 2.5 正文（body）
-
-✅ **要求**：
-- 详细说明变更内容
-- 列出主要变更点
-- 说明影响范围
-
-❌ **禁止**：
-- 不要提交敏感信息（API密钥、密码等）
-- 不要提交临时文件（.tmp、.bak等）
-- 不要提交编译产物（build、.gradle等）
-
-### 2.6 页脚（footer）
-
+**功能开发：**
 ```bash
-# 关联Issue
-Closes #001
-Fixes #002
-Related to #003
-
-# 关联PR
-Refs #123
-```
-
-### 2.7 完整提交示例
-
-```bash
-# 功能开发
 git add .
 git commit -m "feat(tool): 新增get_page_info工具-张三
 
@@ -146,8 +207,10 @@ git commit -m "feat(tool): 新增get_page_info工具-张三
 - 对齐Operit工具接口
 
 Closes #005"
+```
 
-# Bug修复
+**Bug 修复：**
+```bash
 git add .
 git commit -m "fix(ui): 修复UI树解析失败-李四
 
@@ -156,8 +219,10 @@ git commit -m "fix(ui): 修复UI树解析失败-李四
 - 增加单元测试
 
 Fixes #003"
+```
 
-# 性能优化
+**性能优化：**
+```bash
 git add .
 git commit -m "perf(cache): 优化截图缓存策略-王五
 
@@ -168,29 +233,80 @@ git commit -m "perf(cache): 优化截图缓存策略-王五
 Related to #013"
 ```
 
+> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L138-L169)
+
+### 2.5 提交注意事项
+
+**✅ 推荐做法：**
+- **频繁提交**：每完成一个小功能就提交，不要积累大量代码
+- **清晰描述**：主题（subject）简洁明了，不超过 50 字符，使用中文
+- **详细正文**：列出主要变更点和影响范围
+- **关联追踪**：通过 `Closes #xxx`、`Fixes #xxx`、`Related to #xxx` 关联 Issue
+
+**❌ 禁止内容：**
+- 不要提交敏感信息（API 密钥、密码、Token）
+- 不要提交临时文件（.tmp、.bak 等）
+- 不要提交编译产物（build/、.gradle/ 等）
+- 不要提交无详细说明的大批量代码
+
 ---
 
-## 三、Pull Request流程
+## 三、Pull Request 流程
 
-### 3.1 创建PR
+### 3.1 PR 生命周期
 
-```bash
-# 使用GitHub CLI
-gh pr create --title "feat(tool): 新增get_page_info工具-张三" \
-             --body "## 变更内容\n\n- ...\n\n## 测试\n\n- ..." \
-             --base main \
-             --head feature/tool-get-page-info-张三
-
-# 或在GitHub网页创建
-1. 进入项目页面
-2. 点击"Pull requests" > "New pull request"
-3. 填写标题和描述
-4. 选择base分支：main
-5. 选择head分支：feature/tool-get-page-info-张三
-6. 点击"Create pull request"
+```mermaid
+stateDiagram-v2
+    [*] --> Draft: 创建 PR
+    Draft --> Review: 标记 Ready for Review
+    Review --> AutoCI: 自动触发
+    state AutoCI {
+        [*] --> BuildCheck: 编译检查
+        BuildCheck --> UnitTest: 单元测试
+        UnitTest --> LintCheck: Lint 检查
+        LintCheck --> QodoReview: Qodo AI 审阅
+    }
+    AutoCI --> HumanReview: CI 全部通过
+    HumanReview --> ChangesRequested: 需要修改
+    HumanReview --> Approved: 审查通过
+    ChangesRequested --> Review: 修改后重新审查
+    Approved --> Merged: 合并到 main
+    Approved --> Closed: PR 关闭（不合并）
+    Draft --> Closed: 放弃 PR
+    Merged --> [*]
+    Closed --> [*]
 ```
 
-### 3.2 PR描述模板
+### 3.2 创建 PR 的步骤
+
+**方式一：使用 GitHub CLI：**
+```bash
+gh pr create --title "feat(tool): 新增get_page_info工具-张三" \
+             --body "## 变更内容
+
+- 新增get_page_info工具
+- 支持format参数(xml/json)
+- 支持detail参数(minimal/summary/full)
+
+## 测试
+
+- [x] 单元测试通过
+- [x] 真机测试通过
+
+Closes #005" \
+             --base main \
+             --head feature/tool-get-page-info-张三
+```
+
+**方式二：通过 GitHub 网页：**
+1. 进入项目页面 → "Pull requests" → "New pull request"
+2. 选择 base 分支：`main`，head 分支：`feature/xxx-开发者名`
+3. 填写标题和描述（参考 PR 模板）
+4. 点击 "Create pull request"
+
+> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L177-L191)
+
+### 3.3 PR 描述模板
 
 ```markdown
 ## 变更内容
@@ -199,7 +315,6 @@ gh pr create --title "feat(tool): 新增get_page_info工具-张三" \
 - 新增get_page_info工具
 - 支持format参数(xml/json)
 - 支持detail参数(minimal/summary/full)
-- 对齐Operit工具接口
 
 ### 影响范围
 - `ToolRegistration.kt` - 新增工具注册
@@ -215,13 +330,6 @@ gh pr create --title "feat(tool): 新增get_page_info工具-张三" \
 ### 集成测试
 - [x] 在真机上测试通过
 - [x] UI树输出格式正确
-- [x] 工具调用正常
-
-### 手动测试
-- [x] 测试format=xml
-- [x] 测试format=json
-- [x] 测试detail=summary
-- [x] 测试detail=full
 
 ## 相关Issue
 
@@ -235,39 +343,76 @@ Related to #003, #004
 - [x] 异常处理完善
 - [x] 无敏感信息
 - [x] 文档已更新
-
-## 截止日期
-
-2026-01-20
 ```
 
-### 3.3 PR状态标签
+> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L195-L242)
 
-| 标签 | 说明 | 使用场景 |
+### 3.4 PR 状态标签
+
+| 标签 | 说明 | 触发条件 |
 |------|------|---------|
-| draft | 草稿 | PR创建后未完成 |
-| review | 审查中 | 等待代码审查 |
-| approved | 已批准 | 审查通过 |
-| changes requested | 需要修改 | 审查者提出修改意见 |
-| merged | 已合并 | 已合并到main |
-| closed | 已关闭 | 未合并但关闭 |
+| `draft` | 草稿 | PR 创建后尚未完成 |
+| `review` | 审查中 | 等待代码审查 |
+| `approved` | 已批准 | 审查通过，等待合并 |
+| `changes requested` | 需要修改 | 审查者提出修改意见 |
+| `merged` | 已合并 | 已成功合并到目标分支 |
+| `closed` | 已关闭 | 未合并被关闭 |
 
 ---
 
 ## 四、代码审查流程
 
-### 4.1 审查者职责
+### 4.1 审查层级
+
+Aries AI 项目采用**双层审查机制**：
+
+```mermaid
+flowchart LR
+    subgraph Auto["第一层：自动审查"]
+        CI[GitHub Actions CI<br/>编译 + 测试 + Lint]
+        Qodo[Qodo AI<br/>代码质量 + 安全 + 性能]
+        Cover[Qodo Cover<br/>测试缺口检测]
+    end
+
+    subgraph Manual["第二层：人工审查"]
+        CheckCode[代码规范检查]
+        CheckFunc[功能完整性验证]
+        CheckTest[测试覆盖率检查]
+        CheckDoc[文档更新确认]
+        CheckPerf[性能影响评估]
+        CheckSecurity[安全检查]
+    end
+
+    PR[Pull Request] --> CI
+    PR --> Qodo
+    PR --> Cover
+    CI --> Result{全部通过?}
+    Qodo --> Result
+    Cover --> Result
+    Result -->|是| Manual
+    Result -->|否| Fix[修复后重新推送]
+    Fix --> PR
+    Manual --> Decision{审查结论}
+    Decision -->|通过| Merge[合并到 main]
+    Decision -->|需修改| Fix
+```
+
+### 4.2 审查者检查清单
 
 | 审查项 | 检查内容 | 通过标准 |
 |---------|---------|---------|
-| 代码规范 | 命名、格式、注释 | 完全符合 |
-| 功能完整性 | 所有功能已实现 | 功能完整 |
-| 测试覆盖 | 单元测试覆盖率≥70% | 覆盖率达标 |
-| 文档更新 | README、API文档已更新 | 文档已更新 |
-| 性能影响 | 无性能问题 | 性能良好 |
+| 代码规范 | 命名、格式、注释 | 完全符合 [CODING_STANDARDS.md](./CODING_STANDARDS.md) |
+| 功能完整性 | 所有功能已实现 | 功能完整，无遗漏 |
+| 测试覆盖 | 单元测试覆盖率 | 核心模块 ≥70%，工具模块 ≥60% |
+| 文档更新 | README、API 文档 | 文档同步更新 |
+| 性能影响 | 无性能退化 | 性能良好，无明显瓶颈 |
 | 安全检查 | 无敏感信息泄露 | 安全合规 |
 
-### 4.2 审查意见格式
+> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L261-L268)
+
+### 4.3 审查意见格式
+
+审查意见应包含**优点**、**需要改进**和**具体问题**三部分：
 
 ```markdown
 ### 优点
@@ -294,62 +439,84 @@ Related to #003, #004
    - 位置：`ToolRegistration.kt:42`
 ```
 
-### 4.3 审查结果
+> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L272-L295)
 
-- [ ] 通过，可以合并
-- [x] 需要修改后合并
-- [x] 拒绝，需要重新开发
+### 4.4 AI 辅助审阅
 
-### 4.4 合并操作
+项目集成了两个 AI 工具协同工作：
+
+| 工具 | 角色 | 触发方式 | 使用模型 |
+|------|------|----------|---------|
+| **Qodo AI** | 自动审阅者 | PR 创建/更新时自动触发 | Qodo 内置模型 |
+| **OpenCode** | 代码执行者 | 评论 `/oc` 命令触发 | 通义千问 3.5 Plus |
+
+**OpenCode 常用命令：**
 
 ```bash
-# 项目负责人操作
-git checkout main
-git pull origin main
-git merge --no-ff feature/tool-get-page-info-张三
-git push origin main
+# 修复问题
+/oc 修复 Qodo 指出的空指针问题
 
-# 删除已合并分支
-git branch -d feature/tool-get-page-info-张三
-git push origin --delete feature/tool-get-page-info-张三
+# 解释代码
+/oc 解释一下这个 PR 的主要改动
+
+# 添加测试
+/oc 为这个新增的类添加单元测试
+
+# 更新文档
+/oc 更新 README.md，添加新功能的说明
 ```
+
+> Source: [docs/AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L72-L113)
 
 ---
 
 ## 五、合并流程
 
-### 5.1 合并前检查
+### 5.1 合并前检查清单
 
-在合并前，项目负责人需要确认：
+在合并前，项目负责人需确认：
 
-- [ ] 所有PR已通过审查
-- [ ] 所有测试通过
-- [ ] 文档已更新
+- [ ] 所有 PR 已通过 CI 自动化检查
+- [ ] Qodo AI 审阅无高优先级问题
+- [ ] 人工审查已通过
+- [ ] 所有测试通过且覆盖率达标
+- [ ] 文档已同步更新
 - [ ] 无合并冲突
-- [ ] 版本号已更新
+- [ ] 版本号已更新（如需要）
 
 ### 5.2 合并策略
 
 | 场景 | 策略 | 命令 |
 |------|------|------|
-| 无冲突 | 直接合并 | `git merge --no-ff feature/xxx` |
-| 有冲突 | 手动解决 | `git merge feature/xxx`（手动解决冲突） |
-| 多个PR | 按顺序合并 | 依次合并，避免冲突 |
+| 无冲突 | `--no-ff` 合并（保留分支历史） | `git merge --no-ff feature/xxx` |
+| 有冲突 | 手动解决冲突后合并 | `git merge feature/xxx`（手动解决） |
+| 多个 PR | 按优先级顺序依次合并 | 依次合并，避免冲突叠加 |
 
-### 5.3 合并后操作
+### 5.3 合并操作步骤
 
 ```bash
-# 1. 推送合并后的main
+# 1. 切换到 main 分支并拉取最新代码
+git checkout main
+git pull origin main
+
+# 2. 合并功能分支（使用 --no-ff 保留分支历史）
+git merge --no-ff feature/tool-get-page-info-张三
+
+# 3. 推送合并后的 main
 git push origin main
 
-# 2. 删除已合并的功能分支
-git branch -d feature/xxx-张三
-git push origin --delete feature/xxx-张三
+# 4. 删除已合并的本地分支
+git branch -d feature/tool-get-page-info-张三
 
-# 3. 创建版本标签（可选）
+# 5. 删除远程已合并分支
+git push origin --delete feature/tool-get-page-info-张三
+
+# 6. 创建版本标签（可选）
 git tag -a v1.0.1 -m "Release v1.0.1"
 git push origin v1.0.1
 ```
+
+> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L305-L315)
 
 ---
 
@@ -359,9 +526,9 @@ git push origin v1.0.1
 
 | 冲突类型 | 场景 | 解决策略 |
 |----------|------|---------|
-| 同一文件修改 | 多人修改同一文件 | 手动合并，保留双方修改 |
-| 删除冲突 | 一方删除，一方修改 | 确认删除意图，手动合并 |
-| 重命名冲突 | 文件被重命名 | 追踪文件历史，手动合并 |
+| 同一文件修改 | 多人修改同一文件的同一区域 | 手动合并，保留双方有效修改 |
+| 删除冲突 | 一方删除文件，另一方修改文件 | 确认删除意图，与修改方协商 |
+| 重命名冲突 | 同一文件被不同分支重命名 | 追踪文件历史，统一命名 |
 
 ### 6.2 冲突解决步骤
 
@@ -370,22 +537,23 @@ git push origin v1.0.1
 git checkout main
 git pull origin main
 
-# 2. 合并功能分支
+# 2. 尝试合并功能分支
 git merge feature/xxx-张三
 
-# 3. 查看冲突文件
+# 3. 查看冲突文件列表
 git status
-# 会显示冲突文件列表
+# 输出示例：
+# both modified:   app/src/main/java/.../ScreenshotCache.kt
+# both modified:   app/src/main/java/.../ToolRegistration.kt
 
-# 4. 打开冲突文件
-# 使用IDE（VSCode或Android Studio）打开冲突文件
-# 冲突标记：
+# 4. 打开冲突文件，冲突标记如下：
 # <<<<<<< HEAD
-# =====
+#   （main 分支的代码）
+# =======
+#   （feature 分支的代码）
 # >>>>>>> feature/xxx-张三
 
-# 5. 解决冲突
-# 保留需要的代码，删除冲突标记
+# 5. 手动解决冲突：保留需要的代码，删除冲突标记
 
 # 6. 标记冲突已解决
 git add <冲突文件>
@@ -394,78 +562,219 @@ git add <冲突文件>
 git commit -m "merge: 合并feature/xxx-张三到main，解决冲突"
 ```
 
+> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L368-L395)
+
 ### 6.3 冲突解决示例
 
 ```kotlin
-// 冲突前（main分支）
+// 冲突前（main 分支）
 class ScreenshotCache {
     private val cache = HashMap<String, ScreenshotData>()
 }
 
-// 冲突后（feature分支）
+// 冲突后（feature 分支）
 class ScreenshotCache {
     private val cache = LinkedHashMap<String, ScreenshotData>()
 }
 
-// 解决冲突（合并后）
+// 解决冲突（合并后，采用 feature 分支的 LinkedHashMap 实现）
 class ScreenshotCache {
     private val cache = LinkedHashMap<String, ScreenshotData>()
 }
 ```
+
+> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L399-L414)
 
 ---
 
 ## 七、版本管理
 
-### 7.1 版本号规范
+### 7.1 语义化版本规范
 
-采用语义化版本号：`MAJOR.MINOR.PATCH`
+采用 `MAJOR.MINOR.PATCH` 格式：
 
-| 版本号 | 说明 | 示例 |
-|----------|------|------|
-| 1.0.0 | 初始版本 | 首次发布 |
-| 1.0.1 | Bug修复 | 修复bug，向后兼容 |
-| 1.1.0 | 新功能 | 添加新功能，向后兼容 |
-| 2.0.0 | 重大变更 | 不兼容的API变更 |
+| 版本号变更 | 说明 | 示例场景 |
+|-----------|------|---------|
+| `MAJOR` +1 | 不兼容的 API 变更 | 架构重构、破坏性接口变更 |
+| `MINOR` +1 | 向后兼容的新功能 | 新增工具模块、新增 Provider |
+| `PATCH` +1 | 向后兼容的 Bug 修复 | 修复崩溃、修复解析错误 |
 
-### 7.2 版本更新规则
+### 7.2 版本号配置
+
+版本号在 `app/build.gradle.kts` 中定义：
 
 ```kotlin
 // app/build.gradle.kts
 android {
     defaultConfig {
-        versionCode = 1        // 自增
-        versionName = "1.0.0"  // 语义化版本
+        versionCode = 1        // 整数，每次发布递增
+        versionName = "1.0.0"  // 语义化版本字符串
     }
 }
 ```
 
+> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L433-L441)
+
 ### 7.3 版本发布流程
 
 ```bash
-# 1. 更新版本号
-# 修改 app/build.gradle.kts 中的 versionCode 和 versionName
-# versionCode: 递增（如 15 -> 16）
-# versionName: 遵循语义化版本（如 1.3.2 -> 1.4.0）
+# 1. 在本地更新版本号
+# 修改 app/build.gradle.kts 中的 versionCode（递增）和 versionName（语义化版本）
+# versionCode: 递增（如 15 → 16）
+# versionName: 遵循语义化版本（如 "1.3.2" → "1.4.0"）
 
-# 2. 创建版本标签（使用实际版本号）
+# 2. 提交版本更新
+git add app/build.gradle.kts
+git commit -m "chore(config): 更新版本号至v1.4.0"
+git push origin main
+
+# 3. 创建版本标签（使用语义化版本号）
 git tag -a v1.4.0 -m "Release v1.4.0 - 架构优化"
 
-# 3. 推送标签
+# 4. 推送标签
 git push origin v1.4.0
 
-# 4. 创建GitHub Release
+# 5. 创建 GitHub Release
 gh release create v1.4.0 \
     --title "v1.4.0 - 架构优化" \
-    --notes "## 新增功能\n\n- ...\n\n## Bug修复\n\n- ..." \
+    --notes "## 新增功能
+
+- 新增XX工具
+- 支持XX格式
+
+## Bug修复
+
+- 修复XX崩溃
+- 修复XX解析错误" \
     --target main
 ```
 
+> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L445-L462)
+
 ---
 
-## 📋 快速参考
+## 八、CI/CD 自动化集成
 
-### 每日开发流程
+### 8.1 自动化工作流总览
+
+```mermaid
+sequenceDiagram
+    participant Dev as 开发者
+    participant GitHub as GitHub
+    participant GHA as GitHub Actions
+    participant Qodo as Qodo AI
+    participant OpenCode as OpenCode
+    participant Reviewer as 审查者
+
+    Dev->>GitHub: 推送分支 / 创建 PR
+    GitHub->>GHA: 触发 CI 工作流
+    GitHub->>Qodo: 触发 AI 审阅
+    GitHub->>Qodo: 触发测试缺口检测
+
+    par 并行执行
+        GHA->>GHA: 编译检查
+        GHA->>GHA: 运行单元测试
+        GHA->>GHA: Lint 检查
+        Qodo->>Qodo: 代码质量分析
+        Qodo->>Qodo: 安全漏洞扫描
+        Qodo->>Qodo: 性能建议
+    end
+
+    GHA-->>GitHub: CI 结果
+    Qodo-->>GitHub: 审阅报告
+
+    Reviewer->>GitHub: 查看审查结果
+    alt 需要修改
+        Reviewer->>Dev: 请求修改
+        Dev->>GitHub: 评论 /oc 命令
+        GitHub->>OpenCode: 触发 AI 执行
+        OpenCode-->>GitHub: 自动提交修复
+        Dev->>GitHub: 推送修改
+    else 审查通过
+        Reviewer->>GitHub: 批准并合并
+        GitHub->>GitHub: 合并到 main
+    end
+```
+
+### 8.2 自动触发的工作流
+
+| 工作流 | 触发时机 | 检查内容 |
+|--------|---------|---------|
+| **GitHub Actions CI** | PR 创建/更新 | 编译、单元测试、Lint |
+| **Qodo Merge** | PR 创建/更新 | AI 代码审阅、安全分析、性能建议 |
+| **Qodo Cover** | PR 创建 | 检测测试缺口、生成单元测试建议 |
+
+> Source: [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md#L286-L292)
+
+### 8.3 OpenCode 触发机制
+
+OpenCode 通过在工作流配置中监听 PR 评论触发。配置位于 `.github/workflows/opencode.yml`：
+
+```yaml
+name: opencode
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  opencode:
+    if: |
+      (
+        contains(github.event.comment.body, ' /oc') ||
+        startsWith(github.event.comment.body, '/oc') ||
+        contains(github.event.comment.body, ' /opencode') ||
+        startsWith(github.event.comment.body, '/opencode')
+      ) &&
+      (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'COLLABORATOR'
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Run opencode
+        uses: anomalyco/opencode/github@latest
+        env:
+          ALIBABA_CODING_PLAN_API_KEY: ${{ secrets.ALIBABA_CODING_PLAN_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          model: alibaba-coding-plan/qwen3.5-plus
+          use_github_token: true
+```
+
+> Source: [docs/AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L197-L247)
+
+---
+
+## 九、每日开发流程
+
+### 9.1 开发者每日工作流
+
+```mermaid
+flowchart TD
+    Start([开始开发]) --> Pull[1. 拉取最新 main]
+    Pull --> Branch[2. 创建功能分支]
+    Branch --> Code[3. 编写代码]
+    Code --> Test{4. 本地测试通过?}
+    Test -->|否| FixCode[修复问题]
+    FixCode --> Test
+    Test -->|是| Commit[5. 提交代码]
+    Commit --> Push[6. 推送到远程]
+    Push --> CreatePR[7. 创建 Pull Request]
+    CreatePR --> WaitReview[8. 等待 CI 和审查]
+    WaitReview --> ReviewResult{审查结果?}
+    ReviewResult -->|通过| Done([完成])
+    ReviewResult -->|需修改| FixCode
+```
+
+**对应的 Git 命令：**
 
 ```bash
 # 1. 拉取最新代码
@@ -479,32 +788,38 @@ git checkout -b feature/xxx-张三
 # ... 编写代码 ...
 
 # 4. 本地测试
-./gradlew test
-./gradlew installDebug
+./gradlew testDebugUnitTest
+./gradlew assembleDebug
 
 # 5. 提交代码
 git add .
-git commit -m "feat(scope): xxx-张三"
+git commit -m "feat(scope): xxx-张三
+
+- 变更点1
+- 变更点2
+
+Closes #xxx"
 
 # 6. 推送到远程
 git push origin feature/xxx-张三
 
-# 7. 创建PR（在GitHub网页）
-# 等待审查和合并
+# 7. 创建 PR（在 GitHub 网页操作）
+# 等待 CI 自动检查和人工审查
 ```
 
-### 每周合并流程（项目负责人）
+> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L470-L494)
+
+### 9.2 项目负责人合并流程
 
 ```bash
-# 1. 检查所有PR
-# 在GitHub查看所有Open的Pull Request
+# 1. 检查所有 Open 的 Pull Request（GitHub 网页查看）
 
 # 2. 审查代码
-# 检查代码规范
-# 检查功能完整性
-# 检查测试覆盖
+# - 检查代码规范
+# - 检查功能完整性
+# - 检查测试覆盖率
 
-# 3. 合并到main
+# 3. 合并到 main
 git checkout main
 git pull origin main
 git merge --no-ff feature/xxx-张三
@@ -515,37 +830,113 @@ git branch -d feature/xxx-张三
 git push origin --delete feature/xxx-张三
 ```
 
+> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L498-L516)
+
 ---
 
-## 🎯 最佳实践
+## 十、外部贡献者流程
 
-### ✅ 推荐做法
+对于外部贡献者（非项目成员），采用标准的 Fork → PR 流程：
 
-1. **频繁提交**：每完成一个小功能就提交，不要积累大量代码
-2. **清晰的提交信息**：使用标准格式，便于追溯
-3. **代码审查**：所有PR必须经过至少1人审查
-4. **测试先行**：提交前确保测试通过
+```mermaid
+flowchart TD
+    Fork[1. Fork 项目到个人账号] --> Clone[2. 克隆 Fork 仓库]
+    Clone --> Remote[3. 添加上游远程仓库]
+    Remote --> Branch[4. 从 main 创建功能分支]
+    Branch --> Dev[5. 开发和测试]
+    Dev --> Commit[6. 按规范提交代码]
+    Commit --> PushFork[7. 推送到 Fork 仓库]
+    PushFork --> PR[8. 在 GitHub 创建 PR]
+    PR --> Wait[9. 等待 CI 和审查]
+    Wait --> Update{需要修改?}
+    Update -->|是| Dev
+    Update -->|否| Merged([PR 被合并])
+```
+
+**关键命令：**
+
+```bash
+# 1. Fork 项目（在 GitHub 网页点击 "Fork" 按钮）
+
+# 2. 克隆 Fork 仓库
+git clone https://github.com/YOUR_USERNAME/Aries-AI.git
+cd Aries-AI
+
+# 3. 添加上游仓库
+git remote add upstream https://github.com/ZG0704666/Aries-AI.git
+
+# 4. 创建功能分支
+git checkout -b feature/your-feature-name
+
+# 5. 保持与上游同步
+git fetch upstream
+git rebase upstream/main
+
+# 6. 开发和提交
+git add .
+git commit -m "feat(scope): description"
+
+# 7. 推送到 Fork 仓库
+git push origin feature/your-feature-name
+
+# 8. 在 GitHub 上创建 Pull Request（从 Fork 分支到上游 main）
+```
+
+> Source: [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md#L56-L155)
+
+---
+
+## 快速参考
+
+### 常用 Git 命令速查
+
+| 操作 | 命令 |
+|------|------|
+| 创建分支 | `git checkout -b feature/xxx-开发者名` |
+| 提交代码 | `git commit -m "feat(scope): 描述-开发者名"` |
+| 推送分支 | `git push origin feature/xxx-开发者名` |
+| 创建 PR | `gh pr create --title "..." --body "..." --base main --head feature/xxx` |
+| 合并分支 | `git merge --no-ff feature/xxx-开发者名` |
+| 删除分支 | `git branch -d feature/xxx-开发者名` |
+| 创建标签 | `git tag -a v1.0.0 -m "Release v1.0.0"` |
+| 推送标签 | `git push origin v1.0.0` |
+| 查看状态 | `git status` |
+| 查看日志 | `git log --oneline --graph` |
+
+### 最佳实践总结
+
+**✅ 推荐做法：**
+1. **频繁提交**：每完成一个小功能就提交，保持提交粒度适中
+2. **清晰的提交信息**：使用标准 `type(scope): subject` 格式，便于追溯
+3. **代码审查**：所有 PR 必须经过至少 1 人审查
+4. **测试先行**：提交前确保本地测试通过
 5. **文档同步**：代码变更必须同步更新文档
+6. **利用 AI 工具**：善用 Qodo 审阅和 OpenCode 修复，提升开发效率
 
-### ❌ 避免做法
-
-1. **不要直接提交main**：必须通过PR合并
-2. **不要提交敏感信息**：API密钥、密码等
-3. **不要忽略测试**：测试覆盖率≥70%
-4. **不要忽略文档**：代码变更必须更新文档
-5. **不要创建无意义分支**：分支名必须清晰表达意图
-
----
-
-## 📚 相关文档
-
-- [FEISHU_COLLABORATION.md](./FEISHU_COLLABORATION.md) - 飞书协作文档模板
-- [BUILDING.md](./BUILDING.md) - 环境搭建和编译指南
-- [CODING_STANDARDS.md](./CODING_STANDARDS.md) - 代码规范
-- [README.md](../README.md) - 项目概述
+**❌ 避免做法：**
+1. 不要直接在 `main` 分支提交代码
+2. 不要提交敏感信息（API 密钥、密码、Token）
+3. 不要忽略测试（核心模块覆盖率 ≥70%）
+4. 不要忽略文档更新
+5. 不要创建无意义的分支名
 
 ---
 
-**文档版本**：v1.1
+## 相关链接
+
+- [GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md) — Git 工作流详细文档（原始文件）
+- [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md) — 贡献者指南
+- [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md) — AI 自动化 PR 审阅指南
+- [CODING_STANDARDS.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/CODING_STANDARDS.md) — 代码规范
+- [BUILDING.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/BUILDING.md) — 编译指南
+- [FEISHU_COLLABORATION.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/FEISHU_COLLABORATION.md) — 飞书协作文档模板
+- [README.md](https://github.com/ZG0704666/Aries-AI/blob/main/README.md) — 项目概述
+- [GitHub Issues](https://github.com/ZG0704666/Aries-AI/issues) — 问题反馈
+- [GitHub Discussions](https://github.com/ZG0704666/Aries-AI/discussions) — 功能建议
+- [Releases](https://github.com/ZG0704666/Aries-AI/releases) — 版本发布
+
+---
+
+**文档版本**：v1.2
 **最后更新**：2026-02-28
 **维护人**：ZG0704666
