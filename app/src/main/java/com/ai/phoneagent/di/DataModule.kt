@@ -23,6 +23,7 @@ import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.AutomationResultsRepository
 import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
 import com.ai.phoneagent.data.preferences.MainUiPreferencesRepository
+import com.ai.phoneagent.data.preferences.TelemetryPreferencesRepository
 import com.ai.phoneagent.data.preferences.ToolPermissionsRepository
 import com.ai.phoneagent.data.preferences.VirtualDisplayConfigRepository
 import org.koin.android.ext.koin.androidContext
@@ -55,4 +56,5 @@ val dataModule = module {
     single { VirtualDisplayConfigRepository(androidContext()) }
     single { ToolPermissionsRepository(androidContext()) }
     single { AutomationResultsRepository(androidContext()) }
+    single { TelemetryPreferencesRepository(androidContext()) }
 }

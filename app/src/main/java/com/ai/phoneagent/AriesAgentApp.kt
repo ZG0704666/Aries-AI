@@ -23,6 +23,7 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatDelegate
 import coil.Coil
 import coil.ImageLoader
+import com.ai.phoneagent.telemetry.TelemetryHeartbeatManager
 import com.ai.phoneagent.di.appModule
 import com.ai.phoneagent.di.dataModule
 import com.ai.phoneagent.di.networkModule
@@ -86,6 +87,13 @@ class AriesAgentApp : Application() {
             logi("Coil ImageLoader initialized from Koin")
         } catch (t: Throwable) {
             logw("Coil ImageLoader initialization failed", t)
+        }
+
+        try {
+            org.koin.core.context.GlobalContext.get().get<TelemetryHeartbeatManager>().start()
+            logi("TelemetryHeartbeatManager initialized")
+        } catch (t: Throwable) {
+            logw("TelemetryHeartbeatManager initialization failed", t)
         }
 
         // 初始化 HiddenApiBypass（虚拟屏创建必需）

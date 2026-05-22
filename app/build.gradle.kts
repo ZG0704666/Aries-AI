@@ -66,6 +66,11 @@ android {
         buildConfigField("String", "ARIES_LOGTO_APP_ID", "\"${escapedBuildConfigString(localProperty("aries.logto.appId", "ynaappkxpdyahwo8m81ja"))}\"")
         buildConfigField("String", "ARIES_LOGTO_REDIRECT_URI", "\"io.logto.android://com.ai.phoneagent/callback\"")
         buildConfigField("String", "ARIES_LOGTO_API_RESOURCE", "\"${escapedBuildConfigString(localProperty("aries.logto.apiResource", "https://api.aries.org.cn/"))}\"")
+        buildConfigField(
+            "String",
+            "TELEMETRY_HEARTBEAT_ENDPOINT",
+            "\"${escapedBuildConfigString(localProperty("aries.telemetry.heartbeatEndpoint", "https://oiariesapi.xuanyu.online/v1/telemetry/heartbeat"))}\""
+        )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

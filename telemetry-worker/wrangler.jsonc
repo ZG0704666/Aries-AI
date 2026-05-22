@@ -1,0 +1,40 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "aries-telemetry",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-05-22",
+	"workers_dev": true,
+	"routes": [
+		{
+			"pattern": "oiariesapi.xuanyu.online",
+			"custom_domain": true
+		}
+	],
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1
+	},
+	"triggers": {
+		"crons": [
+			"0 */6 * * *"
+		]
+	},
+	"vars": {
+		"CURRENT_WINDOW_MINUTES": 5,
+		"HEARTBEAT_BUCKET_MINUTES": 5,
+		"RETENTION_DAYS": 30
+	},
+	"secrets": {
+		"required": [
+			"STATS_API_TOKEN"
+		]
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "aries-telemetry",
+			"migrations_dir": "migrations",
+			"database_id": "2875d1a0-a731-4109-9509-5c6257f7136a"
+		}
+	]
+}
