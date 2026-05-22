@@ -14,6 +14,7 @@
   <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -1684,7 +1685,48 @@
         return null;
       }
 
-      function postProcessMarkdown(rootEl, currentDocPath) {
+      function getCurrentMermaidTheme() {
+        return document.documentElement.classList.contains('light') ? 'default' : 'dark';
+      }
+
+      function convertMermaidCodeBlocks(rootEl) {
+        if (!rootEl) return;
+        const codes = Array.from(rootEl.querySelectorAll(
+          'pre > code.language-mermaid, pre > code.lang-mermaid, pre > code[class*="language-mermaid"]'
+        ));
+
+        codes.forEach((code) => {
+          const pre = code.parentElement;
+          if (!pre) return;
+          const source = (code.textContent || '').trim();
+          if (!source) return;
+
+          const block = document.createElement('div');
+          block.className = 'mermaid';
+          block.textContent = source;
+          pre.replaceWith(block);
+        });
+      }
+
+      async function renderMermaidDiagrams(rootEl) {
+        if (!rootEl || !window.mermaid || typeof window.mermaid.run !== 'function') return;
+        const nodes = Array.from(rootEl.querySelectorAll('.mermaid'));
+        if (!nodes.length) return;
+
+        try {
+          window.mermaid.initialize({
+            startOnLoad: false,
+            securityLevel: 'loose',
+            theme: getCurrentMermaidTheme(),
+            fontFamily: 'Inter, sans-serif',
+          });
+          await window.mermaid.run({ nodes, suppressErrors: true });
+        } catch (err) {
+          console.warn('Mermaid 渲染失败', err);
+        }
+      }
+
+      async function postProcessMarkdown(rootEl, currentDocPath) {
         if (!rootEl) return;
 
         rootEl.querySelectorAll('a[href]').forEach((a) => {
@@ -1711,6 +1753,9 @@
           tbl.parentNode.insertBefore(wrap, tbl);
           wrap.appendChild(tbl);
         });
+
+        convertMermaidCodeBlocks(rootEl);
+        await renderMermaidDiagrams(rootEl);
       }
 
       if (window.marked && typeof window.marked.setOptions === 'function') {
@@ -1787,16 +1832,9 @@
       }
 
       function docPage(entry) {
-        const titleCn = entry.title && entry.title.CN ? entry.title.CN : '';
-        const titleEn = entry.title && entry.title.EN ? entry.title.EN : titleCn;
-        const descCn = entry.description && entry.description.CN ? entry.description.CN : '';
-        const descEn = entry.description && entry.description.EN ? entry.description.EN : descCn;
-        const pageDesc = lang === 'CN' ? descCn : descEn;
         return `
           <div class="doc-page">
             <div class="doc-prose">
-              <h1>${lang === 'CN' ? escapeHtml(titleCn) : escapeHtml(titleEn)}</h1>
-              ${pageDesc ? `<p>${escapeHtml(pageDesc)}</p>` : ''}
               <div class="md-content" data-doc="${escapeHtml(entry.docPath)}"></div>
             </div>
             <div class="doc-page-footer">
@@ -1912,7 +1950,7 @@
             const txt = await loadDocText(docPath);
             if (window.marked && typeof window.marked.parse === 'function') {
               el.innerHTML = window.marked.parse(txt);
-              postProcessMarkdown(el, docPath);
+              await postProcessMarkdown(el, docPath);
             } else {
               el.textContent = txt;
             }
