@@ -59,7 +59,7 @@ object PromptTemplates {
         val descRuleText = buildSystemDescRule(enforceDesc)
         val intentTextRuleText = buildSystemIntentTextRule(enforceDesc)
 
-        return """# 移动 UI 自动化核心提示词
+        return """# 手机 UI 自动化助手（移动 UI 自动化核心提示词）
 
 请直接输出动作，不要输出其他说明。
 输出格式：
@@ -104,6 +104,7 @@ object PromptTemplates {
 	do(action="Tap", element=[500,150], desc="点击顶部搜索")
 </answer>
 
+当前屏幕尺寸：${screenW}x${screenH}
 当前屏幕比例：$ratio
 范围 0-1000，优先输出下一步动作。""".trimIndent()
     }

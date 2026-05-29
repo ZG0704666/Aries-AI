@@ -404,7 +404,6 @@
     <string name="settings_api_checking">正在检查 API…</string>
     <string name="settings_api_invalid_url">请输入有效的 API 地址</string>
     <string name="settings_api_invalid_scheme">API 地址必须使用 HTTPS</string>
-    <string name="settings_api_http_warning">当前 API 地址使用的是非加密 HTTP，请确认服务端可信。</string>
     <string name="settings_api_failed_http_message">API 检查失败（HTTP %1$d）：%2$s</string>
     <string name="settings_api_failed_http">API 检查失败（HTTP %1$d）</string>
     <string name="settings_api_failed_message">API 检查失败：%1$s</string>

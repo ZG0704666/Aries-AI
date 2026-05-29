@@ -2650,9 +2650,6 @@ class MainActivity : AppCompatActivity() {
             }
             return
         }
-        if (force) {
-            maybeWarnInsecureHttpBaseUrl(normalizedBaseUrl)
-        }
         val resolvedModel = model.ifBlank { AutoGlmClient.DEFAULT_MODEL }
         lifecycleScope.launch {
             val checkResult =
@@ -2812,17 +2809,6 @@ class MainActivity : AppCompatActivity() {
         return null
     }
 
-    private fun maybeWarnInsecureHttpBaseUrl(baseUrl: String) {
-        val parsed = runCatching { Uri.parse(baseUrl.trim()) }.getOrNull() ?: return
-        val scheme = parsed.scheme?.lowercase()
-        val host = parsed.host?.lowercase()
-        val localHosts = setOf("localhost", "127.0.0.1", "0.0.0.0", "::1")
-        if (scheme == "http" && host !in localHosts) {
-            Toast.makeText(this, "当前使用 http:// 地址，API Key 可能明文传输，请确认网络安全", Toast.LENGTH_LONG)
-                    .show()
-        }
-    }
-
     private fun formatApiCheckFailureReason(statusCode: Int?, message: String?): String {
         val cleanMessage = message?.trim().orEmpty()
         return when {
@@ -2893,7 +2879,7 @@ class MainActivity : AppCompatActivity() {
     private fun sha256Hex(value: String): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
         return buildString(digest.size * 2) {
-            digest.forEach { byte -> append("%02x".format(byte)) }
+            digest.forEach { byte -> append("%02x".format(byte.toInt() and 0xff)) }
         }
     }
 
@@ -3321,7 +3307,6 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, baseUrlSecurityError, Toast.LENGTH_LONG).show()
                 return
             }
-            maybeWarnInsecureHttpBaseUrl(resolvedBaseUrl)
         }
         val c = requireActiveConversation()
         

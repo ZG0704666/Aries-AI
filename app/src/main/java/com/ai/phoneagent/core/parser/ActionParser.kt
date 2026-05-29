@@ -315,11 +315,11 @@ class ActionParser {
         }
         
         // 编号步骤模式
-        val numberedSteps = Regex("""(?:^|\n|\s|，|。|；)(\d+)\s*[\.、）\)：:]|第(\d+)步""")
+        val numberedSteps = Regex("""(?:^|\n|\s|，|。|；)(\d+)\s*[\.、）\)：:]|第([一二三四五六七八九十]+|\d+)步""")
             .findAll(thinking)
             .mapNotNull { 
                 it.groupValues.getOrNull(1)?.toIntOrNull() 
-                    ?: it.groupValues.getOrNull(2)?.toIntOrNull() 
+                    ?: parseStepNumber(it.groupValues.getOrNull(2).orEmpty())
             }
             .toList()
         
@@ -338,5 +338,39 @@ class ActionParser {
         }
         
         return 0
+    }
+
+    private fun parseStepNumber(raw: String): Int? {
+        val text = raw.trim()
+        if (text.isEmpty()) return null
+        text.toIntOrNull()?.let { return it }
+
+        val digits =
+            mapOf(
+                '一' to 1,
+                '二' to 2,
+                '三' to 3,
+                '四' to 4,
+                '五' to 5,
+                '六' to 6,
+                '七' to 7,
+                '八' to 8,
+                '九' to 9,
+            )
+        val value =
+            when {
+                text == "十" -> 10
+                text.startsWith("十") -> 10 + (text.getOrNull(1)?.let { digits[it] } ?: 0)
+                text.endsWith("十") -> (digits[text.first()] ?: return null) * 10
+                text.contains("十") -> {
+                    val parts = text.split("十", limit = 2)
+                    val tens = if (parts[0].isBlank()) 1 else digits[parts[0].first()] ?: return null
+                    val ones = parts.getOrNull(1)?.firstOrNull()?.let { digits[it] ?: return null } ?: 0
+                    tens * 10 + ones
+                }
+                text.length == 1 -> digits[text[0]] ?: return null
+                else -> return null
+            }
+        return value.takeIf { it > 0 }
     }
 }

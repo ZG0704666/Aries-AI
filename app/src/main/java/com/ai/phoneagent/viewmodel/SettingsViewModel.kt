@@ -444,7 +444,6 @@ class SettingsViewModel(
             onToast(validationError)
             return
         }
-        maybeWarnInsecureHttpBaseUrl(normalizedBaseUrl, onToast)
         remoteApiChecking = true
         remoteApiOk = null
         lastCheckedApiKey = key.trim()
@@ -604,7 +603,7 @@ class SettingsViewModel(
     private fun sha256Hex(value: String): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
         return buildString(digest.size * 2) {
-            digest.forEach { byte -> append("%02x".format(byte)) }
+            digest.forEach { byte -> append("%02x".format(byte.toInt() and 0xff)) }
         }
     }
 
@@ -619,16 +618,6 @@ class SettingsViewModel(
             return stringRes(R.string.settings_api_invalid_scheme)
         }
         return null
-    }
-
-    fun maybeWarnInsecureHttpBaseUrl(baseUrl: String, onToast: (String) -> Unit) {
-        val parsed = runCatching { Uri.parse(baseUrl.trim()) }.getOrNull() ?: return
-        val scheme = parsed.scheme?.lowercase()
-        val host = parsed.host?.lowercase()
-        val localHosts = setOf("localhost", "127.0.0.1", "0.0.0.0", "::1")
-        if (scheme == "http" && host !in localHosts) {
-            onToast(stringRes(R.string.settings_api_http_warning))
-        }
     }
 
     // ─── Aries SSO 登录 ────────────────────────────────────────────────────
