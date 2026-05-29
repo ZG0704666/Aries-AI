@@ -1,0 +1,47 @@
+name: PR Agent Review
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  pr-agent:
+    if: |
+      github.event_name == 'pull_request' ||
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request != null &&
+        (
+          startsWith(github.event.comment.body, '/review') ||
+          startsWith(github.event.comment.body, '/describe') ||
+          startsWith(github.event.comment.body, '/improve')
+        )
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: qodo-ai/pr-agent@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_KEY: ${{ secrets.MIMO_API_KEY }}
+
+          config.model: "openai/mimo-v2.5-pro"
+          config.fallback_models: '["openai/mimo-v2.5-pro"]'
+
+          OPENAI.API_BASE: "https://token-plan-cn.xiaomimimo.com/v1"
+          OPENAI__API_BASE: "https://token-plan-cn.xiaomimimo.com/v1"
+
+          github_action_config.auto_review: "true"
+          github_action_config.auto_describe: "false"
+          github_action_config.auto_improve: "false"
+          github_action_config.pr_actions: '["opened", "reopened", "synchronize", "ready_for_review"]'
+
+          pr_reviewer.require_score_review: "false"
+          pr_reviewer.require_tests_review: "true"
+          pr_reviewer.require_security_review: "true"
