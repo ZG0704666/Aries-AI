@@ -33,6 +33,7 @@ jobs:
 
           config.model: "openai/mimo-v2.5-pro"
           config.fallback_models: '["openai/mimo-v2.5-pro"]'
+          config.custom_model_max_tokens: "128000"
 
           OPENAI.API_BASE: "https://token-plan-cn.xiaomimimo.com/v1"
           OPENAI__API_BASE: "https://token-plan-cn.xiaomimimo.com/v1"
