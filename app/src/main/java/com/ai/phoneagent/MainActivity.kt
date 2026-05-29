@@ -191,6 +191,7 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.rememberDrawerState
 import java.io.InputStream
+import java.security.MessageDigest
 import kotlinx.coroutines.runBlocking
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
@@ -1798,6 +1799,7 @@ class MainActivity : AppCompatActivity() {
         currentIntent.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_TASK)
         currentIntent.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_SOURCE)
         currentIntent.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_AUTO_START)
+        currentIntent.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_DISPATCH_TOKEN)
         currentIntent.removeExtra(AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY)
         currentIntent.removeExtra(AutomationViewModel.EXTRA_KEEP_MAIN_ON_TOP)
         // Stash args for AutomationScreen to consume when it composes
@@ -2804,8 +2806,8 @@ class MainActivity : AppCompatActivity() {
         if (scheme.isNullOrBlank() || host.isNullOrBlank()) {
             return "API Base URL 格式错误，请检查后重试"
         }
-        if (scheme != "https" && scheme != "http") {
-            return "API Base URL 必须以 https:// 或 http:// 开头"
+        if (scheme != "https") {
+            return "API Base URL 必须使用 https://"
         }
         return null
     }
@@ -2878,13 +2880,21 @@ class MainActivity : AppCompatActivity() {
     ): String {
         val normalizedBaseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
         val normalizedModel = model.ifBlank { AutoGlmClient.DEFAULT_MODEL }
+        val apiKeyHash = sha256Hex(apiKey.trim())
         val mode =
             when {
                 useAriesApi -> "aries"
                 useThirdParty -> "third_party"
                 else -> "default"
             }
-        return "$mode|${apiKey.trim()}|$normalizedBaseUrl|$normalizedModel"
+        return "$mode|$apiKeyHash|$normalizedBaseUrl|$normalizedModel"
+    }
+
+    private fun sha256Hex(value: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
+        return buildString(digest.size * 2) {
+            digest.forEach { byte -> append("%02x".format(byte)) }
+        }
     }
 
     private fun resolveApiKeyFromInput(): String {

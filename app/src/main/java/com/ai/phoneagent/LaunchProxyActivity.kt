@@ -60,33 +60,81 @@ class LaunchProxyActivity : Activity() {
     private fun launchViaShellFallback(target: Intent, displayId: Int) {
         try {
             val component = target.component
-            if (component != null) {
-                val componentStr = "${component.packageName}/${component.className}"
-                val flags = target.flags
-                val candidates =
-                        listOf(
-                                "cmd activity start-activity --user 0 --display $displayId --windowingMode 1 -n $componentStr -f $flags",
-                                "am start --user 0 --display $displayId -n $componentStr -f $flags",
-                                "am start --display $displayId -n $componentStr -f $flags",
-                        )
-                for (cmd in candidates) {
-                    val result = runCatching { ShizukuBridge.execResult(cmd) }.getOrNull()
-                    if (result != null && result.exitCode == 0) {
-                        Log.i(TAG, "Launched on display $displayId via shell: $cmd")
-                        return
-                    }
-                }
-                Log.w(TAG, "All shell fallback attempts failed for display $displayId")
+            if (component == null) {
+                Log.w(TAG, "Shell fallback skipped: target component is missing")
+                return
             }
+            if (!isSafeShellComponent(component)) {
+                Log.w(TAG, "Shell fallback rejected unsafe component: $component")
+                return
+            }
+
+            val componentStr = "${component.packageName}/${component.className}"
+            val flags = target.flags.toString()
+            val display = displayId.toString()
+            val candidates =
+                    listOf(
+                            listOf(
+                                    "cmd",
+                                    "activity",
+                                    "start-activity",
+                                    "--user",
+                                    "0",
+                                    "--display",
+                                    display,
+                                    "--windowingMode",
+                                    "1",
+                                    "-n",
+                                    componentStr,
+                                    "-f",
+                                    flags,
+                            ),
+                            listOf(
+                                    "am",
+                                    "start",
+                                    "--user",
+                                    "0",
+                                    "--display",
+                                    display,
+                                    "-n",
+                                    componentStr,
+                                    "-f",
+                                    flags,
+                            ),
+                            listOf(
+                                    "am",
+                                    "start",
+                                    "--display",
+                                    display,
+                                    "-n",
+                                    componentStr,
+                                    "-f",
+                                    flags,
+                            ),
+                    )
+            for (args in candidates) {
+                val result = runCatching { ShizukuBridge.execResultArgs(args) }.getOrNull()
+                if (result != null && result.exitCode == 0) {
+                    Log.i(TAG, "Launched on display $displayId via shell: ${args.joinToString(" ")}")
+                    return
+                }
+            }
+            Log.w(TAG, "All shell fallback attempts failed for display $displayId")
         } catch (e: Exception) {
             Log.w(TAG, "Shell fallback failed: ${e.message}")
         }
+    }
+
+    private fun isSafeShellComponent(component: android.content.ComponentName): Boolean {
+        return SAFE_COMPONENT_PART.matches(component.packageName) &&
+                SAFE_COMPONENT_PART.matches(component.className)
     }
 
     companion object {
         private const val TAG = "LaunchProxy"
         private const val EXTRA_TARGET_INTENT = "target_intent"
         private const val EXTRA_DISPLAY_ID = "display_id"
+        private val SAFE_COMPONENT_PART = Regex("""^[A-Za-z0-9_.$]+$""")
 
         /** 启动应用到默认显示器（前台模式） */
         fun launch(context: Context, targetIntent: Intent) {

@@ -100,6 +100,10 @@ object ActivityAutomationInstructionGateway : AutomationInstructionGateway {
             putExtra(AutomationViewModel.EXTRA_AUTOMATION_TASK, request.instruction.trim())
             putExtra(AutomationViewModel.EXTRA_AUTOMATION_SOURCE, request.source.wireValue)
             putExtra(AutomationViewModel.EXTRA_AUTOMATION_AUTO_START, request.autoStart)
+            putExtra(
+                AutomationViewModel.EXTRA_AUTOMATION_DISPATCH_TOKEN,
+                AutomationViewModel.createInternalDispatchToken()
+            )
             putExtra(AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY, request.forceTopOnEntry)
             putExtra(AutomationViewModel.EXTRA_KEEP_MAIN_ON_TOP, request.keepMainOnTop)
         }

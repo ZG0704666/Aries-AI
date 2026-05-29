@@ -17,6 +17,7 @@ import com.ai.phoneagent.net.AriesApiClient
 import com.ai.phoneagent.net.AriesOidcAuthManager
 import com.ai.phoneagent.net.AutoGlmClient
 import com.ai.phoneagent.net.ModelScopeModelDownloader
+import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -593,7 +594,18 @@ class SettingsViewModel(
     }
 
     fun apiConfigSignature(apiKey: String, baseUrl: String, model: String): String {
-        return "${if (useThirdPartyApi) "1" else "0"}|${apiKey.trim()}|${baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }}|${model.ifBlank { AutoGlmClient.DEFAULT_MODEL }}"
+        val apiKeyHash = sha256Hex(apiKey.trim())
+        val mode = if (useThirdPartyApi) "1" else "0"
+        val normalizedBaseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
+        val normalizedModel = model.ifBlank { AutoGlmClient.DEFAULT_MODEL }
+        return "$mode|$apiKeyHash|$normalizedBaseUrl|$normalizedModel"
+    }
+
+    private fun sha256Hex(value: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
+        return buildString(digest.size * 2) {
+            digest.forEach { byte -> append("%02x".format(byte)) }
+        }
     }
 
     fun validateBaseUrlSecurity(baseUrl: String): String? {
@@ -603,7 +615,7 @@ class SettingsViewModel(
         if (scheme.isNullOrBlank() || host.isNullOrBlank()) {
             return stringRes(R.string.settings_api_invalid_url)
         }
-        if (scheme != "https" && scheme != "http") {
+        if (scheme != "https") {
             return stringRes(R.string.settings_api_invalid_scheme)
         }
         return null

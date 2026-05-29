@@ -1,6 +1,11 @@
 package com.ai.phoneagent.data.preferences
 
 import android.content.Context
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
+import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
@@ -8,6 +13,11 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -59,14 +69,26 @@ class AppPreferencesRepository(
         val codeAutoCollapse = booleanPreferencesKey("code_auto_collapse")
     }
 
+    private fun Preferences.readSecret(key: Preferences.Key<String>): String {
+        return SecurePreferenceCrypto.decrypt(this[key])
+    }
+
+    private fun MutablePreferences.writeSecret(key: Preferences.Key<String>, value: String) {
+        if (value.isBlank()) {
+            remove(key)
+        } else {
+            this[key] = SecurePreferenceCrypto.encrypt(value)
+        }
+    }
+
     val apiKeyFlow: Flow<String> =
         context.appPreferencesDataStore.data.map { prefs ->
-            prefs[Keys.apiKey] ?: ""
+            prefs.readSecret(Keys.apiKey)
         }
 
     val autoglmApiKeyFlow: Flow<String> =
         context.appPreferencesDataStore.data.map { prefs ->
-            prefs[Keys.autoglmApiKey] ?: ""
+            prefs.readSecret(Keys.autoglmApiKey)
         }
 
     val apiUseThirdPartyFlow: Flow<Boolean> =
@@ -101,7 +123,7 @@ class AppPreferencesRepository(
 
     val ariesApiKeyFlow: Flow<String> =
         context.appPreferencesDataStore.data.map { prefs ->
-            prefs[Keys.ariesApiKey] ?: ""
+            prefs.readSecret(Keys.ariesApiKey)
         }
 
     val apiThirdPartyBaseUrlFlow: Flow<String> =
@@ -182,23 +204,23 @@ class AppPreferencesRepository(
 
     suspend fun getApiKey(): String {
         val prefs = context.appPreferencesDataStore.data.first()
-        return prefs[Keys.apiKey] ?: ""
+        return prefs.readSecret(Keys.apiKey)
     }
 
     suspend fun setApiKey(value: String) {
         context.appPreferencesDataStore.edit { prefs ->
-            prefs[Keys.apiKey] = value
+            prefs.writeSecret(Keys.apiKey, value)
         }
     }
 
     suspend fun getAutoglmApiKey(): String {
         val prefs = context.appPreferencesDataStore.data.first()
-        return prefs[Keys.autoglmApiKey] ?: ""
+        return prefs.readSecret(Keys.autoglmApiKey)
     }
 
     suspend fun setAutoglmApiKey(value: String) {
         context.appPreferencesDataStore.edit { prefs ->
-            prefs[Keys.autoglmApiKey] = value
+            prefs.writeSecret(Keys.autoglmApiKey, value)
         }
     }
 
@@ -257,23 +279,22 @@ class AppPreferencesRepository(
 
     suspend fun setAriesApiKey(value: String) {
         context.appPreferencesDataStore.edit { prefs ->
-            if (value.isBlank()) prefs.remove(Keys.ariesApiKey)
-            else prefs[Keys.ariesApiKey] = value
+            prefs.writeSecret(Keys.ariesApiKey, value)
         }
     }
 
     suspend fun getAriesApiKey(): String {
         val prefs = context.appPreferencesDataStore.data.first()
-        return prefs[Keys.ariesApiKey] ?: ""
+        return prefs.readSecret(Keys.ariesApiKey)
     }
 
     suspend fun getActiveAriesApiKey(): String {
         val prefs = context.appPreferencesDataStore.data.first()
-        val ariesKey = prefs[Keys.ariesApiKey].orEmpty()
+        val ariesKey = prefs.readSecret(Keys.ariesApiKey)
         if (ariesKey.isNotBlank()) return ariesKey
         val loggedInUser = prefs[Keys.ariesLoggedInUser].orEmpty()
         return if (loggedInUser.isNotBlank()) {
-            prefs[Keys.apiKey].orEmpty()
+            prefs.readSecret(Keys.apiKey)
         } else {
             ""
         }
@@ -293,12 +314,12 @@ class AppPreferencesRepository(
 
     suspend fun getApiLastCheckKey(): String {
         val prefs = context.appPreferencesDataStore.data.first()
-        return prefs[Keys.apiLastCheckKey] ?: ""
+        return prefs.readSecret(Keys.apiLastCheckKey)
     }
 
     suspend fun setApiLastCheckKey(value: String) {
         context.appPreferencesDataStore.edit { prefs ->
-            prefs[Keys.apiLastCheckKey] = value
+            prefs.writeSecret(Keys.apiLastCheckKey, value)
         }
     }
 
@@ -326,12 +347,12 @@ class AppPreferencesRepository(
 
     suspend fun getApiLastCheckSig(): String {
         val prefs = context.appPreferencesDataStore.data.first()
-        return prefs[Keys.apiLastCheckSig] ?: ""
+        return prefs.readSecret(Keys.apiLastCheckSig)
     }
 
     suspend fun setApiLastCheckSig(value: String) {
         context.appPreferencesDataStore.edit { prefs ->
-            prefs[Keys.apiLastCheckSig] = value
+            prefs.writeSecret(Keys.apiLastCheckSig, value)
         }
     }
 
@@ -601,7 +622,7 @@ class AppPreferencesRepository(
     ) {
         context.appPreferencesDataStore.edit { prefs ->
             if (removeApiKey) prefs.remove(Keys.apiKey)
-            else if (apiKey != null) prefs[Keys.apiKey] = apiKey
+            else if (apiKey != null) prefs.writeSecret(Keys.apiKey, apiKey)
             useThirdParty?.let { prefs[Keys.apiUseThirdParty] = it }
             useLocalModel?.let { prefs[Keys.apiUseLocalModel] = it }
             thirdPartyBaseUrl?.let { prefs[Keys.apiThirdPartyBaseUrl] = it }
@@ -612,10 +633,10 @@ class AppPreferencesRepository(
                 prefs.remove(Keys.apiLastCheckOk)
                 prefs.remove(Keys.apiLastCheckTime)
             }
-            lastCheckKey?.let { prefs[Keys.apiLastCheckKey] = it }
+            lastCheckKey?.let { prefs.writeSecret(Keys.apiLastCheckKey, it) }
             lastCheckOk?.let { prefs[Keys.apiLastCheckOk] = it }
             lastCheckTime?.let { prefs[Keys.apiLastCheckTime] = it }
-            lastCheckSig?.let { prefs[Keys.apiLastCheckSig] = it }
+            lastCheckSig?.let { prefs.writeSecret(Keys.apiLastCheckSig, it) }
         }
     }
 
@@ -680,4 +701,64 @@ class AppPreferencesRepository(
         }
         return prefs[Keys.themeAccent] ?: ThemeColorStyle.DEFAULT.storageKey
     }
+}
+
+private object SecurePreferenceCrypto {
+    private const val KEYSTORE_PROVIDER = "AndroidKeyStore"
+    private const val KEY_ALIAS = "aries_ai_preference_secrets"
+    private const val TRANSFORMATION = "AES/GCM/NoPadding"
+    private const val PREFIX = "aes-gcm-v1:"
+    private const val GCM_TAG_BITS = 128
+
+    fun encrypt(plainText: String): String {
+        if (plainText.isBlank()) return ""
+        return runCatching {
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
+            val encrypted = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
+            PREFIX + encode(cipher.iv) + ":" + encode(encrypted)
+        }.getOrElse { error ->
+            throw IllegalStateException("Unable to encrypt preference secret", error)
+        }
+    }
+
+    fun decrypt(storedValue: String?): String {
+        val value = storedValue.orEmpty()
+        if (value.isBlank()) return ""
+        if (!value.startsWith(PREFIX)) return value
+        return runCatching {
+            val payload = value.removePrefix(PREFIX)
+            val parts = payload.split(':', limit = 2)
+            if (parts.size != 2) return@runCatching ""
+            val iv = decode(parts[0])
+            val encrypted = decode(parts[1])
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(GCM_TAG_BITS, iv))
+            String(cipher.doFinal(encrypted), Charsets.UTF_8)
+        }.getOrDefault("")
+    }
+
+    @Synchronized
+    private fun getOrCreateKey(): SecretKey {
+        val keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER).apply { load(null) }
+        val existing = keyStore.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry
+        if (existing != null) return existing.secretKey
+
+        val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE_PROVIDER)
+        val spec =
+            KeyGenParameterSpec.Builder(
+                KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setRandomizedEncryptionRequired(true)
+                .build()
+        keyGenerator.init(spec)
+        return keyGenerator.generateKey()
+    }
+
+    private fun encode(bytes: ByteArray): String = Base64.encodeToString(bytes, Base64.NO_WRAP)
+
+    private fun decode(value: String): ByteArray = Base64.decode(value, Base64.NO_WRAP)
 }

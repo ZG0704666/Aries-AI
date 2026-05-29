@@ -45,6 +45,7 @@ import java.lang.ref.WeakReference
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -66,8 +67,10 @@ class AutomationViewModel(
         const val EXTRA_AUTOMATION_TASK = "automation_task"
         const val EXTRA_AUTOMATION_SOURCE = "automation_source"
         const val EXTRA_AUTOMATION_AUTO_START = "automation_auto_start"
+        const val EXTRA_AUTOMATION_DISPATCH_TOKEN = "automation_dispatch_token"
         const val EXTRA_KEEP_MAIN_ON_TOP = "keep_main_on_top"
         private const val SHIZUKU_PERMISSION_REQUEST_CODE = 2026
+        private val INTERNAL_AUTOMATION_DISPATCH_TOKEN: String = UUID.randomUUID().toString()
 
         /**
          * Pending launch args set by MainActivity when receiving automation intents.
@@ -76,11 +79,18 @@ class AutomationViewModel(
         @Volatile
         var pendingLaunchArgs: LaunchArgs? = null
 
+        fun createInternalDispatchToken(): String = INTERNAL_AUTOMATION_DISPATCH_TOKEN
+
         fun extractLaunchArgsFromIntent(intent: Intent?): LaunchArgs? {
             intent ?: return null
             val task = intent.getStringExtra(EXTRA_AUTOMATION_TASK)
             val forceTop = intent.getBooleanExtra(EXTRA_FORCE_TOP_ON_ENTRY, false)
             if (task.isNullOrBlank() && !forceTop) return null
+            if (!task.isNullOrBlank() &&
+                intent.getStringExtra(EXTRA_AUTOMATION_DISPATCH_TOKEN) != INTERNAL_AUTOMATION_DISPATCH_TOKEN
+            ) {
+                return null
+            }
             return LaunchArgs(
                 forceTopOnEntry = forceTop,
                 automationTask = task,
