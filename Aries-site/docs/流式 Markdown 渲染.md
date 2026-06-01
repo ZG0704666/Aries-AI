@@ -403,12 +403,12 @@ class AriesStreamParser {
 ```mermaid
 stateDiagram-v2
     [*] --> IDLE
-    IDLE --> IN_THINKING: 检测到思考开始标记<br/>&lt;think&gt;, &lt;思考&gt;, 【思考开始】等
-    IDLE --> IN_THINKING_ANGLE: 检测到 &lt;思考： 或 &lt;思考:
-    IDLE --> IN_ANSWER: 检测到回答开始标记<br/>【回答开始】, 【回答】<br/>或已收到 reasoning_content
+    IDLE --> IN_THINKING: 检测到思考开始标记<br/>think 标签、思考标签、【思考开始】等
+    IDLE --> IN_THINKING_ANGLE: 检测到思考冒号标记
+    IDLE --> IN_ANSWER: 检测到回答开始标记<br/>【回答开始】、【回答】或 reasoning_content
 
-    IN_THINKING --> IDLE: 检测到思考结束标记<br/>&lt;/think&gt;, &lt;/思考&gt;, 【思考结束】等
-    IN_THINKING_ANGLE --> IDLE: 检测到 &gt;
+    IN_THINKING --> IDLE: 检测到思考结束标记<br/>think 结束标签、思考结束标签、【思考结束】等
+    IN_THINKING_ANGLE --> IDLE: 检测到结束尖括号
 
     IN_ANSWER --> IN_THINKING: 检测到思考开始标记
     IN_ANSWER --> IN_ANSWER: 检测到嵌套回答标记
