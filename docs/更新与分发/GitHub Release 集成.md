@@ -115,7 +115,7 @@ sequenceDiagram
         SC->>Repo: fetchLatestReleaseResilient()
         Repo->>API: listReleases(owner, repo, page, perPage)
         alt API 成功
-            API-->>Repo: List&lt;GitHubRelease&gt;
+            API-->>Repo: GitHubRelease 列表
         else API 失败
             Repo->>Repo: 等待 500ms 重试
             Note over Repo: 最多 3 次重试<br/>指数退避: 500ms → 1s → 2s
@@ -127,7 +127,7 @@ sequenceDiagram
                 Atom-->>Repo: ReleaseEntry
             end
         end
-        Repo-->>SC: Result&lt;ReleaseEntry&gt;
+        Repo-->>SC: ReleaseEntry 结果
         SC->>SC: VersionComparator.compare()
         alt 发现新版本
             SC->>Store: saveLatest()
@@ -150,7 +150,7 @@ sequenceDiagram
     User->>VM: 点击"检查更新"
     VM->>VM: isCheckingUpdates = true
     VM->>Repo: fetchLatestReleaseResilient(false)
-    Repo-->>VM: Result&lt;ReleaseEntry&gt;
+    Repo-->>VM: ReleaseEntry 结果
 
     alt 网络错误
         VM->>UI: 显示 ErrorDialog

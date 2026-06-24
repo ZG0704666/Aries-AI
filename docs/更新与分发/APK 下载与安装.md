@@ -113,7 +113,7 @@ sequenceDiagram
         RR->>GAC: listReleases(page, perPage)
         
         alt GitHub API 成功
-            GAC-->>RR: List&lt;GitHubRelease&gt;
+            GAC-->>RR: GitHubRelease 列表
         else API 失败
             RR->>GAC: 重试 (最多3次, 指数退避)
             GAC-->>RR: 失败
@@ -121,7 +121,7 @@ sequenceDiagram
             ARF-->>RR: ReleaseEntry?
         end
 
-        RR-->>USC: Result&lt;ReleaseEntry?&gt;
+        RR-->>USC: ReleaseEntry 结果
         
         alt 有新版本
             USC->>US: saveLatest()
