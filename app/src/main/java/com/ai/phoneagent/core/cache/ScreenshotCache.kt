@@ -9,8 +9,8 @@ import android.util.Log
 class ScreenshotCache(
     private val maxSize: Int = 3,           // 最大缓存条目数
     private val ttlMs: Long = 2000L         // 缓存过期时间（2秒）
-) {
-    
+) : CacheManager.EvictableCache {
+
     private data class CacheEntry(
         val screenshot: Any,                // 截图数据（PhoneAgentAccessibilityService.ScreenshotData）
         val timestamp: Long                 // 创建时间戳
@@ -60,16 +60,18 @@ class ScreenshotCache(
      * 清除所有缓存
      */
     @Synchronized
-    fun clear() {
+    override fun clear() {
         cache.clear()
         Log.d("SCREENSHOT_CACHE", "缓存已清空")
     }
-    
+
+    override fun getName(): String = "ScreenshotCache"
+
     /**
      * 移除过期条目
      */
     @Synchronized
-    fun evictExpired() {
+    override fun evictExpired() {
         val currentTime = System.currentTimeMillis()
         val iterator = cache.iterator()
         var removedCount = 0

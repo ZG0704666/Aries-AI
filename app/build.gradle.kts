@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    id("org.jetbrains.dokka")
 }
 
 val githubToken: String by lazy {
@@ -58,8 +59,8 @@ android {
         applicationId = "com.ai.phoneagent"
         minSdk = 30
         targetSdk = 36
-        versionCode = 17
-        versionName = "v1.4.2-xyla.alpha"
+        versionCode = 19
+        versionName = "v1.5.1-alpha"
 
         buildConfigField("String", "GITHUB_TOKEN", "\"\"")
         buildConfigField("String", "ARIES_LOGTO_ENDPOINT", "\"https://sso.aries.org.cn/\"")
@@ -108,6 +109,14 @@ android {
         abortOnError = false
     }
 
+    testOptions {
+        unitTests {
+            // 让 android.util.Log 等 Android 框架方法在 JVM 单元测试中返回默认值
+            // 而非抛出 "not mocked" 异常，便于测试直接依赖 Log 的业务逻辑
+            isReturnDefaultValues = true
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -130,6 +139,40 @@ android {
             excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
             pickFirsts += "META-INF/INDEX.LIST"
             pickFirsts += "META-INF/io.netty.versions.properties"
+        }
+    }
+}
+
+// Dokka API 文档生成配置（Dokka 1.9.x 使用 tasks.dokkaHtml.configure {} DSL）
+tasks.dokkaHtml.configure {
+    outputDirectory.set(layout.buildDirectory.dir("dokka/html").get().asFile)
+    dokkaSourceSets {
+        named("main") {
+            moduleName.set("Aries AI")
+            moduleVersion.set("1.5.1-alpha")
+
+            // 仅文档 public 与 protected 可见性
+            documentedVisibilities.set(
+                setOf(
+                    org.jetbrains.dokka.DokkaConfiguration.Visibility.PUBLIC,
+                    org.jetbrains.dokka.DokkaConfiguration.Visibility.PROTECTED
+                )
+            )
+
+            // 仅覆盖 app 模块自身的包
+            perPackageOption {
+                matchingRegex.set("com\\.ai\\.phoneagent\\..*")
+                // 补充工具接口的文档：抑制不需要对外暴露的映射文件
+                suppressedFiles.from(file("src/main/java/com/ai/phoneagent/AppPackageMapping.kt"))
+            }
+
+            // 外部文档链接
+            externalDocumentationLink {
+                url.set(uri("https://developer.android.com/reference/").toURL())
+            }
+            externalDocumentationLink {
+                url.set(uri("https://kotlinlang.org/api/latest/jvm/stdlib/").toURL())
+            }
         }
     }
 }

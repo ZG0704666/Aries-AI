@@ -1,0 +1,26 @@
+{
+  "highPriorityKeywords": {
+    "移动云": "com.chinamobile.cmcccloud",
+    "移动云手机": "com.cmcc.pocophone",
+    "阿里云盘": "com.alicloud.infocloud",
+    "天翼云盘": "com.ctc.wsyd",
+    "百度网盘": "com.baidu.netdisk",
+    "腾讯微云": "com.tencent.wecloud",
+    "坚果云": "com.jianguoyun",
+    "华为手机": "com.huawei.system",
+    "小米手机": "com.xiaomi.misettings",
+    "OPPO手机": "com.coloros.safecenter",
+    "vivo手机": "com.iqoo.secure",
+    "荣耀手机": "com.hihonor.system",
+    "招商银行": "cmb.pb",
+    "工商银行": "com.icbc",
+    "建设银行": "com.ccb.ccbnetpay",
+    "农业银行": "com.abchina",
+    "中国银行": "com.chinamobile.boc",
+    "邮储银行": "com.psbc",
+    "腾讯视频": "com.tencent.qqlive",
+    "爱奇艺视频": "com.qiyi.video",
+    "优酷视频": "com.youku.phone",
+    "芒果TV": "com.hunantv.imgo.activity"
+  }
+}

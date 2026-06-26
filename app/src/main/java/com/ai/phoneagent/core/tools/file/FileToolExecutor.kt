@@ -42,6 +42,7 @@ object FileToolExecutor {
 
     fun init(context: Context) {
         applicationContext = context.applicationContext
+        FilePathValidator.init(context)
     }
 
     private fun getContext(): Context {
@@ -55,6 +56,9 @@ object FileToolExecutor {
     suspend fun readFile(tool: AITool): ToolResult = withContext(Dispatchers.IO) {
         val path = tool.parameters.find { it.name == "path" }?.value
             ?: return@withContext error("read_file", "缺少 path 参数")
+
+        val pathError = FilePathValidator.validatePath(path)
+        if (pathError != null) return@withContext error("read_file", pathError)
 
         try {
             val file = File(path)
@@ -86,6 +90,9 @@ object FileToolExecutor {
         val path = tool.parameters.find { it.name == "path" }?.value
             ?: return@withContext error("write_file", "缺少 path 参数")
 
+        val pathError = FilePathValidator.validatePath(path)
+        if (pathError != null) return@withContext error("write_file", pathError)
+
         val content = tool.parameters.find { it.name == "content" }?.value ?: ""
         val append = tool.parameters.find { it.name == "append" }?.value?.toBooleanStrictOrNull() ?: false
 
@@ -113,6 +120,9 @@ object FileToolExecutor {
     suspend fun delete(tool: AITool): ToolResult = withContext(Dispatchers.IO) {
         val path = tool.parameters.find { it.name == "path" }?.value
             ?: return@withContext error("delete", "缺少 path 参数")
+
+        val pathError = FilePathValidator.validatePath(path)
+        if (pathError != null) return@withContext error("delete", pathError)
 
         try {
             val file = File(path)
@@ -142,6 +152,9 @@ object FileToolExecutor {
     suspend fun listDir(tool: AITool): ToolResult = withContext(Dispatchers.IO) {
         val path = tool.parameters.find { it.name == "path" }?.value
             ?: return@withContext error("list_dir", "缺少 path 参数")
+
+        val pathError = FilePathValidator.validatePath(path)
+        if (pathError != null) return@withContext error("list_dir", pathError)
 
         try {
             val dir = File(path)
@@ -178,6 +191,9 @@ object FileToolExecutor {
         val path = tool.parameters.find { it.name == "path" }?.value
             ?: return@withContext error("create_dir", "缺少 path 参数")
 
+        val pathError = FilePathValidator.validatePath(path)
+        if (pathError != null) return@withContext error("create_dir", pathError)
+
         try {
             val dir = File(path)
             val created = dir.mkdirs()
@@ -203,6 +219,9 @@ object FileToolExecutor {
         val path = tool.parameters.find { it.name == "path" }?.value
             ?: return@withContext error("exists", "缺少 path 参数")
 
+        val pathError = FilePathValidator.validatePath(path)
+        if (pathError != null) return@withContext error("exists", pathError)
+
         try {
             val file = File(path)
             val exists = file.exists()
@@ -227,6 +246,9 @@ object FileToolExecutor {
 
         val dest = tool.parameters.find { it.name == "destination" }?.value
             ?: return@withContext error("copy", "缺少 destination 参数")
+
+        val pathError = FilePathValidator.validatePaths(source, dest)
+        if (pathError != null) return@withContext error("copy", pathError)
 
         try {
             val srcFile = File(source)
@@ -259,6 +281,9 @@ object FileToolExecutor {
         val dest = tool.parameters.find { it.name == "destination" }?.value
             ?: return@withContext error("move", "缺少 destination 参数")
 
+        val pathError = FilePathValidator.validatePaths(source, dest)
+        if (pathError != null) return@withContext error("move", pathError)
+
         try {
             val srcFile = File(source)
             val destFile = File(dest)
@@ -286,6 +311,9 @@ object FileToolExecutor {
     suspend fun fileInfo(tool: AITool): ToolResult = withContext(Dispatchers.IO) {
         val path = tool.parameters.find { it.name == "path" }?.value
             ?: return@withContext error("file_info", "缺少 path 参数")
+
+        val pathError = FilePathValidator.validatePath(path)
+        if (pathError != null) return@withContext error("file_info", pathError)
 
         try {
             val file = File(path)
@@ -320,6 +348,9 @@ object FileToolExecutor {
 
         val dest = tool.parameters.find { it.name == "destination" }?.value
             ?: return@withContext error("compress", "缺少 destination 参数")
+
+        val pathError = FilePathValidator.validatePaths(source, dest)
+        if (pathError != null) return@withContext error("compress", pathError)
 
         try {
             val sourceFile = File(source)
@@ -397,7 +428,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
     // Write File
     handler.registerTool(
         name = "write_file",
-        dangerCheck = { false },
+        dangerCheck = { true }, // 危险操作：写入文件
         descriptionGenerator = { tool ->
             val path = tool.parameters.find { it.name == "path" }?.value ?: ""
             "写入文件: $path"
@@ -501,7 +532,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
     // Compress
     handler.registerTool(
         name = "compress",
-        dangerCheck = { false },
+        dangerCheck = { true }, // 危险操作：压缩文件
         descriptionGenerator = { tool ->
             val source = tool.parameters.find { it.name == "source" }?.value ?: ""
             "压缩文件: $source"

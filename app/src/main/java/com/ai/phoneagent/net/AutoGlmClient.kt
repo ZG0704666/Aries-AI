@@ -18,19 +18,18 @@
 package com.ai.phoneagent.net
 
 import com.ai.phoneagent.core.common.AppJson
+import com.ai.phoneagent.core.common.LogMaskingUtil
 import okhttp3.Call
-import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
-import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.logging.HttpLoggingInterceptor
 import com.ai.phoneagent.BuildConfig
+import org.koin.core.context.GlobalContext
+import org.koin.core.qualifier.named
 import java.io.IOException
 import java.net.URI
 import java.util.concurrent.atomic.AtomicReference
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
@@ -46,70 +45,24 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 
-/**
- * 共享 OkHttpClient 工厂。
- * 通过连接池复用连接，提高网络请求性能。
- */
-private object SharedHttpClient {
-        val instance: OkHttpClient by lazy {
-                val logger =
-                        HttpLoggingInterceptor().apply {
-                                level =
-                                        if (BuildConfig.DEBUG)
-                                                HttpLoggingInterceptor.Level.BASIC
-                                        else
-                                                HttpLoggingInterceptor.Level.NONE
-                        }
-                OkHttpClient.Builder()
-                        .addInterceptor(logger)
-                        .retryOnConnectionFailure(true)
-                        // 增加连接超时，适配慢速网络
-                        .connectTimeout(60, TimeUnit.SECONDS)
-                        // 读取超时设置更长，支持长时模型响应
-                        .readTimeout(300, TimeUnit.SECONDS)
-                        .writeTimeout(120, TimeUnit.SECONDS)
-                        .callTimeout(360, TimeUnit.SECONDS)
-                        // 使用连接池复用连接，提高性能
-                        .connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
-                        // 支持 HTTP/2 协议
-                        .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
-                        .build()
-        }
-
-        /**
-         * 自动化场景专用：使用更短超时，避免请求长时间卡住。
-         * 注意：这不会让模型本身更快，但能让慢/异常连接更快失败并触发重试或降级。
-         */
-        val fastInstance: OkHttpClient by lazy {
-                val logger =
-                        HttpLoggingInterceptor().apply {
-                                level =
-                                        if (BuildConfig.DEBUG)
-                                                HttpLoggingInterceptor.Level.BASIC
-                                        else
-                                                HttpLoggingInterceptor.Level.NONE
-                        }
-                OkHttpClient.Builder()
-                        .addInterceptor(logger)
-                        .retryOnConnectionFailure(true)
-                        .connectTimeout(10, TimeUnit.SECONDS)
-                        .readTimeout(25, TimeUnit.SECONDS)
-                        .writeTimeout(25, TimeUnit.SECONDS)
-                        .callTimeout(30, TimeUnit.SECONDS)
-                        .connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
-                        .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
-                        .build()
-        }
-}
-
 /** 简化版 AutoGLM 客户端：用于单轮对话与 API 健康检查。 */
 object AutoGlmClient {
 
-        private val activeStreamCall = AtomicReference<Call?>(null)
+    private val activeStreamCall = AtomicReference<Call?>(null)
 
-        fun cancelActiveStream() {
-                activeStreamCall.getAndSet(null)?.cancel()
+    fun cancelActiveStream() {
+        activeStreamCall.getAndSet(null)?.cancel()
+    }
+
+    private fun getHttpClient(useFastTimeouts: Boolean): OkHttpClient {
+        val koin = GlobalContext.getOrNull()
+            ?: throw IllegalStateException("Koin not started")
+        return if (useFastTimeouts) {
+            koin.get<OkHttpClient>(named("fast"))
+        } else {
+            koin.get<OkHttpClient>()
         }
+    }
 
         class ApiException(
                 val code: Int,
@@ -251,10 +204,12 @@ object AutoGlmClient {
                                                 )
                                                 .build()
 
+                                if (BuildConfig.DEBUG) {
+                                        android.util.Log.d("AutoGlmClient", "Request URL: ${normalizeBaseUrl(baseUrl)}chat/completions, API Key: ${LogMaskingUtil.maskApiKey(normalizedApiKey)}")
+                                }
+
                                 var receivedAnyDelta = false
-                                val client =
-                                        if (useFastTimeouts) SharedHttpClient.fastInstance
-                                        else SharedHttpClient.instance
+                                val client = getHttpClient(useFastTimeouts)
                                 val call = client.newCall(request)
 
                                 activeStreamCall.set(call)
@@ -401,7 +356,11 @@ object AutoGlmClient {
                                                         )
                                                         .build()
 
-                                        SharedHttpClient.fastInstance.newCall(request).execute().use { response ->
+                                        if (BuildConfig.DEBUG) {
+                                                android.util.Log.d("AutoGlmClient", "Request URL: ${normalizeBaseUrl(baseUrl)}chat/completions, API Key: ${LogMaskingUtil.maskApiKey(normalizedApiKey)}")
+                                        }
+
+                                        getHttpClient(true).newCall(request).execute().use { response ->
                                                 val code = response.code
                                                 val body = response.body?.string().orEmpty()
 
@@ -585,9 +544,11 @@ object AutoGlmClient {
                                                         )
                                                 )
                                                 .build()
-                                val client =
-                                        if (useFastTimeouts) SharedHttpClient.fastInstance
-                                        else SharedHttpClient.instance
+                                if (BuildConfig.DEBUG) {
+                                        android.util.Log.d("AutoGlmClient", "Request URL: ${normalizeBaseUrl(baseUrl)}chat/completions, API Key: ${LogMaskingUtil.maskApiKey(normalizedApiKey)}")
+                                }
+
+                                val client = getHttpClient(useFastTimeouts)
                                 client.newCall(request).execute().use { response ->
                                         if (!response.isSuccessful) {
                                                 val errBody =

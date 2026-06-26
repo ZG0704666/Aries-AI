@@ -100,13 +100,13 @@ class CoreModuleTest {
     @Test
     fun `ActionParser 解析预估步骤数`() {
         val parser = ActionParser()
-        
+
         // 显式数字
         val steps1 = parser.parseEstimatedSteps("我需要大约5步完成")
         assertEquals(5, steps1)
-        
-        // 编号步骤
-        val steps2 = parser.parseEstimatedSteps("第一步...第二步...第三步")
+
+        // 编号步骤（正则第(\d+)步仅匹配阿拉伯数字）
+        val steps2 = parser.parseEstimatedSteps("第1步...第2步...第3步")
         assertEquals(3, steps2)
     }
     
@@ -170,10 +170,11 @@ class CoreModuleTest {
     @Test
     fun `PromptTemplates 构建系统提示词`() {
         val prompt = PromptTemplates.buildSystemPrompt(1080, 1920, null)
-        
-        assertTrue(prompt.contains("手机 UI 自动化助手"))
-        assertTrue(prompt.contains("1080"))
-        assertTrue(prompt.contains("1920"))
+
+        assertTrue(prompt.contains("移动 UI 自动化核心提示词"))
+        // 屏幕尺寸通过最大公约数化为比例（1080:1920 -> 9:16）
+        assertTrue(prompt.contains("9:16"))
+        assertTrue(prompt.contains("当前屏幕比例"))
         assertTrue(prompt.contains("Launch"))
         assertTrue(prompt.contains("Tap"))
         assertTrue(prompt.contains("Type"))

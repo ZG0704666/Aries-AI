@@ -23,6 +23,8 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatDelegate
 import coil.Coil
 import coil.ImageLoader
+import com.ai.phoneagent.core.cache.CacheManager
+import com.ai.phoneagent.core.tools.AppPackageManager
 import com.ai.phoneagent.telemetry.TelemetryHeartbeatManager
 import com.ai.phoneagent.di.appModule
 import com.ai.phoneagent.di.dataModule
@@ -72,6 +74,15 @@ class AriesAgentApp : Application() {
         // 初始化全局上下文
         AppState.init(this)
         AutomationLiveNotification.initialize(this)
+
+        // 初始化统一缓存管理器，监听系统内存压力
+        try {
+            CacheManager.init(this)
+            CacheManager.register(AppPackageManager)
+            logi("CacheManager initialized")
+        } catch (t: Throwable) {
+            logw("CacheManager initialization failed", t)
+        }
 
         // 初始化 Koin 依赖注入框架
         startKoin {

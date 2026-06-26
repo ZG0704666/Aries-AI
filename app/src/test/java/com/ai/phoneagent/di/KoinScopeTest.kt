@@ -19,6 +19,7 @@ package com.ai.phoneagent.di
 
 import android.app.Application
 import com.ai.phoneagent.AppState
+import com.ai.phoneagent.updates.ReleaseRepository
 import io.mockk.mockk
 import org.junit.After
 import org.junit.Before
@@ -28,6 +29,7 @@ import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.test.KoinTest
 import org.koin.test.get
+import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 
 /**
@@ -64,5 +66,11 @@ class KoinScopeTest : KoinTest {
         instances.forEach { instance ->
             assertSame(instances[0], instance)
         }
+    }
+
+    @Test
+    fun `ReleaseRepository is registered as singleton`() {
+        val repo = get<ReleaseRepository>()
+        assertNotNull(repo)
     }
 }

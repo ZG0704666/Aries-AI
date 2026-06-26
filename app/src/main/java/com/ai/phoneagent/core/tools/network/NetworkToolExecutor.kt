@@ -29,6 +29,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.koin.core.context.GlobalContext
 import java.io.IOException
 import java.net.InetAddress
 import java.net.URL
@@ -41,11 +42,15 @@ import java.util.concurrent.TimeUnit
 object NetworkToolExecutor {
 
     private const val TAG = "NetworkTools"
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
+
+    private fun getClient(): OkHttpClient {
+        return GlobalContext.getOrNull()?.get()
+            ?: OkHttpClient.Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .build()
+    }
 
     /**
      * HTTP GET 请求
@@ -53,6 +58,9 @@ object NetworkToolExecutor {
     suspend fun httpGet(tool: AITool): ToolResult = withContext(Dispatchers.IO) {
         val url = tool.parameters.find { it.name == "url" }?.value
             ?: return@withContext errorResult(tool.name, "缺少 url 参数")
+
+        val urlError = NetworkSecurityValidator.validateUrl(url)
+        if (urlError != null) return@withContext errorResult(tool.name, urlError)
 
         val headersStr = tool.parameters.find { it.name == "headers" }?.value
         val timeout = tool.parameters.find { it.name == "timeout_ms" }?.value?.toLongOrNull() ?: 10000L
@@ -69,7 +77,7 @@ object NetworkToolExecutor {
                 }
             }
 
-            val response = client.newCall(requestBuilder.build()).execute()
+            val response = getClient().newCall(requestBuilder.build()).execute()
 
             val body = response.body?.string() ?: ""
             val statusCode = response.code
@@ -99,6 +107,9 @@ object NetworkToolExecutor {
         val url = tool.parameters.find { it.name == "url" }?.value
             ?: return@withContext errorResult(tool.name, "缺少 url 参数")
 
+        val urlError = NetworkSecurityValidator.validateUrl(url)
+        if (urlError != null) return@withContext errorResult(tool.name, urlError)
+
         val body = tool.parameters.find { it.name == "body" }?.value ?: ""
         val contentType = tool.parameters.find { it.name == "content_type" }?.value ?: "application/json"
 
@@ -111,7 +122,7 @@ object NetworkToolExecutor {
                 .addHeader("Content-Type", contentType)
                 .build()
 
-            val response = client.newCall(request).execute()
+            val response = getClient().newCall(request).execute()
             val responseBody = response.body?.string() ?: ""
             val statusCode = response.code
 
@@ -140,6 +151,9 @@ object NetworkToolExecutor {
         val url = tool.parameters.find { it.name == "url" }?.value
             ?: return@withContext errorResult(tool.name, "缺少 url 参数")
 
+        val urlError = NetworkSecurityValidator.validateUrl(url)
+        if (urlError != null) return@withContext errorResult(tool.name, urlError)
+
         val savePath = tool.parameters.find { it.name == "save_path" }?.value
 
         try {
@@ -148,7 +162,7 @@ object NetworkToolExecutor {
                 .get()
                 .build()
 
-            val response = client.newCall(request).execute()
+            val response = getClient().newCall(request).execute()
 
             if (!response.isSuccessful) {
                 return@withContext errorResult(tool.name, "下载失败: ${response.code}")
@@ -192,6 +206,10 @@ object NetworkToolExecutor {
     suspend fun ping(tool: AITool): ToolResult = withContext(Dispatchers.IO) {
         val host = tool.parameters.find { it.name == "host" }?.value
             ?: return@withContext errorResult(tool.name, "缺少 host 参数")
+
+        if (NetworkSecurityValidator.isIpAddress(host) && NetworkSecurityValidator.isPrivateIp(host)) {
+            return@withContext errorResult(tool.name, "禁止 Ping 内网地址: $host")
+        }
 
         val count = tool.parameters.find { it.name == "count" }?.value?.toIntOrNull() ?: 4
         val timeout = tool.parameters.find { it.name == "timeout_ms" }?.value?.toIntOrNull() ?: 5000

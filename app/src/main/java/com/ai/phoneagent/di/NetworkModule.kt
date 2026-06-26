@@ -27,6 +27,7 @@ import okhttp3.Protocol
 import okhttp3.logging.HttpLoggingInterceptor
 import com.ai.phoneagent.BuildConfig
 import org.koin.android.ext.koin.androidContext
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import java.util.concurrent.TimeUnit
 
@@ -65,6 +66,29 @@ val networkModule = module {
             .readTimeout(300, TimeUnit.SECONDS)
             .writeTimeout(120, TimeUnit.SECONDS)
             .callTimeout(360, TimeUnit.SECONDS)
+            .connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
+            .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+            .build()
+    }
+
+    /**
+     * Fast OkHttpClient singleton — shorter timeouts for automation scenarios.
+     */
+    single<OkHttpClient>(named("fast")) {
+        val logger = HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BASIC
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+        }
+        OkHttpClient.Builder()
+            .addInterceptor(logger)
+            .retryOnConnectionFailure(true)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(25, TimeUnit.SECONDS)
+            .writeTimeout(25, TimeUnit.SECONDS)
+            .callTimeout(30, TimeUnit.SECONDS)
             .connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
             .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
             .build()

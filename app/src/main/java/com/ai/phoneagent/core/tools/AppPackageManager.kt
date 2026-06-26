@@ -1,9 +1,10 @@
-﻿package com.ai.phoneagent.core.tools
+package com.ai.phoneagent.core.tools
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import com.ai.phoneagent.PhoneAgentAccessibilityService
+import com.ai.phoneagent.core.cache.CacheManager
 import com.ai.phoneagent.core.tools.extended.ExtendedAppMapping
 import java.util.LinkedHashMap
 
@@ -17,48 +18,24 @@ import java.util.LinkedHashMap
  * 3. 单词边界匹配（避免"云"匹配"阿里云盘"和"移动云"）
  * 4. 智能模糊匹配（作为最后手段）
  */
-object AppPackageManager {
-    
+object AppPackageManager : CacheManager.EvictableCache {
+
     private const val TAG = "AppPackageManager"
-    
-    // 应用缓存（包名 -> 应用名）
-    private val appCache = mutableMapOf<String, String>()
+
+    private const val APP_CACHE_MAX_ENTRIES = 512
+
+    // 应用缓存（包名 -> 应用名），带容量限制
+    private val appCache = object : LinkedHashMap<String, String>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean {
+            return size > APP_CACHE_MAX_ENTRIES
+        }
+    }
     
     // 反向映射（应用名/别名 -> 包名）
     private val appNameToPackage = mutableMapOf<String, String>()
     
-    // 高优先级关键词映射（用于区分容易混淆的应用）
-    private val highPriorityKeywords = mapOf(
-        // 云服务区分
-        "移动云" to "com.chinamobile.cmcccloud",
-        "移动云手机" to "com.cmcc.pocophone",
-        "阿里云盘" to "com.alicloud.infocloud",
-        "天翼云盘" to "com.ctc.wsyd",
-        "百度网盘" to "com.baidu.netdisk",
-        "腾讯微云" to "com.tencent.wecloud",
-        "坚果云" to "com.jianguoyun",
-        
-        // 手机品牌区分
-        "华为手机" to "com.huawei.system",
-        "小米手机" to "com.xiaomi.misettings",
-        "OPPO手机" to "com.coloros.safecenter",
-        "vivo手机" to "com.iqoo.secure",
-        "荣耀手机" to "com.hihonor.system",
-        
-        // 银行类区分
-        "招商银行" to "cmb.pb",
-        "工商银行" to "com.icbc",
-        "建设银行" to "com.ccb.ccbnetpay",
-        "农业银行" to "com.abchina",
-        "中国银行" to "com.chinamobile.boc",
-        "邮储银行" to "com.psbc",
-        
-        // 视频类区分
-        "腾讯视频" to "com.tencent.qqlive",
-        "爱奇艺视频" to "com.qiyi.video",
-        "优酷视频" to "com.youku.phone",
-        "芒果TV" to "com.hunantv.imgo.activity",
-    )
+    // 高优先级关键词映射已迁移到 assets/app_package_mapping.json
+    // 通过 AppPackageMappingLoader 加载
     
     private const val RESOLVE_CACHE_TTL_MS = 300_000L // 5分钟
     private const val RESOLVE_CACHE_MAX_ENTRIES = 256
@@ -75,11 +52,11 @@ object AppPackageManager {
      * 加载所有映射到缓存
      */
     private fun loadAllMappings() {
-        // 1. 加载高优先级关键词（最先加载，优先匹配）
-        highPriorityKeywords.forEach { (name, pkg) ->
+        // 1. 加载高优先级关键词（从 JSON 文件加载）
+        val keywords = AppPackageMappingLoader.getHighPriorityKeywords()
+        keywords.forEach { (name, pkg) ->
             val lowerName = name.lowercase()
             appNameToPackage[lowerName] = pkg
-            // 保留原始名称作为精确匹配键
             appNameToPackage[name] = pkg
             appNameToPackage[pkg.lowercase()] = pkg
         }
@@ -97,7 +74,7 @@ object AppPackageManager {
     
     private fun logMappingStats() {
         val totalMappings = appNameToPackage.size
-        val highPriorityCount = highPriorityKeywords.size
+        val highPriorityCount = AppPackageMappingLoader.getHighPriorityKeywords().size
         val extendedCount = ExtendedAppMapping.getAllMappings().size
         
         android.util.Log.d(TAG, "映射加载完成: 总数=$totalMappings, " +
@@ -115,7 +92,10 @@ object AppPackageManager {
      */
     fun initializeCache(context: Context) {
         val currentTime = System.currentTimeMillis()
-        
+
+        // 初始化映射加载器
+        AppPackageMappingLoader.init(context)
+
         // 如果缓存有效，直接返回
         if (currentTime - lastUpdateTime < CACHE_VALIDITY_MS && appCache.isNotEmpty()) {
             return
@@ -207,16 +187,16 @@ object AppPackageManager {
         
         // ===== 优先级2: 高优先级关键词匹配（防止误匹配的关键） =====
         // 2.1 完整关键词匹配（优先匹配完整的关键词如"移动云手机"）
-        highPriorityKeywords.keys.firstOrNull { keyword ->
-            lowerQuery.contains(keyword.lowercase()) || 
+        AppPackageMappingLoader.getHighPriorityKeywords().keys.firstOrNull { keyword ->
+            lowerQuery.contains(keyword.lowercase()) ||
             keyword.lowercase().contains(lowerQuery)
         }?.let { keyword ->
-            highPriorityKeywords[keyword]?.let { return record(it) }
+            AppPackageMappingLoader.getHighPriorityKeywords()[keyword]?.let { return record(it) }
         }
-        
+
         // 2.2 反向检查：如果查询词是某个高优先级词的子串，优先返回该高优先级包
-        highPriorityKeywords.entries.firstOrNull { (keyword, _) ->
-            keyword.lowercase().contains(lowerQuery) && 
+        AppPackageMappingLoader.getHighPriorityKeywords().entries.firstOrNull { (keyword, _) ->
+            keyword.lowercase().contains(lowerQuery) &&
             keyword.length > lowerQuery.length
         }?.value?.let { return record(it) }
         
@@ -336,6 +316,26 @@ object AppPackageManager {
         synchronized(resolveCache) { resolveCache.clear() }
         lastUpdateTime = 0L
     }
+
+    override fun clear() {
+        clearCache()
+    }
+
+    override fun evictExpired() {
+        // AppPackageManager 没有过期概念，清理 resolveCache 中的过期条目
+        synchronized(resolveCache) {
+            val currentTime = System.currentTimeMillis()
+            val iterator = resolveCache.iterator()
+            while (iterator.hasNext()) {
+                val entry = iterator.next()
+                if (currentTime - entry.value.second > RESOLVE_CACHE_TTL_MS) {
+                    iterator.remove()
+                }
+            }
+        }
+    }
+
+    override fun getName(): String = "AppPackageManager"
     
     /**
      * 获取映射统计信息
@@ -344,7 +344,7 @@ object AppPackageManager {
         return mapOf(
             "totalMappings" to appNameToPackage.size,
             "installedApps" to appCache.size,
-            "highPriorityKeywords" to highPriorityKeywords.size,
+            "highPriorityKeywords" to AppPackageMappingLoader.getHighPriorityKeywords().size,
             "extendedMappings" to ExtendedAppMapping.getAllMappings().size
         )
     }

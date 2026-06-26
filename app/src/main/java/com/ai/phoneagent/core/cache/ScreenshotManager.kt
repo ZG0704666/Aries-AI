@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -40,6 +40,11 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
     private val throttler =
             ScreenshotThrottler(minIntervalMs = config.screenshotThrottleMinIntervalMs)
     private val mutex = Mutex()
+
+    init {
+        // 将 ScreenshotCache 接入统一缓存管理器，响应系统内存压力
+        CacheManager.register(cache)
+    }
 
     /**
      * 优化的截图获取方法
