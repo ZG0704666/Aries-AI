@@ -174,32 +174,34 @@ class NetworkSecurityValidatorTest {
     }
 
     // ========== IPv6 地址处理 ==========
-    // 当前实现 ipToInt 仅解析 IPv4（4 段点分十进制），IPv6 会被视为非法格式。
-    // 这里记录当前行为：IPv6 一律返回 false（非私有），需在后续迭代补齐 IPv6 检测。
+    // IPv6 内网/环回地址也必须被识别，避免通过 IPv6 绕过 SSRF 防护。
 
     @Test
-    fun `ipv6 loopback is not detected as private due to ipv4-only parsing`() {
-        // ::1 是 IPv6 环回，但当前实现不识别 IPv6
-        assertFalse(NetworkSecurityValidator.isPrivateIp("::1"))
+    fun `ipv6 loopback is detected as private`() {
+        assertTrue(NetworkSecurityValidator.isPrivateIp("::1"))
     }
 
     @Test
-    fun `ipv6 unique local address is not detected as private`() {
-        // fc00::/7 是 IPv6 唯一本地地址（类似 IPv4 私网），当前实现不识别
-        assertFalse(NetworkSecurityValidator.isPrivateIp("fc00::1"))
-        assertFalse(NetworkSecurityValidator.isPrivateIp("fd12:3456:789a::1"))
+    fun `ipv6 unique local address is detected as private`() {
+        assertTrue(NetworkSecurityValidator.isPrivateIp("fc00::1"))
+        assertTrue(NetworkSecurityValidator.isPrivateIp("fd12:3456:789a::1"))
     }
 
     @Test
-    fun `ipv6 link-local address is not detected as private`() {
-        // fe80::/10 是 IPv6 链路本地地址，当前实现不识别
-        assertFalse(NetworkSecurityValidator.isPrivateIp("fe80::1"))
+    fun `ipv6 link-local address is detected as private`() {
+        assertTrue(NetworkSecurityValidator.isPrivateIp("fe80::1"))
     }
 
     @Test
-    fun `ipv4-mapped ipv6 is not detected as private`() {
-        // ::ffff:10.0.0.1 是 IPv4 映射的 IPv6，当前实现不识别
-        assertFalse(NetworkSecurityValidator.isPrivateIp("::ffff:10.0.0.1"))
+    fun `ipv4-mapped ipv6 is detected as private`() {
+        assertTrue(NetworkSecurityValidator.isPrivateIp("::ffff:10.0.0.1"))
+    }
+
+    @Test
+    fun `validateUrl rejects ipv6 loopback literal`() {
+        val error = NetworkSecurityValidator.validateUrl("http://[::1]/admin")
+        assertNotNull(error)
+        assertTrue(error!!.contains("禁止访问内网地址"))
     }
 
     @Test
@@ -284,13 +286,10 @@ class NetworkSecurityValidatorTest {
     @Test
     fun `validateUrl with encoded host percent does not crash`() {
         // 主机名带百分号编码的异常输入不应导致崩溃
-        // 注意：%31%30%2e%30%2e%30%2e%31 解码后为 "10.0.0.1"，但 java.net.URL 不会
-        // 自动解码 host 字段的百分号编码，因此主机无法解析、resolveHost 返回 null，
-        // validateUrl 视为“无法判定为内网”而放行（返回 null）。本测试仅验证不抛异常。
+        // %31%30%2e%30%2e%30%2e%31 解码后为 "10.0.0.1"。安全策略应拒绝无法
+        // 可靠解析的 host，避免编码后的内网地址绕过校验。
         val error = NetworkSecurityValidator.validateUrl("http://%31%30%2e%30%2e%30%2e%31/")
-        // 无论返回 null 还是非 null，关键是不抛异常
-        // 当前实现返回 null（无法解析主机时保守放行）
-        assertNull(error)
+        assertNotNull(error)
     }
 
     // ========== 格式错误与边界 ==========

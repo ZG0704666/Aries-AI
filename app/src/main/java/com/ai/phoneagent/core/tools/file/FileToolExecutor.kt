@@ -467,7 +467,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
     // Create Dir
     handler.registerTool(
         name = "create_dir",
-        dangerCheck = { false },
+        dangerCheck = { true }, // 危险操作：创建目录
         descriptionGenerator = { tool ->
             val path = tool.parameters.find { it.name == "path" }?.value ?: ""
             "创建目录: $path"
@@ -493,7 +493,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
     // Copy
     handler.registerTool(
         name = "copy",
-        dangerCheck = { false },
+        dangerCheck = { true }, // 危险操作：写入目标文件
         descriptionGenerator = { tool ->
             val source = tool.parameters.find { it.name == "source" }?.value ?: ""
             "复制文件: $source"

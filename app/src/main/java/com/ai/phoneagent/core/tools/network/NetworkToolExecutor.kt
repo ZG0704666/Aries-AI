@@ -30,6 +30,7 @@ import okhttp3.Request
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.koin.core.context.GlobalContext
+import java.io.File
 import java.io.IOException
 import java.net.InetAddress
 import java.net.URL
@@ -50,6 +51,12 @@ object NetworkToolExecutor {
                 .readTimeout(30, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
                 .build()
+    }
+
+    private fun getSafeClient(): OkHttpClient {
+        return getClient().newBuilder()
+            .dns(NetworkSecurityValidator.safeDns())
+            .build()
     }
 
     /**
@@ -77,7 +84,7 @@ object NetworkToolExecutor {
                 }
             }
 
-            val response = getClient().newCall(requestBuilder.build()).execute()
+            val response = getSafeClient().newCall(requestBuilder.build()).execute()
 
             val body = response.body?.string() ?: ""
             val statusCode = response.code
@@ -122,7 +129,7 @@ object NetworkToolExecutor {
                 .addHeader("Content-Type", contentType)
                 .build()
 
-            val response = getClient().newCall(request).execute()
+            val response = getSafeClient().newCall(request).execute()
             val responseBody = response.body?.string() ?: ""
             val statusCode = response.code
 
@@ -156,13 +163,16 @@ object NetworkToolExecutor {
 
         val savePath = tool.parameters.find { it.name == "save_path" }?.value
 
+        val savePathError = validateDownloadSavePath(savePath)
+        if (savePathError != null) return@withContext errorResult(tool.name, savePathError)
+
         try {
             val request = Request.Builder()
                 .url(url)
                 .get()
                 .build()
 
-            val response = getClient().newCall(request).execute()
+            val response = getSafeClient().newCall(request).execute()
 
             if (!response.isSuccessful) {
                 return@withContext errorResult(tool.name, "下载失败: ${response.code}")
@@ -174,12 +184,19 @@ object NetworkToolExecutor {
             val fileName = if (savePath.isNullOrBlank()) {
                 extractFileName(url)
             } else {
-                savePath
+                savePath.trim()
             }
+
+            val fileNameError = validateDownloadSavePath(fileName)
+            if (fileNameError != null) return@withContext errorResult(tool.name, fileNameError)
 
             // 保存文件到缓存目录
             val context = getApplicationContext()
-            val file = java.io.File(context.cacheDir, fileName)
+            val file = File(context.cacheDir, fileName).canonicalFile
+            val cacheRoot = context.cacheDir.canonicalFile
+            if (file != cacheRoot && !file.path.startsWith(cacheRoot.path + File.separator)) {
+                return@withContext errorResult(tool.name, "保存路径不在缓存目录内")
+            }
             file.writeBytes(bytes)
 
             val success = file.exists()
@@ -207,9 +224,8 @@ object NetworkToolExecutor {
         val host = tool.parameters.find { it.name == "host" }?.value
             ?: return@withContext errorResult(tool.name, "缺少 host 参数")
 
-        if (NetworkSecurityValidator.isIpAddress(host) && NetworkSecurityValidator.isPrivateIp(host)) {
-            return@withContext errorResult(tool.name, "禁止 Ping 内网地址: $host")
-        }
+        val hostError = NetworkSecurityValidator.validateHost(host)
+        if (hostError != null) return@withContext errorResult(tool.name, hostError)
 
         val count = tool.parameters.find { it.name == "count" }?.value?.toIntOrNull() ?: 4
         val timeout = tool.parameters.find { it.name == "timeout_ms" }?.value?.toIntOrNull() ?: 5000
@@ -323,6 +339,18 @@ object NetworkToolExecutor {
         }
     }
 
+    fun validateDownloadSavePath(savePath: String?): String? {
+        if (savePath.isNullOrBlank()) return null
+
+        val trimmed = savePath.trim()
+        if (trimmed == "." || trimmed == "..") return "保存路径只能是文件名: $savePath"
+        if (trimmed.contains('\u0000')) return "保存路径包含非法字符"
+        if (trimmed.contains('/') || trimmed.contains('\\') || trimmed.contains("..")) {
+            return "保存路径只能是文件名: $savePath"
+        }
+        return null
+    }
+
     private var applicationContext: Context? = null
 
     fun init(context: Context) {
@@ -379,7 +407,7 @@ fun registerNetworkTools(handler: AIToolHandler, context: Context) {
     // Download
     handler.registerTool(
         name = "download",
-        dangerCheck = { false },
+        dangerCheck = { true }, // 危险操作：下载并写入缓存文件
         descriptionGenerator = { tool ->
             val url = tool.parameters.find { it.name == "url" }?.value ?: ""
             "下载文件: $url"

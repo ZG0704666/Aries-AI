@@ -17,6 +17,7 @@
  */
 package com.ai.phoneagent.core.tools.network
 
+import okhttp3.Dns
 import java.net.InetAddress
 import java.net.URL
 import java.net.UnknownHostException
@@ -53,31 +54,73 @@ object NetworkSecurityValidator {
 
         return try {
             val url = URL(urlString)
-            val host = url.host
-
-            if (host.isBlank()) return "URL 缺少主机名"
-
-            // 检查是否是内网 IP
-            val hostAddress = resolveHost(host)
-            if (hostAddress != null && isPrivateIp(hostAddress)) {
-                return "禁止访问内网地址: $host"
+            val scheme = url.protocol?.lowercase().orEmpty()
+            if (scheme != "http" && scheme != "https") {
+                return "仅允许 HTTP/HTTPS URL"
             }
 
-            null
+            val host = url.host
+            if (host.isBlank()) return "URL 缺少主机名"
+
+            validateHost(host)
         } catch (e: Exception) {
             "URL 格式无效: ${e.message}"
         }
     }
 
     /**
-     * 解析主机名获取 IP 地址
+     * 校验主机名解析结果是否安全。
+     *
+     * 无法解析、编码主机名、任一解析地址为内网/本机地址时均拒绝，避免 SSRF 绕过。
      */
-    private fun resolveHost(host: String): String? {
+    fun validateHost(host: String): String? {
+        if (host.isBlank()) return "主机名不能为空"
+
+        val normalizedHost = normalizeHost(host) ?: return "主机名格式无效: $host"
+        if (normalizedHost.contains('%')) return "主机名包含非法编码: $host"
+
+        val addresses = resolveHost(normalizedHost)
+            ?: return "无法解析主机名: $host"
+        if (addresses.isEmpty()) return "无法解析主机名: $host"
+
+        val privateAddress = addresses.firstOrNull { isPrivateAddress(it) }
+        if (privateAddress != null) {
+            return "禁止访问内网地址: $host"
+        }
+
+        return null
+    }
+
+    /**
+     * OkHttp DNS，确保请求实际解析时也执行同一套安全校验，降低 DNS rebinding 风险。
+     */
+    fun safeDns(): Dns = object : Dns {
+        override fun lookup(hostname: String): List<InetAddress> {
+            val normalizedHost = normalizeHost(hostname)
+                ?: throw UnknownHostException("主机名格式无效: $hostname")
+            val error = validateHost(normalizedHost)
+            if (error != null) throw UnknownHostException(error)
+            return InetAddress.getAllByName(normalizedHost).toList()
+        }
+    }
+
+    private fun normalizeHost(host: String): String? {
+        val trimmed = host.trim()
+        if (trimmed.isBlank()) return null
+        return if (trimmed.startsWith("[") && trimmed.endsWith("]") && trimmed.length > 2) {
+            trimmed.substring(1, trimmed.length - 1)
+        } else {
+            trimmed
+        }
+    }
+
+    /**
+     * 解析主机名获取全部 IP 地址
+     */
+    private fun resolveHost(host: String): List<InetAddress>? {
         return try {
-            val addresses = InetAddress.getAllByName(host)
-            addresses.firstOrNull()?.hostAddress
+            InetAddress.getAllByName(host).toList()
         } catch (e: UnknownHostException) {
-            // 如果无法解析，可能是内网主机名，保守拒绝
             null
         }
     }
@@ -86,11 +129,54 @@ object NetworkSecurityValidator {
      * 检查 IP 地址是否属于私有/内网地址段
      */
     fun isPrivateIp(ip: String): Boolean {
-        val ipInt = ipToInt(ip) ?: return false
-
-        return PRIVATE_IP_RANGES.any { (start, end) ->
-            ipInt in start..end
+        val normalized = normalizeHost(ip) ?: return false
+        if (!isIpAddress(normalized) && !normalized.contains(':')) return false
+        return try {
+            isPrivateAddress(InetAddress.getByName(normalized))
+        } catch (e: UnknownHostException) {
+            false
         }
+    }
+
+    /**
+     * 检查解析后的地址是否属于内网、环回、链路本地、本机或 IPv6 ULA 地址。
+     */
+    fun isPrivateAddress(address: InetAddress): Boolean {
+        if (address.isAnyLocalAddress ||
+            address.isLoopbackAddress ||
+            address.isLinkLocalAddress ||
+            address.isSiteLocalAddress
+        ) {
+            return true
+        }
+
+        val bytes = address.address
+        if (bytes.size == 4) {
+            val ipInt = ipv4BytesToLong(bytes)
+            return PRIVATE_IP_RANGES.any { (start, end) -> ipInt in start..end }
+        }
+
+        if (bytes.size == 16) {
+            val firstByte = bytes[0].toInt() and 0xFF
+            val secondByte = bytes[1].toInt() and 0xFF
+
+            // fc00::/7 — IPv6 Unique Local Address
+            if ((firstByte and 0xFE) == 0xFC) return true
+
+            // fe80::/10 — IPv6 link-local（isLinkLocalAddress 理论上已覆盖，显式保留）
+            if (firstByte == 0xFE && (secondByte and 0xC0) == 0x80) return true
+
+            // ::ffff:IPv4 — IPv4-mapped IPv6，显式检查嵌入的 IPv4 地址
+            val isIpv4Mapped = bytes.take(10).all { it.toInt() == 0 } &&
+                (bytes[10].toInt() and 0xFF) == 0xFF &&
+                (bytes[11].toInt() and 0xFF) == 0xFF
+            if (isIpv4Mapped) {
+                val mappedIp = ipv4BytesToLong(bytes.copyOfRange(12, 16))
+                return PRIVATE_IP_RANGES.any { (start, end) -> mappedIp in start..end }
+            }
+        }
+
+        return false
     }
 
     /**
@@ -111,6 +197,14 @@ object NetworkSecurityValidator {
         } catch (e: Exception) {
             null
         }
+    }
+
+    private fun ipv4BytesToLong(bytes: ByteArray): Long {
+        var result = 0L
+        for (byte in bytes) {
+            result = (result shl 8) or (byte.toInt() and 0xFF).toLong()
+        }
+        return result
     }
 
     /**
