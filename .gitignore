@@ -27,7 +27,7 @@ release/
 /temp/
 .tmp_material_113/
 .tmp_material_113.zip
-.trae/documents/
+.trae
 
 # Signing keys and certificates
 *.jks
