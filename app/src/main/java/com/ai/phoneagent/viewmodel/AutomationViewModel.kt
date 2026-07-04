@@ -900,7 +900,7 @@ class AutomationViewModel(
                         }
                     }
 
-                    val agent = UiAutomationAgent(appContext, config)
+                    val agent = UiAutomationAgent(appContext, appPrefsRepository, config)
                     val result =
                         agent.run(
                             apiKey = apiKey,

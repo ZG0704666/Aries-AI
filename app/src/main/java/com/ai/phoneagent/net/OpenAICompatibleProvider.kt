@@ -4,7 +4,6 @@ import android.util.Base64
 import com.ai.phoneagent.core.common.AppJson
 import com.ai.phoneagent.data.AttachmentInfo
 import com.ai.phoneagent.helper.ChatMarkupRegex
-import com.ai.phoneagent.helper.MediaLinkParser
 import com.ai.phoneagent.helper.StreamingJsonXmlConverter
 import com.ai.phoneagent.helper.XmlEscaper
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +15,6 @@ import java.io.BufferedReader
 import java.io.File
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -54,33 +52,6 @@ class OpenAICompatibleProvider(
         val content: JsonElement,
     )
 
-    @Serializable
-    private data class OpenAiSseChunk(
-        val choices: List<OpenAiSseChoice>? = null,
-    )
-
-    @Serializable
-    private data class OpenAiSseChoice(
-        val delta: OpenAiDelta? = null,
-    )
-
-    @Serializable
-    private data class OpenAiDelta(
-        val content: String? = null,
-        @SerialName("tool_calls") val toolCalls: List<OpenAiToolCall>? = null,
-    )
-
-    @Serializable
-    private data class OpenAiToolCall(
-        val function: OpenAiToolFunction? = null,
-    )
-
-    @Serializable
-    private data class OpenAiToolFunction(
-        val name: String? = null,
-        val arguments: String? = null,
-    )
-    
     override val providerName: String = "OpenAI"
     
     private val client = OkHttpClient.Builder()
@@ -157,44 +128,34 @@ class OpenAICompatibleProvider(
         
         while (reader.readLine().also { line = it } != null) {
             val currentLine = line ?: continue
-            
-            if (!currentLine.startsWith("data: ")) continue
-            
-            val data = currentLine.substring(6).trim()
-            if (data == "[DONE]") break
-            if (data.isBlank()) continue
-            
-            try {
-                val chunk = AppJson.decodeFromString<OpenAiSseChunk>(data)
-                val delta = chunk.choices?.firstOrNull()?.delta ?: continue
-                
-                // 处理Tool Call
-                val toolCalls = delta.toolCalls.orEmpty()
-                if (toolCalls.isNotEmpty() && enableToolCall) {
-                    processToolCallsDelta(toolCalls, converter, onChunk)
-                    isInToolCall = true
-                    continue
-                }
-                
-                // 处理普通内容
-                val content = delta.content.orEmpty()
-                if (content.isNotEmpty()) {
-                    if (isInToolCall) {
-                        // 关闭Tool Call
-                        val events = converter.flush()
-                        events.forEach { event ->
-                            when (event) {
-                                is StreamingJsonXmlConverter.Event.Tag -> onChunk(event.text)
-                                is StreamingJsonXmlConverter.Event.Content -> onChunk(event.text)
-                            }
-                        }
-                        onChunk("\n</tool>\n")
-                        isInToolCall = false
+            when (val ev = parseOpenAiSseLine(currentLine)) {
+                is OpenAiSseEvent.Skip -> continue
+                is OpenAiSseEvent.Done -> break
+                is OpenAiSseEvent.Delta -> {
+                    val toolCalls = ev.toolCalls.orEmpty()
+                    if (toolCalls.isNotEmpty() && enableToolCall) {
+                        processToolCallsDelta(toolCalls, converter, onChunk)
+                        isInToolCall = true
+                        continue
                     }
-                    onChunk(content)
+
+                    val content = ev.content.orEmpty()
+                    if (content.isNotEmpty()) {
+                        if (isInToolCall) {
+                            // 关闭Tool Call
+                            val events = converter.flush()
+                            events.forEach { event ->
+                                when (event) {
+                                    is StreamingJsonXmlConverter.Event.Tag -> onChunk(event.text)
+                                    is StreamingJsonXmlConverter.Event.Content -> onChunk(event.text)
+                                }
+                            }
+                            onChunk("\n</tool>\n")
+                            isInToolCall = false
+                        }
+                        onChunk(content)
+                    }
                 }
-            } catch (e: Exception) {
-                // 忽略解析错误
             }
         }
         
@@ -215,19 +176,17 @@ class OpenAICompatibleProvider(
      * 处理Tool Call增量数据
      */
     private fun processToolCallsDelta(
-        toolCalls: List<OpenAiToolCall>,
+        toolCalls: List<OpenAiSseToolCall>,
         converter: StreamingJsonXmlConverter,
         onChunk: (String) -> Unit
     ) {
         toolCalls.forEach { toolCall ->
-            val function = toolCall.function ?: return@forEach
-            
-            val name = function.name.orEmpty()
+            val name = toolCall.name.orEmpty()
             if (name.isNotEmpty()) {
                 onChunk("\n<tool name=\"$name\">")
             }
-            
-            val arguments = function.arguments.orEmpty()
+
+            val arguments = toolCall.arguments.orEmpty()
             if (arguments.isNotEmpty()) {
                 val events = converter.feed(arguments)
                 events.forEach { event ->

@@ -2,6 +2,7 @@ package com.ai.phoneagent.ui.components.markdown
 
 import android.content.Context
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
 import com.dokar.quickjs.QuickJs
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -62,7 +63,7 @@ object Highlighter {
                 qjs.evaluate<Any?>(js)
                 quickJs = qjs
                 initDeferred.complete(true)
-                Log.d(TAG, "Prism.js loaded successfully")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Prism.js loaded successfully")
             } catch (e: Exception) {
                 Log.w(TAG, "Prism.js unavailable – falling back to plain text: ${e.message}")
                 initDeferred.complete(false)

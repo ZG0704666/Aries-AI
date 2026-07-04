@@ -1,6 +1,7 @@
 package com.ai.phoneagent.core.cache
 
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
 
 /**
  * 截图节流器
@@ -10,7 +11,6 @@ class ScreenshotThrottler(
     private val minIntervalMs: Long = 1100L    // 最小间隔时间（1.1秒）
 ) {
     
-    @Volatile
     private var lastScreenshotTime: Long = 0L
     
     /**
@@ -24,11 +24,11 @@ class ScreenshotThrottler(
         
         if (timeSinceLastScreenshot >= minIntervalMs) {
             lastScreenshotTime = currentTime
-            Log.d("SCREENSHOT_THROTTLE", "截图允许，间隔: ${timeSinceLastScreenshot}ms")
+            if (BuildConfig.DEBUG) Log.d("SCREENSHOT_THROTTLE", "截图允许，间隔: ${timeSinceLastScreenshot}ms")
             return true
         } else {
             val remainingWait = minIntervalMs - timeSinceLastScreenshot
-            Log.d("SCREENSHOT_THROTTLE", "截图节流，还需等待: ${remainingWait}ms")
+            if (BuildConfig.DEBUG) Log.d("SCREENSHOT_THROTTLE", "截图节流，还需等待: ${remainingWait}ms")
             return false
         }
     }
@@ -50,7 +50,7 @@ class ScreenshotThrottler(
     @Synchronized
     fun reset() {
         lastScreenshotTime = 0L
-        Log.d("SCREENSHOT_THROTTLE", "截图节流器已重置")
+        if (BuildConfig.DEBUG) Log.d("SCREENSHOT_THROTTLE", "截图节流器已重置")
     }
     
     /**

@@ -53,17 +53,15 @@ object ShizukuVirtualDisplayEngine {
 
     @Volatile private var vdCallback: Any? = null
 
-    @Volatile private var currentOutputSurface: Surface? = null
-
     @Volatile private var glDispatcher: VdGlFrameDispatcher? = null
 
-    @Volatile private var latestContentWidth: Int = 0
+    private var latestContentWidth: Int = 0
 
-    @Volatile private var latestContentHeight: Int = 0
+    private var latestContentHeight: Int = 0
 
     private val frameLock = Any()
 
-    @Volatile private var stopping: Boolean = false
+    private var stopping: Boolean = false
 
     private fun setVirtualDisplaySurfaceBestEffort(callback: Any, surface: Surface): Result<Unit> {
         // 通过 IDisplayManager.setVirtualDisplaySurface*(...) 反射切换 VirtualDisplay 的输出 Surface。
@@ -181,7 +179,6 @@ object ShizukuVirtualDisplayEngine {
                                 throw IllegalStateException("GL input surface not ready")
                             }
             Log.i(TAG, "GL input surface ready: $inputSurface")
-            currentOutputSurface = inputSurface
 
             // 在第一帧到达前，用创建时的目标分辨率作为内容尺寸兜底。
             synchronized(frameLock) {
@@ -240,8 +237,6 @@ object ShizukuVirtualDisplayEngine {
         val cb = vdCallback
         vdCallback = null
         displayId = null
-
-        currentOutputSurface = null
 
         if (cb != null) {
             runCatching { releaseVirtualDisplayBestEffort(cb) }

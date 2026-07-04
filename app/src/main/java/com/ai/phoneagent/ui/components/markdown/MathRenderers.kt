@@ -1,9 +1,9 @@
 package com.ai.phoneagent.ui.components.markdown
 
-import android.util.LruCache
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
+import com.ai.phoneagent.core.cache.ThreadSafeLruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.horizontalScroll
@@ -170,7 +170,7 @@ private data class LatexBitmapCacheEntry(
     val heightPx: Float,
 )
 
-private val latexBitmapCache = object : LruCache<String, LatexBitmapCacheEntry>(96) {}
+private val latexBitmapCache = ThreadSafeLruCache<String, LatexBitmapCacheEntry>(96, Long.MAX_VALUE)
 
 private fun buildLatexCacheKey(
     formula: String,

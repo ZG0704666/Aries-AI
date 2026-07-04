@@ -134,8 +134,8 @@ object AutomationMessageParser {
             return (thinking.ifBlank { null }) to stripAutomationMarker(answer)
         }
 
-        val markerStart = source.indexOf('杲')
-        val markerEnd = if (markerStart >= 0) source.indexOf('杲', markerStart + 1) else -1
+        val markerStart = source.indexOf('꽁')
+        val markerEnd = if (markerStart >= 0) source.indexOf('꽁', markerStart + 1) else -1
         if (markerStart >= 0 && markerEnd > markerStart) {
             val thinking = source.substring(markerStart + 1, markerEnd).trim()
             val answer = source.substring(markerEnd + 1).trimStart('\n', '\r', ' ').trim()
@@ -182,6 +182,6 @@ object AutomationMessageParser {
             return null to stripAutomationMarker(answerPart.trim())
         }
 
-        return null to stripAutomationMarker(source.replace("杲", "").trim())
+        return null to stripAutomationMarker(source.replace("꽁", "").trim())
     }
 }

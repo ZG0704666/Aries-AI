@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -60,6 +60,7 @@ private const val ENABLE_SHIZUKU_UI_TREE = false
  */
 class UiAutomationAgent(
         private val appContext: Context,
+        private val appPreferencesRepository: AppPreferencesRepository,
         private val config: AgentConfiguration = AgentConfiguration.DEFAULT,
 ) {
     // 组件实例化
@@ -70,7 +71,6 @@ class UiAutomationAgent(
     // Tap+Type 合并执行状态
     private var lastActionWasTap = false
     private var lastTapAction: ParsedAgentAction? = null
-    private val appPreferencesRepository by lazy { AppPreferencesRepository(appContext.applicationContext) }
 
     private fun hasNonEmptyDesc(action: ParsedAgentAction): Boolean {
         val desc = action.fields["desc"] ?: action.fields["description"]

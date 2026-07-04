@@ -121,6 +121,8 @@ import com.ai.phoneagent.viewmodel.AutomationViewModel
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.*
 import org.koin.android.ext.android.inject
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
 import kotlin.math.roundToInt
 
 /** 悬浮聊天窗口服务 提供小窗模式的聊天界面和虚拟屏工具箱模式 */
@@ -133,7 +135,7 @@ class FloatingChatService : LifecycleService(), SavedStateRegistryOwner {
     private val appPrefsRepository by inject<AppPreferencesRepository>()
     private val floatingChatPrefs by inject<FloatingChatPreferencesRepository>()
 
-    companion object {
+    companion object : KoinComponent {
         private const val TAG = "FloatingChatService"
         private const val NOTIFICATION_ID = 2001
         private const val CHANNEL_ID = "floating_chat_channel"

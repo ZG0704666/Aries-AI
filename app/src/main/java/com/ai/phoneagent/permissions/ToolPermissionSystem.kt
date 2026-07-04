@@ -2,9 +2,12 @@ package com.ai.phoneagent.permissions
 
 import android.content.Context
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
 import com.ai.phoneagent.core.tools.AIToolHandler
 import com.ai.phoneagent.data.model.AITool
 import com.ai.phoneagent.data.preferences.ToolPermissionsRepository
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
 
 /**
  * 工具权限系统
@@ -15,7 +18,7 @@ class ToolPermissionSystem private constructor(
     private val toolPermissionsRepository: ToolPermissionsRepository,
 ) {
 
-    companion object {
+    companion object : KoinComponent {
         private const val TAG = "ToolPermissionSystem"
         @Volatile
         private var INSTANCE: ToolPermissionSystem? = null
@@ -23,9 +26,12 @@ class ToolPermissionSystem private constructor(
         fun getInstance(context: Context): ToolPermissionSystem {
             return INSTANCE ?: synchronized(this) {
                 val appContext = context.applicationContext
+                val repo = runCatching { get<ToolPermissionsRepository>() }
+                    .getOrNull()
+                    ?: ToolPermissionsRepository(appContext)
                 INSTANCE ?: ToolPermissionSystem(
                     context = appContext,
-                    toolPermissionsRepository = ToolPermissionsRepository(appContext),
+                    toolPermissionsRepository = repo,
                 ).also {
                     INSTANCE = it
                 }
@@ -96,13 +102,13 @@ class ToolPermissionSystem private constructor(
 
         // 如果禁止，直接拒绝
         if (toolLevel == PermissionLevel.FORBID) {
-            Log.d(TAG, "Tool ${tool.name} is forbidden")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Tool ${tool.name} is forbidden")
             return false
         }
 
         // 如果允许，直接通过
         if (toolLevel == PermissionLevel.ALLOW) {
-            Log.d(TAG, "Tool ${tool.name} is allowed")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Tool ${tool.name} is allowed")
             return true
         }
 
@@ -110,14 +116,14 @@ class ToolPermissionSystem private constructor(
         if (toolLevel == PermissionLevel.CAUTION) {
             val isDangerous = toolHandler.isDangerousOperation(tool)
             if (!isDangerous) {
-                Log.d(TAG, "Tool ${tool.name} is not dangerous, auto allow")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Tool ${tool.name} is not dangerous, auto allow")
                 return true
             }
         }
 
         // 需要用户确认
         val description = toolHandler.getOperationDescription(tool)
-        Log.d(TAG, "Tool ${tool.name} needs confirmation: $description")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Tool ${tool.name} needs confirmation: $description")
         return onNeedConfirm(description)
     }
 }

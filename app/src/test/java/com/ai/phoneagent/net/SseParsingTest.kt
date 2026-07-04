@@ -1,26 +1,34 @@
 package com.ai.phoneagent.net
 
 import com.ai.phoneagent.helper.StreamingJsonXmlConverter
-import com.google.gson.JsonParser
-import org.json.JSONArray
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/**
+ * SSE 流式响应解析测试。
+ *
+ * 这些测试通过 [parseAutoGlmSseLine] / [parseOpenAiSseLine] 这两个生产解析器
+ * 验证 SSE 协议契约，不再维护私有副本。StreamingJsonXmlConverter 等工具仍来自生产代码，
+ * 确保"测试通过"等价于"生产行为正确"。
+ *
+ * OpenAI 端测试保留了完整的 tool-call 流式编排逻辑（converter 状态机、tool 块开闭、
+ * 未终止块的 done flush），这部分编排策略确实存在于测试而非生产代码中——
+ * 因为生产侧把 onChunk 回调直接交给调用方决定，编排策略由调用方决定；
+ * 测试将其固化为参考实现，便于回归对照。
+ */
 class SseParsingTest {
 
     @Test
     fun `openai parser parses single token stream`() {
-        val result =
-            parseOpenAiSse(
-                listOf(
-                    "data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"},\"finish_reason\":null}]}",
-                    "data: [DONE]",
-                ),
-                enableToolCall = false,
-            )
+        val result = parseOpenAiSse(
+            listOf(
+                "data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"},\"finish_reason\":null}]}",
+                "data: [DONE]",
+            ),
+            enableToolCall = false,
+        )
 
         assertEquals(listOf("Hi"), result.chunks)
         assertTrue(result.doneSeen)
@@ -39,31 +47,29 @@ class SseParsingTest {
 
     @Test
     fun `openai parser ignores empty lines and non data lines`() {
-        val result =
-            parseOpenAiSse(
-                listOf(
-                    "",
-                    "event: message",
-                    "data:    ",
-                    "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}",
-                    "data: [DONE]",
-                ),
-                enableToolCall = false,
-            )
+        val result = parseOpenAiSse(
+            listOf(
+                "",
+                "event: message",
+                "data:    ",
+                "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}",
+                "data: [DONE]",
+            ),
+            enableToolCall = false,
+        )
 
         assertEquals(listOf("ok"), result.chunks)
     }
 
     @Test
     fun `openai parser requires data prefix with trailing space`() {
-        val result =
-            parseOpenAiSse(
-                listOf(
-                    "data:{\"choices\":[{\"delta\":{\"content\":\"ignored\"}}]}",
-                    "data: [DONE]",
-                ),
-                enableToolCall = false,
-            )
+        val result = parseOpenAiSse(
+            listOf(
+                "data:{\"choices\":[{\"delta\":{\"content\":\"ignored\"}}]}",
+                "data: [DONE]",
+            ),
+            enableToolCall = false,
+        )
 
         assertTrue(result.chunks.isEmpty())
         assertTrue(result.doneSeen)
@@ -100,14 +106,13 @@ class SseParsingTest {
 
     @Test
     fun `openai parser flushes unterminated tool block on done`() {
-        val result =
-            parseOpenAiSse(
-                listOf(
-                    "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"function\":{\"name\":\"search\",\"arguments\":\"{\\\"query\\\":\\\"kotlin\\\"}\"}}]}}]}",
-                    "data: [DONE]",
-                ),
-                enableToolCall = true,
-            )
+        val result = parseOpenAiSse(
+            listOf(
+                "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"function\":{\"name\":\"search\",\"arguments\":\"{\\\"query\\\":\\\"kotlin\\\"}\"}}]}}]}",
+                "data: [DONE]",
+            ),
+            enableToolCall = true,
+        )
 
         assertTrue(result.chunks.contains("\n<tool name=\"search\">"))
         assertTrue(result.chunks.contains("<param name=\"query\">"))
@@ -118,13 +123,12 @@ class SseParsingTest {
 
     @Test
     fun `autoglm parser accepts data prefix without trailing space`() {
-        val result =
-            parseAutoGlmSse(
-                listOf(
-                    "data:{\"choices\":[{\"delta\":{\"content\":\"A\"}}]}",
-                    "data: [DONE]",
-                )
+        val result = parseAutoGlmSse(
+            listOf(
+                "data:{\"choices\":[{\"delta\":{\"content\":\"A\"}}]}",
+                "data: [DONE]",
             )
+        )
 
         assertEquals(listOf("A"), result.contentDeltas)
         assertTrue(result.receivedAnyDelta)
@@ -132,14 +136,13 @@ class SseParsingTest {
 
     @Test
     fun `autoglm parser reads reasoning content and message fallback`() {
-        val result =
-            parseAutoGlmSse(
-                listOf(
-                    "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"think\",\"content\":\"answer\"}}]}",
-                    "data: {\"choices\":[{\"message\":{\"content\":\"fallback\"}}]}",
-                    "data: [DONE]",
-                )
+        val result = parseAutoGlmSse(
+            listOf(
+                "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"think\",\"content\":\"answer\"}}]}",
+                "data: {\"choices\":[{\"message\":{\"content\":\"fallback\"}}]}",
+                "data: [DONE]",
             )
+        )
 
         assertEquals(listOf("think"), result.reasoningDeltas)
         assertEquals(listOf("answer", "fallback"), result.contentDeltas)
@@ -159,15 +162,14 @@ class SseParsingTest {
 
     @Test
     fun `autoglm parser marks stream as empty when no delta emitted`() {
-        val result =
-            parseAutoGlmSse(
-                listOf(
-                    "event: message",
-                    "",
-                    "data: {\"choices\":[]}",
-                    "data: [DONE]",
-                )
+        val result = parseAutoGlmSse(
+            listOf(
+                "event: message",
+                "",
+                "data: {\"choices\":[]}",
+                "data: [DONE]",
             )
+        )
 
         assertFalse(result.receivedAnyDelta)
         assertTrue(result.contentDeltas.isEmpty())
@@ -179,6 +181,11 @@ class SseParsingTest {
         return stream.bufferedReader().use { it.readLines() }
     }
 
+    /**
+     * OpenAI SSE 流式编排参考实现：消费 [parseOpenAiSseLine]，按 enableToolCall
+     * 决定是否将 tool_calls 增量交给 StreamingJsonXmlConverter，并在普通 content
+     * 到达或 [DONE] 时正确开闭 tool 块。
+     */
     private fun parseOpenAiSse(lines: List<String>, enableToolCall: Boolean): OpenAiParseResult {
         val chunks = mutableListOf<String>()
         val converter = StreamingJsonXmlConverter()
@@ -186,58 +193,35 @@ class SseParsingTest {
         var doneSeen = false
 
         for (currentLine in lines) {
-            if (!currentLine.startsWith("data: ")) continue
-
-            val data = currentLine.substring(6).trim()
-            if (data == "[DONE]") {
-                doneSeen = true
-                break
-            }
-            if (data.isBlank()) continue
-
-            try {
-                val jsonResponse = JSONObject(data)
-                val choices = jsonResponse.optJSONArray("choices")
-                if (choices == null || choices.length() == 0) continue
-
-                val choice = choices.getJSONObject(0)
-                val delta = choice.optJSONObject("delta") ?: continue
-
-                val toolCalls = delta.optJSONArray("tool_calls")
-                if (toolCalls != null && toolCalls.length() > 0 && enableToolCall) {
-                    processToolCallsDelta(toolCalls, converter, chunks)
-                    isInToolCall = true
-                    continue
+            when (val ev = parseOpenAiSseLine(currentLine)) {
+                is OpenAiSseEvent.Skip -> continue
+                is OpenAiSseEvent.Done -> {
+                    doneSeen = true
+                    break
                 }
-
-                val content = delta.optString("content", "")
-                if (content.isNotEmpty()) {
-                    if (isInToolCall) {
-                        val events = converter.flush()
-                        events.forEach { event ->
-                            when (event) {
-                                is StreamingJsonXmlConverter.Event.Tag -> chunks += event.text
-                                is StreamingJsonXmlConverter.Event.Content -> chunks += event.text
-                            }
-                        }
-                        chunks += "\n</tool>\n"
-                        isInToolCall = false
+                is OpenAiSseEvent.Delta -> {
+                    val toolCalls = ev.toolCalls.orEmpty()
+                    if (toolCalls.isNotEmpty() && enableToolCall) {
+                        processToolCallsDelta(toolCalls, converter, chunks)
+                        isInToolCall = true
+                        continue
                     }
-                    chunks += content
+
+                    val content = ev.content.orEmpty()
+                    if (content.isNotEmpty()) {
+                        if (isInToolCall) {
+                            flushConverter(converter, chunks)
+                            chunks += "\n</tool>\n"
+                            isInToolCall = false
+                        }
+                        chunks += content
+                    }
                 }
-            } catch (_: Exception) {
-                // Capture exact current behavior: ignore parse errors
             }
         }
 
         if (isInToolCall) {
-            val events = converter.flush()
-            events.forEach { event ->
-                when (event) {
-                    is StreamingJsonXmlConverter.Event.Tag -> chunks += event.text
-                    is StreamingJsonXmlConverter.Event.Content -> chunks += event.text
-                }
-            }
+            flushConverter(converter, chunks)
             chunks += "\n</tool>\n"
         }
 
@@ -245,20 +229,17 @@ class SseParsingTest {
     }
 
     private fun processToolCallsDelta(
-        toolCalls: JSONArray,
+        toolCalls: List<OpenAiSseToolCall>,
         converter: StreamingJsonXmlConverter,
         chunks: MutableList<String>,
     ) {
-        for (i in 0 until toolCalls.length()) {
-            val toolCall = toolCalls.getJSONObject(i)
-            val function = toolCall.optJSONObject("function") ?: continue
-
-            val name = function.optString("name", "")
+        for (toolCall in toolCalls) {
+            val name = toolCall.name.orEmpty()
             if (name.isNotEmpty()) {
                 chunks += "\n<tool name=\"$name\">"
             }
 
-            val arguments = function.optString("arguments", "")
+            val arguments = toolCall.arguments.orEmpty()
             if (arguments.isNotEmpty()) {
                 val events = converter.feed(arguments)
                 events.forEach { event ->
@@ -271,6 +252,20 @@ class SseParsingTest {
         }
     }
 
+    private fun flushConverter(converter: StreamingJsonXmlConverter, chunks: MutableList<String>) {
+        val events = converter.flush()
+        events.forEach { event ->
+            when (event) {
+                is StreamingJsonXmlConverter.Event.Tag -> chunks += event.text
+                is StreamingJsonXmlConverter.Event.Content -> chunks += event.text
+            }
+        }
+    }
+
+    /**
+     * AutoGlm SSE 流式编排参考实现：消费 [parseAutoGlmSseLine]，把 reasoning 与 content
+     * 增量分别归并到列表，并跟踪是否收到过任意有效 delta。
+     */
     private fun parseAutoGlmSse(lines: List<String>): AutoGlmParseResult {
         val reasoningDeltas = mutableListOf<String>()
         val contentDeltas = mutableListOf<String>()
@@ -278,45 +273,20 @@ class SseParsingTest {
         var doneSeen = false
 
         for (line in lines) {
-            if (line.isBlank()) continue
-            if (!line.startsWith("data:")) continue
-
-            val data = line.removePrefix("data:").trim()
-            if (data == "[DONE]") {
-                doneSeen = true
-                break
-            }
-
-            val obj = runCatching { JsonParser.parseString(data).asJsonObject }.getOrNull() ?: continue
-
-            val choices = obj.getAsJsonArray("choices") ?: continue
-            if (choices.size() == 0) continue
-
-            val choice0 = choices[0].asJsonObject
-
-            val deltaEl = choice0.get("delta")
-            val delta = if (deltaEl != null && deltaEl.isJsonObject) deltaEl.asJsonObject else null
-
-            if (delta != null) {
-                val reasoningEl = delta.get("reasoning_content") ?: delta.get("reasoning")
-                val contentEl = delta.get("content")
-                val reasoning =
-                    if (reasoningEl != null && !reasoningEl.isJsonNull) reasoningEl.asString else null
-                val content = if (contentEl != null && !contentEl.isJsonNull) contentEl.asString else null
-
-                if (!reasoning.isNullOrEmpty()) reasoningDeltas += reasoning
-                if (!content.isNullOrEmpty()) contentDeltas += content
-                if (!reasoning.isNullOrEmpty() || !content.isNullOrEmpty()) {
-                    receivedAnyDelta = true
+            when (val ev = parseAutoGlmSseLine(line)) {
+                is AutoGlmSseEvent.Skip -> continue
+                is AutoGlmSseEvent.Done -> {
+                    doneSeen = true
+                    break
                 }
-            } else {
-                val messageEl = choice0.get("message")
-                val message = if (messageEl != null && messageEl.isJsonObject) messageEl.asJsonObject else null
-                val contentEl = message?.get("content")
-                val content = if (contentEl != null && !contentEl.isJsonNull) contentEl.asString else null
-                if (!content.isNullOrEmpty()) contentDeltas += content
-                if (!content.isNullOrEmpty()) {
-                    receivedAnyDelta = true
+                is AutoGlmSseEvent.Delta -> {
+                    val reasoning = ev.reasoning
+                    val content = ev.content
+                    if (!reasoning.isNullOrEmpty()) reasoningDeltas += reasoning
+                    if (!content.isNullOrEmpty()) contentDeltas += content
+                    if (!reasoning.isNullOrEmpty() || !content.isNullOrEmpty()) {
+                        receivedAnyDelta = true
+                    }
                 }
             }
         }

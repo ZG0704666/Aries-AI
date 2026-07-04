@@ -17,10 +17,12 @@
  */
 package com.ai.phoneagent.di
 
+import com.ai.phoneagent.viewmodel.AboutViewModel
 import com.ai.phoneagent.viewmodel.AppearanceViewModel
 import com.ai.phoneagent.viewmodel.AutomationViewModel
 import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.viewmodel.SettingsViewModel
+import com.ai.phoneagent.viewmodel.UpdateHistoryViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
@@ -30,7 +32,8 @@ import org.koin.dsl.module
  * Binds:
  * - [ChatViewModel] — AndroidViewModel for chat attachment management.
  *
- * This module is DEFINITION ONLY — existing call sites are not changed until T7.
+ * AboutViewModel / UpdateHistoryViewModel resolve [com.ai.phoneagent.updates.ReleaseRepository]
+ * from [appModule] via `get()` instead of direct instantiation.
  */
 val uiModule = module {
 
@@ -40,6 +43,6 @@ val uiModule = module {
     viewModel { AutomationViewModel(get(), get(), get()) }
     viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { AppearanceViewModel(get(), get()) }
-    viewModel { com.ai.phoneagent.viewmodel.AboutViewModel(get(), com.ai.phoneagent.updates.ReleaseRepository(), get()) }
-    viewModel { com.ai.phoneagent.viewmodel.UpdateHistoryViewModel(get(), com.ai.phoneagent.updates.ReleaseRepository()) }
+    viewModel { AboutViewModel(get(), get(), get()) }
+    viewModel { UpdateHistoryViewModel(get(), get()) }
 }

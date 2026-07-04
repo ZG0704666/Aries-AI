@@ -24,6 +24,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
 import com.ai.phoneagent.PhoneAgentAccessibilityService
 import com.ai.phoneagent.core.tools.extended.ExtendedAppMapping
 import com.ai.phoneagent.core.tools.file.registerFileTools
@@ -54,14 +55,16 @@ object ToolRegistration {
         // 注册文件系统工具
         registerFileTools(handler, context)
         
-        Log.d(TAG, "所有工具注册完成")
-        Log.d(TAG, "- UI 工具: ${getToolCount(handler, "ui")}")
-        Log.d(TAG, "- 应用工具: ${getToolCount(handler, "app")}")
-        Log.d(TAG, "- 系统工具: ${getToolCount(handler, "system")}")
-        Log.d(TAG, "- 网络工具: ${getToolCount(handler, "network")}")
-        Log.d(TAG, "- 文件工具: ${getToolCount(handler, "file")}")
-        Log.d(TAG, "- 总计: ${handler.getAllToolNames().size} 个工具")
-        Log.d(TAG, "- 应用映射: ${ExtendedAppMapping.getAllMappings().size}+ 个应用")
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "所有工具注册完成")
+            Log.d(TAG, "- UI 工具: ${getToolCount(handler, "ui")}")
+            Log.d(TAG, "- 应用工具: ${getToolCount(handler, "app")}")
+            Log.d(TAG, "- 系统工具: ${getToolCount(handler, "system")}")
+            Log.d(TAG, "- 网络工具: ${getToolCount(handler, "network")}")
+            Log.d(TAG, "- 文件工具: ${getToolCount(handler, "file")}")
+            Log.d(TAG, "- 总计: ${handler.getAllToolNames().size} 个工具")
+            Log.d(TAG, "- 应用映射: ${ExtendedAppMapping.getAllMappings().size}+ 个应用")
+        }
     }
 
     /**
@@ -378,7 +381,7 @@ object ToolRegistration {
                             error = "需要选择器(resource_id/text/content_desc/class_name)或bounds/x,y兜底"
                         )
                     } else {
-                        Log.d("TOOL_CLICK", "调用click_element: res=$resourceId text=$text class=$className idx=$index bounds=$bounds x=$x y=$y")
+                        if (BuildConfig.DEBUG) Log.d("TOOL_CLICK", "调用click_element: res=$resourceId text=$text class=$className idx=$index bounds=$bounds x=$x y=$y")
                         val success = service.clickElement(resourceId, text, contentDesc, className, index, bounds, x, y)
                         val selector = text ?: resourceId ?: contentDesc ?: className ?: bounds ?: "coords(${x},${y})"
                         ToolResult(

@@ -366,7 +366,7 @@ class AriesApiOAuthActivity : Activity() {
                 val setCookieNames = response.headers("Set-Cookie").map { it.substringBefore("=") }
                 Log.e(
                     TAG,
-                    "callback code=${response.code} setCookie=$setCookieNames body=${raw.take(300)}",
+                    "callback code=${response.code} setCookie=$setCookieNames",
                 )
                 callbackResult = parseApiLoginResponse(raw, response.code, requireToken = false)
                 if (callbackResult.success && callbackResult.userAccessToken.isNotBlank()) {
@@ -389,15 +389,8 @@ class AriesApiOAuthActivity : Activity() {
                     }
                 }
                 .build()
-            val requestCookieNames =
-                tokenRequest.header("Cookie")
-                    .orEmpty()
-                    .split(";")
-                    .mapNotNull { cookie -> cookie.trim().takeIf { it.isNotBlank() }?.substringBefore("=") }
-            Log.e(TAG, "user-token request userId=${callbackResult.userId} cookies=$requestCookieNames")
             session.client.newCall(tokenRequest).execute().use { response ->
                 val raw = response.body?.string().orEmpty()
-                Log.e(TAG, "user-token code=${response.code} body=${raw.take(300)}")
                 val tokenResult = parseApiLoginResponse(raw, response.code)
                 if (tokenResult.success) {
                     val displayName = tokenResult.displayName.ifBlank { callbackResult.displayName }

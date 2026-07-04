@@ -19,6 +19,8 @@ package com.ai.phoneagent.core.tools.network
 
 import android.content.Context
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
+import com.ai.phoneagent.core.security.InetAddressGuard
 import com.ai.phoneagent.core.tools.AIToolHandler
 import com.ai.phoneagent.data.model.AITool
 import com.ai.phoneagent.data.model.StringResultData
@@ -58,6 +60,9 @@ object NetworkToolExecutor {
         val timeout = tool.parameters.find { it.name == "timeout_ms" }?.value?.toLongOrNull() ?: 10000L
 
         try {
+            // SSRF 防护：拒绝内网 / 私有 / 云元数据地址
+            InetAddressGuard.requirePublic(URL(url).host)
+
             val requestBuilder = Request.Builder()
                 .url(url)
                 .get()
@@ -103,6 +108,9 @@ object NetworkToolExecutor {
         val contentType = tool.parameters.find { it.name == "content_type" }?.value ?: "application/json"
 
         try {
+            // SSRF 防护：拒绝内网 / 私有 / 云元数据地址
+            InetAddressGuard.requirePublic(URL(url).host)
+
             val requestBody = body.toRequestBody(contentType.toMediaType())
 
             val request = Request.Builder()
@@ -143,6 +151,9 @@ object NetworkToolExecutor {
         val savePath = tool.parameters.find { it.name == "save_path" }?.value
 
         try {
+            // SSRF 防护：拒绝内网 / 私有 / 云元数据地址
+            InetAddressGuard.requirePublic(URL(url).host)
+
             val request = Request.Builder()
                 .url(url)
                 .get()
@@ -335,7 +346,7 @@ fun registerNetworkTools(handler: AIToolHandler, context: Context) {
     // HTTP GET
     handler.registerTool(
         name = "http_get",
-        dangerCheck = { false },
+        dangerCheck = { true },
         descriptionGenerator = { tool ->
             val url = tool.parameters.find { it.name == "url" }?.value ?: ""
             "HTTP GET: $url"
@@ -348,7 +359,7 @@ fun registerNetworkTools(handler: AIToolHandler, context: Context) {
     // HTTP POST
     handler.registerTool(
         name = "http_post",
-        dangerCheck = { false },
+        dangerCheck = { true },
         descriptionGenerator = { tool ->
             val url = tool.parameters.find { it.name == "url" }?.value ?: ""
             "HTTP POST: $url"
@@ -361,7 +372,7 @@ fun registerNetworkTools(handler: AIToolHandler, context: Context) {
     // Download
     handler.registerTool(
         name = "download",
-        dangerCheck = { false },
+        dangerCheck = { true },
         descriptionGenerator = { tool ->
             val url = tool.parameters.find { it.name == "url" }?.value ?: ""
             "下载文件: $url"
@@ -407,5 +418,5 @@ fun registerNetworkTools(handler: AIToolHandler, context: Context) {
         }
     )
 
-    Log.d("NetworkTools", "网络工具注册完成")
+    if (BuildConfig.DEBUG) Log.d("NetworkTools", "网络工具注册完成")
 }

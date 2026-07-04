@@ -26,5 +26,5 @@ android {
 }
 
 dependencies {
-    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation(libs.shizuku.api)
 }

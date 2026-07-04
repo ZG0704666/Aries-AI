@@ -19,6 +19,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.TypedValue
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -239,7 +240,7 @@ object AutomationOverlay {
         if (estimated > 0 && !hasEstimatedSteps) {
             this.estimatedTotalSteps = estimated
             this.hasEstimatedSteps = true
-            Log.d("AutomationOverlay", "设置预估总步骤数: $estimated")
+            if (BuildConfig.DEBUG) Log.d("AutomationOverlay", "设置预估总步骤数: $estimated")
         }
     }
     

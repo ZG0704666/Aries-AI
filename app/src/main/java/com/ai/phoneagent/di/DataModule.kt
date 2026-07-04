@@ -19,6 +19,7 @@ package com.ai.phoneagent.di
 
 import androidx.room.Room
 import com.ai.phoneagent.data.local.AriesDatabase
+import com.ai.phoneagent.data.local.ConversationStorageRepository
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.AutomationResultsRepository
 import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
@@ -48,6 +49,9 @@ val dataModule = module {
 
     // Conversation DAO resolved through the database singleton.
     single { get<AriesDatabase>().conversationDao() }
+
+    // ConversationStorageRepository — Room-backed conversation persistence.
+    single { ConversationStorageRepository(androidContext()) }
 
     // DataStore preferences repositories — all require application context.
     single { MainUiPreferencesRepository(androidContext()) }

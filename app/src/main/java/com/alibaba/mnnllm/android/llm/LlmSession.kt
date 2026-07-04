@@ -9,8 +9,8 @@ class LlmSession(
     private val configPath: String,
     private val keepHistory: Boolean = true,
 ) {
-    @Volatile private var nativePtr: Long = 0L
-    @Volatile private var loaded = false
+    private var nativePtr: Long = 0L
+    private var loaded = false
 
     @Synchronized
     fun load() {

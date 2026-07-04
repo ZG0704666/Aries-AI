@@ -2,6 +2,7 @@ package com.ai.phoneagent.core.tools
 
 import android.content.Context
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
 import com.ai.phoneagent.data.model.AITool
 import com.ai.phoneagent.data.model.ToolResult
 import com.ai.phoneagent.data.model.StringResultData
@@ -60,7 +61,7 @@ class AIToolHandler private constructor(private val context: Context) {
             operationDescriptionRegistry[name] = descriptionGenerator
         }
 
-        Log.d(TAG, "Registered tool: $name")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Registered tool: $name")
     }
 
     /**
@@ -111,7 +112,7 @@ class AIToolHandler private constructor(private val context: Context) {
         }
 
         return try {
-            Log.d(TAG, "Executing tool: ${tool.name}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Executing tool: ${tool.name}")
             executor.invoke(tool)
         } catch (e: Exception) {
             Log.e(TAG, "Error executing tool: ${tool.name}", e)

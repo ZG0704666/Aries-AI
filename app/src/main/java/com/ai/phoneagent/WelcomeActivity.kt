@@ -11,6 +11,7 @@ package com.ai.phoneagent
 import android.app.Activity
 import android.os.Bundle
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
 import android.view.KeyEvent
 import android.view.WindowManager
 
@@ -69,7 +70,7 @@ class WelcomeActivity : Activity() {
     override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
         if (event != null && event.action == KeyEvent.ACTION_DOWN) {
             // 检测到有按键事件进入虚拟屏 Activity → 立即恢复焦点到主屏
-            Log.d(
+            if (BuildConfig.DEBUG) Log.d(
                     TAG,
                     "Key event detected on virtual display: ${event.keyCode}, restoring focus to main"
             )
@@ -83,7 +84,7 @@ class WelcomeActivity : Activity() {
     override fun onBackPressed() {
         // 返回键被拦截，吞掉。但 dispatchKeyEvent 已经处理了焦点恢复。
         // (保留这个方法以防 dispatchKeyEvent 被绕过)
-        Log.d(TAG, "Back pressed on virtual display, ignored")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Back pressed on virtual display, ignored")
         return
     }
 
@@ -98,7 +99,7 @@ class WelcomeActivity : Activity() {
     private fun scheduleFocusRestore() {
         window?.decorView?.postDelayed(
                 {
-                    Log.d(TAG, "Scheduled focus restore executing")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Scheduled focus restore executing")
                     restoreFocusToMainDisplay()
                 },
                 500

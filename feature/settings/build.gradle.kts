@@ -47,8 +47,8 @@ dependencies {
     // Lucide Icons
     implementation(libs.compose.icons.lucide)
 
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.kotlinx.coroutines.android)
     
     // Koin - Dependency Injection
     implementation(libs.koin.android)

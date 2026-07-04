@@ -7,6 +7,7 @@
 package com.ai.phoneagent.system
 
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
 import com.ai.phoneagent.ShizukuBridge
 import java.util.regex.Pattern
 
@@ -144,7 +145,7 @@ object ActivityLaunchUtils {
 
         val taskId = findTaskIdForPackage(packageName)
         if (taskId == null) {
-            Log.d(TAG, "No task found for $packageName")
+            if (BuildConfig.DEBUG) Log.d(TAG, "No task found for $packageName")
             return false
         }
 

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -23,6 +23,7 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
 import com.k2fsa.sherpa.ncnn.ModelConfig
 import com.k2fsa.sherpa.ncnn.RecognizerConfig
 import com.k2fsa.sherpa.ncnn.SherpaNcnn
@@ -103,7 +104,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
     suspend fun initialize(): Boolean {
         if (isInitialized) return true
 
-        Log.d(TAG, "Initializing sherpa-ncnn...")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Initializing sherpa-ncnn...")
         return try {
             withContext(Dispatchers.IO) {
                 if (!SherpaNcnn.isNativeLibraryReady()) {
@@ -120,7 +121,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
                     return@withContext false
                 }
 
-                Log.d(TAG, "sherpa-ncnn initialized successfully")
+                if (BuildConfig.DEBUG) Log.d(TAG, "sherpa-ncnn initialized successfully")
                 isInitialized = true
                 true
             }
@@ -145,7 +146,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
         if (overwrite && targetDir.exists()) {
             runCatching { targetDir.deleteRecursively() }
         } else if (!overwrite && targetDir.exists() && targetDir.list()?.isNotEmpty() == true) {
-            Log.d(TAG, "Model files already exist in cache: ${targetDir.absolutePath}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Model files already exist in cache: ${targetDir.absolutePath}")
             return targetDir
         }
 
@@ -369,7 +370,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
         }
 
         isListening = true
-        Log.d(TAG, "Started recording")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Started recording")
 
         recordingJob =
                 scope.launch {
@@ -435,7 +436,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
                             }
                         }
 
-                        Log.d(TAG, "Recording loop ended.")
+                        if (BuildConfig.DEBUG) Log.d(TAG, "Recording loop ended.")
                     } finally {
                         releaseAudioRecord()
                     }
@@ -446,7 +447,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
     fun stopListening() {
         if (!isListening) return
 
-        Log.d(TAG, "Stopping recognition...")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Stopping recognition...")
         isListening = false
         recordingJob?.cancel()
 

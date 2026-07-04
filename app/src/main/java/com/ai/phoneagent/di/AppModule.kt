@@ -20,6 +20,7 @@ package com.ai.phoneagent.di
 import com.ai.phoneagent.AppState
 import com.ai.phoneagent.net.AriesOidcAuthManager
 import com.ai.phoneagent.telemetry.TelemetryHeartbeatManager
+import com.ai.phoneagent.updates.ReleaseRepository
 import org.koin.android.ext.koin.androidApplication
 import org.koin.dsl.module
 
@@ -40,6 +41,10 @@ val appModule = module {
     single { AppState }
     single { AriesOidcAuthManager(androidApplication()) }
     single { TelemetryHeartbeatManager(androidApplication(), get(), get(), get()) }
+
+    // ReleaseRepository — fetches GitHub release metadata for in-app updates.
+    // Constructor params (owner/repo) default to UpdateConfig.REPO_OWNER/REPO_NAME.
+    single { ReleaseRepository() }
 
     // TODO(T3): Uncomment once ConversationManager is extracted from object/singleton:
     // single { ConversationManager(get()) }

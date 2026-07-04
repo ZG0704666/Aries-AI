@@ -1,42 +1,28 @@
 package com.ai.phoneagent.net
 
-import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.logging.HttpLoggingInterceptor
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.util.concurrent.TimeUnit
 
 /**
- * Unit tests verifying that the OkHttpClient built with the same configuration as
- * [com.ai.phoneagent.di.NetworkModule] has the expected timeouts, settings, and interceptors.
+ * OkHttpClient 构建配置测试。
  *
- * No DI framework is used here — we construct the client directly to keep tests self-contained
- * and avoid Android instrumentation dependencies.
+ * 直接调用生产侧的 [buildNetworkClient]，验证超时、可靠性、协议、连接池等配置项符合预期。
+ * 不再在测试中维护 builder 副本——若有人修改生产配置而未同步测试断言，本测试应失败。
+ *
+ * 注意：日志级别由 BuildConfig.DEBUG 决定；debug 构建变体下应返回 BASIC。
  */
 class OkHttpClientTest {
 
     /**
-     * Builds an OkHttpClient using the exact same configuration as NetworkModule.kt.
-     * We always use BASIC logging level in tests (same effect as DEBUG=true).
+     * 构建标准（非 fast）网络客户端，与生产侧 SharedHttpClient.instance 共用同一函数。
      */
-    private fun buildNetworkClient(): OkHttpClient {
-        val logger = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
-        }
-        return OkHttpClient.Builder()
-            .addInterceptor(logger)
-            .retryOnConnectionFailure(true)
-            .connectTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(300, TimeUnit.SECONDS)
-            .writeTimeout(120, TimeUnit.SECONDS)
-            .callTimeout(360, TimeUnit.SECONDS)
-            .connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
-            .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
-            .build()
-    }
+    private fun buildNetworkClient(): OkHttpClient =
+        com.ai.phoneagent.net.buildNetworkClient(useFastTimeouts = false)
 
     // ─── Timeout configuration ────────────────────────────────────────────────
 
@@ -105,7 +91,7 @@ class OkHttpClientTest {
             .firstOrNull()
         assertNotNull("HttpLoggingInterceptor must be present", loggingInterceptor)
         assertEquals(
-            "Expected logging level BASIC",
+            "Expected logging level BASIC (BuildConfig.DEBUG=true in debug variant)",
             HttpLoggingInterceptor.Level.BASIC,
             loggingInterceptor!!.level
         )
@@ -146,24 +132,27 @@ class OkHttpClientTest {
     @Test
     fun `client has a connection pool configured`() {
         val client = buildNetworkClient()
-        // Verify a connection pool is present (non-null) — pool is a required part of the client
         assertNotNull("ConnectionPool should be configured", client.connectionPool)
     }
 
     @Test
     fun `interceptors list has exactly one interceptor`() {
         val client = buildNetworkClient()
-        // Only the HttpLoggingInterceptor should be in the interceptors list
         assertEquals(
             "Expected exactly 1 interceptor (HttpLoggingInterceptor)",
             1,
             client.interceptors.size
         )
     }
-}
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
+    // ─── Fast timeouts variant ────────────────────────────────────────────────
 
-private fun assertNotNull(message: String, obj: Any?) {
-    org.junit.Assert.assertNotNull(message, obj)
+    @Test
+    fun `fast variant uses shorter timeouts`() {
+        val client = com.ai.phoneagent.net.buildNetworkClient(useFastTimeouts = true)
+        assertEquals(10_000, client.connectTimeoutMillis)
+        assertEquals(25_000, client.readTimeoutMillis)
+        assertEquals(25_000, client.writeTimeoutMillis)
+        assertEquals(30_000, client.callTimeoutMillis)
+    }
 }

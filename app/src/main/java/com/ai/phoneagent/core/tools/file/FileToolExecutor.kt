@@ -19,6 +19,8 @@ package com.ai.phoneagent.core.tools.file
 
 import android.content.Context
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
+import com.ai.phoneagent.core.security.PathGuard
 import com.ai.phoneagent.core.tools.AIToolHandler
 import com.ai.phoneagent.data.model.AITool
 import com.ai.phoneagent.data.model.StringResultData
@@ -56,14 +58,22 @@ object FileToolExecutor {
         val path = tool.parameters.find { it.name == "path" }?.value
             ?: return@withContext error("read_file", "缺少 path 参数")
 
+        val safePath = try {
+            PathGuard.canonicalizeWithin(getContext(), path)
+        } catch (e: SecurityException) {
+            return@withContext error("read_file", "路径越界被拒绝: ${e.message}")
+        } catch (e: IllegalArgumentException) {
+            return@withContext error("read_file", "非法路径: ${e.message}")
+        }
+
         try {
-            val file = File(path)
+            val file = safePath
             if (!file.exists()) {
-                return@withContext error("read_file", "文件不存在: $path")
+                return@withContext error("read_file", "文件不存在: ${file.absolutePath}")
             }
 
             if (file.isDirectory) {
-                return@withContext error("read_file", "路径是目录不是文件: $path")
+                return@withContext error("read_file", "路径是目录不是文件: ${file.absolutePath}")
             }
 
             val maxSize = tool.parameters.find { it.name == "max_size" }?.value?.toLongOrNull() ?: 1024 * 1024
@@ -86,11 +96,19 @@ object FileToolExecutor {
         val path = tool.parameters.find { it.name == "path" }?.value
             ?: return@withContext error("write_file", "缺少 path 参数")
 
+        val safePath = try {
+            PathGuard.canonicalizeWithin(getContext(), path)
+        } catch (e: SecurityException) {
+            return@withContext error("write_file", "路径越界被拒绝: ${e.message}")
+        } catch (e: IllegalArgumentException) {
+            return@withContext error("write_file", "非法路径: ${e.message}")
+        }
+
         val content = tool.parameters.find { it.name == "content" }?.value ?: ""
         val append = tool.parameters.find { it.name == "append" }?.value?.toBooleanStrictOrNull() ?: false
 
         try {
-            val file = File(path)
+            val file = safePath
 
             // 确保父目录存在
             file.parentFile?.mkdirs()
@@ -101,7 +119,7 @@ object FileToolExecutor {
                 file.writeText(content)
             }
 
-            success("write_file", "写入成功: $path (${content.length} chars)")
+            success("write_file", "写入成功: ${file.absolutePath} (${content.length} chars)")
         } catch (e: Exception) {
             error("write_file", "写入失败: ${e.message}")
         }
@@ -228,22 +246,38 @@ object FileToolExecutor {
         val dest = tool.parameters.find { it.name == "destination" }?.value
             ?: return@withContext error("copy", "缺少 destination 参数")
 
+        val safeSource = try {
+            PathGuard.canonicalizeWithin(getContext(), source)
+        } catch (e: SecurityException) {
+            return@withContext error("copy", "源路径越界被拒绝: ${e.message}")
+        } catch (e: IllegalArgumentException) {
+            return@withContext error("copy", "非法源路径: ${e.message}")
+        }
+
+        val safeDest = try {
+            PathGuard.canonicalizeWithin(getContext(), dest)
+        } catch (e: SecurityException) {
+            return@withContext error("copy", "目标路径越界被拒绝: ${e.message}")
+        } catch (e: IllegalArgumentException) {
+            return@withContext error("copy", "非法目标路径: ${e.message}")
+        }
+
         try {
-            val srcFile = File(source)
-            val destFile = File(dest)
+            val srcFile = safeSource
+            val destFile = safeDest
 
             if (!srcFile.exists()) {
-                return@withContext error("copy", "源文件不存在: $source")
+                return@withContext error("copy", "源文件不存在: ${srcFile.absolutePath}")
             }
 
             if (srcFile.isDirectory) {
-                return@withContext error("copy", "不支持复制目录: $source")
+                return@withContext error("copy", "不支持复制目录: ${srcFile.absolutePath}")
             }
 
             destFile.parentFile?.mkdirs()
             srcFile.copyTo(destFile, overwrite = true)
 
-            success("copy", "复制成功: $source -> $dest")
+            success("copy", "复制成功: ${srcFile.absolutePath} -> ${destFile.absolutePath}")
         } catch (e: Exception) {
             error("copy", "复制失败: ${e.message}")
         }
@@ -321,13 +355,29 @@ object FileToolExecutor {
         val dest = tool.parameters.find { it.name == "destination" }?.value
             ?: return@withContext error("compress", "缺少 destination 参数")
 
+        val safeSource = try {
+            PathGuard.canonicalizeWithin(getContext(), source)
+        } catch (e: SecurityException) {
+            return@withContext error("compress", "源路径越界被拒绝: ${e.message}")
+        } catch (e: IllegalArgumentException) {
+            return@withContext error("compress", "非法源路径: ${e.message}")
+        }
+
+        val safeDest = try {
+            PathGuard.canonicalizeWithin(getContext(), dest)
+        } catch (e: SecurityException) {
+            return@withContext error("compress", "目标路径越界被拒绝: ${e.message}")
+        } catch (e: IllegalArgumentException) {
+            return@withContext error("compress", "非法目标路径: ${e.message}")
+        }
+
         try {
-            val sourceFile = File(source)
+            val sourceFile = safeSource
             if (!sourceFile.exists()) {
-                return@withContext error("compress", "源文件不存在: $source")
+                return@withContext error("compress", "源文件不存在: ${sourceFile.absolutePath}")
             }
 
-            val destFile = File(dest)
+            val destFile = safeDest
             destFile.parentFile?.mkdirs()
 
             ZipOutputStream(FileOutputStream(destFile)).use { zos ->
@@ -348,7 +398,7 @@ object FileToolExecutor {
                 }
             }
 
-            success("compress", "压缩成功: $source -> $dest")
+            success("compress", "压缩成功: ${sourceFile.absolutePath} -> ${destFile.absolutePath}")
         } catch (e: Exception) {
             error("compress", "压缩失败: ${e.message}")
         }
@@ -397,7 +447,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
     // Write File
     handler.registerTool(
         name = "write_file",
-        dangerCheck = { false },
+        dangerCheck = { true }, // 危险操作：写入文件系统
         descriptionGenerator = { tool ->
             val path = tool.parameters.find { it.name == "path" }?.value ?: ""
             "写入文件: $path"
@@ -462,7 +512,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
     // Copy
     handler.registerTool(
         name = "copy",
-        dangerCheck = { false },
+        dangerCheck = { true }, // 危险操作：写入文件系统
         descriptionGenerator = { tool ->
             val source = tool.parameters.find { it.name == "source" }?.value ?: ""
             "复制文件: $source"
@@ -501,7 +551,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
     // Compress
     handler.registerTool(
         name = "compress",
-        dangerCheck = { false },
+        dangerCheck = { true }, // 危险操作：写入文件系统
         descriptionGenerator = { tool ->
             val source = tool.parameters.find { it.name == "source" }?.value ?: ""
             "压缩文件: $source"
@@ -511,5 +561,5 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
         }
     )
 
-    Log.d("FileTools", "文件系统工具注册完成")
+    if (BuildConfig.DEBUG) Log.d("FileTools", "文件系统工具注册完成")
 }

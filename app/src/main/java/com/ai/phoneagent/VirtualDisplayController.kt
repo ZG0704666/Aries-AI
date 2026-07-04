@@ -50,8 +50,6 @@ object VirtualDisplayController {
 
     @Volatile private var activeDisplayId: Int? = null
 
-    @Volatile private var lifecycleObserverInstalled: Boolean = false
-
     // IME 焦点死锁防护控制器
     private val imeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var imeFocusController: ImeFocusDeadlockController? = null
