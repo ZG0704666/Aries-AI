@@ -23,6 +23,7 @@ import com.ai.phoneagent.viewmodel.AutomationViewModel
 import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.viewmodel.SettingsViewModel
 import com.ai.phoneagent.viewmodel.UpdateHistoryViewModel
+import com.ai.phoneagent.ui.components.markdown.Highlighter
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
@@ -45,4 +46,7 @@ val uiModule = module {
     viewModel { AppearanceViewModel(get(), get()) }
     viewModel { AboutViewModel(get(), get(), get()) }
     viewModel { UpdateHistoryViewModel(get(), get()) }
+
+    // Task 19 Phase 1: object → class DI migration
+    single { Highlighter() }
 }

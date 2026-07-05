@@ -36,9 +36,9 @@ sealed class HighlightToken {
 //  Download from:   https://prismjs.com/download.html  (select all languages)
 // ─────────────────────────────────────────────────────────────────────────────
 
-object Highlighter {
+class Highlighter {
 
-    private const val TAG = "Highlighter"
+    private val TAG = "Highlighter"
 
     // IO scope for initialization; Mutex serialises all evaluate() calls.
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -148,5 +148,17 @@ object Highlighter {
         is JSONArray  -> buildString { for (i in 0 until content.length()) append(flattenContent(content.get(i))) }
         is JSONObject -> flattenContent(content.opt("content") ?: "")
         else          -> content.toString()
+    }
+
+    companion object {
+        private fun getInstance(): Highlighter =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<Highlighter>()
+            }.getOrNull() ?: Highlighter()
+
+        fun init(context: Context) = getInstance().init(context)
+
+        suspend fun highlight(code: String, language: String): List<HighlightToken> =
+            getInstance().highlight(code, language)
     }
 }

@@ -18,6 +18,9 @@
 package com.ai.phoneagent.di
 
 import com.ai.phoneagent.AppState
+import com.ai.phoneagent.AppPackageMapping
+import com.ai.phoneagent.core.tools.extended.ExtendedAppMapping
+import com.ai.phoneagent.core.templates.PromptTemplates
 import com.ai.phoneagent.net.AriesOidcAuthManager
 import com.ai.phoneagent.telemetry.TelemetryHeartbeatManager
 import com.ai.phoneagent.updates.ReleaseRepository
@@ -45,6 +48,11 @@ val appModule = module {
     // ReleaseRepository — fetches GitHub release metadata for in-app updates.
     // Constructor params (owner/repo) default to UpdateConfig.REPO_OWNER/REPO_NAME.
     single { ReleaseRepository() }
+
+    // Task 19 Phase 1: object → class DI migration
+    single { ExtendedAppMapping() }
+    single { PromptTemplates() }
+    single { AppPackageMapping() }
 
     // TODO(T3): Uncomment once ConversationManager is extracted from object/singleton:
     // single { ConversationManager(get()) }

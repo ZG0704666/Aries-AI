@@ -21,7 +21,7 @@ package com.ai.phoneagent.core.tools.extended
  * 扩展应用包名映射
  * 包含 250+ 常用应用的包名映射
  */
-object ExtendedAppMapping {
+class ExtendedAppMapping {
 
     /**
      * 社交通讯应用 (35个)
@@ -764,8 +764,8 @@ object ExtendedAppMapping {
      * 获取所有应用映射
      */
     fun getAllMappings(): Map<String, String> {
-        return (SOCIAL_COMMUNICATION + SHOPPING + TRANSPORTATION + 
-                FINANCE + ENTERTAINMENT + READING + 
+        return (SOCIAL_COMMUNICATION + SHOPPING + TRANSPORTATION +
+                FINANCE + ENTERTAINMENT + READING +
                 PRODUCTIVITY + SYSTEM + GAMES + AI_TOOLS + CLASSIC_MAPPING)
             .mapKeys { it.key.lowercase() }
     }
@@ -788,5 +788,14 @@ object ExtendedAppMapping {
             "classic", "legacy" -> CLASSIC_MAPPING
             else -> emptyMap()
         }
+    }
+
+    companion object {
+        private fun getInstance(): ExtendedAppMapping =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<ExtendedAppMapping>()
+            }.getOrNull() ?: ExtendedAppMapping()
+
+        fun getAllMappings(): Map<String, String> = getInstance().getAllMappings()
     }
 }

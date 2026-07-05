@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -17,7 +17,7 @@
  */
 package com.ai.phoneagent.core.templates
 
-object PromptTemplates {
+class PromptTemplates {
 
     private fun extractFailedTypeText(failedAction: String): String? {
         val isTypeAction =
@@ -216,5 +216,25 @@ $inputRepairRule
         } else {
             "修复时优先补充 text=\"动作意图\"（Type 动作除外），便于日志展示与排错"
         }
+    }
+
+    companion object {
+        private fun getInstance(): PromptTemplates =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<PromptTemplates>()
+            }.getOrNull() ?: PromptTemplates()
+
+        fun buildSystemPrompt(
+            screenW: Int,
+            screenH: Int,
+            config: Any?,
+            enforceDesc: Boolean = false,
+        ): String = getInstance().buildSystemPrompt(screenW, screenH, config, enforceDesc)
+
+        fun buildActionRepairPrompt(failedAction: String, enforceDesc: Boolean = false): String =
+            getInstance().buildActionRepairPrompt(failedAction, enforceDesc)
+
+        fun buildRepairPrompt(enforceDesc: Boolean = false): String =
+            getInstance().buildRepairPrompt(enforceDesc)
     }
 }

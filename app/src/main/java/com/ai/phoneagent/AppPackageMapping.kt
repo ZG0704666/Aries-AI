@@ -20,10 +20,10 @@ import java.io.IOException
  * AppPackageMapping.bestMatchInText("帮我打开微信给张三发消息")
  * ```
  */
-object AppPackageMapping {
+class AppPackageMapping {
 
     /** assets 中映射文件的路径。 */
-    private const val ASSET_PATH = "app_package_mapping.json"
+    private val ASSET_PATH = "app_package_mapping.json"
 
     data class PackageMappingEntry(
             @SerializedName("appName") val appName: String,
@@ -160,5 +160,30 @@ object AppPackageMapping {
                     }
         }
         return best
+    }
+
+    companion object {
+        @Volatile private var fallbackInstance: AppPackageMapping? = null
+
+        private fun getInstance(): AppPackageMapping =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<AppPackageMapping>()
+            }.getOrNull() ?: (fallbackInstance ?: AppPackageMapping().also { fallbackInstance = it })
+
+        fun load(context: Context): Map<String, String> = getInstance().load(context)
+
+        fun parseJson(jsonString: String): Map<String, String> =
+            getInstance().parseJson(jsonString)
+
+        fun loadFromJson(jsonString: String): Map<String, String> =
+            getInstance().loadFromJson(jsonString)
+
+        fun resetCache() = getInstance().resetCache()
+
+        fun resolve(appName: String): String? = getInstance().resolve(appName)
+
+        fun getPackageFor(appName: String): String? = getInstance().getPackageFor(appName)
+
+        fun bestMatchInText(text: String): Match? = getInstance().bestMatchInText(text)
     }
 }
