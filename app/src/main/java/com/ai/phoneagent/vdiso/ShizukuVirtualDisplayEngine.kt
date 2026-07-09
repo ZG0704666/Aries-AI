@@ -35,9 +35,9 @@ import java.lang.reflect.Proxy
  * - 强依赖 Shizuku 权限与系统服务反射：不同 ROM/Android 版本可能存在 API 差异，本实现大量采用候选方法匹配 + best-effort。
  * - 注意线程模型：启动/停止为同步方法，但内部图像与 GL 线程在后台运行，停止时要避免资源泄露。
  */
-object ShizukuVirtualDisplayEngine {
+class ShizukuVirtualDisplayEngine {
 
-    private const val TAG = "AriesVdIsoEngine"
+    private val TAG = "AriesVdIsoEngine"
 
     data class Args(
             val name: String = "AutoGLM-Virtual",
@@ -692,5 +692,27 @@ object ShizukuVirtualDisplayEngine {
                 Log.w(TAG, "releaseVirtualDisplay failed on ${m.name}", t)
             }
         }
+    }
+
+    companion object {
+        @Volatile private var fallbackInstance: ShizukuVirtualDisplayEngine? = null
+
+        private fun getInstance(): ShizukuVirtualDisplayEngine =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<ShizukuVirtualDisplayEngine>()
+            }.getOrNull() ?: (fallbackInstance ?: ShizukuVirtualDisplayEngine().also { fallbackInstance = it })
+
+        fun ensureStarted(args: Args = Args()): Result<Int> = getInstance().ensureStarted(args)
+        fun start(args: Args = Args()): Result<Int> = getInstance().start(args)
+        fun getDisplayId(): Int? = getInstance().getDisplayId()
+        fun isStarted(): Boolean = getInstance().isStarted()
+        fun getLatestFrameTimeMs(): Long = getInstance().getLatestFrameTimeMs()
+        fun getLatestContentSize(): Pair<Int, Int> = getInstance().getLatestContentSize()
+        fun captureLatestBitmap(): Result<Bitmap> = getInstance().captureLatestBitmap()
+        fun stop() = getInstance().stop()
+        fun setOutputSurface(surface: Surface): Result<Unit> = getInstance().setOutputSurface(surface)
+        fun restoreOutputSurfaceToImageReader(): Result<Unit> = getInstance().restoreOutputSurfaceToImageReader()
+        fun ensureFocusedDisplay(targetDisplayId: Int): Result<Unit> = getInstance().ensureFocusedDisplay(targetDisplayId)
+        fun restoreFocusToDefaultDisplay(): Result<Unit> = getInstance().restoreFocusToDefaultDisplay()
     }
 }

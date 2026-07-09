@@ -44,20 +44,7 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * 参考：autoglm_KY FloatingStatusService 工具箱按钮行
  */
-object VirtualScreenPreviewOverlay {
-
-    private const val TAG = "VdPreview"
-    const val ACTION_STOP_AUTOMATION = "com.ai.phoneagent.ACTION_STOP_AUTOMATION"
-    const val ACTION_PAUSE_TOGGLE = "com.ai.phoneagent.ACTION_PAUSE_TOGGLE"
-
-    // 预览窗宽高（展开状态，dp）
-    private const val EXPANDED_WIDTH_DP = 240
-    private const val EXPANDED_HEIGHT_DP = 427 // 16:9 竖屏
-    // 标题栏与底部控制栏高度
-    private const val HEADER_HEIGHT_DP = 28
-    private const val CONTROL_BAR_HEIGHT_DP = 40
-    // 最小化缩略图
-    private const val MINI_SIZE_DP = 48
+class VirtualScreenPreviewOverlay {
 
     @Volatile private var wm: WindowManager? = null
     @Volatile private var containerView: PreviewContainer? = null
@@ -673,7 +660,7 @@ object VirtualScreenPreviewOverlay {
                                 LayoutParams(dp(28), LayoutParams.MATCH_PARENT).apply {
                                     gravity = Gravity.CENTER_VERTICAL or Gravity.END
                                 }
-                        setOnClickListener { minimize(context) }
+                        setOnClickListener { minimizeOverlay(context) }
                     }
             )
             addView(header)
@@ -919,5 +906,36 @@ object VirtualScreenPreviewOverlay {
                         .toInt()
 
         private fun m3Color(@ColorRes colorRes: Int): Int = ContextCompat.getColor(context, colorRes)
+    }
+
+    companion object {
+        private const val TAG = "VdPreview"
+        const val ACTION_STOP_AUTOMATION = "com.ai.phoneagent.ACTION_STOP_AUTOMATION"
+        const val ACTION_PAUSE_TOGGLE = "com.ai.phoneagent.ACTION_PAUSE_TOGGLE"
+
+        private const val EXPANDED_WIDTH_DP = 240
+        private const val EXPANDED_HEIGHT_DP = 427
+        private const val HEADER_HEIGHT_DP = 28
+        private const val CONTROL_BAR_HEIGHT_DP = 40
+        private const val MINI_SIZE_DP = 48
+
+        @Volatile private var fallbackInstance: VirtualScreenPreviewOverlay? = null
+
+        private fun getInstance(): VirtualScreenPreviewOverlay =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<VirtualScreenPreviewOverlay>()
+            }.getOrNull() ?: (fallbackInstance ?: VirtualScreenPreviewOverlay().also { fallbackInstance = it })
+
+        fun show(context: Context) = getInstance().show(context)
+        fun hide() = getInstance().hide()
+        fun isShowing(): Boolean = getInstance().isShowing()
+        fun temporaryHideForScreenshot() = getInstance().temporaryHideForScreenshot()
+        fun restoreVisibilityAfterScreenshot() = getInstance().restoreVisibilityAfterScreenshot()
+        fun updateStatus(text: String) = getInstance().updateStatus(text)
+        fun setPausedState(paused: Boolean) = getInstance().setPausedState(paused)
+        fun updateBackgroundProgress(text: String, progress: Int = -1) =
+            getInstance().updateBackgroundProgress(text, progress)
+
+        internal fun minimizeOverlay(context: Context) = getInstance().minimize(context)
     }
 }

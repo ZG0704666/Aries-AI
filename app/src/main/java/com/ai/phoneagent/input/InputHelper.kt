@@ -42,10 +42,10 @@ import rikka.shizuku.ShizukuBinderWrapper
  * - 依赖 Shizuku 权限：未授权时注入会失败（内部为 best-effort）。
  * - Move 事件会做合并/去抖（只保留最新 move），以减少高频注入带来的卡顿。
  */
-object InputHelper {
+class InputHelper {
 
-    private const val TAG = "AriesInputHelper"
-    private const val MODE_ASYNC = 0
+    private val TAG = "AriesInputHelper"
+    private val MODE_ASYNC = 0
 
     private data class TouchCmd(
             val displayId: Int,
@@ -277,5 +277,23 @@ object InputHelper {
     private fun injectInputEventAsync(ev: InputEvent) {
         val acc = getIInputManagerAccess()
         runCatching { acc.injectInputEvent.invoke(acc.iInputManager, ev, MODE_ASYNC) }
+    }
+
+    companion object {
+        @Volatile private var fallbackInstance: InputHelper? = null
+
+        private fun getInstance(): InputHelper =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<InputHelper>()
+            }.getOrNull() ?: (fallbackInstance ?: InputHelper().also { fallbackInstance = it })
+
+        fun enqueueTouch(
+            displayId: Int,
+            downTime: Long,
+            action: Int,
+            x: Int,
+            y: Int,
+            ensureFocus: Boolean,
+        ) = getInstance().enqueueTouch(displayId, downTime, action, x, y, ensureFocus)
     }
 }

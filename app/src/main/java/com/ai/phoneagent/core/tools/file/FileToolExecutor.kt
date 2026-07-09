@@ -37,19 +37,9 @@ import java.util.zip.ZipOutputStream
  * 文件系统工具执行器
  * 提供文件读写、目录操作、压缩等功能
  */
-object FileToolExecutor {
+class FileToolExecutor(private val appContext: Context) {
 
-    private const val TAG = "FileTools"
-    private var applicationContext: Context? = null
-
-    fun init(context: Context) {
-        applicationContext = context.applicationContext
-    }
-
-    private fun getContext(): Context {
-        return applicationContext
-            ?: throw IllegalStateException("FileToolExecutor 未初始化")
-    }
+    private val TAG = "FileTools"
 
     /**
      * 读取文件内容
@@ -59,7 +49,7 @@ object FileToolExecutor {
             ?: return@withContext error("read_file", "缺少 path 参数")
 
         val safePath = try {
-            PathGuard.canonicalizeWithin(getContext(), path)
+            PathGuard.canonicalizeWithin(appContext, path)
         } catch (e: SecurityException) {
             return@withContext error("read_file", "路径越界被拒绝: ${e.message}")
         } catch (e: IllegalArgumentException) {
@@ -97,7 +87,7 @@ object FileToolExecutor {
             ?: return@withContext error("write_file", "缺少 path 参数")
 
         val safePath = try {
-            PathGuard.canonicalizeWithin(getContext(), path)
+            PathGuard.canonicalizeWithin(appContext, path)
         } catch (e: SecurityException) {
             return@withContext error("write_file", "路径越界被拒绝: ${e.message}")
         } catch (e: IllegalArgumentException) {
@@ -247,7 +237,7 @@ object FileToolExecutor {
             ?: return@withContext error("copy", "缺少 destination 参数")
 
         val safeSource = try {
-            PathGuard.canonicalizeWithin(getContext(), source)
+            PathGuard.canonicalizeWithin(appContext, source)
         } catch (e: SecurityException) {
             return@withContext error("copy", "源路径越界被拒绝: ${e.message}")
         } catch (e: IllegalArgumentException) {
@@ -255,7 +245,7 @@ object FileToolExecutor {
         }
 
         val safeDest = try {
-            PathGuard.canonicalizeWithin(getContext(), dest)
+            PathGuard.canonicalizeWithin(appContext, dest)
         } catch (e: SecurityException) {
             return@withContext error("copy", "目标路径越界被拒绝: ${e.message}")
         } catch (e: IllegalArgumentException) {
@@ -356,7 +346,7 @@ object FileToolExecutor {
             ?: return@withContext error("compress", "缺少 destination 参数")
 
         val safeSource = try {
-            PathGuard.canonicalizeWithin(getContext(), source)
+            PathGuard.canonicalizeWithin(appContext, source)
         } catch (e: SecurityException) {
             return@withContext error("compress", "源路径越界被拒绝: ${e.message}")
         } catch (e: IllegalArgumentException) {
@@ -364,7 +354,7 @@ object FileToolExecutor {
         }
 
         val safeDest = try {
-            PathGuard.canonicalizeWithin(getContext(), dest)
+            PathGuard.canonicalizeWithin(appContext, dest)
         } catch (e: SecurityException) {
             return@withContext error("compress", "目标路径越界被拒绝: ${e.message}")
         } catch (e: IllegalArgumentException) {
@@ -422,6 +412,30 @@ object FileToolExecutor {
             result = StringResultData(""),
             error = error
         )
+    }
+
+    companion object {
+        @Volatile private var fallbackInstance: FileToolExecutor? = null
+
+        fun init(context: Context) {
+            fallbackInstance = FileToolExecutor(context.applicationContext)
+        }
+
+        private fun getInstance(): FileToolExecutor =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<FileToolExecutor>()
+            }.getOrNull() ?: (fallbackInstance ?: throw IllegalStateException("FileToolExecutor 未初始化"))
+
+        suspend fun readFile(tool: AITool): ToolResult = getInstance().readFile(tool)
+        suspend fun writeFile(tool: AITool): ToolResult = getInstance().writeFile(tool)
+        suspend fun delete(tool: AITool): ToolResult = getInstance().delete(tool)
+        suspend fun listDir(tool: AITool): ToolResult = getInstance().listDir(tool)
+        suspend fun createDir(tool: AITool): ToolResult = getInstance().createDir(tool)
+        suspend fun exists(tool: AITool): ToolResult = getInstance().exists(tool)
+        suspend fun copy(tool: AITool): ToolResult = getInstance().copy(tool)
+        suspend fun move(tool: AITool): ToolResult = getInstance().move(tool)
+        suspend fun fileInfo(tool: AITool): ToolResult = getInstance().fileInfo(tool)
+        suspend fun compress(tool: AITool): ToolResult = getInstance().compress(tool)
     }
 }
 

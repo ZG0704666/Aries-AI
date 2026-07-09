@@ -50,6 +50,8 @@ fun escapedBuildConfigString(value: String): String =
 android {
     namespace = "com.ai.phoneagent"
     compileSdk = 36
+    ndkVersion = "27.0.12077973"
+    buildToolsVersion = "36.1.0"
 
     externalNativeBuild {
         cmake {

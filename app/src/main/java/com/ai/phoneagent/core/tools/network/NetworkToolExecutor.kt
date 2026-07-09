@@ -40,14 +40,12 @@ import java.util.concurrent.TimeUnit
  * 网络工具执行器
  * 提供 HTTP 请求、下载、Ping 等网络功能
  */
-object NetworkToolExecutor {
+class NetworkToolExecutor(
+    private val appContext: Context,
+    private val client: OkHttpClient,
+) {
 
-    private const val TAG = "NetworkTools"
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
+    private val TAG = "NetworkTools"
 
     /**
      * HTTP GET 请求
@@ -175,7 +173,7 @@ object NetworkToolExecutor {
             }
 
             // 保存文件到缓存目录
-            val context = getApplicationContext()
+            val context = appContext
             val file = java.io.File(context.cacheDir, fileName)
             file.writeBytes(bytes)
 
@@ -316,17 +314,6 @@ object NetworkToolExecutor {
         }
     }
 
-    private var applicationContext: Context? = null
-
-    fun init(context: Context) {
-        applicationContext = context.applicationContext
-    }
-
-    private fun getApplicationContext(): Context {
-        return applicationContext
-            ?: throw IllegalStateException("NetworkToolExecutor 未初始化，请先调用 init()")
-    }
-
     private fun errorResult(toolName: String, error: String): ToolResult {
         return ToolResult(
             toolName = toolName,
@@ -334,6 +321,35 @@ object NetworkToolExecutor {
             result = StringResultData(""),
             error = error
         )
+    }
+
+    companion object {
+        @Volatile private var fallbackInstance: NetworkToolExecutor? = null
+
+        fun init(context: Context) {
+            if (fallbackInstance == null) {
+                fallbackInstance = NetworkToolExecutor(
+                    context.applicationContext,
+                    OkHttpClient.Builder()
+                        .connectTimeout(30, TimeUnit.SECONDS)
+                        .readTimeout(30, TimeUnit.SECONDS)
+                        .writeTimeout(30, TimeUnit.SECONDS)
+                        .build(),
+                )
+            }
+        }
+
+        private fun getInstance(): NetworkToolExecutor =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<NetworkToolExecutor>()
+            }.getOrNull() ?: (fallbackInstance ?: throw IllegalStateException("NetworkToolExecutor 未初始化"))
+
+        suspend fun httpGet(tool: AITool): ToolResult = getInstance().httpGet(tool)
+        suspend fun httpPost(tool: AITool): ToolResult = getInstance().httpPost(tool)
+        suspend fun download(tool: AITool): ToolResult = getInstance().download(tool)
+        suspend fun ping(tool: AITool): ToolResult = getInstance().ping(tool)
+        suspend fun getIP(tool: AITool): ToolResult = getInstance().getIP(tool)
+        suspend fun dnsLookup(tool: AITool): ToolResult = getInstance().dnsLookup(tool)
     }
 }
 

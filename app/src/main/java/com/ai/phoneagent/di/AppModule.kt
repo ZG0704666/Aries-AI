@@ -21,10 +21,17 @@ import com.ai.phoneagent.AppState
 import com.ai.phoneagent.AppPackageMapping
 import com.ai.phoneagent.core.tools.extended.ExtendedAppMapping
 import com.ai.phoneagent.core.templates.PromptTemplates
+import com.ai.phoneagent.core.tools.AIToolHandler
+import com.ai.phoneagent.core.tools.file.FileToolExecutor
+import com.ai.phoneagent.permissions.ToolPermissionSystem
+import com.ai.phoneagent.vdiso.ShizukuVirtualDisplayEngine
+import com.ai.phoneagent.input.InputHelper
+import com.ai.phoneagent.VirtualScreenPreviewOverlay
 import com.ai.phoneagent.net.AriesOidcAuthManager
 import com.ai.phoneagent.telemetry.TelemetryHeartbeatManager
 import com.ai.phoneagent.updates.ReleaseRepository
 import org.koin.android.ext.koin.androidApplication
+import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
 /**
@@ -53,6 +60,16 @@ val appModule = module {
     single { ExtendedAppMapping() }
     single { PromptTemplates() }
     single { AppPackageMapping() }
+
+    // Task 19 Phase 2: 工具执行器链迁移
+    single { FileToolExecutor(androidContext()) }
+    single { AIToolHandler(androidContext()) }
+    single { ToolPermissionSystem(androidContext(), get()) }
+
+    // Task 19 Phase 3: 虚拟屏集群迁移
+    single { ShizukuVirtualDisplayEngine() }
+    single { InputHelper() }
+    single { VirtualScreenPreviewOverlay() }
 
     // TODO(T3): Uncomment once ConversationManager is extracted from object/singleton:
     // single { ConversationManager(get()) }

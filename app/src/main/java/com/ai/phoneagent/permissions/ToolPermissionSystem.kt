@@ -13,7 +13,7 @@ import org.koin.core.component.get
  * 工具权限系统
  * 简化版实现，只支持危险操作确认
  */
-class ToolPermissionSystem private constructor(
+class ToolPermissionSystem(
     private val context: Context,
     private val toolPermissionsRepository: ToolPermissionsRepository,
 ) {
@@ -24,17 +24,17 @@ class ToolPermissionSystem private constructor(
         private var INSTANCE: ToolPermissionSystem? = null
 
         fun getInstance(context: Context): ToolPermissionSystem {
-            return INSTANCE ?: synchronized(this) {
-                val appContext = context.applicationContext
-                val repo = runCatching { get<ToolPermissionsRepository>() }
-                    .getOrNull()
-                    ?: ToolPermissionsRepository(appContext)
-                INSTANCE ?: ToolPermissionSystem(
-                    context = appContext,
-                    toolPermissionsRepository = repo,
-                ).also {
-                    INSTANCE = it
-                }
+            INSTANCE?.let { return it }
+            return synchronized(this) {
+                INSTANCE ?: runCatching {
+                    org.koin.core.context.GlobalContext.get().get<ToolPermissionSystem>()
+                }.getOrNull()?.also { INSTANCE = it }
+                    ?: ToolPermissionSystem(
+                        context = context.applicationContext,
+                        toolPermissionsRepository = runCatching { get<ToolPermissionsRepository>() }
+                            .getOrNull()
+                            ?: ToolPermissionsRepository(context.applicationContext),
+                    ).also { INSTANCE = it }
             }
         }
     }

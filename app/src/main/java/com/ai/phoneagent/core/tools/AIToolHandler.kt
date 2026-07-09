@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap
  * AI工具处理器
  * 负责工具的注册、查找和执行
  */
-class AIToolHandler private constructor(private val context: Context) {
+class AIToolHandler(private val context: Context) {
 
     companion object {
         private const val TAG = "AIToolHandler"
@@ -21,8 +21,12 @@ class AIToolHandler private constructor(private val context: Context) {
         private var INSTANCE: AIToolHandler? = null
 
         fun getInstance(context: Context): AIToolHandler {
-            return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: AIToolHandler(context.applicationContext).also { INSTANCE = it }
+            INSTANCE?.let { return it }
+            return synchronized(this) {
+                INSTANCE ?: runCatching {
+                    org.koin.core.context.GlobalContext.get().get<AIToolHandler>()
+                }.getOrNull()?.also { INSTANCE = it }
+                    ?: AIToolHandler(context.applicationContext).also { INSTANCE = it }
             }
         }
     }
