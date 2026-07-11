@@ -15,7 +15,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-object ModelScopeModelDownloader {
+class ModelScopeModelDownloader {
 
     @Serializable
     private data class ModelScopeRepoFilesResponse(
@@ -32,15 +32,6 @@ object ModelScopeModelDownloader {
         @SerialName("Path") val path: String? = null,
         @SerialName("Size") val size: Long? = null,
     )
-
-    // MNN local-inference package (contains llm.mnn / llm.mnn.weight / llm_config.json).
-    const val QWEN35_MODEL_ID = "MNN/Qwen3.5-9B-MNN"
-    const val QWEN35_MODEL_NAME = "Qwen3.5-9B"
-
-    private const val MODELSCOPE_API_BASE = "https://www.modelscope.cn/api/v1/models"
-    private const val MODELSCOPE_RESOLVE_BASE = "https://www.modelscope.cn/models"
-    private const val USER_AGENT = "PhoneAgent"
-    private const val DOWNLOAD_ROOT_DIR = "AriesModels"
 
     private val requiredExactNames =
         setOf(
@@ -237,5 +228,29 @@ object ModelScopeModelDownloader {
         } finally {
             connection.disconnect()
         }
+    }
+
+    companion object {
+        // MNN local-inference package (contains llm.mnn / llm.mnn.weight / llm_config.json).
+        const val QWEN35_MODEL_ID = "MNN/Qwen3.5-9B-MNN"
+        const val QWEN35_MODEL_NAME = "Qwen3.5-9B"
+
+        private const val MODELSCOPE_API_BASE = "https://www.modelscope.cn/api/v1/models"
+        private const val MODELSCOPE_RESOLVE_BASE = "https://www.modelscope.cn/models"
+        private const val USER_AGENT = "PhoneAgent"
+        private const val DOWNLOAD_ROOT_DIR = "AriesModels"
+
+        @Volatile private var fallbackInstance: ModelScopeModelDownloader? = null
+
+        private fun getInstance(): ModelScopeModelDownloader =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<ModelScopeModelDownloader>()
+            }.getOrNull() ?: (fallbackInstance ?: ModelScopeModelDownloader().also { fallbackInstance = it })
+
+        // Delegate all public methods
+        suspend fun enqueueQwen35Downloads(context: Context): Result<EnqueueResult> = getInstance().enqueueQwen35Downloads(context)
+        fun getQwen35ModelDir(context: Context): File? = getInstance().getQwen35ModelDir(context)
+        fun getQwen35ConfigPath(context: Context): String? = getInstance().getQwen35ConfigPath(context)
+        fun isQwen35ModelReady(context: Context): Boolean = getInstance().isQwen35ModelReady(context)
     }
 }

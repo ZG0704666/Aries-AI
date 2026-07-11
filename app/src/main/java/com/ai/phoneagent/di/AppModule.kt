@@ -19,15 +19,22 @@ package com.ai.phoneagent.di
 
 import com.ai.phoneagent.AppState
 import com.ai.phoneagent.AppPackageMapping
+import com.ai.phoneagent.core.automation.ActivityAutomationInstructionGateway
+import com.ai.phoneagent.core.automation.AutomationInstructionGateway
 import com.ai.phoneagent.core.tools.extended.ExtendedAppMapping
 import com.ai.phoneagent.core.templates.PromptTemplates
 import com.ai.phoneagent.core.tools.AIToolHandler
+import com.ai.phoneagent.core.tools.AppPackageManager
+import com.ai.phoneagent.core.tools.ToolRegistration
 import com.ai.phoneagent.core.tools.file.FileToolExecutor
 import com.ai.phoneagent.permissions.ToolPermissionSystem
 import com.ai.phoneagent.vdiso.ShizukuVirtualDisplayEngine
 import com.ai.phoneagent.input.InputHelper
 import com.ai.phoneagent.VirtualScreenPreviewOverlay
+import com.ai.phoneagent.AutomationOverlay
 import com.ai.phoneagent.net.AriesOidcAuthManager
+import com.ai.phoneagent.net.LocalMnnInferenceEngine
+import com.ai.phoneagent.net.ModelScopeModelDownloader
 import com.ai.phoneagent.telemetry.TelemetryHeartbeatManager
 import com.ai.phoneagent.updates.ReleaseRepository
 import org.koin.android.ext.koin.androidApplication
@@ -60,6 +67,7 @@ val appModule = module {
     single { ExtendedAppMapping() }
     single { PromptTemplates() }
     single { AppPackageMapping() }
+    single { ToolRegistration() }
 
     // Task 19 Phase 2: 工具执行器链迁移
     single { FileToolExecutor(androidContext()) }
@@ -70,6 +78,22 @@ val appModule = module {
     single { ShizukuVirtualDisplayEngine() }
     single { InputHelper() }
     single { VirtualScreenPreviewOverlay() }
+
+    // Task 19 Phase 4: object → class DI 迁移
+    single { AppPackageManager() }
+
+    // Task 19 Phase 4: 本地推理引擎 object → class DI 迁移
+    single { LocalMnnInferenceEngine() }
+
+    // Task 19 Phase 4: ModelScope 模型下载器迁移
+    single { ModelScopeModelDownloader() }
+
+    // Task 19 Phase 4: 自动化指令网关 object → class DI 迁移
+    single { ActivityAutomationInstructionGateway() }
+    single<AutomationInstructionGateway> { get<ActivityAutomationInstructionGateway>() }
+
+    // Task 19 Phase 4: 自动化悬浮窗 object → class DI 迁移
+    single { AutomationOverlay() }
 
     // TODO(T3): Uncomment once ConversationManager is extracted from object/singleton:
     // single { ConversationManager(get()) }

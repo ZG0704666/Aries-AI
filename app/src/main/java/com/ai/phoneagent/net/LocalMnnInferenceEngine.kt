@@ -13,15 +13,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-object LocalMnnInferenceEngine {
-    private const val TEMP_IMAGE_DIR = "local_mnn_images"
-    private const val TEMP_IMAGE_TTL_MS = 24L * 60L * 60L * 1000L
-    private const val LOCAL_MAX_NEW_TOKENS = 640
-    private const val LOCAL_MAX_DURATION_MS = 75_000L
-    private const val LOCAL_MAX_OUTPUT_CHARS = 3600
-    private const val LOCAL_MAX_REPEAT_CHUNK_STREAK = 22
-    private const val LOCAL_MAX_IMAGE_BYTES = 8L * 1024L * 1024L
-
+class LocalMnnInferenceEngine {
     private val initMutex = Mutex()
     private val requestMutex = Mutex()
     private val tempImageSeq = AtomicLong(0L)
@@ -532,5 +524,38 @@ object LocalMnnInferenceEngine {
             }
             return false
         }
+    }
+
+    companion object {
+        private const val TEMP_IMAGE_DIR = "local_mnn_images"
+        private const val TEMP_IMAGE_TTL_MS = 24L * 60L * 60L * 1000L
+        private const val LOCAL_MAX_NEW_TOKENS = 640
+        private const val LOCAL_MAX_DURATION_MS = 75_000L
+        private const val LOCAL_MAX_OUTPUT_CHARS = 3600
+        private const val LOCAL_MAX_REPEAT_CHUNK_STREAK = 22
+        private const val LOCAL_MAX_IMAGE_BYTES = 8L * 1024L * 1024L
+
+        @Volatile private var fallbackInstance: LocalMnnInferenceEngine? = null
+
+        private fun getInstance(): LocalMnnInferenceEngine =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<LocalMnnInferenceEngine>()
+            }.getOrNull() ?: (fallbackInstance ?: LocalMnnInferenceEngine().also { fallbackInstance = it })
+
+        suspend fun sendChatStreamResult(
+            context: Context,
+            messages: List<ChatRequestMessage>,
+            onReasoningDelta: (String) -> Unit,
+            onContentDelta: (String) -> Unit,
+            shouldStop: (() -> Boolean)? = null,
+        ): Result<Unit> = getInstance().sendChatStreamResult(context, messages, onReasoningDelta, onContentDelta, shouldStop)
+
+        suspend fun sendChatResult(
+            context: Context,
+            messages: List<ChatRequestMessage>,
+            shouldStop: (() -> Boolean)? = null,
+        ): Result<String> = getInstance().sendChatResult(context, messages, shouldStop)
+
+        suspend fun releaseSession() = getInstance().releaseSession()
     }
 }

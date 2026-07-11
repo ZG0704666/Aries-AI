@@ -24,7 +24,6 @@ import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
-import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -44,7 +43,6 @@ class ActionExecutorTest {
     private lateinit var mockContext: Context
     private lateinit var executor: ActionExecutor
     private val logs = mutableListOf<String>()
-    private var appPackageManagerMocked = false
 
     @Before
     fun setup() {
@@ -56,9 +54,22 @@ class ActionExecutorTest {
 
     @After
     fun tearDown() {
-        if (appPackageManagerMocked) {
-            runCatching { unmockkObject(AppPackageManager) }
-            appPackageManagerMocked = false
+        resetAppPackageManagerFallback()
+    }
+
+    private fun resetAppPackageManagerFallback() {
+        runCatching {
+            val field = AppPackageManager.Companion::class.java.getDeclaredField("fallbackInstance")
+            field.isAccessible = true
+            field.set(AppPackageManager.Companion, null)
+        }
+    }
+
+    private fun setAppPackageManagerMock(mock: AppPackageManager) {
+        runCatching {
+            val field = AppPackageManager.Companion::class.java.getDeclaredField("fallbackInstance")
+            field.isAccessible = true
+            field.set(AppPackageManager.Companion, mock)
         }
     }
 
@@ -80,12 +91,13 @@ class ActionExecutorTest {
 
     @Test
     fun `execute_Launch动作_调用启动逻辑`() = runBlocking {
-        mockkObject(AppPackageManager)
-        appPackageManagerMocked = true
-        every { AppPackageManager.initializeCache(any()) } just Runs
-        every { AppPackageManager.resolvePackageName(any()) } returns null
-        every { AppPackageManager.resolvePackageByLabel(any(), any()) } returns null
-        every { AppPackageManager.getAllInstalledApps() } returns emptyList()
+        val mockManager = mockk<AppPackageManager>(relaxed = true)
+        setAppPackageManagerMock(mockManager)
+        
+        every { mockManager.initializeCache(any()) } just Runs
+        every { mockManager.resolvePackageName(any()) } returns null
+        every { mockManager.resolvePackageByLabel(any(), any()) } returns null
+        every { mockManager.getAllInstalledApps() } returns emptyList()
 
         // 使用不含 '.' 的目标名，使 candidates 为空 → finalCandidates 为空 →
         // buildLaunchIntent 循环被跳过。这样避免 mockable android jar 下

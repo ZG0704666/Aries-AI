@@ -24,6 +24,8 @@ import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.viewmodel.SettingsViewModel
 import com.ai.phoneagent.viewmodel.UpdateHistoryViewModel
 import com.ai.phoneagent.ui.components.markdown.Highlighter
+import com.ai.phoneagent.core.tools.AIToolHandler
+import com.ai.phoneagent.core.tools.ToolRegistration
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
@@ -41,7 +43,7 @@ val uiModule = module {
     // ChatViewModel is an AndroidViewModel; Koin's viewModel {} block handles
     // the Application parameter automatically.
     viewModel { ChatViewModel(get()) }
-    viewModel { AutomationViewModel(get(), get(), get()) }
+    viewModel { AutomationViewModel(get(), get(), get(), get<AIToolHandler>(), get<ToolRegistration>()) }
     viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { AppearanceViewModel(get(), get()) }
     viewModel { AboutViewModel(get(), get(), get()) }

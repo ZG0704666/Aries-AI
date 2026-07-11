@@ -32,29 +32,7 @@ import java.util.concurrent.TimeUnit
  *
  * 获取的 API Key 可直接用于 OpenAI 兼容接口。
  */
-object AriesApiClient {
-    const val BASE_URL = "https://api.aries.org.cn"
-    const val ARIES_API_V1_BASE_URL = "https://api.aries.org.cn/v1"
-    const val ARIES_CHAT_MODEL = "星环"
-    const val ARIES_VISION_MODEL = "星环 Pro"
-    const val ARIES_AUTOMATION_MODEL = "GUI"
-    private const val ARIES_TOKEN_NAME = "Ariesphone"
-    private val COOKIE_ATTRIBUTE_NAMES =
-        setOf(
-            "comment",
-            "commenturl",
-            "domain",
-            "expires",
-            "httponly",
-            "max-age",
-            "partitioned",
-            "path",
-            "priority",
-            "samesite",
-            "secure",
-            "version",
-        )
-
+class AriesApiClient {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
@@ -572,5 +550,65 @@ object AriesApiClient {
         } catch (e: Exception) {
             Result.failure(Exception("模型列表解析失败: ${e.message?.trim()}"))
         }
+    }
+
+    companion object {
+        const val BASE_URL = "https://api.aries.org.cn"
+        const val ARIES_API_V1_BASE_URL = "https://api.aries.org.cn/v1"
+        const val ARIES_CHAT_MODEL = "星环"
+        const val ARIES_VISION_MODEL = "星环 Pro"
+        const val ARIES_AUTOMATION_MODEL = "GUI"
+        private const val ARIES_TOKEN_NAME = "Ariesphone"
+        private val COOKIE_ATTRIBUTE_NAMES =
+            setOf(
+                "comment",
+                "commenturl",
+                "domain",
+                "expires",
+                "httponly",
+                "max-age",
+                "partitioned",
+                "path",
+                "priority",
+                "samesite",
+                "secure",
+                "version",
+            )
+
+        @Volatile private var fallbackInstance: AriesApiClient? = null
+
+        private fun getInstance(): AriesApiClient =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<AriesApiClient>()
+            }.getOrNull() ?: (fallbackInstance ?: AriesApiClient().also { fallbackInstance = it })
+
+        suspend fun loginAndGetApiKey(username: String, password: String): LoginAndTokenResult =
+            getInstance().loginAndGetApiKey(username, password)
+
+        suspend fun getOrCreateAriesTokenWithUserAccessToken(
+            userAccessToken: String,
+            userId: Int,
+        ): TokenResult =
+            getInstance().getOrCreateAriesTokenWithUserAccessToken(userAccessToken, userId)
+
+        suspend fun getOrCreateAriesTokenWithAuthenticatedClient(
+            client: OkHttpClient,
+            userId: Int,
+        ): TokenResult =
+            getInstance().getOrCreateAriesTokenWithAuthenticatedClient(client, userId)
+
+        suspend fun getOrCreateAriesTokenWithSessionCookie(
+            cookieHeader: String,
+            userId: Int,
+        ): TokenResult =
+            getInstance().getOrCreateAriesTokenWithSessionCookie(cookieHeader, userId)
+
+        suspend fun fetchModels(apiKey: String): Result<List<ModelInfo>> =
+            getInstance().fetchModels(apiKey)
+
+        // normalizeCookieHeader is internal; delegated here so static call sites
+        // (e.g. AriesApiOAuthActivity) keep working without an explicit instance.
+        internal fun normalizeCookieHeader(cookieHeader: String): String =
+            getInstance().normalizeCookieHeader(cookieHeader)
     }
 }

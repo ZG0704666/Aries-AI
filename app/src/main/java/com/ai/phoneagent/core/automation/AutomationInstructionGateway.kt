@@ -30,7 +30,7 @@ interface AutomationInstructionGateway {
     fun dispatch(context: Context, request: AutomationInstructionRequest): AutomationDispatchResult
 }
 
-object ActivityAutomationInstructionGateway : AutomationInstructionGateway {
+class ActivityAutomationInstructionGateway : AutomationInstructionGateway {
     override fun dispatch(
         context: Context,
         request: AutomationInstructionRequest
@@ -103,5 +103,19 @@ object ActivityAutomationInstructionGateway : AutomationInstructionGateway {
             putExtra(AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY, request.forceTopOnEntry)
             putExtra(AutomationViewModel.EXTRA_KEEP_MAIN_ON_TOP, request.keepMainOnTop)
         }
+    }
+
+    companion object {
+        @Volatile private var fallbackInstance: ActivityAutomationInstructionGateway? = null
+
+        private fun getInstance(): ActivityAutomationInstructionGateway =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<ActivityAutomationInstructionGateway>()
+            }.getOrNull() ?: (fallbackInstance ?: ActivityAutomationInstructionGateway().also { fallbackInstance = it })
+
+        fun dispatch(context: Context, request: AutomationInstructionRequest): AutomationDispatchResult = getInstance().dispatch(context, request)
+        fun dispatchManual(context: Context, instruction: String): AutomationDispatchResult = getInstance().dispatchManual(context, instruction)
+        fun dispatchFromAdvancedAi(context: Context, instruction: String): AutomationDispatchResult = getInstance().dispatchFromAdvancedAi(context, instruction)
+        fun buildIntent(context: Context, request: AutomationInstructionRequest): Intent = getInstance().buildIntent(context, request)
     }
 }

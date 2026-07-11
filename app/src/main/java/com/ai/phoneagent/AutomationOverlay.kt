@@ -34,7 +34,7 @@ import com.ai.phoneagent.core.utils.DisplayUtils
 import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
 import com.ai.phoneagent.viewmodel.AutomationViewModel
 
-object AutomationOverlay {
+class AutomationOverlay {
 
     private var wm: WindowManager? = null
     private var container: OverlayContainer? = null
@@ -1007,5 +1007,64 @@ object AutomationOverlay {
                 canvas.drawPath(borderPath, headGlowPaint)
             }
         }
+    }
+
+    companion object {
+        @Volatile private var fallbackInstance: AutomationOverlay? = null
+
+        private fun getInstance(): AutomationOverlay =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<AutomationOverlay>()
+            }.getOrNull() ?: (fallbackInstance ?: AutomationOverlay().also { fallbackInstance = it })
+
+        fun canDrawOverlays(context: Context): Boolean =
+            getInstance().canDrawOverlays(context)
+
+        fun openOverlayPermissionSettings(context: Context) =
+            getInstance().openOverlayPermissionSettings(context)
+
+        fun show(
+            context: Context,
+            title: String,
+            subtitle: String,
+            maxSteps: Int,
+            activity: Activity? = null,
+            navigateMainOnClick: Boolean = false,
+        ): Boolean =
+            getInstance().show(context, title, subtitle, maxSteps, activity, navigateMainOnClick)
+
+        fun isShowing(): Boolean = getInstance().isShowing()
+
+        fun setOverlayVisible(visible: Boolean) = getInstance().setOverlayVisible(visible)
+
+        fun setInputVerifyHighlight(active: Boolean) = getInstance().setInputVerifyHighlight(active)
+
+        fun temporaryHide() = getInstance().temporaryHide()
+
+        fun restoreVisibility() = getInstance().restoreVisibility()
+
+        fun updateEstimatedSteps(estimated: Int) = getInstance().updateEstimatedSteps(estimated)
+
+        fun startThinking() = getInstance().startThinking()
+
+        fun updateThinking(delta: String) = getInstance().updateThinking(delta)
+
+        fun stopThinking() = getInstance().stopThinking()
+
+        fun updateStep(step: Int, maxSteps: Int? = null, subtitle: String? = null) =
+            getInstance().updateStep(step, maxSteps, subtitle)
+
+        fun updateProgress(
+            step: Int,
+            phaseInStep: Float,
+            maxSteps: Int? = null,
+            subtitle: String? = null,
+        ) = getInstance().updateProgress(step, phaseInStep, maxSteps, subtitle)
+
+        fun updateFromLogLine(line: String) = getInstance().updateFromLogLine(line)
+
+        fun complete(message: String) = getInstance().complete(message)
+
+        fun hide() = getInstance().hide()
     }
 }

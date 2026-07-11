@@ -18,6 +18,7 @@
 package com.ai.phoneagent.di
 
 import com.ai.phoneagent.net.AutoGlmClient
+import com.ai.phoneagent.net.AriesApiClient
 import com.ai.phoneagent.core.tools.network.NetworkToolExecutor
 import coil.ImageLoader
 import coil.disk.DiskCache
@@ -74,6 +75,9 @@ val networkModule = module {
 
     // AutoGlmClient is a Kotlin object (singleton); bind it so it can be injected or mocked in tests.
     single { AutoGlmClient }
+
+    // Task 19 Phase 4: AriesApiClient migrated from object to class (companion facade DI).
+    single { AriesApiClient() }
 
     // Task 19 Phase 2: 工具专用 OkHttpClient（30s 超时，与共享 client 60s/300s 区分）
     single(named("tool")) {

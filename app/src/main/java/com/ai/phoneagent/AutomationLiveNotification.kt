@@ -19,12 +19,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.ai.phoneagent.viewmodel.AutomationViewModel
 
-object AutomationLiveNotification {
-    private const val TAG = "AutomationLiveNotification"
-    private const val CHANNEL_ID = "automation_live_updates_visible"
-    private const val NOTIFICATION_ID = 42026
-    private const val MAX_PROGRESS = 100
-    private const val MIN_UPDATE_INTERVAL_MS = 900L
+class AutomationLiveNotification {
 
     @Volatile private var registered = false
     @Volatile private var active = false
@@ -50,8 +45,8 @@ object AutomationLiveNotification {
         return registered
     }
 
-    fun isRegistered(context: Context? = appContext): Boolean {
-        val ctx = context?.applicationContext ?: return registered
+    fun isRegistered(context: Context? = null): Boolean {
+        val ctx = context?.applicationContext ?: appContext ?: return registered
         registered = canUseLiveUpdate(ctx)
         return registered
     }
@@ -288,5 +283,39 @@ object AutomationLiveNotification {
 
     private fun simplifyLine(line: String): String {
         return line.trim().replace(Regex("\\[Step\\s+\\d+]\\s*"), "").trim()
+    }
+
+    companion object {
+        private const val TAG = "AutomationLiveNotification"
+        private const val CHANNEL_ID = "automation_live_updates_visible"
+        private const val NOTIFICATION_ID = 42026
+        private const val MAX_PROGRESS = 100
+        private const val MIN_UPDATE_INTERVAL_MS = 900L
+
+        @Volatile private var fallbackInstance: AutomationLiveNotification? = null
+
+        private fun getInstance(): AutomationLiveNotification =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<AutomationLiveNotification>()
+            }.getOrNull() ?: (fallbackInstance ?: AutomationLiveNotification().also { fallbackInstance = it })
+
+        fun initialize(context: Context): Boolean = getInstance().initialize(context)
+        fun isRegistered(context: Context? = null): Boolean = getInstance().isRegistered(context)
+        fun isActive(): Boolean = getInstance().isActive()
+        fun show(
+            context: Context,
+            title: String,
+            subtitle: String,
+            maxSteps: Int,
+            navigateMainOnClick: Boolean,
+        ): Boolean = getInstance().show(context, title, subtitle, maxSteps, navigateMainOnClick)
+        fun updateEstimatedSteps(estimated: Int) = getInstance().updateEstimatedSteps(estimated)
+        fun updateProgress(step: Int, phaseInStep: Float, maxSteps: Int? = null, subtitle: String? = null) =
+            getInstance().updateProgress(step, phaseInStep, maxSteps, subtitle)
+        fun updateState(title: String? = null, subtitle: String? = null, detail: String? = null) =
+            getInstance().updateState(title, subtitle, detail)
+        fun updateFromLogLine(line: String) = getInstance().updateFromLogLine(line)
+        fun complete(message: String) = getInstance().complete(message)
+        fun hide() = getInstance().hide()
     }
 }

@@ -14,9 +14,8 @@ import kotlinx.coroutines.delay
  *
  * 采用引用计数，支持并发截图请求安全嵌套。
  */
-object ScreenshotOverlayGuard {
-    private const val TAG = "ScreenshotOverlayGuard"
-    private const val STUCK_HIDE_TIMEOUT_MS = 10_000L
+class ScreenshotOverlayGuard {
+
     private val hideCounter = AtomicInteger(0)
     @Volatile private var firstHideAtMs: Long = 0L
     @Volatile private var restoreAutomationOverlay = false
@@ -155,5 +154,22 @@ object ScreenshotOverlayGuard {
         restoreAutomationOverlay = false
         restoreProgressOverlay = false
         restoreFloatingOverlay = false
+    }
+
+    companion object {
+        private const val TAG = "ScreenshotOverlayGuard"
+        private const val STUCK_HIDE_TIMEOUT_MS = 10_000L
+
+        @Volatile private var fallbackInstance: ScreenshotOverlayGuard? = null
+
+        private fun getInstance(): ScreenshotOverlayGuard =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<ScreenshotOverlayGuard>()
+            }.getOrNull() ?: (fallbackInstance ?: ScreenshotOverlayGuard().also { fallbackInstance = it })
+
+        suspend fun <T> withOverlaysHidden(
+            hideDelayMs: Long = 80L,
+            block: suspend () -> T
+        ): T = getInstance().withOverlaysHidden(hideDelayMs, block)
     }
 }

@@ -17,9 +17,7 @@ import com.ai.phoneagent.core.tools.extended.ExtendedAppMapping
  * 3. 单词边界匹配（避免"云"匹配"阿里云盘"和"移动云"）
  * 4. 智能模糊匹配（作为最后手段）
  */
-object AppPackageManager {
-
-    private const val TAG = "AppPackageManager"
+class AppPackageManager {
 
     // 应用缓存（包名 -> 应用名）
     // TTL 设为 Long.MAX_VALUE：appCache 由 initializeCache() 整体刷新，无需单条目过期
@@ -69,11 +67,6 @@ object AppPackageManager {
         "芒果TV" to "com.hunantv.imgo.activity",
     )
 
-    private const val RESOLVE_CACHE_TTL_MS = 300_000L // 5分钟
-    private const val RESOLVE_CACHE_MAX_ENTRIES = 256
-    private const val APP_CACHE_MAX_ENTRIES = 256
-    private const val APP_NAME_CACHE_MAX_ENTRIES = 2048
-
     // 解析结果缓存（带 TTL，复用 ThreadSafeLruCache 内置过期与 LRU）
     private val resolveCache = ThreadSafeLruCache<String, String>(
         maxSize = RESOLVE_CACHE_MAX_ENTRIES,
@@ -81,7 +74,6 @@ object AppPackageManager {
     )
 
     private var lastUpdateTime = 0L
-    private const val CACHE_VALIDITY_MS = 300000L // 5分钟缓存时间
 
     /**
      * 加载所有映射到缓存
@@ -348,5 +340,32 @@ object AppPackageManager {
             "highPriorityKeywords" to highPriorityKeywords.size,
             "extendedMappings" to ExtendedAppMapping.getAllMappings().size
         )
+    }
+
+    companion object {
+        private const val TAG = "AppPackageManager"
+        private const val RESOLVE_CACHE_TTL_MS = 300_000L // 5分钟
+        private const val RESOLVE_CACHE_MAX_ENTRIES = 256
+        private const val APP_CACHE_MAX_ENTRIES = 256
+        private const val APP_NAME_CACHE_MAX_ENTRIES = 2048
+        private const val CACHE_VALIDITY_MS = 300000L // 5分钟缓存时间
+
+        @Volatile private var fallbackInstance: AppPackageManager? = null
+
+        private fun getInstance(): AppPackageManager =
+            runCatching {
+                org.koin.core.context.GlobalContext.get().get<AppPackageManager>()
+            }.getOrNull() ?: (fallbackInstance ?: AppPackageManager().also { fallbackInstance = it })
+
+        fun initializeCache(context: Context) = getInstance().initializeCache(context)
+        fun resolvePackageName(query: String?): String? = getInstance().resolvePackageName(query)
+        fun resolvePackageByLabel(
+            service: PhoneAgentAccessibilityService,
+            appName: String
+        ): String? = getInstance().resolvePackageByLabel(service, appName)
+        fun getAppName(packageName: String): String = getInstance().getAppName(packageName)
+        fun getAllInstalledApps(): List<Pair<String, String>> = getInstance().getAllInstalledApps()
+        fun clearCache() = getInstance().clearCache()
+        fun getStats(): Map<String, Any> = getInstance().getStats()
     }
 }

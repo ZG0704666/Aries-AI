@@ -59,6 +59,8 @@ class AutomationViewModel(
     application: Application,
     private val appPrefsRepository: AppPreferencesRepository,
     private val automationResultsRepository: AutomationResultsRepository,
+    private val toolHandler: AIToolHandler,
+    private val toolRegistration: ToolRegistration,
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -644,8 +646,7 @@ class AutomationViewModel(
 
     private fun initializeToolSystem() {
         try {
-            val toolHandler = AIToolHandler.getInstance(appContext)
-            ToolRegistration.registerAllTools(toolHandler, appContext)
+            toolRegistration.registerAllTools(toolHandler, appContext)
             appendLog("✅ 工具系统初始化完成")
         } catch (e: Exception) {
             Log.e("AutomationViewModel", "工具系统初始化失败: ${e.message}", e)

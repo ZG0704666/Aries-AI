@@ -37,9 +37,24 @@ import java.io.ByteArrayOutputStream
  * 工具注册中心
  * 集中注册所有可用的工具
  */
-object ToolRegistration {
+class ToolRegistration {
 
-    private const val TAG = "ToolRegistration"
+    companion object {
+        private const val TAG = "ToolRegistration"
+
+        /**
+         * 兼容性门面：通过 Koin 获取实例并注册工具
+         */
+        fun registerAllTools(handler: AIToolHandler, context: Context) {
+            runCatching {
+                val instance = org.koin.core.context.GlobalContext.get().get<ToolRegistration>()
+                instance.registerAllTools(handler, context)
+            }.onFailure {
+                // 回退到手动创建实例（针对未初始化 Koin 的环境）
+                ToolRegistration().registerAllTools(handler, context)
+            }
+        }
+    }
 
     /**
      * 注册所有工具
