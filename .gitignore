@@ -27,7 +27,7 @@ release/
 /temp/
 .tmp_material_113/
 .tmp_material_113.zip
-.trae
+.trae/documents/
 
 # Signing keys and certificates
 *.jks
@@ -79,7 +79,3 @@ coverage/
 # Local performance profiling artifacts
 Aries-site/lighthouse-*.report.html
 Aries-site/lighthouse-*.report.json
-
-# Aries-site/docs/ is a synced copy of the canonical /docs/ directory.
-# Run Aries-site/scripts/sync-docs.ps1 to refresh before deploying the site.
-Aries-site/docs/
