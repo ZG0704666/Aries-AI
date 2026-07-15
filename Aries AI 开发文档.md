@@ -215,7 +215,7 @@ export JAVA_HOME=/path/to/jdk-17
 
 ### 代码规范
 
-详见 [CODING_STANDARDS.md](./docs/CODING_STANDARDS.md)
+详见 [CODING_STANDARDS.md](./Aries-site/docs/CODING_STANDARDS.md)
 
 **核心原则**：
 - Kotlin 优先，遵循官方风格指南
@@ -382,8 +382,8 @@ AutoGlmClient.sendChatResult(
 #### 2026-05-17 - 开发状态整合与流式 Markdown 优化
 
 **文档整合**：
-- 将近期提交审查、当前开发重点和验证状态合并到本开发文档，避免 `docs/` 下出现临时状态文档。
-- 后续 Wiki 同步以本文件作为主开发文档入口，专题文档继续保留在 `docs/` 目录。
+- 将近期提交审查、当前开发重点和验证状态合并到本开发文档，避免 `Aries-site/docs/` 下出现临时状态文档。
+- 后续 Wiki 同步以本文件作为主开发文档入口，专题文档继续保留在 `Aries-site/docs/` 目录。
 
 **主页 Markdown 渲染**：
 - 主页流式回复使用渲染缓冲区和 `safeMarkdown` 快照，减少裸 Markdown 到最终渲染的跳变。

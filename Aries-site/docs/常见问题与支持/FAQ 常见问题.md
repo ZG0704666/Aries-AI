@@ -766,7 +766,7 @@ val fastInstance: OkHttpClient by lazy {
    - 撰写使用教程
    - 制作视频演示
 
-详见 [贡献指南](../README.md#-贡献指南)
+详见 [贡献指南](../../../README.md#-贡献指南)
 
 ### Q35: 如何构建 Aries AI？
 
@@ -784,7 +784,7 @@ cd Aries-AI
 adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
-详见 [构建指南](./BUILDING.md)
+详见 [构建指南](../BUILDING.md)
 
 ### Q36: 如何添加新的工具？
 
@@ -932,13 +932,13 @@ val testConfig = AgentConfiguration.TEST
 
 ## 📚 相关文档
 
-- [README.md](../README.md) - 项目概览与快速开始
+- [README.md](../../../README.md) - 项目概览与快速开始
 - [TECHNICAL_OVERVIEW.md](../TECHNICAL_OVERVIEW.md) - 核心技术文档
-- [BUILDING.md](./BUILDING.md) - 编译与构建指南
-- [CODING_STANDARDS.md](./CODING_STANDARDS.md) - 代码规范
-- [GIT_WORKFLOW.md](./GIT_WORKFLOW.md) - Git 工作流
-- [CONTRIBUTING.md](../CONTRIBUTING.md) - 贡献指南
-- [Aries AI 开发文档](../Aries%20AI%20开发文档.md) - 主开发文档
+- [BUILDING.md](../BUILDING.md) - 编译与构建指南
+- [CODING_STANDARDS.md](../CODING_STANDARDS.md) - 代码规范
+- [GIT_WORKFLOW.md](../GIT_WORKFLOW.md) - Git 工作流
+- [CONTRIBUTING.md](../../../CONTRIBUTING.md) - 贡献指南
+- [Aries AI 开发文档](../../../Aries%20AI%20开发文档.md) - 主开发文档
 
 ---
 

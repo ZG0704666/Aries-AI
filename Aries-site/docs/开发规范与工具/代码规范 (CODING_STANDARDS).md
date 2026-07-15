@@ -662,8 +662,8 @@ data class AgentConfiguration(
 
 - 公共 API 变更 → 更新 API 文档注释
 - 重要功能新增/变更 → 更新 `Aries AI 开发文档.md`
-- 构建流程变更 → 更新 `docs/BUILDING.md`
-- 规范变更 → 更新 `docs/CODING_STANDARDS.md`
+- 构建流程变更 → 更新 `Aries-site/docs/BUILDING.md`
+- 规范变更 → 更新 `Aries-site/docs/CODING_STANDARDS.md`
 
 ---
 
@@ -795,12 +795,12 @@ flowchart TD
 
 ## 相关链接
 
-- [CODING_STANDARDS.md (源文件)](https://github.com/ZG0704666/Aries-AI/blob/main/docs/CODING_STANDARDS.md) — 完整规范源文档
+- [CODING_STANDARDS.md (源文件)](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/CODING_STANDARDS.md) — 完整规范源文档
 - [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md) — 贡献者指南
-- [BUILDING.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/BUILDING.md) — 构建指南
-- [GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md) — Git 工作流规范
-- [TECHNICAL_OVERVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/TECHNICAL_OVERVIEW.md) — 技术架构文档
-- [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md) — AI PR 审阅指南
+- [BUILDING.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/BUILDING.md) — 构建指南
+- [GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md) — Git 工作流规范
+- [TECHNICAL_OVERVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/TECHNICAL_OVERVIEW.md) — 技术架构文档
+- [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md) — AI PR 审阅指南
 
 ---
 
