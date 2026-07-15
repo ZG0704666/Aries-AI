@@ -8,14 +8,18 @@ wiki/
 
 # Android / Gradle local state
 .android/
+.android-codex/
 .cxx/
 .externalNativeBuild/
 .gradle/
 .gradle-build/
+.gradle-codex/
+.java-home-codex/
 captures/
 local.properties
 release/
 **/build/
+*.compiler.options
 
 # Local environment, temp files, and logs
 .env
@@ -28,6 +32,7 @@ release/
 .tmp_material_113/
 .tmp_material_113.zip
 .trae/documents/
+key/
 
 # Signing keys and certificates
 *.jks
@@ -51,7 +56,6 @@ app/src/main/assets/sherpa-models/**
 
 # Local tool configs and secrets
 .opencode/
-AGENTS.md
 analytics.settings
 key/key
 .tmp_material_113/
@@ -61,6 +65,7 @@ tmp_onboarding_check.png
 # Local planning / scratch workspace files
 .sisyphus/
 .qoder/
+.omo/
 nul
 
 # Local test artifacts / temporary outputs
@@ -68,6 +73,7 @@ build.log
 *.tmp
 *.temp
 logcat*.txt
+ui_dump*.xml
 test-output/
 playwright-report/
 allure-results/
