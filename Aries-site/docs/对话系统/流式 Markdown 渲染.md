@@ -739,6 +739,6 @@ Compose 端的 Markdown 渲染入口。在 `Dispatchers.Default` 上解析文本
 - [ThinkingTags 标签常量](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/utils/ThinkingTags.kt)
 - [SimpleMarkdownRenderer 后备渲染](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/helper/MarkdownRenderer.kt)
 - [StreamingJsonXmlConverter 流式 JSON→XML](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/helper/StreamingJsonXmlConverter.kt)
-- [编码规范 - Compose 与 Markdown 渲染](https://github.com/ZG0704666/Aries-AI/blob/main/docs/CODING_STANDARDS.md)
-- [技术概览 - 流式 Markdown 渲染](https://github.com/ZG0704666/Aries-AI/blob/main/docs/TECHNICAL_OVERVIEW.md)
+- [编码规范 - Compose 与 Markdown 渲染](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/CODING_STANDARDS.md)
+- [技术概览 - 流式 Markdown 渲染](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/TECHNICAL_OVERVIEW.md)
 - [开发文档](https://github.com/ZG0704666/Aries-AI/blob/main/Aries%20AI%20开发文档.md)

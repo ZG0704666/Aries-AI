@@ -123,7 +123,7 @@ temp           # 无意义
 my-branch      # 缺乏功能描述和开发者标识
 ```
 
-> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L34-L48)
+> Source: [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L34-L48)
 
 ### 1.3 分支使用规则
 
@@ -155,7 +155,7 @@ my-branch      # 缺乏功能描述和开发者标识
 <footer>
 ```
 
-> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L69-L75)
+> Source: [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L69-L75)
 
 ### 2.2 提交类型（type）
 
@@ -171,7 +171,7 @@ my-branch      # 缺乏功能描述和开发者标识
 | `style` | 代码格式 | 不影响功能的格式调整 |
 
 > Sources:
-> - [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L79-L87)
+> - [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L79-L87)
 > - [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md#L118-L127)
 
 ### 2.3 范围（scope）
@@ -191,7 +191,7 @@ my-branch      # 缺乏功能描述和开发者标识
 | `core` | 核心模块 | `test(core): 添加AgentConfiguration测试` |
 
 > Sources:
-> - [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L91-L99)
+> - [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L91-L99)
 > - [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md#L131-L139)
 
 ### 2.4 完整提交示例
@@ -233,7 +233,7 @@ git commit -m "perf(cache): 优化截图缓存策略-王五
 Related to #013"
 ```
 
-> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L138-L169)
+> Source: [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L138-L169)
 
 ### 2.5 提交注意事项
 
@@ -304,7 +304,7 @@ Closes #005" \
 3. 填写标题和描述（参考 PR 模板）
 4. 点击 "Create pull request"
 
-> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L177-L191)
+> Source: [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L177-L191)
 
 ### 3.3 PR 描述模板
 
@@ -345,7 +345,7 @@ Related to #003, #004
 - [x] 文档已更新
 ```
 
-> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L195-L242)
+> Source: [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L195-L242)
 
 ### 3.4 PR 状态标签
 
@@ -401,14 +401,14 @@ flowchart LR
 
 | 审查项 | 检查内容 | 通过标准 |
 |---------|---------|---------|
-| 代码规范 | 命名、格式、注释 | 完全符合 [CODING_STANDARDS.md](./CODING_STANDARDS.md) |
+| 代码规范 | 命名、格式、注释 | 完全符合 [CODING_STANDARDS.md](../CODING_STANDARDS.md) |
 | 功能完整性 | 所有功能已实现 | 功能完整，无遗漏 |
 | 测试覆盖 | 单元测试覆盖率 | 核心模块 ≥70%，工具模块 ≥60% |
 | 文档更新 | README、API 文档 | 文档同步更新 |
 | 性能影响 | 无性能退化 | 性能良好，无明显瓶颈 |
 | 安全检查 | 无敏感信息泄露 | 安全合规 |
 
-> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L261-L268)
+> Source: [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L261-L268)
 
 ### 4.3 审查意见格式
 
@@ -439,7 +439,7 @@ flowchart LR
    - 位置：`ToolRegistration.kt:42`
 ```
 
-> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L272-L295)
+> Source: [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L272-L295)
 
 ### 4.4 AI 辅助审阅
 
@@ -466,7 +466,7 @@ flowchart LR
 /oc 更新 README.md，添加新功能的说明
 ```
 
-> Source: [docs/AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L72-L113)
+> Source: [Aries-site/docs/AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L72-L113)
 
 ---
 
@@ -516,7 +516,7 @@ git tag -a v1.0.1 -m "Release v1.0.1"
 git push origin v1.0.1
 ```
 
-> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L305-L315)
+> Source: [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L305-L315)
 
 ---
 
@@ -562,7 +562,7 @@ git add <冲突文件>
 git commit -m "merge: 合并feature/xxx-张三到main，解决冲突"
 ```
 
-> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L368-L395)
+> Source: [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L368-L395)
 
 ### 6.3 冲突解决示例
 
@@ -583,7 +583,7 @@ class ScreenshotCache {
 }
 ```
 
-> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L399-L414)
+> Source: [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L399-L414)
 
 ---
 
@@ -613,7 +613,7 @@ android {
 }
 ```
 
-> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L433-L441)
+> Source: [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L433-L441)
 
 ### 7.3 版本发布流程
 
@@ -649,7 +649,7 @@ gh release create v1.4.0 \
     --target main
 ```
 
-> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L445-L462)
+> Source: [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L445-L462)
 
 ---
 
@@ -749,7 +749,7 @@ jobs:
           use_github_token: true
 ```
 
-> Source: [docs/AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L197-L247)
+> Source: [Aries-site/docs/AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L197-L247)
 
 ---
 
@@ -807,7 +807,7 @@ git push origin feature/xxx-张三
 # 等待 CI 自动检查和人工审查
 ```
 
-> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L470-L494)
+> Source: [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L470-L494)
 
 ### 9.2 项目负责人合并流程
 
@@ -830,7 +830,7 @@ git branch -d feature/xxx-张三
 git push origin --delete feature/xxx-张三
 ```
 
-> Source: [docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L498-L516)
+> Source: [Aries-site/docs/GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L498-L516)
 
 ---
 
@@ -924,12 +924,12 @@ git push origin feature/your-feature-name
 
 ## 相关链接
 
-- [GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md) — Git 工作流详细文档（原始文件）
+- [GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md) — Git 工作流详细文档（原始文件）
 - [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md) — 贡献者指南
-- [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md) — AI 自动化 PR 审阅指南
-- [CODING_STANDARDS.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/CODING_STANDARDS.md) — 代码规范
-- [BUILDING.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/BUILDING.md) — 编译指南
-- [FEISHU_COLLABORATION.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/FEISHU_COLLABORATION.md) — 飞书协作文档模板
+- [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md) — AI 自动化 PR 审阅指南
+- [CODING_STANDARDS.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/CODING_STANDARDS.md) — 代码规范
+- [BUILDING.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/BUILDING.md) — 编译指南
+- [FEISHU_COLLABORATION.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/FEISHU_COLLABORATION.md) — 飞书协作文档模板
 - [README.md](https://github.com/ZG0704666/Aries-AI/blob/main/README.md) — 项目概述
 - [GitHub Issues](https://github.com/ZG0704666/Aries-AI/issues) — 问题反馈
 - [GitHub Discussions](https://github.com/ZG0704666/Aries-AI/discussions) — 功能建议

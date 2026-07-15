@@ -11,8 +11,8 @@ Android app for AI-driven UI automation on Android 11+, with Kotlin + Compose + 
 ├── app/                       # Android app module (`com.ai.phoneagent`)
 ├── core/                      # shared modules: common/designsystem/prompt/shizuku
 ├── feature/                   # feature modules: settings/updates
-├── docs/                      # formal compatibility docs (BUILDING/CODING_STANDARDS/etc.)
-├── Aries-site/                # project site + categorized docs center
+├── Aries-site/                # project site + the only documentation directory
+│   └── docs/                  # categorized docs + compatibility entry files
 └── settings.gradle.kts        # module graph + repository policy
 ```
 
@@ -24,15 +24,15 @@ Android app for AI-driven UI automation on Android 11+, with Kotlin + Compose + 
 | Module wiring | `settings.gradle.kts` | includes `:core:*` and `:feature:*` modules |
 | Dependency/repo policy | `settings.gradle.kts` | `FAIL_ON_PROJECT_REPOS` enforced |
 | Build config | `app/build.gradle.kts` | SDK versions, build types, native build, deps |
-| Formal docs entries | `docs/` | keep BUILDING/CODING_STANDARDS/GIT_WORKFLOW/TECHNICAL_OVERVIEW/FAQ/AI_PR_REVIEW/FEISHU_COLLABORATION |
-| Categorized docs site | `Aries-site/docs/` | docs-center source; also keeps same English compatibility filenames |
+| Project documentation | `Aries-site/docs/` | single source for docs-center, categorized docs, and English compatibility entries |
 
 ## CONVENTIONS (PROJECT-SPECIFIC)
 - Add repositories only in `settings.gradle.kts`, never in module Gradle files.
 - Keep Android resources tokenized (`m3t.xml`, `values-night/m3t.xml`) before adding inline style values.
 - For user-visible text, use string resources.
 - For device verification, prefer `<ANDROID_SDK_ROOT>\platform-tools\adb.exe`.
-- Do not delete `docs/*.md` compatibility entries while README/CONTRIBUTING/Aries-site still link to them.
+- Keep all project documentation under `Aries-site/docs/`; do not recreate a second root-level `docs/` tree.
+- Update README, CONTRIBUTING, and docs-center routes whenever documentation paths change.
 
 ## ANTI-PATTERNS
 - Do not edit vendored code under `app/src/main/cpp/thirdparty/` unless explicitly required.
