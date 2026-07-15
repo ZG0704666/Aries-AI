@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -31,7 +31,10 @@ import kotlinx.coroutines.sync.withLock
  *
  * 提供统一的截图获取接口，集成缓存和节流功能 支持虚拟屏模式（后台隔离执行）
  */
-class ScreenshotManager(private val config: AgentConfiguration = AgentConfiguration.DEFAULT) {
+class ScreenshotManager(
+    private val config: AgentConfiguration = AgentConfiguration.DEFAULT,
+    private val screenshotOverlayGuard: ScreenshotOverlayGuard,
+) {
     private val cache =
             ScreenshotCache(
                     maxSize = config.screenshotCacheMaxSize,
@@ -100,7 +103,7 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
 
     /** 获取虚拟屏截图 */
     private suspend fun getVirtualDisplayScreenshot(): PhoneAgentAccessibilityService.ScreenshotData? {
-        return ScreenshotOverlayGuard.withOverlaysHidden(hideDelayMs = 0L) {
+        return screenshotOverlayGuard.withOverlaysHidden(hideDelayMs = 0L) {
             try {
                 val b64 = VirtualDisplayController.screenshotPngBase64NonBlack()
                 if (b64.isNotEmpty()) {
@@ -123,7 +126,7 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
 
     /** 通过 Shizuku 截图（仅在 Shizuku 模式下使用） */
     private suspend fun getShizukuScreenshot(): PhoneAgentAccessibilityService.ScreenshotData? {
-        return ScreenshotOverlayGuard.withOverlaysHidden(config.screenshotOverlayHideDelayMs) {
+        return screenshotOverlayGuard.withOverlaysHidden(config.screenshotOverlayHideDelayMs) {
             if (!ShizukuBridge.isShizukuAvailable()) return@withOverlaysHidden null
 
             val pngBytes = ShizukuBridge.execBytes("screencap -p")
@@ -204,4 +207,3 @@ class ScreenshotManager(private val config: AgentConfiguration = AgentConfigurat
         )
     }
 }
-

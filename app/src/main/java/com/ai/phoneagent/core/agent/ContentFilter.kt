@@ -1,7 +1,6 @@
 package com.ai.phoneagent.core.agent
 
 import android.util.Log
-import com.ai.phoneagent.BuildConfig
 
 /**
  * 内容过滤器
@@ -162,11 +161,9 @@ object ContentFilter {
      */
     fun logFilterAction(originalContent: String, filteredContent: String) {
         if (originalContent != filteredContent) {
-            if (BuildConfig.DEBUG) {
-                Log.d(TAG, "Content filtered:")
-                Log.d(TAG, "Original: $originalContent")
-                Log.d(TAG, "Filtered: $filteredContent")
-            }
+            Log.d(TAG, "Content filtered:")
+            Log.d(TAG, "Original: $originalContent")
+            Log.d(TAG, "Filtered: $filteredContent")
         }
     }
 }

@@ -575,40 +575,5 @@ class AriesApiClient {
                 "version",
             )
 
-        @Volatile private var fallbackInstance: AriesApiClient? = null
-
-        private fun getInstance(): AriesApiClient =
-            runCatching {
-                org.koin.core.context.GlobalContext.get().get<AriesApiClient>()
-            }.getOrNull() ?: (fallbackInstance ?: AriesApiClient().also { fallbackInstance = it })
-
-        suspend fun loginAndGetApiKey(username: String, password: String): LoginAndTokenResult =
-            getInstance().loginAndGetApiKey(username, password)
-
-        suspend fun getOrCreateAriesTokenWithUserAccessToken(
-            userAccessToken: String,
-            userId: Int,
-        ): TokenResult =
-            getInstance().getOrCreateAriesTokenWithUserAccessToken(userAccessToken, userId)
-
-        suspend fun getOrCreateAriesTokenWithAuthenticatedClient(
-            client: OkHttpClient,
-            userId: Int,
-        ): TokenResult =
-            getInstance().getOrCreateAriesTokenWithAuthenticatedClient(client, userId)
-
-        suspend fun getOrCreateAriesTokenWithSessionCookie(
-            cookieHeader: String,
-            userId: Int,
-        ): TokenResult =
-            getInstance().getOrCreateAriesTokenWithSessionCookie(cookieHeader, userId)
-
-        suspend fun fetchModels(apiKey: String): Result<List<ModelInfo>> =
-            getInstance().fetchModels(apiKey)
-
-        // normalizeCookieHeader is internal; delegated here so static call sites
-        // (e.g. AriesApiOAuthActivity) keep working without an explicit instance.
-        internal fun normalizeCookieHeader(cookieHeader: String): String =
-            getInstance().normalizeCookieHeader(cookieHeader)
     }
 }

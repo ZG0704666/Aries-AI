@@ -44,7 +44,9 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * 参考：autoglm_KY FloatingStatusService 工具箱按钮行
  */
-class VirtualScreenPreviewOverlay {
+class VirtualScreenPreviewOverlay(
+    private val virtualDisplayEngine: ShizukuVirtualDisplayEngine,
+) {
 
     @Volatile private var wm: WindowManager? = null
     @Volatile private var containerView: PreviewContainer? = null
@@ -82,7 +84,12 @@ class VirtualScreenPreviewOverlay {
         val w = windowCtx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val dm = appCtx.resources.displayMetrics
 
-        val view = PreviewContainer(windowCtx)
+        val view =
+                PreviewContainer(
+                        context = windowCtx,
+                        onMinimize = { minimize(it) },
+                        onStop = ::hide,
+                )
 
         // 根据虚拟屏实际比例计算预览窗宽高
         val (contentW, contentH) = VirtualDisplayController.getContentSizeBestEffort(appCtx)
@@ -291,7 +298,7 @@ class VirtualScreenPreviewOverlay {
                 Log.i(TAG, "Preview SurfaceTexture buffer size set to: ${contentW}x${contentH}")
             }
             val surface = Surface(surfaceTexture)
-            val result = ShizukuVirtualDisplayEngine.setOutputSurface(surface)
+            val result = virtualDisplayEngine.setOutputSurface(surface)
             if (result.isSuccess) {
                 isBound = true
                 Log.i(TAG, "Preview surface bound successfully")
@@ -309,7 +316,7 @@ class VirtualScreenPreviewOverlay {
 
     private fun unbindPreview() {
         if (isBound) {
-            runCatching { ShizukuVirtualDisplayEngine.restoreOutputSurfaceToImageReader() }
+            runCatching { virtualDisplayEngine.restoreOutputSurfaceToImageReader() }
             isBound = false
         }
     }
@@ -546,7 +553,11 @@ class VirtualScreenPreviewOverlay {
     //  PreviewContainer - 完整预览视图（标题栏 + 画面 + 控制栏）
     // ═══════════════════════════════════════════════════════
 
-    class PreviewContainer(context: Context) : FrameLayout(context) {
+    class PreviewContainer(
+            context: Context,
+            private val onMinimize: (Context) -> Unit,
+            private val onStop: () -> Unit,
+    ) : FrameLayout(context) {
 
         private var currentWm: WindowManager? = null
         private var currentLp: WindowManager.LayoutParams? = null
@@ -660,7 +671,7 @@ class VirtualScreenPreviewOverlay {
                                 LayoutParams(dp(28), LayoutParams.MATCH_PARENT).apply {
                                     gravity = Gravity.CENTER_VERTICAL or Gravity.END
                                 }
-                        setOnClickListener { minimizeOverlay(context) }
+                        setOnClickListener { onMinimize(context) }
                     }
             )
             addView(header)
@@ -824,7 +835,7 @@ class VirtualScreenPreviewOverlay {
                     makeCtrlBtn("⏹ 停止") {
                         val ctx = context.applicationContext
                         VirtualDisplayController.cleanupAsync(ctx)
-                        hide()
+                        onStop()
                         val intent =
                                 Intent(ACTION_STOP_AUTOMATION).apply { setPackage(ctx.packageName) }
                         runCatching { ctx.sendBroadcast(intent) }
@@ -919,23 +930,5 @@ class VirtualScreenPreviewOverlay {
         private const val CONTROL_BAR_HEIGHT_DP = 40
         private const val MINI_SIZE_DP = 48
 
-        @Volatile private var fallbackInstance: VirtualScreenPreviewOverlay? = null
-
-        private fun getInstance(): VirtualScreenPreviewOverlay =
-            runCatching {
-                org.koin.core.context.GlobalContext.get().get<VirtualScreenPreviewOverlay>()
-            }.getOrNull() ?: (fallbackInstance ?: VirtualScreenPreviewOverlay().also { fallbackInstance = it })
-
-        fun show(context: Context) = getInstance().show(context)
-        fun hide() = getInstance().hide()
-        fun isShowing(): Boolean = getInstance().isShowing()
-        fun temporaryHideForScreenshot() = getInstance().temporaryHideForScreenshot()
-        fun restoreVisibilityAfterScreenshot() = getInstance().restoreVisibilityAfterScreenshot()
-        fun updateStatus(text: String) = getInstance().updateStatus(text)
-        fun setPausedState(paused: Boolean) = getInstance().setPausedState(paused)
-        fun updateBackgroundProgress(text: String, progress: Int = -1) =
-            getInstance().updateBackgroundProgress(text, progress)
-
-        internal fun minimizeOverlay(context: Context) = getInstance().minimize(context)
     }
 }

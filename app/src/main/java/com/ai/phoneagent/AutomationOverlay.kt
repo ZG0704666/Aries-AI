@@ -34,7 +34,9 @@ import com.ai.phoneagent.core.utils.DisplayUtils
 import com.ai.phoneagent.system.startActivityWithMaterialForwardTransition
 import com.ai.phoneagent.viewmodel.AutomationViewModel
 
-class AutomationOverlay {
+class AutomationOverlay(
+    private val liveNotification: AutomationLiveNotification,
+) {
 
     private var wm: WindowManager? = null
     private var container: OverlayContainer? = null
@@ -236,7 +238,7 @@ class AutomationOverlay {
      * 只在第一次解析出有效预估值时设置，后续不再更新
      */
     fun updateEstimatedSteps(estimated: Int) {
-        AutomationLiveNotification.updateEstimatedSteps(estimated)
+        liveNotification.updateEstimatedSteps(estimated)
         if (estimated > 0 && !hasEstimatedSteps) {
             this.estimatedTotalSteps = estimated
             this.hasEstimatedSteps = true
@@ -250,7 +252,7 @@ class AutomationOverlay {
     fun startThinking() {
         isShowingThinking = true
         thinkingText = ""
-        AutomationLiveNotification.updateState(
+        liveNotification.updateState(
             title = "思考中",
             subtitle = "模型推理中",
             detail = "准备生成下一步动作",
@@ -269,7 +271,7 @@ class AutomationOverlay {
         if (!isShowingThinking) return
         thinkingText += delta
         val displayText = extractRealtimeThinking(thinkingText)
-        AutomationLiveNotification.updateState(
+        liveNotification.updateState(
             title = "思考中",
             subtitle = "模型推理中",
             detail = displayText,
@@ -399,7 +401,7 @@ class AutomationOverlay {
     }
 
     fun updateProgress(step: Int, phaseInStep: Float, maxSteps: Int? = null, subtitle: String? = null) {
-        AutomationLiveNotification.updateProgress(step, phaseInStep, maxSteps, subtitle)
+        liveNotification.updateProgress(step, phaseInStep, maxSteps, subtitle)
         runOnMain {
             val v = container ?: return@runOnMain
             if (maxSteps != null && !hasEstimatedSteps) {
@@ -420,7 +422,7 @@ class AutomationOverlay {
     fun updateFromLogLine(line: String) {
         val trimmed = simplifyLine(line).trim()
         if (trimmed.isBlank()) return
-        AutomationLiveNotification.updateFromLogLine(line)
+        liveNotification.updateFromLogLine(line)
         runOnMain {
             val v = container ?: return@runOnMain
             v.setDetailText(trimmed.take(34))
@@ -428,7 +430,7 @@ class AutomationOverlay {
     }
 
     fun complete(message: String) {
-        AutomationLiveNotification.complete(message)
+        liveNotification.complete(message)
         runOnMain {
             val v = container ?: return@runOnMain
             v.setProgress(1f)
@@ -445,7 +447,7 @@ class AutomationOverlay {
     }
 
     fun hide() {
-        AutomationLiveNotification.hide()
+        liveNotification.hide()
         val w = wm
         val v = container
         container = null
@@ -1009,62 +1011,4 @@ class AutomationOverlay {
         }
     }
 
-    companion object {
-        @Volatile private var fallbackInstance: AutomationOverlay? = null
-
-        private fun getInstance(): AutomationOverlay =
-            runCatching {
-                org.koin.core.context.GlobalContext.get().get<AutomationOverlay>()
-            }.getOrNull() ?: (fallbackInstance ?: AutomationOverlay().also { fallbackInstance = it })
-
-        fun canDrawOverlays(context: Context): Boolean =
-            getInstance().canDrawOverlays(context)
-
-        fun openOverlayPermissionSettings(context: Context) =
-            getInstance().openOverlayPermissionSettings(context)
-
-        fun show(
-            context: Context,
-            title: String,
-            subtitle: String,
-            maxSteps: Int,
-            activity: Activity? = null,
-            navigateMainOnClick: Boolean = false,
-        ): Boolean =
-            getInstance().show(context, title, subtitle, maxSteps, activity, navigateMainOnClick)
-
-        fun isShowing(): Boolean = getInstance().isShowing()
-
-        fun setOverlayVisible(visible: Boolean) = getInstance().setOverlayVisible(visible)
-
-        fun setInputVerifyHighlight(active: Boolean) = getInstance().setInputVerifyHighlight(active)
-
-        fun temporaryHide() = getInstance().temporaryHide()
-
-        fun restoreVisibility() = getInstance().restoreVisibility()
-
-        fun updateEstimatedSteps(estimated: Int) = getInstance().updateEstimatedSteps(estimated)
-
-        fun startThinking() = getInstance().startThinking()
-
-        fun updateThinking(delta: String) = getInstance().updateThinking(delta)
-
-        fun stopThinking() = getInstance().stopThinking()
-
-        fun updateStep(step: Int, maxSteps: Int? = null, subtitle: String? = null) =
-            getInstance().updateStep(step, maxSteps, subtitle)
-
-        fun updateProgress(
-            step: Int,
-            phaseInStep: Float,
-            maxSteps: Int? = null,
-            subtitle: String? = null,
-        ) = getInstance().updateProgress(step, phaseInStep, maxSteps, subtitle)
-
-        fun updateFromLogLine(line: String) = getInstance().updateFromLogLine(line)
-
-        fun complete(message: String) = getInstance().complete(message)
-
-        fun hide() = getInstance().hide()
-    }
 }

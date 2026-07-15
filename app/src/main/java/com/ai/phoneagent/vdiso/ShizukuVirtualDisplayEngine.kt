@@ -694,25 +694,4 @@ class ShizukuVirtualDisplayEngine {
         }
     }
 
-    companion object {
-        @Volatile private var fallbackInstance: ShizukuVirtualDisplayEngine? = null
-
-        private fun getInstance(): ShizukuVirtualDisplayEngine =
-            runCatching {
-                org.koin.core.context.GlobalContext.get().get<ShizukuVirtualDisplayEngine>()
-            }.getOrNull() ?: (fallbackInstance ?: ShizukuVirtualDisplayEngine().also { fallbackInstance = it })
-
-        fun ensureStarted(args: Args = Args()): Result<Int> = getInstance().ensureStarted(args)
-        fun start(args: Args = Args()): Result<Int> = getInstance().start(args)
-        fun getDisplayId(): Int? = getInstance().getDisplayId()
-        fun isStarted(): Boolean = getInstance().isStarted()
-        fun getLatestFrameTimeMs(): Long = getInstance().getLatestFrameTimeMs()
-        fun getLatestContentSize(): Pair<Int, Int> = getInstance().getLatestContentSize()
-        fun captureLatestBitmap(): Result<Bitmap> = getInstance().captureLatestBitmap()
-        fun stop() = getInstance().stop()
-        fun setOutputSurface(surface: Surface): Result<Unit> = getInstance().setOutputSurface(surface)
-        fun restoreOutputSurfaceToImageReader(): Result<Unit> = getInstance().restoreOutputSurfaceToImageReader()
-        fun ensureFocusedDisplay(targetDisplayId: Int): Result<Unit> = getInstance().ensureFocusedDisplay(targetDisplayId)
-        fun restoreFocusToDefaultDisplay(): Result<Unit> = getInstance().restoreFocusToDefaultDisplay()
-    }
 }

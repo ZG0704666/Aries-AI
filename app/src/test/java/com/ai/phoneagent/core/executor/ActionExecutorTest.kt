@@ -17,14 +17,12 @@
 package com.ai.phoneagent.core.executor
 
 import android.content.Context
+import com.ai.phoneagent.AutomationOverlay
 import com.ai.phoneagent.core.agent.ParsedAgentAction
 import com.ai.phoneagent.core.config.AgentConfiguration
 import com.ai.phoneagent.core.tools.AppPackageManager
-import io.mockk.Runs
 import io.mockk.every
-import io.mockk.just
 import io.mockk.mockk
-import io.mockk.unmockkObject
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertFalse
@@ -41,6 +39,8 @@ import org.junit.Test
 class ActionExecutorTest {
 
     private lateinit var mockContext: Context
+    private lateinit var automationOverlay: AutomationOverlay
+    private lateinit var appPackageManager: AppPackageManager
     private lateinit var executor: ActionExecutor
     private val logs = mutableListOf<String>()
 
@@ -48,29 +48,21 @@ class ActionExecutorTest {
     fun setup() {
         mockContext = mockk(relaxed = true)
         every { mockContext.applicationContext } returns mockContext
-        executor = ActionExecutor(mockContext, AgentConfiguration.DEFAULT)
+        automationOverlay = mockk(relaxed = true)
+        appPackageManager = mockk(relaxed = true)
+        executor =
+            ActionExecutor(
+                mockContext,
+                AgentConfiguration.DEFAULT,
+                automationOverlay,
+                appPackageManager,
+            )
         logs.clear()
     }
 
     @After
     fun tearDown() {
-        resetAppPackageManagerFallback()
-    }
-
-    private fun resetAppPackageManagerFallback() {
-        runCatching {
-            val field = AppPackageManager.Companion::class.java.getDeclaredField("fallbackInstance")
-            field.isAccessible = true
-            field.set(AppPackageManager.Companion, null)
-        }
-    }
-
-    private fun setAppPackageManagerMock(mock: AppPackageManager) {
-        runCatching {
-            val field = AppPackageManager.Companion::class.java.getDeclaredField("fallbackInstance")
-            field.isAccessible = true
-            field.set(AppPackageManager.Companion, mock)
-        }
+        logs.clear()
     }
 
     private fun onLog(msg: String) {
@@ -91,13 +83,9 @@ class ActionExecutorTest {
 
     @Test
     fun `execute_Launch动作_调用启动逻辑`() = runBlocking {
-        val mockManager = mockk<AppPackageManager>(relaxed = true)
-        setAppPackageManagerMock(mockManager)
-        
-        every { mockManager.initializeCache(any()) } just Runs
-        every { mockManager.resolvePackageName(any()) } returns null
-        every { mockManager.resolvePackageByLabel(any(), any()) } returns null
-        every { mockManager.getAllInstalledApps() } returns emptyList()
+        every { appPackageManager.resolvePackageName(any()) } returns null
+        every { appPackageManager.resolvePackageByLabel(any(), any()) } returns null
+        every { appPackageManager.getAllInstalledApps() } returns emptyList()
 
         // 使用不含 '.' 的目标名，使 candidates 为空 → finalCandidates 为空 →
         // buildLaunchIntent 循环被跳过。这样避免 mockable android jar 下

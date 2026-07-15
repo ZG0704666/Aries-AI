@@ -2,7 +2,6 @@ package com.ai.phoneagent.ui.components.markdown
 
 import android.content.Context
 import android.util.Log
-import com.ai.phoneagent.BuildConfig
 import com.dokar.quickjs.QuickJs
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -36,9 +35,9 @@ sealed class HighlightToken {
 //  Download from:   https://prismjs.com/download.html  (select all languages)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class Highlighter {
+object Highlighter {
 
-    private val TAG = "Highlighter"
+    private const val TAG = "Highlighter"
 
     // IO scope for initialization; Mutex serialises all evaluate() calls.
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -63,7 +62,7 @@ class Highlighter {
                 qjs.evaluate<Any?>(js)
                 quickJs = qjs
                 initDeferred.complete(true)
-                if (BuildConfig.DEBUG) Log.d(TAG, "Prism.js loaded successfully")
+                Log.d(TAG, "Prism.js loaded successfully")
             } catch (e: Exception) {
                 Log.w(TAG, "Prism.js unavailable – falling back to plain text: ${e.message}")
                 initDeferred.complete(false)
@@ -148,17 +147,5 @@ class Highlighter {
         is JSONArray  -> buildString { for (i in 0 until content.length()) append(flattenContent(content.get(i))) }
         is JSONObject -> flattenContent(content.opt("content") ?: "")
         else          -> content.toString()
-    }
-
-    companion object {
-        private fun getInstance(): Highlighter =
-            runCatching {
-                org.koin.core.context.GlobalContext.get().get<Highlighter>()
-            }.getOrNull() ?: Highlighter()
-
-        fun init(context: Context) = getInstance().init(context)
-
-        suspend fun highlight(code: String, language: String): List<HighlightToken> =
-            getInstance().highlight(code, language)
     }
 }

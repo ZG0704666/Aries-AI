@@ -17,6 +17,9 @@ import java.util.concurrent.TimeUnit
  * 覆盖：基本读写、LRU 淘汰、TTL 过期、删除/清空、size、并发安全、accessOrder 顺序更新。
  */
 class ThreadSafeLruCacheTest {
+    private class TestClock(var now: Long = 0L) : MillisClock {
+        override fun nowMillis(): Long = now
+    }
 
     @Test
     fun `put_get_基本读写`() {
@@ -46,10 +49,16 @@ class ThreadSafeLruCacheTest {
 
     @Test
     fun `TTL过期_返回null`() {
-        val cache = ThreadSafeLruCache<String, String>(maxSize = 8, ttlMillis = 100L)
+        val clock = TestClock()
+        val cache =
+            ThreadSafeLruCache<String, String>(
+                maxSize = 8,
+                ttlMillis = 100L,
+                clock = clock,
+            )
 
         cache.put("k", "v")
-        Thread.sleep(150L)
+        clock.now = 100L
 
         assertNull("过期条目应返回 null", cache.get("k"))
     }
@@ -182,12 +191,18 @@ class ThreadSafeLruCacheTest {
 
     @Test
     fun `TTL过期_get后自动删除条目`() {
-        val cache = ThreadSafeLruCache<String, String>(maxSize = 8, ttlMillis = 100L)
+        val clock = TestClock()
+        val cache =
+            ThreadSafeLruCache<String, String>(
+                maxSize = 8,
+                ttlMillis = 100L,
+                clock = clock,
+            )
 
         cache.put("k", "v")
         assertEquals(1, cache.size())
 
-        Thread.sleep(150L)
+        clock.now = 100L
         // 第一次 get 触发过期删除
         assertNull(cache.get("k"))
         // size 反映删除后的状态
@@ -196,13 +211,42 @@ class ThreadSafeLruCacheTest {
 
     @Test
     fun `同一键重复put_更新值与时间戳`() {
-        val cache = ThreadSafeLruCache<String, String>(maxSize = 8, ttlMillis = 5000L)
+        val clock = TestClock()
+        val cache =
+            ThreadSafeLruCache<String, String>(
+                maxSize = 8,
+                ttlMillis = 100L,
+                clock = clock,
+            )
 
         cache.put("k", "v1")
+        clock.now = 90L
         cache.put("k", "v2")
+        clock.now = 150L
 
         assertEquals("v2", cache.get("k"))
         assertEquals(1, cache.size())
+    }
+
+    @Test
+    fun `size和snapshot清理过期条目`() {
+        val clock = TestClock()
+        val cache =
+            ThreadSafeLruCache<String, String>(
+                maxSize = 8,
+                ttlMillis = 100L,
+                clock = clock,
+            )
+
+        cache.put("expired", "old")
+        clock.now = 50L
+        cache.put("fresh", "new")
+        clock.now = 100L
+
+        assertEquals(1, cache.size())
+        assertEquals(listOf("fresh" to "new"), cache.snapshot())
+        assertNull(cache.get("expired"))
+        assertEquals("new", cache.get("fresh"))
     }
 
     @Test

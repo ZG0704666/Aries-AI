@@ -373,11 +373,13 @@ class ExtendedAppMapping {
         "懒人听书" to "com.tadu",
         "听书" to "com.tadu",
         "得到" to "com.luojilab.player",
+        "得到" to "com.luojilab.player",
         "樊登读书" to "com.dushu",
         "十点读书" to "com.reading",
         "混沌学园" to "com.hundun.university",
         
         // 新闻资讯
+        "今日头条" to "com.ss.android.article.news",
         "今日头条" to "com.ss.android.article.news",
         "腾讯新闻" to "com.tencent.news",
         "tencentnews" to "com.tencent.news",
@@ -491,7 +493,7 @@ class ExtendedAppMapping {
         
         // 安全工具
         "360安全卫士" to "com.qihoo.security",
-        "腾讯手机管家" to "com.tencent.qqpimsecure",
+        "腾讯手机管家" to "com.tencent.server.民",
         "猎豹清理大师" to "com.cleanmaster.mguard",
         "手机管家" to "com.samsung.android.app.guard",
         "应用锁" to "com.Applock",
@@ -674,9 +676,15 @@ class ExtendedAppMapping {
         "androidsettings" to "com.android.settings",
         "AndroidSystemSettings" to "com.android.settings",
         
-        // 国际应用变体（与 ENTERTAINMENT/SHOPPING 重复的 YouTube/Netflix/Amazon 已删除）
+        // 国际应用变体
+        "YouTube" to "com.google.android.youtube",
+        "youtube" to "com.google.android.youtube",
+        "Netflix" to "com.netflix.mediaclient",
+        "netflix" to "com.netflix.mediaclient",
         "Spotify" to "com.spotify.music",
         "spotify" to "com.spotify.music",
+        "Amazon" to "com.amazon.mshop.android.shopping",
+        "amazon" to "com.amazon.mshop.android.shopping",
         "eBay" to "com.ebay.mobile",
         "ebay" to "com.ebay.mobile",
         "PayPal" to "com.paypal.android.p2pmobile",
@@ -689,6 +697,8 @@ class ExtendedAppMapping {
         "skype" to "com.skype.raider",
         "Snapchat" to "com.snapchat.android",
         "snapchat" to "com.snapchat.android",
+        "Pinterest" to "com.pinterest",
+        "pinterest" to "com.pinterest",
         "LinkedIn" to "com.linkedin.android",
         "linkedin" to "com.linkedin.android",
         
@@ -757,15 +767,19 @@ class ExtendedAppMapping {
         "VLC" to "org.videolan.vlc",
         "vlc" to "org.videolan.vlc",
         "Whatsapp" to "com.whatsapp",
-        "whatsapp" to "com.whatsapp"
+        "whatsapp" to "com.whatsapp",
+        "Discord" to "com.discord",
+        "discord" to "com.discord",
+        "Pinterest" to "com.pinterest",
+        "pinterest" to "com.pinterest"
     )
 
     /**
      * 获取所有应用映射
      */
     fun getAllMappings(): Map<String, String> {
-        return (SOCIAL_COMMUNICATION + SHOPPING + TRANSPORTATION +
-                FINANCE + ENTERTAINMENT + READING +
+        return (SOCIAL_COMMUNICATION + SHOPPING + TRANSPORTATION + 
+                FINANCE + ENTERTAINMENT + READING + 
                 PRODUCTIVITY + SYSTEM + GAMES + AI_TOOLS + CLASSIC_MAPPING)
             .mapKeys { it.key.lowercase() }
     }
@@ -788,14 +802,5 @@ class ExtendedAppMapping {
             "classic", "legacy" -> CLASSIC_MAPPING
             else -> emptyMap()
         }
-    }
-
-    companion object {
-        private fun getInstance(): ExtendedAppMapping =
-            runCatching {
-                org.koin.core.context.GlobalContext.get().get<ExtendedAppMapping>()
-            }.getOrNull() ?: ExtendedAppMapping()
-
-        fun getAllMappings(): Map<String, String> = getInstance().getAllMappings()
     }
 }

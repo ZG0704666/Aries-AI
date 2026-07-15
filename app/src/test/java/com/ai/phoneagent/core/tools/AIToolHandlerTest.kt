@@ -6,8 +6,6 @@
  *
  * 测试目标：覆盖 AIToolHandler 的工具注册、查找、执行与危险操作检查。
  *
- * 注意：AIToolHandler 是 private 构造的单例（getInstance 模式）。
- * 测试通过反射重置 INSTANCE，再用 getInstance(mockContext) 获取新实例。
  * 任务原始描述中的 handleToolCall/getRegisteredTools/getToolSchema 在实际
  * 代码中对应为 executeTool/getAllToolNames/getOperationDescription，已按实际 API 测试。
  */
@@ -39,25 +37,9 @@ class AIToolHandlerTest {
 
     @Before
     fun setup() {
-        resetAIToolHandlerSingleton()
         mockContext = mockk(relaxed = true)
         every { mockContext.applicationContext } returns mockContext
-        handler = AIToolHandler.getInstance(mockContext)
-    }
-
-    // ─── 单例重置 ───────────────────────────────────────────────────────
-
-    /**
-     * 通过反射重置 AIToolHandler 的单例 INSTANCE，保证测试间隔离。
-     *
-     * 注意：Kotlin 将 companion object 中的 private var 编译为外层类的 private static
-     * 字段（位于 AIToolHandler 类上，而非 AIToolHandler$Companion 类上），因此用
-     * AIToolHandler::class.java.getDeclaredField("INSTANCE") + field.set(null, null)。
-     */
-    private fun resetAIToolHandlerSingleton() {
-        val field = AIToolHandler::class.java.getDeclaredField("INSTANCE")
-        field.isAccessible = true
-        field.set(null, null)
+        handler = AIToolHandler(mockContext)
     }
 
     // ─── 辅助：构造 ToolExecutor ────────────────────────────────────────

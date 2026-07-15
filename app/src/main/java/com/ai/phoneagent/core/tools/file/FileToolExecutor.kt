@@ -28,8 +28,13 @@ import com.ai.phoneagent.data.model.ToolResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.BasicFileAttributes
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -121,44 +126,40 @@ class FileToolExecutor(private val appContext: Context) {
     suspend fun delete(tool: AITool): ToolResult = withContext(Dispatchers.IO) {
         val path = tool.parameters.find { it.name == "path" }?.value
             ?: return@withContext error("delete", "缺少 path 参数")
+        val file = resolvePath("delete", path) ?: return@withContext pathError("delete", path)
+        val target = file.toPath()
 
         try {
-            val file = File(path)
-            if (!file.exists()) {
-                return@withContext error("delete", "文件不存在: $path")
+            if (!Files.exists(target)) {
+                return@withContext error("delete", "文件不存在: ${file.absolutePath}")
             }
 
-            val deleted = if (file.isDirectory) {
-                file.deleteRecursively()
+            if (Files.isDirectory(target)) {
+                deleteTreeWithoutFollowingLinks(target)
             } else {
-                file.delete()
+                Files.delete(target)
             }
 
-            if (deleted) {
-                success("delete", "删除成功: $path")
-            } else {
-                error("delete", "删除失败: $path")
-            }
+            success("delete", "删除成功: ${file.absolutePath}")
         } catch (e: Exception) {
             error("delete", "删除失败: ${e.message}")
         }
     }
-
     /**
      * 列出目录内容
      */
     suspend fun listDir(tool: AITool): ToolResult = withContext(Dispatchers.IO) {
         val path = tool.parameters.find { it.name == "path" }?.value
             ?: return@withContext error("list_dir", "缺少 path 参数")
+        val dir = resolvePath("list_dir", path) ?: return@withContext pathError("list_dir", path)
 
         try {
-            val dir = File(path)
             if (!dir.exists()) {
-                return@withContext error("list_dir", "目录不存在: $path")
+                return@withContext error("list_dir", "目录不存在: ${dir.absolutePath}")
             }
 
             if (!dir.isDirectory) {
-                return@withContext error("list_dir", "路径不是目录: $path")
+                return@withContext error("list_dir", "路径不是目录: ${dir.absolutePath}")
             }
 
             val files = dir.listFiles()?.map {
@@ -168,9 +169,9 @@ class FileToolExecutor(private val appContext: Context) {
             }?.joinToString("\n") ?: ""
 
             val resultMessage = if (files.isNotEmpty()) {
-                "目录内容 ($path):\n$files"
+                "目录内容 (${dir.absolutePath}):\n$files"
             } else {
-                "目录为空: $path"
+                "目录为空: ${dir.absolutePath}"
             }
 
             success("list_dir", resultMessage)
@@ -185,18 +186,18 @@ class FileToolExecutor(private val appContext: Context) {
     suspend fun createDir(tool: AITool): ToolResult = withContext(Dispatchers.IO) {
         val path = tool.parameters.find { it.name == "path" }?.value
             ?: return@withContext error("create_dir", "缺少 path 参数")
+        val dir = resolvePath("create_dir", path) ?: return@withContext pathError("create_dir", path)
 
         try {
-            val dir = File(path)
             val created = dir.mkdirs()
 
             if (created) {
-                success("create_dir", "创建目录成功: $path")
+                success("create_dir", "创建目录成功: ${dir.absolutePath}")
             } else {
                 if (dir.exists()) {
-                    success("create_dir", "目录已存在: $path")
+                    success("create_dir", "目录已存在: ${dir.absolutePath}")
                 } else {
-                    error("create_dir", "创建目录失败: $path")
+                    error("create_dir", "创建目录失败: ${dir.absolutePath}")
                 }
             }
         } catch (e: Exception) {
@@ -210,9 +211,9 @@ class FileToolExecutor(private val appContext: Context) {
     suspend fun exists(tool: AITool): ToolResult = withContext(Dispatchers.IO) {
         val path = tool.parameters.find { it.name == "path" }?.value
             ?: return@withContext error("exists", "缺少 path 参数")
+        val file = resolvePath("exists", path) ?: return@withContext pathError("exists", path)
 
         try {
-            val file = File(path)
             val exists = file.exists()
             val type = when {
                 !exists -> "不存在"
@@ -220,7 +221,7 @@ class FileToolExecutor(private val appContext: Context) {
                 else -> "文件"
             }
 
-            success("exists", "$path ($type)")
+            success("exists", "${file.absolutePath} ($type)")
         } catch (e: Exception) {
             error("exists", "检查失败: ${e.message}")
         }
@@ -282,22 +283,21 @@ class FileToolExecutor(private val appContext: Context) {
 
         val dest = tool.parameters.find { it.name == "destination" }?.value
             ?: return@withContext error("move", "缺少 destination 参数")
+        val srcFile = resolvePath("move", source, "源") ?: return@withContext pathError("move", source, "源")
+        val destFile = resolvePath("move", dest, "目标") ?: return@withContext pathError("move", dest, "目标")
 
         try {
-            val srcFile = File(source)
-            val destFile = File(dest)
-
             if (!srcFile.exists()) {
-                return@withContext error("move", "源文件不存在: $source")
+                return@withContext error("move", "源文件不存在: ${srcFile.absolutePath}")
             }
 
             destFile.parentFile?.mkdirs()
             val moved = srcFile.renameTo(destFile)
 
             if (moved) {
-                success("move", "移动成功: $source -> $dest")
+                success("move", "移动成功: ${srcFile.absolutePath} -> ${destFile.absolutePath}")
             } else {
-                error("move", "移动失败: $source -> $dest")
+                error("move", "移动失败: ${srcFile.absolutePath} -> ${destFile.absolutePath}")
             }
         } catch (e: Exception) {
             error("move", "移动失败: ${e.message}")
@@ -310,11 +310,11 @@ class FileToolExecutor(private val appContext: Context) {
     suspend fun fileInfo(tool: AITool): ToolResult = withContext(Dispatchers.IO) {
         val path = tool.parameters.find { it.name == "path" }?.value
             ?: return@withContext error("file_info", "缺少 path 参数")
+        val file = resolvePath("file_info", path) ?: return@withContext pathError("file_info", path)
 
         try {
-            val file = File(path)
             if (!file.exists()) {
-                return@withContext error("file_info", "文件不存在: $path")
+                return@withContext error("file_info", "文件不存在: ${file.absolutePath}")
             }
 
             val info = buildString {
@@ -361,40 +361,136 @@ class FileToolExecutor(private val appContext: Context) {
             return@withContext error("compress", "非法目标路径: ${e.message}")
         }
 
+        val sourcePath = safeSource.toPath()
+        val destinationPath = safeDest.toPath()
+        var tempPath: Path? = null
+
         try {
-            val sourceFile = safeSource
-            if (!sourceFile.exists()) {
-                return@withContext error("compress", "源文件不存在: ${sourceFile.absolutePath}")
+            if (!Files.exists(sourcePath)) {
+                return@withContext error("compress", "源文件不存在: ${safeSource.absolutePath}")
+            }
+            if (Files.isDirectory(sourcePath) && destinationPath.startsWith(sourcePath)) {
+                return@withContext error("compress", "目标压缩文件不能位于源目录内部")
             }
 
-            val destFile = safeDest
-            destFile.parentFile?.mkdirs()
+            val destinationParent = destinationPath.parent
+                ?: return@withContext error("compress", "目标路径缺少父目录")
+            Files.createDirectories(destinationParent)
+            val outputPath = Files.createTempFile(destinationParent, "compress-", ".tmp")
+            tempPath = outputPath
 
-            ZipOutputStream(FileOutputStream(destFile)).use { zos ->
-                if (sourceFile.isDirectory) {
-                    sourceFile.walkTopDown().forEach { file ->
-                        val zipEntry = ZipEntry(file.relativeTo(sourceFile).path)
-                        zos.putNextEntry(zipEntry)
-                        if (file.isFile) {
-                            file.inputStream().use { it.copyTo(zos) }
-                        }
-                        zos.closeEntry()
-                    }
+            ZipOutputStream(Files.newOutputStream(outputPath)).use { zos ->
+                if (Files.isDirectory(sourcePath)) {
+                    addDirectoryToZip(sourcePath, zos)
                 } else {
-                    val zipEntry = ZipEntry(sourceFile.name)
-                    zos.putNextEntry(zipEntry)
-                    sourceFile.inputStream().use { it.copyTo(zos) }
-                    zos.closeEntry()
+                    rejectSymbolicLink(sourcePath)
+                    addFileToZip(sourcePath, safeSource.name, zos)
                 }
             }
 
-            success("compress", "压缩成功: ${sourceFile.absolutePath} -> ${destFile.absolutePath}")
+            replaceAtomically(outputPath, destinationPath)
+            tempPath = null
+            success("compress", "压缩成功: ${safeSource.absolutePath} -> ${safeDest.absolutePath}")
         } catch (e: Exception) {
             error("compress", "压缩失败: ${e.message}")
+        } finally {
+            tempPath?.let { Files.deleteIfExists(it) }
+        }
+    }
+
+    private fun deleteTreeWithoutFollowingLinks(root: Path) {
+        Files.walkFileTree(
+            root,
+            object : SimpleFileVisitor<Path>() {
+                override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+                    Files.delete(file)
+                    return FileVisitResult.CONTINUE
+                }
+
+                override fun postVisitDirectory(dir: Path, error: java.io.IOException?): FileVisitResult {
+                    error?.let { throw it }
+                    Files.delete(dir)
+                    return FileVisitResult.CONTINUE
+                }
+            },
+        )
+    }
+
+    private fun addDirectoryToZip(sourceRoot: Path, zos: ZipOutputStream) {
+        Files.walkFileTree(
+            sourceRoot,
+            object : SimpleFileVisitor<Path>() {
+                override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
+                    rejectSymbolicLink(dir)
+                    if (dir != sourceRoot) {
+                        val entryName = zipEntryName(sourceRoot.relativize(dir)) + "/"
+                        zos.putNextEntry(ZipEntry(entryName))
+                        zos.closeEntry()
+                    }
+                    return FileVisitResult.CONTINUE
+                }
+
+                override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+                    rejectSymbolicLink(file)
+                    addFileToZip(file, zipEntryName(sourceRoot.relativize(file)), zos)
+                    return FileVisitResult.CONTINUE
+                }
+            },
+        )
+    }
+
+    private fun addFileToZip(file: Path, entryName: String, zos: ZipOutputStream) {
+        zos.putNextEntry(ZipEntry(entryName))
+        Files.newInputStream(file).use { input -> input.copyTo(zos) }
+        zos.closeEntry()
+    }
+
+    private fun rejectSymbolicLink(path: Path) {
+        if (Files.isSymbolicLink(path)) {
+            throw SecurityException("压缩源包含符号链接: $path")
+        }
+    }
+
+    private fun zipEntryName(path: Path): String =
+        path.joinToString("/") { segment -> segment.toString() }
+
+    private fun replaceAtomically(source: Path, destination: Path) {
+        try {
+            Files.move(
+                source,
+                destination,
+                StandardCopyOption.ATOMIC_MOVE,
+                StandardCopyOption.REPLACE_EXISTING,
+            )
+        } catch (_: AtomicMoveNotSupportedException) {
+            Files.move(source, destination, StandardCopyOption.REPLACE_EXISTING)
         }
     }
 
     // ============ 辅助函数 ============
+
+    private fun resolvePath(toolName: String, path: String, role: String = ""): File? {
+        return try {
+            PathGuard.canonicalizeWithin(appContext, path)
+        } catch (e: SecurityException) {
+            logPathFailure(toolName, role, path, e)
+            null
+        } catch (e: IllegalArgumentException) {
+            logPathFailure(toolName, role, path, e)
+            null
+        }
+    }
+
+    private fun pathError(toolName: String, path: String, role: String = ""): ToolResult {
+        val prefix = if (role.isBlank()) "" else "$role"
+        return error(toolName, "${prefix}路径越界或非法，被拒绝: $path")
+    }
+
+    private fun logPathFailure(toolName: String, role: String, path: String, error: Exception) {
+        if (BuildConfig.DEBUG) {
+            Log.w(TAG, "$toolName ${role}路径被拒绝: $path", error)
+        }
+    }
 
     private fun success(toolName: String, message: String): ToolResult {
         return ToolResult(
@@ -414,37 +510,12 @@ class FileToolExecutor(private val appContext: Context) {
         )
     }
 
-    companion object {
-        @Volatile private var fallbackInstance: FileToolExecutor? = null
-
-        fun init(context: Context) {
-            fallbackInstance = FileToolExecutor(context.applicationContext)
-        }
-
-        private fun getInstance(): FileToolExecutor =
-            runCatching {
-                org.koin.core.context.GlobalContext.get().get<FileToolExecutor>()
-            }.getOrNull() ?: (fallbackInstance ?: throw IllegalStateException("FileToolExecutor 未初始化"))
-
-        suspend fun readFile(tool: AITool): ToolResult = getInstance().readFile(tool)
-        suspend fun writeFile(tool: AITool): ToolResult = getInstance().writeFile(tool)
-        suspend fun delete(tool: AITool): ToolResult = getInstance().delete(tool)
-        suspend fun listDir(tool: AITool): ToolResult = getInstance().listDir(tool)
-        suspend fun createDir(tool: AITool): ToolResult = getInstance().createDir(tool)
-        suspend fun exists(tool: AITool): ToolResult = getInstance().exists(tool)
-        suspend fun copy(tool: AITool): ToolResult = getInstance().copy(tool)
-        suspend fun move(tool: AITool): ToolResult = getInstance().move(tool)
-        suspend fun fileInfo(tool: AITool): ToolResult = getInstance().fileInfo(tool)
-        suspend fun compress(tool: AITool): ToolResult = getInstance().compress(tool)
-    }
 }
 
 /**
  * 注册文件系统工具到 AIToolHandler
  */
-fun registerFileTools(handler: AIToolHandler, context: Context) {
-    FileToolExecutor.init(context)
-
+fun registerFileTools(handler: AIToolHandler, executor: FileToolExecutor) {
     // Read File
     handler.registerTool(
         name = "read_file",
@@ -454,7 +525,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
             "读取文件: $path"
         },
         executor = { tool ->
-            FileToolExecutor.readFile(tool)
+            executor.readFile(tool)
         }
     )
 
@@ -467,7 +538,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
             "写入文件: $path"
         },
         executor = { tool ->
-            FileToolExecutor.writeFile(tool)
+            executor.writeFile(tool)
         }
     )
 
@@ -480,7 +551,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
             "删除: $path"
         },
         executor = { tool ->
-            FileToolExecutor.delete(tool)
+            executor.delete(tool)
         }
     )
 
@@ -493,7 +564,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
             "列出目录: $path"
         },
         executor = { tool ->
-            FileToolExecutor.listDir(tool)
+            executor.listDir(tool)
         }
     )
 
@@ -506,7 +577,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
             "创建目录: $path"
         },
         executor = { tool ->
-            FileToolExecutor.createDir(tool)
+            executor.createDir(tool)
         }
     )
 
@@ -519,7 +590,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
             "检查存在: $path"
         },
         executor = { tool ->
-            FileToolExecutor.exists(tool)
+            executor.exists(tool)
         }
     )
 
@@ -532,7 +603,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
             "复制文件: $source"
         },
         executor = { tool ->
-            FileToolExecutor.copy(tool)
+            executor.copy(tool)
         }
     )
 
@@ -545,7 +616,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
             "移动文件: $source"
         },
         executor = { tool ->
-            FileToolExecutor.move(tool)
+            executor.move(tool)
         }
     )
 
@@ -558,7 +629,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
             "文件信息: $path"
         },
         executor = { tool ->
-            FileToolExecutor.fileInfo(tool)
+            executor.fileInfo(tool)
         }
     )
 
@@ -571,7 +642,7 @@ fun registerFileTools(handler: AIToolHandler, context: Context) {
             "压缩文件: $source"
         },
         executor = { tool ->
-            FileToolExecutor.compress(tool)
+            executor.compress(tool)
         }
     )
 

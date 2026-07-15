@@ -1,39 +1,319 @@
 package com.ai.phoneagent
 
-import android.content.Context
-import com.google.gson.Gson
-import com.google.gson.JsonSyntaxException
-import com.google.gson.annotations.SerializedName
-import java.io.IOException
+object AppPackageMapping {
 
-/**
- * 应用名 → 包名映射（运行时从 `assets/app_package_mapping.json` 加载）。
- *
- * 历史版本在源码中硬编码了 294 条映射（含 79 条重复键值），无法在不发版的情况下扩展应用支持。
- * 现改为运行时从 assets 中的 JSON 文件加载，并通过 [load] 缓存解析结果。
- *
- * 用法：
- * ```
- * AppPackageMapping.load(context)           // 在应用启动时调用一次（如 Application.onCreate）
- * AppPackageMapping.resolve("微信")         // 返回 "com.tencent.mm"
- * AppPackageMapping.getPackageFor("微信")   // resolve 的别名
- * AppPackageMapping.bestMatchInText("帮我打开微信给张三发消息")
- * ```
- */
-class AppPackageMapping {
+    private fun normalize(s: String): String {
+        return s.trim().lowercase().replace("\\s+".toRegex(), "").replace("-", "")
+    }
 
-    /** assets 中映射文件的路径。 */
-    private val ASSET_PATH = "app_package_mapping.json"
+    private val raw: Map<String, String> =
+            mapOf(
+                    // ===== 中文应用 =====
+                    "微信" to "com.tencent.mm",
+                    "QQ" to "com.tencent.mobileqq",
+                    "微博" to "com.sina.weibo",
+                    "新浪微博" to "com.sina.weibo",
+                    "淘宝" to "com.taobao.taobao",
+                    "天猫" to "com.tmall.wireless",
+                    "京东" to "com.jingdong.app.mall",
+                    "拼多多" to "com.xunmeng.pinduoduo",
+                    "淘宝闪购" to "com.taobao.taobao",
+                    "京东秒送" to "com.jingdong.app.mall",
+                    "小红书" to "com.xingin.xhs",
+                    "豆瓣" to "com.douban.frodo",
+                    "知乎" to "com.zhihu.android",
+                    "贴吧" to "com.baidu.tieba",
+                    "高德地图" to "com.autonavi.minimap",
+                    "百度地图" to "com.baidu.BaiduMap",
+                    "美团" to "com.sankuai.meituan",
+                    "大众点评" to "com.dianping.v1",
+                    "饿了么" to "me.ele",
+                    "肯德基" to "com.yek.android.kfc.activitys",
+                    "携程" to "ctrip.android.view",
+                    "铁路12306" to "com.MobileTicket",
+                    "12306" to "com.MobileTicket",
+                    "去哪儿" to "com.Qunar",
+                    "去哪儿旅行" to "com.Qunar",
+                    "航旅纵横" to "com.umetrip.android.msky.app",
+                    "航旅" to "com.umetrip.android.msky.app",
+                    "umetrip" to "com.umetrip.android.msky.app",
+                    "Umetrip" to "com.umetrip.android.msky.app",
+                    "滴滴出行" to "com.sdu.didi.psnger",
+                    "bilibili" to "tv.danmaku.bili",
+                    "抖音" to "com.ss.android.ugc.aweme",
+                    "快手" to "com.smile.gifmaker",
+                    "腾讯视频" to "com.tencent.qqlive",
+                    "爱奇艺" to "com.qiyi.video",
+                    "优酷视频" to "com.youku.phone",
+                    "芒果TV" to "com.hunantv.imgo.activity",
+                    "红果短剧" to "com.phoenix.read",
+                    "网易云音乐" to "com.netease.cloudmusic",
+                    "QQ音乐" to "com.tencent.qqmusic",
+                    "汽水音乐" to "com.luna.music",
+                    "喜马拉雅" to "com.ximalaya.ting.android",
+                    "番茄小说" to "com.dragon.read",
+                    "番茄免费小说" to "com.dragon.read",
+                    "七猫免费小说" to "com.kmxs.reader",
+                    "飞书" to "com.ss.android.lark",
+                    "QQ邮箱" to "com.tencent.androidqqmail",
+                    "豆包" to "com.larus.nova",
+                    "keep" to "com.gotokeep.keep",
+                    "美柚" to "com.lingan.seeyou",
+                    "腾讯新闻" to "com.tencent.news",
+                    "今日头条" to "com.ss.android.article.news",
+                    "贝壳找房" to "com.lianjia.beike",
+                    "安居客" to "com.anjuke.android.app",
+                    "同花顺" to "com.hexin.plat.android",
+                    "星穹铁道" to "com.miHoYo.hkrpg",
+                    "崩坏：星穹铁道" to "com.miHoYo.hkrpg",
+                    "恋与深空" to "com.papegames.lysk.cn",
+                    "支付宝" to "com.eg.android.AlipayGphone",
+                            "医院挂号通" to "com.guahao001.proj.yygh_app",
+                            "医院挂号网" to "dtys.guahaowang",
+                            // ===== Android系统设置 =====
+                    "AndroidSystemSettings" to "com.android.settings",
+                    "Android System Settings" to "com.android.settings",
+                    "Android  System Settings" to "com.android.settings",
+                    "Android-System-Settings" to "com.android.settings",
+                    "Settings" to "com.android.settings",
+                    
+                    // ===== Android系统工具 =====
+                    "AudioRecorder" to "com.android.soundrecorder",
+                    "audiorecorder" to "com.android.soundrecorder",
+                    "Chrome" to "com.android.chrome",
+                    "chrome" to "com.android.chrome",
+                    "Google Chrome" to "com.android.chrome",
+                    "Clock" to "com.android.deskclock",
+                    "clock" to "com.android.deskclock",
+                    "Contacts" to "com.android.contacts",
+                    "contacts" to "com.android.contacts",
+                    "Files" to "com.android.fileexplorer",
+                    "files" to "com.android.fileexplorer",
+                    "File Manager" to "com.android.fileexplorer",
+                    "file manager" to "com.android.fileexplorer",
+                    // ===== Google生态和国际应用 =====
+                    "gmail" to "com.google.android.gm",
+                    "Gmail" to "com.google.android.gm",
+                    "GoogleMail" to "com.google.android.gm",
+                    "Google Mail" to "com.google.android.gm",
+                    "GoogleFiles" to "com.google.android.apps.nbu.files",
+                    "googlefiles" to "com.google.android.apps.nbu.files",
+                    "FilesbyGoogle" to "com.google.android.apps.nbu.files",
+                    "GoogleCalendar" to "com.google.android.calendar",
+                    "GoogleCalendar" to "com.google.android.calendar",
+                    "Google-Calendar" to "com.google.android.calendar",
+                    "Google Calendar" to "com.google.android.calendar",
+                    "google-calendar" to "com.google.android.calendar",
+                    "google calendar" to "com.google.android.calendar",
+                    "GoogleChat" to "com.google.android.apps.dynamite",
+                    "Google Chat" to "com.google.android.apps.dynamite",
+                    "Google-Chat" to "com.google.android.apps.dynamite",
+                    "GoogleClock" to "com.google.android.deskclock",
+                    "Google Clock" to "com.google.android.deskclock",
+                    "Google-Clock" to "com.google.android.deskclock",
+                    "GoogleContacts" to "com.google.android.contacts",
+                    "Google-Contacts" to "com.google.android.contacts",
+                    "Google Contacts" to "com.google.android.contacts",
+                    "google-contacts" to "com.google.android.contacts",
+                    "google contacts" to "com.google.android.contacts",
+                    "GoogleDocs" to "com.google.android.apps.docs.editors.docs",
+                    "Google Docs" to "com.google.android.apps.docs.editors.docs",
+                    "googledocs" to "com.google.android.apps.docs.editors.docs",
+                    "google docs" to "com.google.android.apps.docs.editors.docs",
+                    "Google Drive" to "com.google.android.apps.docs",
+                    "Google-Drive" to "com.google.android.apps.docs",
+                    "google drive" to "com.google.android.apps.docs",
+                    "google-drive" to "com.google.android.apps.docs",
+                    "GoogleDrive" to "com.google.android.apps.docs",
+                    "Googledrive" to "com.google.android.apps.docs",
+                    "googledrive" to "com.google.android.apps.docs",
+                    "GoogleFit" to "com.google.android.apps.fitness",
+                    "googlefit" to "com.google.android.apps.fitness",
+                    "GoogleKeep" to "com.google.android.keep",
+                    "googlekeep" to "com.google.android.keep",
+                    "GoogleMaps" to "com.google.android.apps.maps",
+                    "Google Maps" to "com.google.android.apps.maps",
+                    "googlemaps" to "com.google.android.apps.maps",
+                    "google maps" to "com.google.android.apps.maps",
+                    "Google Play Books" to "com.google.android.apps.books",
+                    "Google-Play-Books" to "com.google.android.apps.books",
+                    "google play books" to "com.google.android.apps.books",
+                    "google-play-books" to "com.google.android.apps.books",
+                    "GooglePlayBooks" to "com.google.android.apps.books",
+                    "googleplaybooks" to "com.google.android.apps.books",
+                    "GooglePlayStore" to "com.android.vending",
+                    "Google Play Store" to "com.android.vending",
+                    "Google-Play-Store" to "com.android.vending",
+                    "GoogleSlides" to "com.google.android.apps.docs.editors.slides",
+                    "Google Slides" to "com.google.android.apps.docs.editors.slides",
+                    "Google-Slides" to "com.google.android.apps.docs.editors.slides",
+                    "GoogleTasks" to "com.google.android.apps.tasks",
+                    "Google Tasks" to "com.google.android.apps.tasks",
+                    "Google-Tasks" to "com.google.android.apps.tasks",
+                    "YouTube" to "com.google.android.youtube",
+                    "youtube" to "com.youtube.android",
+                    
+                    // ===== 国际应用 =====
+                    "Bluecoins" to "com.rammigsoftware.bluecoins",
+                    "bluecoins" to "com.rammigsoftware.bluecoins",
+                    "Broccoli" to "com.flauschcode.broccoli",
+                    "broccoli" to "com.flauschcode.broccoli",
+                    "Booking.com" to "com.booking",
+                    "Booking" to "com.booking",
+                    "booking.com" to "com.booking",
+                    "booking" to "com.booking",
+                    "BOOKING.COM" to "com.booking",
+                    "Duolingo" to "com.duolingo",
+                    "duolingo" to "com.duolingo",
+                    "Expedia" to "com.expedia.bookings",
+                    "expedia" to "com.expedia.bookings",
+                    "Joplin" to "net.cozic.joplin",
+                    "joplin" to "net.cozic.joplin",
+                    "McDonald" to "com.mcdonalds.app",
+                    "mcdonald" to "com.mcdonalds.app",
+                    "Osmand" to "net.osmand",
+                    "osmand" to "net.osmand",
+                    "PiMusicPlayer" to "com.Project100Pi.themusicplayer",
+                    "pimusicplayer" to "com.Project100Pi.themusicplayer",
+                    "Quora" to "com.quora.android",
+                    "quora" to "com.quora.android",
+                    "Reddit" to "com.reddit.frontpage",
+                    "reddit" to "com.reddit.frontpage",
+                    "RetroMusic" to "code.name.monkey.retromusic",
+                    "retromusic" to "code.name.monkey.retromusic",
+                    "SimpleCalendarPro" to "com.scientificcalculatorplus.simplecalculator.basiccalculator.mathcalc",
+                    "SimpleSMSMessenger" to "com.simplemobiletools.smsmessenger",
+                    "Telegram" to "org.telegram.messenger",
+                    "telegram" to "org.telegram.messenger",
+                    "temu" to "com.einnovation.temu",
+                    "Temu" to "com.einnovation.temu",
+                    "Tiktok" to "com.zhiliaoapp.musically",
+                    "tiktok" to "com.zhiliaoapp.musically",
+                    "Twitter" to "com.twitter.android",
+                    "twitter" to "com.twitter.android",
+                    "X" to "com.twitter.android",
+                    "VLC" to "org.videolan.vlc",
+                    "vlc" to "org.videolan.vlc",
+                    "WeChat" to "com.tencent.mm",
+                    "wechat" to "com.tencent.mm",
+                    "Whatsapp" to "com.whatsapp",
+                    "WhatsApp" to "com.whatsapp",
+                    "whatsapp" to "com.whatsapp",
+                    "Facebook" to "com.facebook.katana",
+                    "facebook" to "com.facebook.katana",
+                    "Instagram" to "com.instagram.android",
+                    "instagram" to "com.instagram.android",
+                    "Discord" to "com.discord",
+                    "discord" to "com.discord",
+                    "Zoom" to "us.zoom.videomeetings",
+                    "zoom" to "us.zoom.videomeetings",
+                    "Skype" to "com.skype.raider",
+                    "skype" to "com.skype.raider",
+                    "Snapchat" to "com.snapchat.android",
+                    "snapchat" to "com.snapchat.android",
+                    "Pinterest" to "com.pinterest",
+                    "pinterest" to "com.pinterest",
+                    "LinkedIn" to "com.linkedin.android",
+                    "linkedin" to "com.linkedin.android",
+                    "Uber" to "com.ubercab",
+                    "uber" to "com.ubercab",
+                    "Lyft" to "com.lyft",
+                    "lyft" to "com.lyft",
+                    "PayPal" to "com.paypal.android.p2pmobile",
+                    "paypal" to "com.paypal.android.p2pmobile",
+                    "Amazon" to "com.amazon.mshop.android.shopping",
+                    "amazon" to "com.amazon.mshop.android.shopping",
+                    "eBay" to "com.ebay.mobile",
+                    "ebay" to "com.ebay.mobile",
+                    "Netflix" to "com.netflix.mediaclient",
+                    "netflix" to "com.netflix.mediaclient",
+                    "Spotify" to "com.spotify.music",
+                    "spotify" to "com.spotify.music",
+                    "Airbnb" to "com.airbnb.android",
+                    "airbnb" to "com.airbnb.android",
+                    "Google-Calendar" to "com.google.android.calendar",
+                    "Google Calendar" to "com.google.android.calendar",
+                    "google-calendar" to "com.google.android.calendar",
+                    "google calendar" to "com.google.android.calendar",
+                    "GoogleChat" to "com.google.android.apps.dynamite",
+                    "Google Chat" to "com.google.android.apps.dynamite",
+                    "Google-Chat" to "com.google.android.apps.dynamite",
+                    "GoogleClock" to "com.google.android.deskclock",
+                    "Google Clock" to "com.google.android.deskclock",
+                    "Google-Clock" to "com.google.android.deskclock",
+                    "GoogleContacts" to "com.google.android.contacts",
+                    "Google-Contacts" to "com.google.android.contacts",
+                    "Google Contacts" to "com.google.android.contacts",
+                    "google-contacts" to "com.google.android.contacts",
+                    "google contacts" to "com.google.android.contacts",
+                    "GoogleDocs" to "com.google.android.apps.docs.editors.docs",
+                    "Google Docs" to "com.google.android.apps.docs.editors.docs",
+                    "googledocs" to "com.google.android.apps.docs.editors.docs",
+                    "google docs" to "com.google.android.apps.docs.editors.docs",
+                    "Google Drive" to "com.google.android.apps.docs",
+                    "Google-Drive" to "com.google.android.apps.docs",
+                    "google drive" to "com.google.android.apps.docs",
+                    "google-drive" to "com.google.android.apps.docs",
+                    "GoogleDrive" to "com.google.android.apps.docs",
+                    "Googledrive" to "com.google.android.apps.docs",
+                    "googledrive" to "com.google.android.apps.docs",
+                    "GoogleFit" to "com.google.android.apps.fitness",
+                    "googlefit" to "com.google.android.apps.fitness",
+                    "GoogleKeep" to "com.google.android.keep",
+                    "googlekeep" to "com.google.android.keep",
+                    "GoogleMaps" to "com.google.android.apps.maps",
+                    "Google Maps" to "com.google.android.apps.maps",
+                    "googlemaps" to "com.google.android.apps.maps",
+                    "google maps" to "com.google.android.apps.maps",
+                    "Google Play Books" to "com.google.android.apps.books",
+                    "Google-Play-Books" to "com.google.android.apps.books",
+                    "google play books" to "com.google.android.apps.books",
+                    "google-play-books" to "com.google.android.apps.books",
+                    "GooglePlayBooks" to "com.google.android.apps.books",
+                    "googleplaybooks" to "com.google.android.apps.books",
+                    "GooglePlayStore" to "com.android.vending",
+                    "Google Play Store" to "com.android.vending",
+                    "Google-Play-Store" to "com.android.vending",
+                    "GoogleSlides" to "com.google.android.apps.docs.editors.slides",
+                    "Google Slides" to "com.google.android.apps.docs.editors.slides",
+                    "Google-Slides" to "com.google.android.apps.docs.editors.slides",
+                    "GoogleTasks" to "com.google.android.apps.tasks",
+                    "Google Tasks" to "com.google.android.apps.tasks",
+                    "Google-Tasks" to "com.google.android.apps.tasks",
+                    "Joplin" to "net.cozic.joplin",
+                    "joplin" to "net.cozic.joplin",
+                    "McDonald" to "com.mcdonalds.app",
+                    "mcdonald" to "com.mcdonalds.app",
+                    "Osmand" to "net.osmand",
+                    "osmand" to "net.osmand",
+                    "PiMusicPlayer" to "com.Project100Pi.themusicplayer",
+                    "pimusicplayer" to "com.Project100Pi.themusicplayer",
+                    "Quora" to "com.quora.android",
+                    "quora" to "com.quora.android",
+                    "Reddit" to "com.reddit.frontpage",
+                    "reddit" to "com.reddit.frontpage",
+                    "RetroMusic" to "code.name.monkey.retromusic",
+                    "retromusic" to "code.name.monkey.retromusic",
+                    "SimpleCalendarPro" to
+                            "com.scientificcalculatorplus.simplecalculator.basiccalculator.mathcalc",
+                    "SimpleSMSMessenger" to "com.simplemobiletools.smsmessenger",
+                    "Telegram" to "org.telegram.messenger",
+                    "temu" to "com.einnovation.temu",
+                    "Temu" to "com.einnovation.temu",
+                    "Tiktok" to "com.zhiliaoapp.musically",
+                    "tiktok" to "com.zhiliaoapp.musically",
+                    "Twitter" to "com.twitter.android",
+                    "twitter" to "com.twitter.android",
+                    "X" to "com.twitter.android",
+                    "VLC" to "org.videolan.vlc",
+                    "WeChat" to "com.tencent.mm",
+                    "wechat" to "com.tencent.mm",
+                    "Whatsapp" to "com.whatsapp",
+                    "WhatsApp" to "com.whatsapp",
+            )
 
-    data class PackageMappingEntry(
-            @SerializedName("appName") val appName: String,
-            @SerializedName("packageName") val packageName: String,
-    )
-
-    data class PackageMappingFile(
-            @SerializedName("version") val version: Int,
-            @SerializedName("mappings") val mappings: List<PackageMappingEntry>,
-    )
+    private val normalized: Map<String, String> =
+            raw.entries.associate { normalize(it.key) to it.value }
 
     data class Match(
             val appLabel: String,
@@ -42,104 +322,13 @@ class AppPackageMapping {
             val end: Int,
     )
 
-    private val gson by lazy { Gson() }
-
-    // 缓存使用 @Volatile + @Synchronized 实现「单次加载」语义（等价于 by lazy{}，
-    // 但因为 load(context) 需要外部参数，无法直接使用 lazy 委托）。
-    @Volatile private var cachedRaw: Map<String, String>? = null
-
-    @Volatile private var cachedNormalized: Map<String, String>? = null
-
-    /**
-     * 同步加载 assets 中的映射文件并缓存。重复调用返回同一缓存实例。
-     *
-     * @return 已加载的原始（未归一化）映射 Map。
-     * @throws IOException 当 assets 读取失败或 JSON 格式非法时抛出。
-     */
-    @Synchronized
-    fun load(context: Context): Map<String, String> {
-        cachedRaw?.let { return it }
-        val json =
-                context.assets.open(ASSET_PATH).use { input ->
-                    input.readBytes().toString(Charsets.UTF_8)
-                }
-        return cacheFromJson(json)
-    }
-
-    /**
-     * 解析 JSON 字符串为映射 Map（纯函数，无副作用，便于单测）。
-     *
-     * @throws IOException 当 JSON 为空、解析失败或格式非法时抛出。
-     */
-    fun parseJson(jsonString: String): Map<String, String> {
-        if (jsonString.isBlank()) {
-            throw IOException("Empty JSON content for app package mapping")
-        }
-        return try {
-            val parsed: PackageMappingFile =
-                    gson.fromJson(jsonString, PackageMappingFile::class.java)
-                            ?: throw IOException("Parsed app package mapping JSON was null")
-            parsed.mappings.associate { it.appName to it.packageName }
-        } catch (e: JsonSyntaxException) {
-            throw IOException("Invalid JSON format for app package mapping", e)
-        }
-    }
-
-    /**
-     * 解析 JSON 并缓存结果。用于不依赖 [Context] 的场景（如测试或自定义加载源）。
-     * 重复调用返回首次解析的缓存实例。
-     */
-    @Synchronized
-    fun loadFromJson(jsonString: String): Map<String, String> {
-        cachedRaw?.let { return it }
-        return cacheFromJson(jsonString)
-    }
-
-    @Synchronized
-    private fun cacheFromJson(jsonString: String): Map<String, String> {
-        val raw = parseJson(jsonString)
-        cachedRaw = raw
-        cachedNormalized = raw.entries.associate { normalize(it.key) to it.value }
-        return raw
-    }
-
-    /** 重置缓存（仅用于测试，避免单例状态污染）。 */
-    @Synchronized
-    fun resetCache() {
-        cachedRaw = null
-        cachedNormalized = null
-    }
-
-    private fun normalize(s: String): String {
-        return s.trim().lowercase().replace("\\s+".toRegex(), "").replace("-", "")
-    }
-
-    /**
-     * 根据应用名（或别名）解析包名。返回 null 表示未匹配。
-     *
-     * 注意：调用前需先调用 [load] 或 [loadFromJson]；否则返回 null。
-     */
     fun resolve(appName: String): String? {
-        val normalized = cachedNormalized ?: return null
         val key = normalize(appName)
         if (key.isBlank()) return null
         return normalized[key]
     }
 
-    /**
-     * [resolve] 的别名，提供更直观的方法名。
-     */
-    fun getPackageFor(appName: String): String? = resolve(appName)
-
-    /**
-     * 在文本中查找最佳匹配的应用名。匹配优先级：
-     * 1. 出现位置靠前（start 较小）；
-     * 2. 起点相同时，标签较长者优先。
-     *
-     * 注意：调用前需先调用 [load] 或 [loadFromJson]；否则返回 null。
-     */
     fun bestMatchInText(text: String): Match? {
-        val raw = cachedRaw ?: return null
         val t = text
         if (t.isBlank()) return null
 
@@ -160,30 +349,5 @@ class AppPackageMapping {
                     }
         }
         return best
-    }
-
-    companion object {
-        @Volatile private var fallbackInstance: AppPackageMapping? = null
-
-        private fun getInstance(): AppPackageMapping =
-            runCatching {
-                org.koin.core.context.GlobalContext.get().get<AppPackageMapping>()
-            }.getOrNull() ?: (fallbackInstance ?: AppPackageMapping().also { fallbackInstance = it })
-
-        fun load(context: Context): Map<String, String> = getInstance().load(context)
-
-        fun parseJson(jsonString: String): Map<String, String> =
-            getInstance().parseJson(jsonString)
-
-        fun loadFromJson(jsonString: String): Map<String, String> =
-            getInstance().loadFromJson(jsonString)
-
-        fun resetCache() = getInstance().resetCache()
-
-        fun resolve(appName: String): String? = getInstance().resolve(appName)
-
-        fun getPackageFor(appName: String): String? = getInstance().getPackageFor(appName)
-
-        fun bestMatchInText(text: String): Match? = getInstance().bestMatchInText(text)
     }
 }

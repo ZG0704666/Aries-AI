@@ -1,6 +1,7 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -23,7 +24,6 @@ val githubToken: String by lazy {
 android {
     namespace = "com.ai.phoneagent.feature.updates"
     compileSdk = 36
-    buildToolsVersion = "36.1.0"
 
     defaultConfig {
         minSdk = 30
@@ -46,8 +46,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = "11"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
     }
 }
 

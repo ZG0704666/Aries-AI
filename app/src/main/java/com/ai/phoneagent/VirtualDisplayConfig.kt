@@ -8,8 +8,6 @@ package com.ai.phoneagent
 
 import android.content.Context
 import com.ai.phoneagent.data.preferences.VirtualDisplayConfigRepository
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.get
 
 /**
  * 虚拟屏配置管理器 — 集中管理分辨率预设、DPI、16像素对齐等参数。
@@ -22,7 +20,7 @@ import org.koin.core.component.get
  * - DPI 范围校验：72–640
  * - 持久化存储到 DataStore
  */
-object VirtualDisplayConfig : KoinComponent {
+object VirtualDisplayConfig {
 
     // ─── 分辨率预设 ───
     const val RES_480P = "480P"
@@ -81,9 +79,7 @@ object VirtualDisplayConfig : KoinComponent {
     // ════════════════════════════════════════════
 
     private fun repository(context: Context): VirtualDisplayConfigRepository =
-        runCatching { get<VirtualDisplayConfigRepository>() }
-            .getOrNull()
-            ?: VirtualDisplayConfigRepository(context.applicationContext)
+        VirtualDisplayConfigRepository(context.applicationContext)
 
     /** 获取当前分辨率预设 */
     fun getResolutionPreset(context: Context): String {

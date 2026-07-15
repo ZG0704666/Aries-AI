@@ -34,9 +34,12 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.koin.android.ext.android.inject
 import kotlin.coroutines.resume
 
 class AriesApiOAuthActivity : Activity() {
+    private val ariesApiClient by inject<AriesApiClient>()
+
     data class ApiLoginResult(
         val success: Boolean,
         val apiKey: String = "",
@@ -380,7 +383,7 @@ class AriesApiOAuthActivity : Activity() {
                 .url("${AriesApiClient.BASE_URL}/api/user/token")
                 .get()
                 .apply {
-                    val cookieHeader = AriesApiClient.normalizeCookieHeader(session.currentCookies().joinToString("; "))
+                    val cookieHeader = ariesApiClient.normalizeCookieHeader(session.currentCookies().joinToString("; "))
                     if (cookieHeader.isNotBlank()) {
                         addHeader("Cookie", cookieHeader)
                     }
@@ -602,7 +605,7 @@ class AriesApiOAuthActivity : Activity() {
     }
 
     private fun collectSessionCookieHeader(session: PendingSession): String =
-        AriesApiClient.normalizeCookieHeader(
+        ariesApiClient.normalizeCookieHeader(
             buildString {
                 val webViewCookies = CookieManager.getInstance().getCookie(AriesApiClient.BASE_URL).orEmpty().trim()
                 val clientCookies = session.currentCookies().joinToString("; ").trim()

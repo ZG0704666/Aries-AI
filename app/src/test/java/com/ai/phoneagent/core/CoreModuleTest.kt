@@ -169,7 +169,7 @@ class CoreModuleTest {
     
     @Test
     fun `PromptTemplates 构建系统提示词`() {
-        val prompt = PromptTemplates.buildSystemPrompt(1080, 1920, null)
+        val prompt = PromptTemplates().buildSystemPrompt(1080, 1920, null)
 
         assertTrue(prompt.contains("移动 UI 自动化"))
         assertTrue(prompt.contains("9:16"))
@@ -180,7 +180,7 @@ class CoreModuleTest {
     
     @Test
     fun `PromptTemplates 构建修复提示词`() {
-        val repairPrompt = PromptTemplates.buildRepairPrompt()
+        val repairPrompt = PromptTemplates().buildRepairPrompt()
         
         assertTrue(repairPrompt.contains("格式错误"))
         assertTrue(repairPrompt.contains("do(action="))
@@ -188,7 +188,7 @@ class CoreModuleTest {
     
     @Test
     fun `PromptTemplates 构建动作修复提示词`() {
-        val actionRepairPrompt = PromptTemplates.buildActionRepairPrompt("Tap(500,500)")
+        val actionRepairPrompt = PromptTemplates().buildActionRepairPrompt("Tap(500,500)")
         
         assertTrue(actionRepairPrompt.contains("Tap(500,500)"))
         assertTrue(actionRepairPrompt.contains("执行失败"))

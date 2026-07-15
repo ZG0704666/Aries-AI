@@ -19,17 +19,24 @@ package com.ai.phoneagent.net
 
 import com.ai.phoneagent.core.common.AppJson
 import okhttp3.Call
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.logging.HttpLoggingInterceptor
+import com.ai.phoneagent.BuildConfig
 import java.io.IOException
 import java.net.URI
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -44,13 +51,55 @@ import kotlinx.serialization.json.jsonObject
  * 通过连接池复用连接，提高网络请求性能。
  */
 private object SharedHttpClient {
-        val instance: OkHttpClient by lazy { buildNetworkClient(useFastTimeouts = false) }
+        val instance: OkHttpClient by lazy {
+                val logger =
+                        HttpLoggingInterceptor().apply {
+                                level =
+                                        if (BuildConfig.DEBUG)
+                                                HttpLoggingInterceptor.Level.BASIC
+                                        else
+                                                HttpLoggingInterceptor.Level.NONE
+                        }
+                OkHttpClient.Builder()
+                        .addInterceptor(logger)
+                        .retryOnConnectionFailure(true)
+                        // 增加连接超时，适配慢速网络
+                        .connectTimeout(60, TimeUnit.SECONDS)
+                        // 读取超时设置更长，支持长时模型响应
+                        .readTimeout(300, TimeUnit.SECONDS)
+                        .writeTimeout(120, TimeUnit.SECONDS)
+                        .callTimeout(360, TimeUnit.SECONDS)
+                        // 使用连接池复用连接，提高性能
+                        .connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
+                        // 支持 HTTP/2 协议
+                        .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+                        .build()
+        }
 
         /**
          * 自动化场景专用：使用更短超时，避免请求长时间卡住。
          * 注意：这不会让模型本身更快，但能让慢/异常连接更快失败并触发重试或降级。
          */
-        val fastInstance: OkHttpClient by lazy { buildNetworkClient(useFastTimeouts = true) }
+        val fastInstance: OkHttpClient by lazy {
+                val logger =
+                        HttpLoggingInterceptor().apply {
+                                level =
+                                        if (BuildConfig.DEBUG)
+                                                HttpLoggingInterceptor.Level.BASIC
+                                        else
+                                                HttpLoggingInterceptor.Level.NONE
+                        }
+                OkHttpClient.Builder()
+                        .addInterceptor(logger)
+                        .retryOnConnectionFailure(true)
+                        .connectTimeout(10, TimeUnit.SECONDS)
+                        .readTimeout(25, TimeUnit.SECONDS)
+                        .writeTimeout(25, TimeUnit.SECONDS)
+                        .callTimeout(30, TimeUnit.SECONDS)
+                        .connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
+                        .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+                        .build()
+        }
 }
 
 /** 简化版 AutoGLM 客户端：用于单轮对话与 API 健康检查。 */
@@ -82,6 +131,29 @@ object AutoGlmClient {
                 val ok: Boolean,
                 val statusCode: Int? = null,
                 val message: String? = null,
+        )
+
+        @Serializable
+        private data class SseChunk(
+                val choices: List<SseChoice>? = null,
+        )
+
+        @Serializable
+        private data class SseChoice(
+                val delta: SseDelta? = null,
+                val message: SseMessage? = null,
+        )
+
+        @Serializable
+        private data class SseDelta(
+                @SerialName("reasoning_content") val reasoningContent: String? = null,
+                val reasoning: String? = null,
+                val content: String? = null,
+        )
+
+        @Serializable
+        private data class SseMessage(
+                val content: String? = null,
         )
 
         const val DEFAULT_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/"
@@ -211,21 +283,48 @@ object AutoGlmClient {
                                                         }
 
                                                         val line = source.readUtf8Line() ?: break
-                                                        when (val ev = parseAutoGlmSseLine(line)) {
-                                                                is AutoGlmSseEvent.Skip -> Unit
-                                                                is AutoGlmSseEvent.Done -> break
-                                                                is AutoGlmSseEvent.Delta -> {
-                                                                        val reasoning = ev.reasoning
-                                                                        val content = ev.content
-                                                                        if (!reasoning.isNullOrEmpty())
-                                                                                onReasoningDelta(reasoning)
-                                                                        if (!content.isNullOrEmpty())
-                                                                                onContentDelta(content)
-                                                                        if (!reasoning.isNullOrEmpty() ||
-                                                                                !content.isNullOrEmpty()
-                                                                        ) {
-                                                                                receivedAnyDelta = true
+                                                        if (line.isBlank()) continue
+                                                        if (!line.startsWith("data:")) continue
+
+                                                        val data = line.removePrefix("data:").trim()
+                                                        if (data == "[DONE]") break
+
+                                                        val chunk =
+                                                                runCatching {
+                                                                                AppJson.decodeFromString<SseChunk>(
+                                                                                        data
+                                                                                )
                                                                         }
+                                                                        .getOrNull() ?: continue
+
+                                                        val choice0 =
+                                                                chunk.choices
+                                                                        ?.firstOrNull()
+                                                                        ?: continue
+
+                                                        val delta = choice0.delta
+
+                                                        if (delta != null) {
+                                                                val reasoning =
+                                                                        delta.reasoningContent
+                                                                                ?: delta.reasoning
+                                                                val content = delta.content
+
+                                                                if (!reasoning.isNullOrEmpty())
+                                                                        onReasoningDelta(reasoning)
+                                                                if (!content.isNullOrEmpty())
+                                                                        onContentDelta(content)
+                                                                if (!reasoning.isNullOrEmpty() ||
+                                                                                !content.isNullOrEmpty()
+                                                                ) {
+                                                                        receivedAnyDelta = true
+                                                                }
+                                                        } else {
+                                                                val content = choice0.message?.content
+                                                                if (!content.isNullOrEmpty())
+                                                                        onContentDelta(content)
+                                                                if (!content.isNullOrEmpty()) {
+                                                                        receivedAnyDelta = true
                                                                 }
                                                         }
                                                 }

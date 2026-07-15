@@ -279,21 +279,4 @@ class InputHelper {
         runCatching { acc.injectInputEvent.invoke(acc.iInputManager, ev, MODE_ASYNC) }
     }
 
-    companion object {
-        @Volatile private var fallbackInstance: InputHelper? = null
-
-        private fun getInstance(): InputHelper =
-            runCatching {
-                org.koin.core.context.GlobalContext.get().get<InputHelper>()
-            }.getOrNull() ?: (fallbackInstance ?: InputHelper().also { fallbackInstance = it })
-
-        fun enqueueTouch(
-            displayId: Int,
-            downTime: Long,
-            action: Int,
-            x: Int,
-            y: Int,
-            ensureFocus: Boolean,
-        ) = getInstance().enqueueTouch(displayId, downTime, action, x, y, ensureFocus)
-    }
 }

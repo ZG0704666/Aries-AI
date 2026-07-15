@@ -19,12 +19,12 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.ai.phoneagent.viewmodel.AutomationViewModel
 
-class AutomationLiveNotification {
+class AutomationLiveNotification(context: Context) {
 
     @Volatile private var registered = false
     @Volatile private var active = false
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var appContext: Context? = null
+    private val appContext = context.applicationContext
     private var title: String = "Aries AI"
     private var subtitle: String = "自动化执行中"
     private var detail: String = "准备开始"
@@ -36,34 +36,28 @@ class AutomationLiveNotification {
     private var lastNotifyElapsedMs: Long = 0L
     private var notifyScheduled = false
 
-    fun initialize(context: Context): Boolean {
-        val ctx = context.applicationContext
-        appContext = ctx
-        createChannel(ctx)
-        registered = canUseLiveUpdate(ctx)
+    fun initialize(): Boolean {
+        createChannel(appContext)
+        registered = canUseLiveUpdate(appContext)
         Log.i(TAG, "live update registered=$registered")
         return registered
     }
 
-    fun isRegistered(context: Context? = null): Boolean {
-        val ctx = context?.applicationContext ?: appContext ?: return registered
-        registered = canUseLiveUpdate(ctx)
+    fun isRegistered(): Boolean {
+        registered = canUseLiveUpdate(appContext)
         return registered
     }
 
     fun isActive(): Boolean = active
 
     fun show(
-        context: Context,
         title: String,
         subtitle: String,
         maxSteps: Int,
         navigateMainOnClick: Boolean,
     ): Boolean {
-        val ctx = context.applicationContext
-        appContext = ctx
-        createChannel(ctx)
-        if (!isRegistered(ctx)) return false
+        createChannel(appContext)
+        if (!isRegistered()) return false
 
         this.title = title.ifBlank { "Aries AI" }
         this.subtitle = subtitle.ifBlank { "自动化执行中" }
@@ -135,9 +129,8 @@ class AutomationLiveNotification {
     }
 
     fun hide() {
-        val ctx = appContext ?: return
         active = false
-        NotificationManagerCompat.from(ctx).cancel(NOTIFICATION_ID)
+        NotificationManagerCompat.from(appContext).cancel(NOTIFICATION_ID)
     }
 
     private fun canUseLiveUpdate(context: Context): Boolean {
@@ -176,8 +169,12 @@ class AutomationLiveNotification {
 
     private fun notifyCurrent(completed: Boolean, immediate: Boolean = false): Boolean {
         if (!immediate && !shouldNotifyNow(completed)) return true
-        val ctx = appContext ?: return false
-        val notification = buildNotification(ctx, completed)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(appContext, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return false
+        }
+        val notification = buildNotification(appContext, completed)
         if (!completed &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA &&
             !notification.hasPromotableCharacteristics()
@@ -186,7 +183,7 @@ class AutomationLiveNotification {
             return false
         }
         return runCatching {
-            NotificationManagerCompat.from(ctx).notify(NOTIFICATION_ID, notification)
+            NotificationManagerCompat.from(appContext).notify(NOTIFICATION_ID, notification)
             lastNotifyElapsedMs = SystemClock.elapsedRealtime()
             true
         }.getOrElse {
@@ -292,30 +289,5 @@ class AutomationLiveNotification {
         private const val MAX_PROGRESS = 100
         private const val MIN_UPDATE_INTERVAL_MS = 900L
 
-        @Volatile private var fallbackInstance: AutomationLiveNotification? = null
-
-        private fun getInstance(): AutomationLiveNotification =
-            runCatching {
-                org.koin.core.context.GlobalContext.get().get<AutomationLiveNotification>()
-            }.getOrNull() ?: (fallbackInstance ?: AutomationLiveNotification().also { fallbackInstance = it })
-
-        fun initialize(context: Context): Boolean = getInstance().initialize(context)
-        fun isRegistered(context: Context? = null): Boolean = getInstance().isRegistered(context)
-        fun isActive(): Boolean = getInstance().isActive()
-        fun show(
-            context: Context,
-            title: String,
-            subtitle: String,
-            maxSteps: Int,
-            navigateMainOnClick: Boolean,
-        ): Boolean = getInstance().show(context, title, subtitle, maxSteps, navigateMainOnClick)
-        fun updateEstimatedSteps(estimated: Int) = getInstance().updateEstimatedSteps(estimated)
-        fun updateProgress(step: Int, phaseInStep: Float, maxSteps: Int? = null, subtitle: String? = null) =
-            getInstance().updateProgress(step, phaseInStep, maxSteps, subtitle)
-        fun updateState(title: String? = null, subtitle: String? = null, detail: String? = null) =
-            getInstance().updateState(title, subtitle, detail)
-        fun updateFromLogLine(line: String) = getInstance().updateFromLogLine(line)
-        fun complete(message: String) = getInstance().complete(message)
-        fun hide() = getInstance().hide()
     }
 }

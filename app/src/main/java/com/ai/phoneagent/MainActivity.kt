@@ -65,7 +65,7 @@ import android.graphics.RectF
 import android.graphics.SweepGradient
 import android.graphics.drawable.Drawable
 import android.os.Bundle
-import com.ai.phoneagent.core.cache.ThreadSafeLruCache
+import android.util.LruCache
 import android.text.Editable
 import android.view.View
 import android.view.ViewGroup
@@ -78,6 +78,7 @@ import android.view.animation.AnticipateOvershootInterpolator
 import android.view.inputmethod.InputMethodManager
 import com.ai.phoneagent.helper.AutomationMessageParser
 import com.ai.phoneagent.helper.AutomationTimelineEntry
+import com.ai.phoneagent.helper.AutomationTimelineFormatter
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
@@ -185,10 +186,6 @@ import com.ai.phoneagent.ui.topbar.MainTopBar
 import com.ai.phoneagent.navigation.AriesNavGraph
 import com.ai.phoneagent.navigation.Routes
 import com.ai.phoneagent.ui.home.HomeScreen
-import com.ai.phoneagent.ui.helper.ClipboardHelper
-import com.ai.phoneagent.ui.helper.DownloadHelper
-import com.ai.phoneagent.ui.helper.HapticHelper
-import com.ai.phoneagent.ui.helper.UrlValidator
 import com.ai.phoneagent.viewmodel.AutomationViewModel
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DrawerState
@@ -436,14 +433,12 @@ class MainActivity : AppCompatActivity() {
 
     private val appPrefsRepository by inject<AppPreferencesRepository>()
     private val floatingChatPrefs by inject<FloatingChatPreferencesRepository>()
+    private val automationInstructionGateway by inject<ActivityAutomationInstructionGateway>()
+    private val localMnnInferenceEngine by inject<LocalMnnInferenceEngine>()
+    private val modelScopeModelDownloader by inject<ModelScopeModelDownloader>()
     private val prefs by lazy { AppPrefsCompat(appPrefsRepository) }
     private val uiPreferencesRepository by lazy { MainUiPreferencesRepository(applicationContext) }
     private val conversationStorageRepository by lazy { ConversationStorageRepository(applicationContext) }
-
-    // 抽出的职责 helper（仅做职责拆分，不改变原有行为）
-    private val hapticHelper = HapticHelper(this)
-    private val clipboardHelper = ClipboardHelper(this)
-    private val downloadHelper = DownloadHelper(this)
 
     private val conversations = mutableListOf<Conversation>()
 
@@ -505,7 +500,7 @@ class MainActivity : AppCompatActivity() {
                 if (!pendingQwenDownloadIds.remove(downloadId)) return
                 persistPendingQwenDownloadIds()
 
-                val status = downloadHelper.queryDownloadStatus(downloadId)
+                val status = queryDownloadStatus(downloadId)
                 if (status.first == DownloadManager.STATUS_FAILED) {
                     val reason = status.second
                     Toast.makeText(
@@ -573,7 +568,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ariesCameraLauncher: ActivityResultLauncher<Uri>
     private var tempCameraUri: Uri? = null
     
-    private val attachmentThumbnailCache = ThreadSafeLruCache<String, androidx.compose.ui.graphics.ImageBitmap>(64, Long.MAX_VALUE)
+    private val attachmentThumbnailCache = LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(64)
 
     @Volatile private var apiNeedsRecheckToastShown: Boolean = false
     @Volatile private var qwenDownloadInFlight: Boolean = false
@@ -882,7 +877,7 @@ class MainActivity : AppCompatActivity() {
         val onOpenDrawer = remember(drawerState, composeScope) {
             {
                 if (!onboardingOverlay.isShowing()) {
-                    hapticHelper.vibrateLight()
+                    vibrateLight()
                     hideKeyboard()
                     composeScope.launch { drawerState.open() }
                 }
@@ -890,14 +885,14 @@ class MainActivity : AppCompatActivity() {
         }
         val onNewChat = remember(drawerState, composeScope) {
             {
-                hapticHelper.vibrateLight()
+                vibrateLight()
                 composeScope.launch { drawerState.close() }
                 startNewChat(clearUi = true)
             }
         }
         val onOpenFloatingWindow = remember {
             {
-                hapticHelper.vibrateLight()
+                vibrateLight()
                 enterMiniWindowMode()
             }
         }
@@ -921,19 +916,19 @@ class MainActivity : AppCompatActivity() {
         val onDrawerConversationLongClick = remember {
             { conversationId: Long ->
                 if (deleteConversationById(conversationId, clearUiForActive = true)) {
-                    hapticHelper.vibrateLight()
+                    vibrateLight()
                 }
             }
         }
         val onDrawerSettingsClick = remember {
             {
-                hapticHelper.vibrateLight()
+                vibrateLight()
                 navigateToRoute(Routes.Settings.route, closeDrawerFirst = true)
             }
         }
         val onCopyMessage: (TranscriptMessageUi) -> Unit = remember {
             { item: TranscriptMessageUi ->
-                clipboardHelper.copyTranscriptMessage(item.copyText)
+                copyTranscriptMessage(item.copyText)
                 Unit
             }
         }
@@ -981,7 +976,7 @@ class MainActivity : AppCompatActivity() {
         }
         val onEmptySuggestionClick = remember {
             { suggestion: String ->
-                hapticHelper.vibrateLight()
+                vibrateLight()
                 if (inputBarState.value !is InputState.Generating) {
                     inputBarState.value = InputState.Idle
                 }
@@ -1084,7 +1079,7 @@ class MainActivity : AppCompatActivity() {
         ConversationHistoryDialog(
             items = buildHistoryDialogItems(),
             onDismiss = {
-                hapticHelper.vibrateLight()
+                vibrateLight()
                 showHistoryDialogState.value = false
             },
             onSelect = { conversationId ->
@@ -1093,7 +1088,7 @@ class MainActivity : AppCompatActivity() {
                     renderConversation(conversation, animateTransition = true)
                     persistConversations()
                 }
-                hapticHelper.vibrateLight()
+                vibrateLight()
                 showHistoryDialogState.value = false
             },
             onDelete = { conversationId ->
@@ -1609,6 +1604,14 @@ class MainActivity : AppCompatActivity() {
         persistConversations()
     }
 
+    private fun copyTranscriptMessage(text: String) {
+        if (text.isBlank()) return
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val clip = android.content.ClipData.newPlainText("AI Reply", text)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(this, "已复制内容", Toast.LENGTH_SHORT).show()
+    }
+
     private fun deleteConversationById(
         conversationId: Long,
         clearUiForActive: Boolean,
@@ -1938,8 +1941,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun queryDownloadStatus(downloadId: Long): Pair<Int, Int> {
+        val dm = getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+        if (dm == null) return DownloadManager.STATUS_FAILED to -1
+        val query = DownloadManager.Query().setFilterById(downloadId)
+        return runCatching {
+            dm.query(query).use { cursor ->
+                if (cursor == null || !cursor.moveToFirst()) {
+                    return@use DownloadManager.STATUS_FAILED to -1
+                }
+                val statusIdx = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                val reasonIdx = cursor.getColumnIndex(DownloadManager.COLUMN_REASON)
+                val status = if (statusIdx >= 0) cursor.getInt(statusIdx) else DownloadManager.STATUS_FAILED
+                val reason = if (reasonIdx >= 0) cursor.getInt(reasonIdx) else -1
+                status to reason
+            }
+        }.getOrDefault(DownloadManager.STATUS_FAILED to -1)
+    }
+
     private fun refreshLocalModelReadyState() {
-        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
+        localModelReady = modelScopeModelDownloader.isQwen35ModelReady(this)
         updateLocalModelSwitchAvailabilityUi()
         updateStatusText()
     }
@@ -1968,7 +1989,7 @@ class MainActivity : AppCompatActivity() {
         val iterator = pendingQwenDownloadIds.iterator()
         while (iterator.hasNext()) {
             val id = iterator.next()
-            val status = downloadHelper.queryDownloadStatus(id).first
+            val status = queryDownloadStatus(id).first
             if (status == DownloadManager.STATUS_SUCCESSFUL || status == DownloadManager.STATUS_FAILED) {
                 if (status == DownloadManager.STATUS_FAILED) {
                     failedCount++
@@ -2620,7 +2641,7 @@ class MainActivity : AppCompatActivity() {
 
         val seq = ++apiCheckSeq
         val normalizedBaseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }
-        val baseUrlSecurityError = UrlValidator.validateBaseUrlSecurity(normalizedBaseUrl)
+        val baseUrlSecurityError = validateBaseUrlSecurity(normalizedBaseUrl)
         if (baseUrlSecurityError != null) {
             remoteApiChecking = false
             remoteApiOk = false
@@ -2631,7 +2652,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         if (force) {
-            UrlValidator.maybeWarnInsecureHttpBaseUrl(this, normalizedBaseUrl)
+            maybeWarnInsecureHttpBaseUrl(normalizedBaseUrl)
         }
         val resolvedModel = model.ifBlank { AutoGlmClient.DEFAULT_MODEL }
         lifecycleScope.launch {
@@ -2756,6 +2777,19 @@ class MainActivity : AppCompatActivity() {
         return enabled
     }
 
+    private fun normalizeBaseUrlInput(rawUrl: String): String? {
+        val trimmed = rawUrl.trim()
+        if (trimmed.isBlank()) return null
+        return if (
+            trimmed.startsWith("http://", ignoreCase = true) ||
+            trimmed.startsWith("https://", ignoreCase = true)
+        ) {
+            trimmed
+        } else {
+            "https://$trimmed"
+        }
+    }
+
     private fun resolveApiBaseUrl(): String {
         if (isLocalModelModeEnabled()) {
             return AutoGlmClient.DEFAULT_BASE_URL
@@ -2763,7 +2797,31 @@ class MainActivity : AppCompatActivity() {
         if (useAriesApi) return AriesApiClient.ARIES_API_V1_BASE_URL
         if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_BASE_URL
         val rawUrl = apiBaseUrl
-        return UrlValidator.normalizeBaseUrlInput(rawUrl) ?: AutoGlmClient.DEFAULT_BASE_URL
+        return normalizeBaseUrlInput(rawUrl) ?: AutoGlmClient.DEFAULT_BASE_URL
+    }
+
+    private fun validateBaseUrlSecurity(baseUrl: String): String? {
+        val parsed = runCatching { Uri.parse(baseUrl.trim()) }.getOrNull()
+        val scheme = parsed?.scheme?.lowercase()
+        val host = parsed?.host?.lowercase()
+        if (scheme.isNullOrBlank() || host.isNullOrBlank()) {
+            return "API Base URL 格式错误，请检查后重试"
+        }
+        if (scheme != "https" && scheme != "http") {
+            return "API Base URL 必须以 https:// 或 http:// 开头"
+        }
+        return null
+    }
+
+    private fun maybeWarnInsecureHttpBaseUrl(baseUrl: String) {
+        val parsed = runCatching { Uri.parse(baseUrl.trim()) }.getOrNull() ?: return
+        val scheme = parsed.scheme?.lowercase()
+        val host = parsed.host?.lowercase()
+        val localHosts = setOf("localhost", "127.0.0.1", "0.0.0.0", "::1")
+        if (scheme == "http" && host !in localHosts) {
+            Toast.makeText(this, "当前使用 http:// 地址，API Key 可能明文传输，请确认网络安全", Toast.LENGTH_LONG)
+                    .show()
+        }
     }
 
     private fun formatApiCheckFailureReason(statusCode: Int?, message: String?): String {
@@ -2897,6 +2955,60 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** 轻微震动反馈 - 30ms */
+    private fun vibrateLight() {
+        try {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = getSystemService(VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vibratorManager?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(VIBRATOR_SERVICE) as? Vibrator
+            } ?: return
+
+            // vibrate may throw SecurityException on some devices if permission/implementation differs;
+            // catch any throwable to avoid crashing the app when haptic feedback fails.
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(30)
+                }
+            } catch (_: Throwable) {
+                // ignore vibrate failures
+            }
+        } catch (_: Throwable) {
+            // defensively ignore any unexpected errors here to prevent UI crashes
+        }
+    }
+
+    /** 中等震动反馈 - 30ms */
+    private fun vibrateMedium() {
+        try {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = getSystemService(VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vibratorManager?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(VIBRATOR_SERVICE) as? Vibrator
+            } ?: return
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(30)
+                }
+            } catch (_: Throwable) {
+                // ignore vibrate failures
+            }
+        } catch (_: Throwable) {
+            // defensively ignore any unexpected errors here to prevent UI crashes
+        }
+    }
+
     @Composable
     private fun HomeInputBar() {
         val attachmentManager = remember(chatViewModel) { chatViewModel.getAttachmentManager() }
@@ -2961,7 +3073,7 @@ class MainActivity : AppCompatActivity() {
             text = text,
             onTextChange = { inputTextState.value = it },
             onSend = {
-                hapticHelper.vibrateLight()
+                vibrateLight()
                 if (state is InputState.Generating) {
                     if (!shouldStopGeneration) {
                         shouldStopGeneration = true
@@ -2975,7 +3087,7 @@ class MainActivity : AppCompatActivity() {
                     hideKeyboard()
                     if (agentModeEnabled) {
                         val dispatchResult =
-                            ActivityAutomationInstructionGateway.dispatchManual(
+                            automationInstructionGateway.dispatchManual(
                                 context = this@MainActivity,
                                 instruction = t,
                             )
@@ -3004,7 +3116,7 @@ class MainActivity : AppCompatActivity() {
                 }
             },
             onVoiceStart = {
-                hapticHelper.vibrateLight()
+                vibrateLight()
                 val sessionId = beginVoiceSession()
                 ensureAudioPermission {
                     if (!isVoiceSessionActive(sessionId)) return@ensureAudioPermission
@@ -3013,19 +3125,19 @@ class MainActivity : AppCompatActivity() {
                 }
             },
             onVoiceEnd = {
-                hapticHelper.vibrateLight()
+                vibrateLight()
                 val sessionId = activeVoiceSessionId
                 inputBarState.value = InputState.Idle
                 stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
             },
             onVoiceCancel = {
-                hapticHelper.vibrateLight()
+                vibrateLight()
                 val sessionId = activeVoiceSessionId
                 inputBarState.value = InputState.Idle
                 stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
             },
             onAttachmentClick = {
-                hapticHelper.vibrateMedium()
+                vibrateMedium()
                 chatViewModel.toggleAttachmentSelector()
             },
             hasAttachments = attachments.isNotEmpty(),
@@ -3042,7 +3154,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this@MainActivity, "模型选择器已打开", Toast.LENGTH_SHORT).show()
             },
             onModeChange = { isVoice ->
-                hapticHelper.vibrateLight()
+                vibrateLight()
                 val currentState = inputBarState.value
                 if (currentState is InputState.VoiceRecording || currentState is InputState.VoiceRecognizing) {
                     stopVoiceInputAnimation()
@@ -3063,7 +3175,7 @@ class MainActivity : AppCompatActivity() {
                 if (current is InputState.VoiceRecording) {
                     if (current.isCancelling != isCancelling) {
                         inputBarState.value = current.copy(isCancelling = isCancelling)
-                        hapticHelper.vibrateLight()
+                        vibrateLight()
                     }
                 }
             },
@@ -3197,12 +3309,12 @@ class MainActivity : AppCompatActivity() {
         val resolvedBaseUrl =
             if (localModeEnabled) AutoGlmClient.DEFAULT_BASE_URL else resolveApiBaseUrl()
         if (!localModeEnabled) {
-            val baseUrlSecurityError = UrlValidator.validateBaseUrlSecurity(resolvedBaseUrl)
+            val baseUrlSecurityError = validateBaseUrlSecurity(resolvedBaseUrl)
             if (baseUrlSecurityError != null) {
                 Toast.makeText(this, baseUrlSecurityError, Toast.LENGTH_LONG).show()
                 return
             }
-            UrlValidator.maybeWarnInsecureHttpBaseUrl(this, resolvedBaseUrl)
+            maybeWarnInsecureHttpBaseUrl(resolvedBaseUrl)
         }
         val c = requireActiveConversation()
         
@@ -3468,7 +3580,7 @@ class MainActivity : AppCompatActivity() {
 
                     val result =
                         if (localModeEnabled) {
-                            LocalMnnInferenceEngine.sendChatStreamResult(
+                            localMnnInferenceEngine.sendChatStreamResult(
                                 context = this@MainActivity,
                                 messages = chatHistory,
                                 onReasoningDelta = reasoningDeltaHandler,
@@ -3988,7 +4100,7 @@ class MainActivity : AppCompatActivity() {
                 )
             val result = withContext(Dispatchers.IO) {
                 if (localModeEnabled) {
-                    LocalMnnInferenceEngine.sendChatResult(
+                    localMnnInferenceEngine.sendChatResult(
                         context = this@MainActivity,
                         messages = punctuationMessages,
                     )

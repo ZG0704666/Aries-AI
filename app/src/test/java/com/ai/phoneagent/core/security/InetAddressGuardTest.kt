@@ -23,6 +23,23 @@ class InetAddressGuardTest {
         assertFalse(InetAddressGuard.isInternal("1.1.1.1"))
     }
 
+    @Test
+    fun `保留IPv4网段相邻公网地址_应通过`() {
+        assertFalse(InetAddressGuard.isInternal("192.0.1.1"))
+        assertFalse(InetAddressGuard.isInternal("192.88.98.1"))
+        assertFalse(InetAddressGuard.isInternal("198.51.99.1"))
+        assertFalse(InetAddressGuard.isInternal("203.0.112.1"))
+    }
+
+    @Test
+    fun `精确保留IPv4网段_应拒绝`() {
+        assertTrue(InetAddressGuard.isInternal("192.0.0.1"))
+        assertTrue(InetAddressGuard.isInternal("192.0.2.1"))
+        assertTrue(InetAddressGuard.isInternal("192.88.99.1"))
+        assertTrue(InetAddressGuard.isInternal("198.51.100.1"))
+        assertTrue(InetAddressGuard.isInternal("203.0.113.1"))
+    }
+
     @Test(timeout = 15000L)
     fun `公网域名_应通过`() {
         // 探测 DNS 是否可用，沙箱无网络时回退到公网 IP 验证
@@ -93,6 +110,12 @@ class InetAddressGuardTest {
     @Test
     fun `IPv6_站点本地_应拒绝`() {
         assertTrue(InetAddressGuard.isInternal("fd00::1"))
+    }
+
+    @Test
+    fun `IPv6文档网段及相邻公网地址_应精确判断`() {
+        assertTrue(InetAddressGuard.isInternal("2001:db8::1"))
+        assertFalse(InetAddressGuard.isInternal("2001:db7::1"))
     }
 
     // ========== requirePublic 行为 ==========

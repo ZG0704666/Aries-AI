@@ -240,17 +240,5 @@ class ModelScopeModelDownloader {
         private const val USER_AGENT = "PhoneAgent"
         private const val DOWNLOAD_ROOT_DIR = "AriesModels"
 
-        @Volatile private var fallbackInstance: ModelScopeModelDownloader? = null
-
-        private fun getInstance(): ModelScopeModelDownloader =
-            runCatching {
-                org.koin.core.context.GlobalContext.get().get<ModelScopeModelDownloader>()
-            }.getOrNull() ?: (fallbackInstance ?: ModelScopeModelDownloader().also { fallbackInstance = it })
-
-        // Delegate all public methods
-        suspend fun enqueueQwen35Downloads(context: Context): Result<EnqueueResult> = getInstance().enqueueQwen35Downloads(context)
-        fun getQwen35ModelDir(context: Context): File? = getInstance().getQwen35ModelDir(context)
-        fun getQwen35ConfigPath(context: Context): String? = getInstance().getQwen35ConfigPath(context)
-        fun isQwen35ModelReady(context: Context): Boolean = getInstance().isQwen35ModelReady(context)
     }
 }

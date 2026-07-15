@@ -13,7 +13,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-class LocalMnnInferenceEngine {
+class LocalMnnInferenceEngine(
+    private val modelScopeModelDownloader: ModelScopeModelDownloader,
+) {
     private val initMutex = Mutex()
     private val requestMutex = Mutex()
     private val tempImageSeq = AtomicLong(0L)
@@ -160,7 +162,7 @@ class LocalMnnInferenceEngine {
 
     private suspend fun ensureSession(context: Context): LlmSession {
         val configPath =
-            ModelScopeModelDownloader.getQwen35ConfigPath(context)
+            modelScopeModelDownloader.getQwen35ConfigPath(context)
                 ?: throw IOException("Local model config missing, please download model first")
 
         return initMutex.withLock {
@@ -535,27 +537,5 @@ class LocalMnnInferenceEngine {
         private const val LOCAL_MAX_REPEAT_CHUNK_STREAK = 22
         private const val LOCAL_MAX_IMAGE_BYTES = 8L * 1024L * 1024L
 
-        @Volatile private var fallbackInstance: LocalMnnInferenceEngine? = null
-
-        private fun getInstance(): LocalMnnInferenceEngine =
-            runCatching {
-                org.koin.core.context.GlobalContext.get().get<LocalMnnInferenceEngine>()
-            }.getOrNull() ?: (fallbackInstance ?: LocalMnnInferenceEngine().also { fallbackInstance = it })
-
-        suspend fun sendChatStreamResult(
-            context: Context,
-            messages: List<ChatRequestMessage>,
-            onReasoningDelta: (String) -> Unit,
-            onContentDelta: (String) -> Unit,
-            shouldStop: (() -> Boolean)? = null,
-        ): Result<Unit> = getInstance().sendChatStreamResult(context, messages, onReasoningDelta, onContentDelta, shouldStop)
-
-        suspend fun sendChatResult(
-            context: Context,
-            messages: List<ChatRequestMessage>,
-            shouldStop: (() -> Boolean)? = null,
-        ): Result<String> = getInstance().sendChatResult(context, messages, shouldStop)
-
-        suspend fun releaseSession() = getInstance().releaseSession()
     }
 }

@@ -20,10 +20,12 @@ package com.ai.phoneagent
 import android.content.Context
 import com.ai.phoneagent.core.agent.ParsedAgentAction
 import com.ai.phoneagent.core.cache.ScreenshotManager
+import com.ai.phoneagent.core.cache.ScreenshotOverlayGuard
 import com.ai.phoneagent.core.config.AgentConfiguration
 import com.ai.phoneagent.core.executor.ActionExecutor
 import com.ai.phoneagent.core.parser.ActionParser
 import com.ai.phoneagent.core.templates.PromptTemplates
+import com.ai.phoneagent.core.tools.AppPackageManager
 import com.ai.phoneagent.core.utils.ActionUtils
 import com.ai.phoneagent.data.model.ChatContent
 import com.ai.phoneagent.data.model.ContentPart
@@ -62,10 +64,18 @@ class UiAutomationAgent(
         private val appContext: Context,
         private val appPreferencesRepository: AppPreferencesRepository,
         private val config: AgentConfiguration = AgentConfiguration.DEFAULT,
+        private val automationOverlay: AutomationOverlay,
+        private val appPackageManager: AppPackageManager,
+        private val screenshotOverlayGuard: ScreenshotOverlayGuard,
+        private val promptTemplates: PromptTemplates,
+        private val localMnnInferenceEngine: LocalMnnInferenceEngine,
+        private val modelScopeModelDownloader: ModelScopeModelDownloader,
+        private val virtualScreenPreviewOverlay: VirtualScreenPreviewOverlay,
 ) {
     // 组件实例化
     private val actionParser = ActionParser()
-    private val actionExecutor = ActionExecutor(appContext, config)
+    private val actionExecutor =
+            ActionExecutor(appContext, config, automationOverlay, appPackageManager)
     private var screenshotManager: ScreenshotManager? = null
 
     // Tap+Type 合并执行状态
@@ -122,7 +132,7 @@ class UiAutomationAgent(
         var screenH = metrics.heightPixels
 
         // 初始化截图管理器
-        screenshotManager = ScreenshotManager(config)
+        screenshotManager = ScreenshotManager(config, screenshotOverlayGuard)
 
         if (config.useShizukuInteraction && !ShizukuBridge.isShizukuAvailable()) {
             return AgentResult(false, "Shizuku 模式未授权，请先在设置中授权 Shizuku 后重试", 0)
@@ -192,7 +202,7 @@ class UiAutomationAgent(
         ) {
             onLog("【虚拟屏模式】启动预览悬浮窗...")
             val ctx = service ?: appContext
-            VirtualScreenPreviewOverlay.show(ctx)
+            virtualScreenPreviewOverlay.show(ctx)
         }
 
         // 构建初始消息
@@ -201,7 +211,7 @@ class UiAutomationAgent(
                 ChatRequestMessage(
                         role = "system",
                         content =
-                                PromptTemplates.buildSystemPrompt(
+                                promptTemplates.buildSystemPrompt(
                                         screenW = screenW,
                                         screenH = screenH,
                                         config = null,
@@ -237,7 +247,7 @@ class UiAutomationAgent(
             }
 
             // 更新进度
-            AutomationOverlay.updateProgress(
+            automationOverlay.updateProgress(
                     step = step,
                     phaseInStep = 0f,
                     maxSteps = config.maxSteps,
@@ -287,7 +297,7 @@ class UiAutomationAgent(
             }
 
             // 更新进度
-            AutomationOverlay.updateProgress(
+            automationOverlay.updateProgress(
                     step = step,
                     phaseInStep = 0.15f,
                     maxSteps = config.maxSteps,
@@ -341,14 +351,14 @@ class UiAutomationAgent(
 
             // 更新进度
             onLog("[Step $step] 请求模型…")
-            AutomationOverlay.updateProgress(
+            automationOverlay.updateProgress(
                     step = step,
                     phaseInStep = 0.25f,
                     maxSteps = config.maxSteps,
                     subtitle = "请求模型"
             )
 
-            AutomationOverlay.startThinking()
+            automationOverlay.startThinking()
 
             // 调用模型
             val replyResult =
@@ -363,7 +373,7 @@ class UiAutomationAgent(
                     )
 
             val finalReply = replyResult.getOrNull()?.trim().orEmpty()
-            AutomationOverlay.stopThinking()
+            automationOverlay.stopThinking()
 
             // 模型调用失败
             if (finalReply.isBlank()) {
@@ -373,7 +383,7 @@ class UiAutomationAgent(
             }
 
             // 更新进度
-            AutomationOverlay.updateProgress(
+            automationOverlay.updateProgress(
                     step = step,
                     phaseInStep = 0.55f,
                     maxSteps = config.maxSteps,
@@ -387,7 +397,7 @@ class UiAutomationAgent(
                 if (step == 1) {
                     val estimatedSteps = actionParser.parseEstimatedSteps(thinking)
                     if (estimatedSteps > 0) {
-                        AutomationOverlay.updateEstimatedSteps(estimatedSteps)
+                        automationOverlay.updateEstimatedSteps(estimatedSteps)
                         onLog("[Step $step] 预估总步骤数：$estimatedSteps")
                     }
                 }
@@ -425,7 +435,7 @@ class UiAutomationAgent(
             }
 
             // 更新进度
-            AutomationOverlay.updateProgress(
+            automationOverlay.updateProgress(
                     step = step,
                     phaseInStep = 0.68f,
                     maxSteps = config.maxSteps,
@@ -448,7 +458,7 @@ class UiAutomationAgent(
 
                 val overlayActionText = resolveActionSubtitle(currentAction)
                 onLog("[Step $step] 当前动作：$overlayActionText")
-                AutomationOverlay.updateProgress(
+                automationOverlay.updateProgress(
                         step = step,
                         phaseInStep = 0.78f,
                         maxSteps = config.maxSteps,
@@ -554,7 +564,7 @@ class UiAutomationAgent(
                 repairAttempt++
                 onLog("[Step $step] 动作执行失败，尝试让模型修复（$repairAttempt/${config.maxActionRepairs})…")
 
-                AutomationOverlay.updateProgress(
+                automationOverlay.updateProgress(
                         step = step,
                         phaseInStep = 0.62f,
                         maxSteps = config.maxSteps,
@@ -563,7 +573,7 @@ class UiAutomationAgent(
 
                 // 构建修复消息
                 val failMsg =
-                        PromptTemplates.buildActionRepairPrompt(
+                        promptTemplates.buildActionRepairPrompt(
                                 currentAction.raw,
                                 enforceDesc = useThirdPartyApi
                         )
@@ -587,7 +597,7 @@ class UiAutomationAgent(
                     return AgentResult(false, "动作修复失败：${msg.take(320)}", step)
                 }
 
-                AutomationOverlay.updateProgress(
+                automationOverlay.updateProgress(
                         step = step,
                         phaseInStep = 0.72f,
                         maxSteps = config.maxSteps,
@@ -630,7 +640,7 @@ class UiAutomationAgent(
             val extraDelayMs = config.getActionDelayMs(currentAction.actionName ?: "")
 
             // 更新进度
-            AutomationOverlay.updateProgress(
+            automationOverlay.updateProgress(
                     step = step,
                     phaseInStep = 0.92f,
                     maxSteps = config.maxSteps,
@@ -657,7 +667,7 @@ class UiAutomationAgent(
     private fun cleanupVirtualDisplay(service: PhoneAgentAccessibilityService?) {
         if (config.useBackgroundVirtualDisplay) {
             val ctx = service ?: appContext
-            VirtualScreenPreviewOverlay.hide()
+            virtualScreenPreviewOverlay.hide()
             VirtualDisplayController.cleanup(ctx)
         }
     }
@@ -680,7 +690,7 @@ class UiAutomationAgent(
                 )
 
         // 初始化应用包名管理器
-        com.ai.phoneagent.core.tools.AppPackageManager.initializeCache(service ?: appContext)
+        appPackageManager.initializeCache(service ?: appContext)
 
         var resolvedPackage: String? = null
         var matchedAppName: String? = null
@@ -692,7 +702,7 @@ class UiAutomationAgent(
                 if (!potentialApp.isNullOrBlank()) {
                     // 使用新的智能解析（包含防误匹配逻辑、高优先级关键词）
                     resolvedPackage =
-                            com.ai.phoneagent.core.tools.AppPackageManager.resolvePackageName(
+                            appPackageManager.resolvePackageName(
                                     potentialApp
                             )
                     if (resolvedPackage != null) {
@@ -705,7 +715,7 @@ class UiAutomationAgent(
 
         // 如果正则匹配失败，尝试全文搜索已安装应用
         if (resolvedPackage == null) {
-            val allApps = com.ai.phoneagent.core.tools.AppPackageManager.getAllInstalledApps()
+            val allApps = appPackageManager.getAllInstalledApps()
             for ((pkg, appName) in allApps) {
                 if (task.contains(appName, ignoreCase = true)) {
                     resolvedPackage = pkg
@@ -1024,7 +1034,7 @@ class UiAutomationAgent(
         }
 
         // 前台模式：确保任意异常路径都恢复悬浮窗
-        AutomationOverlay.temporaryHide()
+        automationOverlay.temporaryHide()
         try {
             delay(30)
 
@@ -1057,7 +1067,7 @@ class UiAutomationAgent(
 
             return ok
         } finally {
-            AutomationOverlay.restoreVisibility()
+            automationOverlay.restoreVisibility()
         }
     }
 
@@ -1098,7 +1108,7 @@ class UiAutomationAgent(
             repairHistory.add(
                     ChatRequestMessage(
                             role = "user",
-                            content = PromptTemplates.buildRepairPrompt(enforceDesc = enforceDesc)
+                            content = promptTemplates.buildRepairPrompt(enforceDesc = enforceDesc)
                     )
             )
 
@@ -1146,7 +1156,7 @@ class UiAutomationAgent(
         var lastErr: Throwable? = null
         val useLocalModel = appPreferencesRepository.getApiUseLocalModelBlocking()
 
-        if (useLocalModel && !ModelScopeModelDownloader.isQwen35ModelReady(appContext)) {
+        if (useLocalModel && !modelScopeModelDownloader.isQwen35ModelReady(appContext)) {
             return kotlin.Result.failure(
                 java.io.IOException("本地模型未就绪，请先在主界面下载模型")
             )
@@ -1158,7 +1168,7 @@ class UiAutomationAgent(
             val result =
                     withContext(Dispatchers.IO) {
                         if (useLocalModel) {
-                            LocalMnnInferenceEngine.sendChatResult(
+                            localMnnInferenceEngine.sendChatResult(
                                 context = appContext,
                                 messages = messages,
                             )

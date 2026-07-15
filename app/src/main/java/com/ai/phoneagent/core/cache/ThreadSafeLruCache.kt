@@ -20,7 +20,8 @@ import java.util.LinkedHashMap
  */
 class ThreadSafeLruCache<K, V>(
     private val maxSize: Int,
-    private val ttlMillis: Long = 30 * 60 * 1000L
+    private val ttlMillis: Long = 30 * 60 * 1000L,
+    private val clock: MillisClock = MillisClock.SYSTEM,
 ) : Cache<K, V> {
 
     init {
@@ -45,6 +46,19 @@ class ThreadSafeLruCache<K, V>(
     /** 同步锁对象，所有公开方法都通过此锁串行化。 */
     private val lock = Any()
 
+    private fun evictExpiredLocked(now: Long): Int {
+        val iterator = internal.entries.iterator()
+        var removed = 0
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (now - entry.value.createdAt >= ttlMillis) {
+                iterator.remove()
+                removed++
+            }
+        }
+        return removed
+    }
+
     /**
      * 读取条目。
      *
@@ -58,7 +72,7 @@ class ThreadSafeLruCache<K, V>(
     override operator fun get(key: K): V? {
         synchronized(lock) {
             val entry = internal[key] ?: return null
-            if (System.currentTimeMillis() - entry.createdAt >= ttlMillis) {
+            if (clock.nowMillis() - entry.createdAt >= ttlMillis) {
                 internal.remove(key)
                 return null
             }
@@ -74,7 +88,7 @@ class ThreadSafeLruCache<K, V>(
      */
     override fun put(key: K, value: V) {
         synchronized(lock) {
-            internal[key] = TimedValue(value, System.currentTimeMillis())
+            internal[key] = TimedValue(value, clock.nowMillis())
         }
     }
 
@@ -92,12 +106,11 @@ class ThreadSafeLruCache<K, V>(
     /**
      * 当前条目数。
      *
-     * 注意：返回值可能包含尚未触发过期检查的条目（过期条目仅在 [get] 时被清除）。
-     *
      * @return 当前条目数
      */
     override fun size(): Int {
         synchronized(lock) {
+            evictExpiredLocked(clock.nowMillis())
             return internal.size
         }
     }
@@ -117,13 +130,13 @@ class ThreadSafeLruCache<K, V>(
      * 该方法在锁内一次性拷贝所有条目，返回的列表与原缓存互不影响，
      * 调用方可安全地迭代、过滤而无需额外加锁。
      *
-     * 注意：快照包含尚未触发过期检查的条目；TTL 过期判定仅在 [get] 时进行。
      * 返回顺序为 LRU 访问顺序（最久未访问在前）。
      *
      * @return 当前所有条目的键值对列表
      */
     override fun snapshot(): List<Pair<K, V>> {
         synchronized(lock) {
+            evictExpiredLocked(clock.nowMillis())
             return internal.entries.map { it.key to it.value.value }
         }
     }
@@ -138,17 +151,7 @@ class ThreadSafeLruCache<K, V>(
      */
     fun evictExpired(): Int {
         synchronized(lock) {
-            val now = System.currentTimeMillis()
-            val iterator = internal.entries.iterator()
-            var removed = 0
-            while (iterator.hasNext()) {
-                val entry = iterator.next()
-                if (now - entry.value.createdAt >= ttlMillis) {
-                    iterator.remove()
-                    removed++
-                }
-            }
-            return removed
+            return evictExpiredLocked(clock.nowMillis())
         }
     }
 }

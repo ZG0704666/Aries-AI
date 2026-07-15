@@ -10,8 +10,6 @@ import com.ai.phoneagent.VirtualDisplayConfig
 import com.ai.phoneagent.data.preferences.AutomationResultsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.get
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -21,7 +19,7 @@ import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-object FeedbackLogExporter : KoinComponent {
+object FeedbackLogExporter {
     private val emailRegex = Regex("""[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}""")
     private val phoneRegex = Regex("""(?<!\d)(?:\+?86[- ]?)?1[3-9]\d{9}(?!\d)""")
     private val bearerRegex = Regex("""(?i)(bearer\s+)([A-Za-z0-9._\-+/=]+)""")
@@ -42,7 +40,7 @@ object FeedbackLogExporter : KoinComponent {
 
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val bundleFile = File(exportDir, "aries_feedback_$timestamp.zip")
-            val lastResult = get<AutomationResultsRepository>().getLastResultBlocking()
+            val lastResult = AutomationResultsRepository(context).getLastResultBlocking()
             val metadata = buildMetadata(context, lastResult)
             val lastResultText = formatLastResult(lastResult)
             val processLogcat = collectCurrentProcessLogcat()

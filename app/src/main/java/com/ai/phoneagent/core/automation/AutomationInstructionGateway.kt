@@ -105,17 +105,4 @@ class ActivityAutomationInstructionGateway : AutomationInstructionGateway {
         }
     }
 
-    companion object {
-        @Volatile private var fallbackInstance: ActivityAutomationInstructionGateway? = null
-
-        private fun getInstance(): ActivityAutomationInstructionGateway =
-            runCatching {
-                org.koin.core.context.GlobalContext.get().get<ActivityAutomationInstructionGateway>()
-            }.getOrNull() ?: (fallbackInstance ?: ActivityAutomationInstructionGateway().also { fallbackInstance = it })
-
-        fun dispatch(context: Context, request: AutomationInstructionRequest): AutomationDispatchResult = getInstance().dispatch(context, request)
-        fun dispatchManual(context: Context, instruction: String): AutomationDispatchResult = getInstance().dispatchManual(context, instruction)
-        fun dispatchFromAdvancedAi(context: Context, instruction: String): AutomationDispatchResult = getInstance().dispatchFromAdvancedAi(context, instruction)
-        fun buildIntent(context: Context, request: AutomationInstructionRequest): Intent = getInstance().buildIntent(context, request)
-    }
 }

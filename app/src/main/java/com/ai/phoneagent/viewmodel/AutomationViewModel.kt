@@ -32,14 +32,17 @@ import com.ai.phoneagent.VirtualDisplayController
 import com.ai.phoneagent.VirtualScreenPreviewOverlay
 import com.ai.phoneagent.core.automation.AutomationInstructionRequest
 import com.ai.phoneagent.core.automation.AutomationLogBridge
+import com.ai.phoneagent.core.cache.ScreenshotOverlayGuard
 import com.ai.phoneagent.core.config.AgentConfiguration
-import com.ai.phoneagent.core.tools.AIToolHandler
+import com.ai.phoneagent.core.tools.AppPackageManager
 import com.ai.phoneagent.core.tools.ToolRegistration
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.AutomationResultsRepository
 import com.ai.phoneagent.net.AriesApiClient
 import com.ai.phoneagent.net.AutoGlmClient
+import com.ai.phoneagent.net.LocalMnnInferenceEngine
 import com.ai.phoneagent.net.ModelScopeModelDownloader
+import com.ai.phoneagent.core.templates.PromptTemplates
 import com.ai.phoneagent.speech.SherpaSpeechRecognizer
 import java.lang.ref.WeakReference
 import java.text.SimpleDateFormat
@@ -59,8 +62,15 @@ class AutomationViewModel(
     application: Application,
     private val appPrefsRepository: AppPreferencesRepository,
     private val automationResultsRepository: AutomationResultsRepository,
-    private val toolHandler: AIToolHandler,
     private val toolRegistration: ToolRegistration,
+    private val liveNotification: AutomationLiveNotification,
+    private val automationOverlay: AutomationOverlay,
+    private val appPackageManager: AppPackageManager,
+    private val screenshotOverlayGuard: ScreenshotOverlayGuard,
+    private val promptTemplates: PromptTemplates,
+    private val localMnnInferenceEngine: LocalMnnInferenceEngine,
+    private val modelScopeModelDownloader: ModelScopeModelDownloader,
+    private val virtualScreenPreviewOverlay: VirtualScreenPreviewOverlay,
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -646,7 +656,7 @@ class AutomationViewModel(
 
     private fun initializeToolSystem() {
         try {
-            toolRegistration.registerAllTools(toolHandler, appContext)
+            toolRegistration.registerAllTools()
             appendLog("✅ 工具系统初始化完成")
         } catch (e: Exception) {
             Log.e("AutomationViewModel", "工具系统初始化失败: ${e.message}", e)
@@ -757,7 +767,7 @@ class AutomationViewModel(
             Toast.makeText(appContext, "请先在侧边栏配置 API Key", Toast.LENGTH_SHORT).show()
             return
         }
-        if (localModelEnabled && !ModelScopeModelDownloader.isQwen35ModelReady(appContext)) {
+        if (localModelEnabled && !modelScopeModelDownloader.isQwen35ModelReady(appContext)) {
             Toast.makeText(appContext, "本地模型未就绪，请先在主界面下载模型", Toast.LENGTH_SHORT).show()
             return
         }
@@ -840,17 +850,16 @@ class AutomationViewModel(
         appendLog("任务：$task")
 
         val liveNotificationStarted =
-            AutomationLiveNotification.show(
-                context = appContext,
+            liveNotification.show(
                 title = "分析中",
                 subtitle = task.take(20),
                 maxSteps = 100,
                 navigateMainOnClick = fromHomeDispatch,
             )
 
-        if (!liveNotificationStarted && AutomationOverlay.canDrawOverlays(appContext)) {
+        if (!liveNotificationStarted && automationOverlay.canDrawOverlays(appContext)) {
             val ok =
-                AutomationOverlay.show(
+                automationOverlay.show(
                     context = appContext,
                     title = "分析中",
                     subtitle = task.take(20),
@@ -880,12 +889,12 @@ class AutomationViewModel(
                         }
                     if (!effectiveUseShizuku && svc == null) {
                         appendLog("无障碍服务连接失败：未获取到服务实例")
-                        AutomationOverlay.complete("无障碍服务未连接")
+                        automationOverlay.complete("无障碍服务未连接")
                         return@launch
                     }
                     if (effectiveUseShizuku && svc == null) {
                         appendLog("Shizuku 模式：无障碍服务未连接，已停止执行")
-                        AutomationOverlay.complete("Shizuku 模式需无障碍连接")
+                        automationOverlay.complete("Shizuku 模式需无障碍连接")
                         return@launch
                     }
 
@@ -901,7 +910,19 @@ class AutomationViewModel(
                         }
                     }
 
-                    val agent = UiAutomationAgent(appContext, appPrefsRepository, config)
+                    val agent =
+                        UiAutomationAgent(
+                            appContext = appContext,
+                            appPreferencesRepository = appPrefsRepository,
+                            config = config,
+                            automationOverlay = automationOverlay,
+                            appPackageManager = appPackageManager,
+                            screenshotOverlayGuard = screenshotOverlayGuard,
+                            promptTemplates = promptTemplates,
+                            localMnnInferenceEngine = localMnnInferenceEngine,
+                            modelScopeModelDownloader = modelScopeModelDownloader,
+                            virtualScreenPreviewOverlay = virtualScreenPreviewOverlay,
+                        )
                     val result =
                         agent.run(
                             apiKey = apiKey,
@@ -960,23 +981,23 @@ class AutomationViewModel(
                             },
                         )
                     appendLog("结束：${result.message}（steps=${result.steps}）")
-                    AutomationOverlay.complete(result.message)
+                    automationOverlay.complete(result.message)
 
                     val finalLog = withContext(Dispatchers.Main) { logText }
                     saveRunResult(result.success, result.message, result.steps, finalLog)
                 } catch (e: Exception) {
                     if (e is CancellationException) {
                         appendLog("已停止")
-                        AutomationOverlay.hide()
+                        automationOverlay.hide()
                     } else {
                         appendLog("异常：${e.message}")
-                        AutomationOverlay.complete(e.message.orEmpty().ifBlank { "执行异常" })
+                        automationOverlay.complete(e.message.orEmpty().ifBlank { "执行异常" })
                         val finalLog = withContext(Dispatchers.Main) { logText }
                         saveRunResult(false, e.message ?: "执行异常", 0, finalLog)
                     }
                 } finally {
                     agentJob = null
-                    VirtualScreenPreviewOverlay.hide()
+                    virtualScreenPreviewOverlay.hide()
                     virtualDisplayStatusJob?.cancel()
                     virtualDisplayStatusJob = null
                     paused = false
@@ -1034,8 +1055,8 @@ class AutomationViewModel(
         if (!hadRunning) {
             appendLog("已停止")
         }
-        AutomationOverlay.hide()
-        VirtualScreenPreviewOverlay.hide()
+        automationOverlay.hide()
+        virtualScreenPreviewOverlay.hide()
         virtualDisplayStatusJob?.cancel()
         virtualDisplayStatusJob = null
         if (isBackgroundMode ||
@@ -1057,7 +1078,7 @@ class AutomationViewModel(
         paused = !paused
         updateComposeControlState(canStart = composeCanStart)
         appendLog(if (paused) "已暂停（等待继续）" else "已继续")
-        VirtualScreenPreviewOverlay.setPausedState(paused)
+        virtualScreenPreviewOverlay.setPausedState(paused)
     }
 
     private fun initSherpaModel() {
@@ -1245,7 +1266,7 @@ class AutomationViewModel(
                     }
                     append(message)
                 }
-            AutomationOverlay.updateFromLogLine(message)
+            automationOverlay.updateFromLogLine(message)
             if (mirrorLogsToMain) {
                 AutomationLogBridge.publish(appContext, message)
             }

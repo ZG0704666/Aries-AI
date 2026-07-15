@@ -19,6 +19,10 @@ package com.ai.phoneagent.core.security
 
 import android.content.Context
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.LinkOption
+import java.nio.file.Path
+import java.nio.file.Paths
 
 /**
  * 路径安全护栏。
@@ -56,36 +60,30 @@ object PathGuard {
             throw IllegalArgumentException("allowedRoots must not be empty")
         }
 
-        // 预规范化根目录，并保留根的 canonicalPath（强制以 separator 结尾便于前缀匹配）
-        val canonicalRoots: List<Root> = allowedRoots.map { src ->
-            val canonical = src.canonicalFile
-            Root(
-                file = canonical,
-                prefix = canonical.absolutePath.removeSuffix(File.separator) + File.separator
-            )
+        val requestedPath = try {
+            Paths.get(path)
+        } catch (e: Exception) {
+            throw IllegalArgumentException("Invalid path: ${e.message}", e)
+        }
+        if (requestedPath.any { it.toString() == ".." }) {
+            throw SecurityException("Parent path traversal is not allowed")
         }
 
-        // 相对路径相对于首个 allowedRoot 解析
-        val rawFile = File(path)
-        val resolvedFile = if (rawFile.isAbsolute) {
-            rawFile
+        val canonicalRoots = allowedRoots.map { root ->
+            require(root.exists()) { "Allowed root does not exist: ${root.absolutePath}" }
+            root.toPath().toRealPath()
+        }
+        val resolvedPath = if (requestedPath.isAbsolute) {
+            requestedPath
         } else {
-            File(canonicalRoots.first().file, path)
+            canonicalRoots.first().resolve(requestedPath)
         }
-
-        val canonicalTarget = resolvedFile.canonicalFile
-        val targetPath = canonicalTarget.absolutePath.removeSuffix(File.separator) + File.separator
-
-        val matched = canonicalRoots.any { root ->
-            // 严格按 separator 边界匹配；同时允许 targetPath 与 root 完全相等。
-            targetPath.startsWith(root.prefix, ignoreCase = true) ||
-                canonicalTarget.absolutePath == root.file.absolutePath
-        }
-
-        if (!matched) {
+        val normalizedTarget = resolvedPath.toAbsolutePath().normalize()
+        val realTarget = resolveThroughNearestExistingAncestor(normalizedTarget)
+        if (canonicalRoots.none { realTarget.startsWith(it) }) {
             throw SecurityException("Path '$path' resolves outside allowed roots")
         }
-        return canonicalTarget
+        return realTarget.toFile()
     }
 
     /**
@@ -109,5 +107,17 @@ object PathGuard {
         return canonicalizeWithin(roots, path)
     }
 
-    private data class Root(val file: File, val prefix: String)
+    private fun resolveThroughNearestExistingAncestor(target: Path): Path {
+        var ancestor: Path? = target
+        while (ancestor != null && !Files.exists(ancestor, LinkOption.NOFOLLOW_LINKS)) {
+            ancestor = ancestor.parent
+        }
+        if (ancestor == null) {
+            throw SecurityException("Path has no existing ancestor")
+        }
+
+        val realAncestor = ancestor.toRealPath()
+        val missingSuffix = ancestor.relativize(target)
+        return realAncestor.resolve(missingSuffix).normalize()
+    }
 }

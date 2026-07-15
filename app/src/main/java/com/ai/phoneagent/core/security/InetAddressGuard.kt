@@ -52,13 +52,13 @@ object InetAddressGuard {
      * @return `true` 表示目标为内网 / 受限地址，应拒绝访问；`false` 表示为公网地址
      */
     fun isInternal(host: String): Boolean {
-        val address = try {
-            InetAddress.getByName(host)
+        val addresses = try {
+            InetAddress.getAllByName(host).toList()
         } catch (e: UnknownHostException) {
             warn("无法解析主机 '$host'，按内网拒绝: ${e.message}")
             return true
         }
-        return isInternalAddress(address)
+        return addresses.isEmpty() || addresses.any(::isInternalAddress)
     }
 
     /**
@@ -71,14 +71,41 @@ object InetAddressGuard {
      * @throws SecurityException 当 [host] 解析为内网 / 受限地址时
      */
     fun requirePublic(host: String) {
-        if (isInternal(host)) {
-            throw SecurityException("Host '$host' resolves to internal address")
+        val addresses = try {
+            InetAddress.getAllByName(host).toList()
+        } catch (e: UnknownHostException) {
+            throw SecurityException("Host '$host' cannot be resolved", e)
+        }
+        requirePublic(host, addresses)
+    }
+
+    /**
+     * 校验 DNS 返回的完整地址集合。只要其中任一地址不可公开路由，就拒绝整个请求。
+     */
+    fun requirePublic(host: String, addresses: List<InetAddress>) {
+        if (addresses.isEmpty()) {
+            throw SecurityException("Host '$host' resolved to no addresses")
+        }
+        val blocked = addresses.firstOrNull(::isInternalAddress)
+        if (blocked != null) {
+            throw SecurityException(
+                "Host '$host' resolves to blocked address ${blocked.hostAddress}"
+            )
         }
     }
 
     // ============ 内部实现 ============
 
-    private fun isInternalAddress(address: InetAddress): Boolean {
+    internal fun isInternalAddress(address: InetAddress): Boolean {
+        if (
+            address.isAnyLocalAddress ||
+            address.isLoopbackAddress ||
+            address.isLinkLocalAddress ||
+            address.isSiteLocalAddress ||
+            address.isMulticastAddress
+        ) {
+            return true
+        }
         val bytes = address.address
         return when (bytes.size) {
             4 -> isPrivateIPv4(bytes)
@@ -90,14 +117,22 @@ object InetAddressGuard {
     private fun isPrivateIPv4(b: ByteArray): Boolean {
         val b0 = b[0].toInt() and 0xFF
         val b1 = b[1].toInt() and 0xFF
+        val b2 = b[2].toInt() and 0xFF
         return when {
             b0 == 0 -> true                            // 0.0.0.0/8    本网络
             b0 == 10 -> true                           // 10.0.0.0/8   RFC 1918 私有
             b0 == 127 -> true                          // 127.0.0.0/8  回环
             b0 == 169 && b1 == 254 -> true             // 169.254.0.0/16 链路本地（含云元数据）
             b0 == 172 && (b1 and 0xF0) == 0x10 -> true // 172.16.0.0/12 RFC 1918 私有
+            b0 == 192 && b1 == 0 && b2 == 0 -> true    // 192.0.0.0/24 IETF 协议分配
+            b0 == 192 && b1 == 0 && b2 == 2 -> true    // 192.0.2.0/24 文档地址
             b0 == 192 && b1 == 168 -> true             // 192.168.0.0/16 RFC 1918 私有
+            b0 == 192 && b1 == 88 && b2 == 99 -> true  // 192.88.99.0/24 已弃用中继
+            b0 == 198 && (b1 == 18 || b1 == 19) -> true // 198.18.0.0/15 基准测试
+            b0 == 198 && b1 == 51 && b2 == 100 -> true // 198.51.100.0/24 文档地址
+            b0 == 203 && b1 == 0 && b2 == 113 -> true  // 203.0.113.0/24 文档地址
             b0 == 100 && (b1 and 0xC0) == 0x40 -> true // 100.64.0.0/10 CGNAT (RFC 6598)
+            b0 >= 224 -> true                           // 组播、保留及广播
             else -> false
         }
     }
@@ -109,6 +144,9 @@ object InetAddressGuard {
             b0 == 0xFF -> true                         // ff00::/8   组播
             (b0 and 0xFE) == 0xFC -> true              // fc00::/7   站点本地 ULA
             b0 == 0xFE && (b1 and 0xC0) == 0x80 -> true // fe80::/10 链路本地
+            b0 == 0x20 && b1 == 0x01 &&
+                (b[2].toInt() and 0xFF) == 0x0D &&
+                (b[3].toInt() and 0xFF) == 0xB8 -> true // 2001:db8::/32 文档地址
             b0 == 0x00 -> checkIPv6ZeroPrefix(b)        // ::1 / :: / IPv4-mapped / IPv4-compat
             else -> false
         }

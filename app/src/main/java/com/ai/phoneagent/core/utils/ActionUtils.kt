@@ -2,6 +2,7 @@ package com.ai.phoneagent.core.utils
 
 import com.ai.phoneagent.data.model.ChatContent
 import com.ai.phoneagent.data.model.ContentPart
+import java.util.concurrent.ConcurrentHashMap
 
 /** 动作工具类 - 动作名称转换、延迟计算等 */
 object ActionUtils {
@@ -182,5 +183,50 @@ object ActionUtils {
         val x = (relX / 1000.0f) * screenW
         val y = (relY / 1000.0f) * screenH
         return x to y
+    }
+}
+
+/** 文本工具类 */
+object TextUtils {
+
+    /** 简化日志行 */
+    fun simplifyLogLine(line: String): String {
+        val raw = line.trim()
+        val m = Regex("""\[Step\s+\d+\]\s*""").find(raw)
+        return if (m != null && m.range.first == 0) {
+            raw.substring(m.range.last + 1).trimStart()
+        } else {
+            raw
+        }
+    }
+
+    /** 截断文本 */
+    fun truncate(text: String, maxLength: Int): String {
+        return if (text.length > maxLength) text.take(maxLength) + "..." else text
+    }
+
+    /** 截断错误消息 */
+    fun truncateErrorMessage(msg: String?, maxLength: Int = 320): String {
+        return msg?.trim()?.ifBlank { "未知错误" }?.take(maxLength) ?: "未知错误"
+    }
+}
+
+/** 正则表达式缓存 */
+object RegexCache {
+    private val cache = ConcurrentHashMap<String, Regex>()
+
+    fun get(pattern: String, ignoreCase: Boolean = false, multiline: Boolean = false): Regex {
+        val cacheKey = "$pattern|$ignoreCase|$multiline"
+        return cache.getOrPut(cacheKey) {
+            val options = buildSet {
+                if (ignoreCase) add(kotlin.text.RegexOption.IGNORE_CASE)
+                if (multiline) add(kotlin.text.RegexOption.MULTILINE)
+            }
+            if (options.isEmpty()) {
+                Regex(pattern)
+            } else {
+                Regex(pattern, options)
+            }
+        }
     }
 }

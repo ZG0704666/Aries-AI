@@ -26,6 +26,8 @@ class SettingsViewModel(
     application: Application,
     private val prefs: AppPreferencesRepository,
     private val ariesOidcAuthManager: AriesOidcAuthManager,
+    private val ariesApiClient: AriesApiClient,
+    private val modelScopeModelDownloader: ModelScopeModelDownloader,
 ) : AndroidViewModel(application) {
 
     enum class SettingsPage {
@@ -129,7 +131,7 @@ class SettingsViewModel(
         private set
 
     init {
-        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(getApplication())
+        localModelReady = modelScopeModelDownloader.isQwen35ModelReady(getApplication())
         restoreSettings()
         // 响应式监听隐藏模型入口解锁状态（AboutViewModel 切换后实时生效）
         viewModelScope.launch {
@@ -215,7 +217,7 @@ class SettingsViewModel(
     }
 
     fun refreshLocalModelState() {
-        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(getApplication())
+        localModelReady = modelScopeModelDownloader.isQwen35ModelReady(getApplication())
         updateQwenDownloadButtonState()
         updateStatusText()
     }
@@ -343,7 +345,7 @@ class SettingsViewModel(
 
     fun checkApiConnection(onToast: (String) -> Unit) {
         if (useLocalModel) {
-            localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(getApplication())
+            localModelReady = modelScopeModelDownloader.isQwen35ModelReady(getApplication())
             updateQwenDownloadButtonState()
             apiStatusPositive = localModelReady
             apiStatusText =
@@ -395,10 +397,10 @@ class SettingsViewModel(
         qwenDownloadInFlight = true
         updateQwenDownloadButtonState()
         viewModelScope.launch {
-            val result = ModelScopeModelDownloader.enqueueQwen35Downloads(getApplication())
+            val result = modelScopeModelDownloader.enqueueQwen35Downloads(getApplication())
             qwenDownloadInFlight = false
             result.onSuccess {
-                localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(getApplication())
+                localModelReady = modelScopeModelDownloader.isQwen35ModelReady(getApplication())
                 updateQwenDownloadButtonState()
                 val message =
                     when {
@@ -692,7 +694,7 @@ class SettingsViewModel(
     private fun fetchAndShowModels(apiKey: String) {
         viewModelScope.launch {
             val modelsResult = withContext(Dispatchers.IO) {
-                AriesApiClient.fetchModels(apiKey)
+                ariesApiClient.fetchModels(apiKey)
             }
             modelsResult.onSuccess { models ->
                 ariesAvailableModels = models
@@ -705,7 +707,7 @@ class SettingsViewModel(
         val key = prefs.getActiveAriesApiKeyBlocking().trim()
         if (ariesAvailableModels.isEmpty() && key.isNotBlank()) {
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { AriesApiClient.fetchModels(key) }
+                val result = withContext(Dispatchers.IO) { ariesApiClient.fetchModels(key) }
                 result.onSuccess { models ->
                     ariesAvailableModels = models
                     if (models.isNotEmpty()) showAriesModelDialog = true

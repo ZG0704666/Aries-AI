@@ -68,6 +68,15 @@ class PathGuardTest {
     }
 
     @Test
+    fun `路径包含父目录段但最终仍在根内_也应拒绝`() {
+        val traversalPath = "child${File.separator}..${File.separator}data.txt"
+
+        assertThrows(SecurityException::class.java) {
+            PathGuard.canonicalizeWithin(allowedRoots(), traversalPath)
+        }
+    }
+
+    @Test
     fun `符号链接越界_应抛SecurityException`() {
         // 在 allowedRoot 内创建符号链接指向外部文件
         val outsideTarget = File(tempFolder.root, "outside_target.txt").apply { writeText("secret") }
@@ -92,6 +101,26 @@ class PathGuardTest {
 
         assertThrows(SecurityException::class.java) {
             PathGuard.canonicalizeWithin(allowedRoots(), link.absolutePath)
+        }
+    }
+
+    @Test
+    fun `不存在目标经符号链接祖先越界_应抛SecurityException`() {
+        val outsideDir = tempFolder.newFolder("outside_dir")
+        val link = File(filesRoot, "outside_link")
+        val supported = try {
+            Files.createSymbolicLink(link.toPath(), outsideDir.toPath())
+            true
+        } catch (e: Exception) {
+            false
+        }
+        assumeTrue("当前环境不支持创建符号链接，跳过本用例", supported)
+
+        assertThrows(SecurityException::class.java) {
+            PathGuard.canonicalizeWithin(
+                allowedRoots(),
+                "outside_link${File.separator}missing${File.separator}file.txt"
+            )
         }
     }
 

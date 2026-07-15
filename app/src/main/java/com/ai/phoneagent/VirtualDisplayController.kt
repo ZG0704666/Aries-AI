@@ -49,6 +49,21 @@ object VirtualDisplayController {
     private const val TAG = "AriesVirtualDisplay"
 
     @Volatile private var activeDisplayId: Int? = null
+    @Volatile private var virtualDisplayEngine: ShizukuVirtualDisplayEngine? = null
+
+    @Synchronized
+    fun initialize(engine: ShizukuVirtualDisplayEngine) {
+        val current = virtualDisplayEngine
+        check(current == null || current === engine) {
+            "VirtualDisplayController already initialized with a different engine"
+        }
+        virtualDisplayEngine = engine
+    }
+
+    private fun engine(): ShizukuVirtualDisplayEngine =
+        checkNotNull(virtualDisplayEngine) {
+            "VirtualDisplayController must be initialized after Koin startup"
+        }
 
     // IME 焦点死锁防护控制器
     private val imeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -74,7 +89,7 @@ object VirtualDisplayController {
 
     /** 获取虚拟屏内容尺寸（用于坐标换算/预览比例） 优先使用 GL dispatcher 的最新 content size；若不可用则回退到 VirtualDisplayConfig。 */
     fun getContentSizeBestEffort(context: Context? = null): Pair<Int, Int> {
-        val latest = runCatching { ShizukuVirtualDisplayEngine.getLatestContentSize() }.getOrNull()
+        val latest = runCatching { engine().getLatestContentSize() }.getOrNull()
         val lw = latest?.first ?: 0
         val lh = latest?.second ?: 0
         if (lw > 0 && lh > 0) return lw to lh
@@ -116,7 +131,7 @@ object VirtualDisplayController {
 
         // 检查是否已存在可用的虚拟屏
         val existing = activeDisplayId
-        if (existing != null && ShizukuVirtualDisplayEngine.isStarted()) {
+        if (existing != null && engine().isStarted()) {
             return existing
         }
 
@@ -127,7 +142,7 @@ object VirtualDisplayController {
         // 使用 Shizuku VirtualDisplay 引擎创建虚拟屏
         Log.i(TAG, "Creating VirtualDisplay: size=${vdW}x${vdH}, dpi=$vdDpi")
         val r =
-                ShizukuVirtualDisplayEngine.ensureStarted(
+                engine().ensureStarted(
                         ShizukuVirtualDisplayEngine.Args(
                                 name = "Aries-Virtual",
                                 width = vdW,
@@ -173,11 +188,11 @@ object VirtualDisplayController {
     @JvmStatic
     fun screenshotPngBase64(): String {
         val did = activeDisplayId ?: return ""
-        if (!ShizukuVirtualDisplayEngine.isStarted()) return ""
+        if (!engine().isStarted()) return ""
 
         // 严格隔离模式：截图不抢焦点，避免主屏物理按键被路由到虚拟屏
 
-        val bmp = ShizukuVirtualDisplayEngine.captureLatestBitmap().getOrNull() ?: return ""
+        val bmp = engine().captureLatestBitmap().getOrNull() ?: return ""
         return try {
             val baos = ByteArrayOutputStream()
             bmp.compress(Bitmap.CompressFormat.PNG, 100, baos)
@@ -197,13 +212,13 @@ object VirtualDisplayController {
             pollIntervalMs: Long = 80L,
     ): String {
         val did = activeDisplayId ?: return ""
-        if (!ShizukuVirtualDisplayEngine.isStarted()) return ""
+        if (!engine().isStarted()) return ""
         // 严格隔离模式：截图不抢焦点，避免主屏物理按键被路由到虚拟屏
 
         val deadline = SystemClock.uptimeMillis() + maxWaitMs
         var lastBmp: Bitmap? = null
         while (SystemClock.uptimeMillis() <= deadline) {
-            val bmp = ShizukuVirtualDisplayEngine.captureLatestBitmap().getOrNull()
+            val bmp = engine().captureLatestBitmap().getOrNull()
             if (bmp != null) {
                 lastBmp?.recycle()
                 lastBmp = bmp
@@ -244,7 +259,7 @@ object VirtualDisplayController {
     /** 立即恢复焦点到主屏（display 0）。 用于 Activity 启动后、任务结束、虚拟屏清理等场景。 */
     @JvmStatic
     fun restoreFocusToDefaultDisplayNow() {
-        runCatching { ShizukuVirtualDisplayEngine.restoreFocusToDefaultDisplay() }
+        runCatching { engine().restoreFocusToDefaultDisplay() }
     }
 
     private val asyncInputInjector by lazy { VirtualAsyncInputInjector() }
@@ -421,9 +436,9 @@ object VirtualDisplayController {
     fun hardResetOverlay(context: Context) {
         stopFocusEnforcement()
         try {
-            ShizukuVirtualDisplayEngine.stop()
+            engine().stop()
         } catch (_: Exception) {}
-        runCatching { ShizukuVirtualDisplayEngine.restoreFocusToDefaultDisplay() }
+        runCatching { engine().restoreFocusToDefaultDisplay() }
 
         activeDisplayId = null
     }
@@ -433,9 +448,9 @@ object VirtualDisplayController {
     fun cleanupOverlayOnly(context: Context) {
         stopFocusEnforcement()
         try {
-            ShizukuVirtualDisplayEngine.stop()
+            engine().stop()
         } catch (_: Exception) {}
-        runCatching { ShizukuVirtualDisplayEngine.restoreFocusToDefaultDisplay() }
+        runCatching { engine().restoreFocusToDefaultDisplay() }
 
         activeDisplayId = null
     }
@@ -451,9 +466,9 @@ object VirtualDisplayController {
         stopFocusEnforcement()
         stopImeFocusController()
         try {
-            ShizukuVirtualDisplayEngine.stop()
+            engine().stop()
         } catch (_: Exception) {}
-        runCatching { ShizukuVirtualDisplayEngine.restoreFocusToDefaultDisplay() }
+        runCatching { engine().restoreFocusToDefaultDisplay() }
 
         activeDisplayId = null
         shouldUseVirtualDisplay = false

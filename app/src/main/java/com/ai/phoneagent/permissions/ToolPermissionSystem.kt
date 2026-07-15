@@ -6,8 +6,6 @@ import com.ai.phoneagent.BuildConfig
 import com.ai.phoneagent.core.tools.AIToolHandler
 import com.ai.phoneagent.data.model.AITool
 import com.ai.phoneagent.data.preferences.ToolPermissionsRepository
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.get
 
 /**
  * 工具权限系统
@@ -16,30 +14,12 @@ import org.koin.core.component.get
 class ToolPermissionSystem(
     private val context: Context,
     private val toolPermissionsRepository: ToolPermissionsRepository,
+    private val toolHandler: AIToolHandler,
 ) {
 
-    companion object : KoinComponent {
+    companion object {
         private const val TAG = "ToolPermissionSystem"
-        @Volatile
-        private var INSTANCE: ToolPermissionSystem? = null
-
-        fun getInstance(context: Context): ToolPermissionSystem {
-            INSTANCE?.let { return it }
-            return synchronized(this) {
-                INSTANCE ?: runCatching {
-                    org.koin.core.context.GlobalContext.get().get<ToolPermissionSystem>()
-                }.getOrNull()?.also { INSTANCE = it }
-                    ?: ToolPermissionSystem(
-                        context = context.applicationContext,
-                        toolPermissionsRepository = runCatching { get<ToolPermissionsRepository>() }
-                            .getOrNull()
-                            ?: ToolPermissionsRepository(context.applicationContext),
-                    ).also { INSTANCE = it }
-            }
-        }
     }
-
-    private val toolHandler = AIToolHandler.getInstance(context)
 
     /**
      * 权限级别

@@ -41,6 +41,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import org.koin.android.ext.android.inject
 
 class PhoneAgentAccessibilityService : AccessibilityService() {
 
@@ -110,6 +111,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val screenshotOverlayGuard by inject<ScreenshotOverlayGuard>()
 
     @Volatile private var lastEventTimeMs: Long = 0L
     @Volatile private var lastWindowEventTimeMs: Long = 0L
@@ -237,7 +239,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
     suspend fun tryCaptureScreenshotBase64(): ScreenshotData? {
         if (Build.VERSION.SDK_INT < 30) return null
 
-        return ScreenshotOverlayGuard.withOverlaysHidden(hideDelayMs = 80L) {
+        return screenshotOverlayGuard.withOverlaysHidden(hideDelayMs = 80L) {
             suspendCancellableCoroutine { cont ->
                 val executor = Executors.newSingleThreadExecutor()
                 try {

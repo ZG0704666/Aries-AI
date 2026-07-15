@@ -50,7 +50,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Download
 import com.composables.icons.lucide.Expand
-import com.ai.phoneagent.core.cache.ThreadSafeLruCache
 import kotlinx.coroutines.launch
 import java.util.Base64
 
@@ -58,7 +57,7 @@ import java.util.Base64
 //  Height cache – keyed on diagram source so the WebView doesn't jump on reuse
 // ─────────────────────────────────────────────────────────────────────────────
 
-private val mermaidHeightCache = ThreadSafeLruCache<String, Int>(64, Long.MAX_VALUE)
+private val mermaidHeightCache = HashMap<String, Int>()
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Mermaid composable
@@ -131,7 +130,7 @@ fun Mermaid(code: String, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxSize(),
                 onHeightChanged = { px ->
                     heightPx = px
-                    mermaidHeightCache.put(code, px)
+                    mermaidHeightCache[code] = px
                     isLoading = false
                 },
                 onSvgExport = { svg ->

@@ -23,8 +23,6 @@ import com.ai.phoneagent.viewmodel.AutomationViewModel
 import com.ai.phoneagent.viewmodel.ChatViewModel
 import com.ai.phoneagent.viewmodel.SettingsViewModel
 import com.ai.phoneagent.viewmodel.UpdateHistoryViewModel
-import com.ai.phoneagent.ui.components.markdown.Highlighter
-import com.ai.phoneagent.core.tools.AIToolHandler
 import com.ai.phoneagent.core.tools.ToolRegistration
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
@@ -43,12 +41,24 @@ val uiModule = module {
     // ChatViewModel is an AndroidViewModel; Koin's viewModel {} block handles
     // the Application parameter automatically.
     viewModel { ChatViewModel(get()) }
-    viewModel { AutomationViewModel(get(), get(), get(), get<AIToolHandler>(), get<ToolRegistration>()) }
-    viewModel { SettingsViewModel(get(), get(), get()) }
+    viewModel {
+        AutomationViewModel(
+            application = get(),
+            appPrefsRepository = get(),
+            automationResultsRepository = get(),
+            toolRegistration = get<ToolRegistration>(),
+            liveNotification = get(),
+            automationOverlay = get(),
+            appPackageManager = get(),
+            screenshotOverlayGuard = get(),
+            promptTemplates = get(),
+            localMnnInferenceEngine = get(),
+            modelScopeModelDownloader = get(),
+            virtualScreenPreviewOverlay = get(),
+        )
+    }
+    viewModel { SettingsViewModel(get(), get(), get(), get(), get()) }
     viewModel { AppearanceViewModel(get(), get()) }
     viewModel { AboutViewModel(get(), get(), get()) }
     viewModel { UpdateHistoryViewModel(get(), get()) }
-
-    // Task 19 Phase 1: object → class DI migration
-    single { Highlighter() }
 }

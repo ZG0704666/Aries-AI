@@ -10,7 +10,6 @@ package com.ai.phoneagent.vdiso
 
 import android.os.SystemClock
 import android.util.Log
-import com.ai.phoneagent.BuildConfig
 import com.ai.phoneagent.ShizukuBridge
 import com.ai.phoneagent.VirtualDisplayController
 import kotlinx.coroutines.CoroutineScope
@@ -110,7 +109,7 @@ class ImeFocusDeadlockController(
             val now = SystemClock.uptimeMillis()
             if (now - lastLogAt >= 1500L) {
                 lastLogAt = now
-                if (BuildConfig.DEBUG) Log.d(TAG, "tick: did=$did locked=$locked imeActive=${ime.active} cost=${cost}ms")
+                Log.d(TAG, "tick: did=$did locked=$locked imeActive=${ime.active} cost=${cost}ms")
             }
 
             delay(if (did <= 0 || !shizukuReady) pollIntervalMs * 2 else pollIntervalMs)
@@ -135,7 +134,7 @@ class ImeFocusDeadlockController(
                         val now = SystemClock.uptimeMillis()
                         if (now - lastLogAt >= 800L) {
                             lastLogAt = now
-                            if (BuildConfig.DEBUG) Log.d(TAG, "forceLock: did=$displayId n=$n exit=${r.exitCode}")
+                            Log.d(TAG, "forceLock: did=$displayId n=$n exit=${r.exitCode}")
                         }
                         delay(forceIntervalMs)
                     }
@@ -145,7 +144,7 @@ class ImeFocusDeadlockController(
     private fun stopForceLock(reason: String) {
         forceLockJob?.cancel()
         forceLockJob = null
-        if (BuildConfig.DEBUG) Log.d(TAG, "forceLock stopped: reason=$reason")
+        Log.d(TAG, "forceLock stopped: reason=$reason")
     }
 
     // ─── IME 解析 ───

@@ -16,19 +16,6 @@ class AIToolHandler(private val context: Context) {
 
     companion object {
         private const val TAG = "AIToolHandler"
-
-        @Volatile
-        private var INSTANCE: AIToolHandler? = null
-
-        fun getInstance(context: Context): AIToolHandler {
-            INSTANCE?.let { return it }
-            return synchronized(this) {
-                INSTANCE ?: runCatching {
-                    org.koin.core.context.GlobalContext.get().get<AIToolHandler>()
-                }.getOrNull()?.also { INSTANCE = it }
-                    ?: AIToolHandler(context.applicationContext).also { INSTANCE = it }
-            }
-        }
     }
 
     // 工具注册表

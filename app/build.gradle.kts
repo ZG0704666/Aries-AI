@@ -2,11 +2,9 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.dokka)
 }
 
 val githubToken: String by lazy {
@@ -50,8 +48,7 @@ fun escapedBuildConfigString(value: String): String =
 android {
     namespace = "com.ai.phoneagent"
     compileSdk = 36
-    ndkVersion = "27.0.12077973"
-    buildToolsVersion = "36.1.0"
+    ndkVersion = "28.2.13676358"
 
     externalNativeBuild {
         cmake {
@@ -110,7 +107,7 @@ android {
 
     lint {
         checkReleaseBuilds = false
-        abortOnError = false
+        abortOnError = true
     }
 
     testOptions {
@@ -257,21 +254,4 @@ dependencies {
     implementation(libs.apache.poi)
     implementation(libs.apache.poi.ooxml)
     implementation(libs.apache.poi.scratchpad)
-}
-
-dokka {
-    moduleName.set("Aries AI Phone Agent")
-    dokkaSourceSets.configureEach {
-        skipDeprecated.set(true)
-        reportUndocumented.set(false)
-        perPackageOption {
-            matchingRegex.set(".*\\.(internal|core\\.security|core\\.cache|net)\\..*")
-            suppress.set(true)
-        }
-        sourceLink {
-            localDirectory.set(file("src/main/java"))
-            remoteUrl.set(uri("https://github.com/AriesAI/aries-phone-agent/tree/main/app/src/main/java"))
-            remoteLineSuffix.set("#L")
-        }
-    }
 }
