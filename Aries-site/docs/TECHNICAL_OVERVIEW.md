@@ -72,7 +72,7 @@
 旧的 `TECHNICAL_OVERVIEW.md` 现在保留为“技术入口页”，原因与 `BUILDING.md` 类似：
 
 - 新文档已经细分为架构、对话、自动化、虚拟屏、工具、数据等多个域。
-- 历史 README、Issue 和讨论仍会引用 `docs/TECHNICAL_OVERVIEW.md`。
+- README、Issue 和讨论统一引用 `Aries-site/docs/TECHNICAL_OVERVIEW.md`。
 - 保留同名入口可以兼顾旧链接稳定性与新文档体系的可导航性。
 
 如果你只给新同事一条链接，请优先给这页；如果你要定位某个模块的具体实现，再进入对应专题文档。

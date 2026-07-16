@@ -497,6 +497,6 @@ data object Onboarding : Routes("onboarding") {
 
 ### 相关文档
 
-- [权限引导 (Permission Guide)](./permission-guide) — 独立的权限引导页面
-- [用户协议 (User Agreement)](./user-agreement) — 用户协议独立查看页面
-- [设置 (Settings)](./settings) — 应用设置页面
+- [权限引导 (Permission Guide)](../快速开始/环境与权限配置.md) — 权限与 Shizuku 配置
+- [用户协议 (User Agreement)](../项目概览/许可证与社区.md) — 许可证与社区说明
+- [设置 (Settings)](./设置界面体系.md) — 应用设置页面

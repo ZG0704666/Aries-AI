@@ -742,5 +742,5 @@ app/src/main/java/com/ai/phoneagent/
 - [源码：UpdateHistoryViewModel.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/viewmodel/UpdateHistoryViewModel.kt)
 - [源码：AboutViewModel.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/viewmodel/AboutViewModel.kt)
 - [源码：UpdateHistoryScreen.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/updates/UpdateHistoryScreen.kt)
-- [编译指南](https://github.com/ZG0704666/Aries-AI/blob/main/docs/BUILDING.md)
+- [编译指南](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/BUILDING.md)
 - [项目 README](https://github.com/ZG0704666/Aries-AI/blob/main/README.md)

@@ -111,14 +111,14 @@ flowchart TD
 
 Qodo AI 已作为 GitHub App 安装在仓库中，无需额外配置即可自动工作。
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L40-L43)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L40-L43)
 
 ### 1.2 触发时机
 
 - **PR 创建时**：新 PR 提交后自动触发全面代码审查
 - **PR 有新提交时**：后续每次 push 更新自动重新审查
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L44-L47)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L44-L47)
 
 ### 1.3 审阅内容
 
@@ -131,7 +131,7 @@ Qodo AI 会自动分析并提供以下维度的审查：
 | **性能** | 性能瓶颈、资源浪费、优化建议 | 🟡 中 |
 | **可维护性** | 代码结构、命名规范、注释完整性 | 🟢 低 |
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L49-L56)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L49-L56)
 
 ### 1.4 查看审阅结果
 
@@ -140,7 +140,7 @@ Qodo AI 会自动分析并提供以下维度的审查：
 1. **Conversation 标签**：在 PR 页面的 "Conversation" 标签页查看 Qodo 的总结性评论
 2. **Files changed 标签**：在 "Files changed" 标签页查看具体代码行的行内评论
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L58-L62)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L58-L62)
 
 ### 1.5 优先级处理策略
 
@@ -165,7 +165,7 @@ Qodo AI 会自动分析并提供以下维度的审查：
 | `/oc` | 触发 OpenCode（短命令） |
 | `/opencode` | 触发 OpenCode（完整命令） |
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L68-L75)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L68-L75)
 
 ### 2.2 权限控制
 
@@ -175,7 +175,7 @@ Qodo AI 会自动分析并提供以下维度的审查：
 - 组织 **Member**
 - 协作者 **Collaborator**
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L175-L182)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L175-L182)
 
 ### 2.3 OpenCode 的权限范围
 
@@ -185,7 +185,7 @@ OpenCode 在执行任务时具有以下权限：
 - 提交修改到 PR 分支
 - 评论 PR/Issue
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L184-L189)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L184-L189)
 
 ### 2.4 常用命令示例
 
@@ -225,7 +225,7 @@ OpenCode 在执行任务时具有以下权限：
 /oc 更新 README.md，添加新功能的说明
 ```
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L78-L113)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L78-L113)
 
 ---
 
@@ -264,7 +264,7 @@ OpenCode 在执行任务时具有以下权限：
 /oc 检查这个 PR 是否有遗漏的边界情况处理
 ```
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L117-L150)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L117-L150)
 
 ---
 
@@ -353,8 +353,8 @@ git push origin feature/tool-get-page-info-张三
 ```
 
 > Sources:
-> - [GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/GIT_WORKFLOW.md#L470-L493)
-> - [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L81-L83)
+> - [GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md#L470-L493)
+> - [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L81-L83)
 
 ### 高级用法：批量委托修复
 
@@ -366,7 +366,7 @@ git push origin feature/tool-get-page-info-张三
 3. 第 78 行的循环存在性能问题，建议使用序列操作
 ```
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L133-L138)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L133-L138)
 
 ### 查看 CI/CD 检查结果
 
@@ -401,7 +401,7 @@ git push origin feature/tool-get-page-info-张三
 | `steps[1].uses` | string | `anomalyco/opencode/github@latest` | 运行 OpenCode Action |
 | `steps[1].with.model` | string | `alibaba-coding-plan/qwen3.5-plus` | 默认 AI 模型 |
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L196-L247)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L196-L247)
 
 ### OpenCode 模型配置
 
@@ -414,7 +414,7 @@ git push origin feature/tool-get-page-info-张三
 | `provider.*.options.baseURL` | string | `https://coding.dashscope.aliyuncs.com/v1` | API 端点 |
 | `provider.*.options.apiKey` | string | `{env:ALIBABA_CODING_PLAN_API_KEY}` | API Key（从环境变量读取） |
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L249-L272)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L249-L272)
 
 ### 可用模型
 
@@ -427,7 +427,7 @@ git push origin feature/tool-get-page-info-张三
 | `kimi-k2.5` | Moonshot Kimi | 长文本、多模态 |
 | `MiniMax-M2.5` | MiniMax | 快速响应 |
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L277-L284)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L277-L284)
 
 ### 触发条件详解
 
@@ -437,7 +437,7 @@ OpenCode 工作流的触发条件是一个复合逻辑表达式，包含三个�
 2. **权限验证**：评论者必须是 `OWNER`、`MEMBER` 或 `COLLABORATOR`
 3. **上下文验证**：对于 `issue_comment` 事件，确保关联的是一个 PR 而非独立 Issue
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L208-L225)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L208-L225)
 
 ---
 
@@ -482,7 +482,7 @@ OpenCode 工作流的触发条件是一个复合逻辑表达式，包含三个�
 
 **响应时间:** 通常在 30 秒到 2 分钟内完成执行。
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L326-L343)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L326-L343)
 
 ---
 
@@ -521,7 +521,7 @@ OpenCode 工作流的触发条件是一个复合逻辑表达式，包含三个�
 1. 登录阿里云控制台检查 API Key 状态
 2. 必要时在 GitHub Secrets 中更新 `ALIBABA_CODING_PLAN_API_KEY`
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L288-L321)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L288-L321)
 
 ---
 
@@ -546,7 +546,7 @@ OpenCode 工作流的触发条件是一个复合逻辑表达式，包含三个�
 
 4. **不要跳过 CI 验证**：即使 AI 修复了代码，仍需等待 CI 全绿再合并
 
-> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L154-L171)
+> Source: [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L154-L171)
 
 ---
 
@@ -565,14 +565,14 @@ OpenCode 工作流的触发条件是一个复合逻辑表达式，包含三个�
 
 ## 相关链接
 
-- [AI Automated PR Review Guide](./AI_PR_REVIEW.md) — 原始 AI PR 审阅指南
-- [Git 工作流](./GIT_WORKFLOW.md) — 分支策略与 PR 流程
-- [贡献者指南](../CONTRIBUTING.md) — 完整贡献流程
-- [FAQ](./FAQ.md) — 常见问题解答
+- [AI Automated PR Review Guide](../AI_PR_REVIEW.md) — 原始 AI PR 审阅指南
+- [Git 工作流](../GIT_WORKFLOW.md) — 分支策略与 PR 流程
+- [贡献者指南](../../../CONTRIBUTING.md) — 完整贡献流程
+- [FAQ](../FAQ.md) — 常见问题解答
 
 **源代码配置参考：**
-- OpenCode 工作流配置：[AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L196-L247)
-- OpenCode 模型配置：[AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/docs/AI_PR_REVIEW.md#L249-L272)
+- OpenCode 工作流配置：[AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L196-L247)
+- OpenCode 模型配置：[AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md#L249-L272)
 - CI/CD 流程说明：[CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md#L282-L335)
 
 ---

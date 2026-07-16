@@ -363,19 +363,19 @@ A: 虚拟屏功能需要真实设备 + Shizuku。模拟器无法完整测试。
 A:
 1. 清理构建缓存：`./gradlew clean`
 2. 重新构建：`./gradlew assembleDebug`
-3. 查看 `docs/BUILDING.md` 获取详细构建指南
+3. 查看 `Aries-site/docs/BUILDING.md` 获取详细构建指南
 4. 在 Issue 中提问
 
 ---
 
 ## 📚 相关文档
 
-- [构建指南](./docs/BUILDING.md)
-- [代码规范](./docs/CODING_STANDARDS.md)
-- [Git 工作流](./docs/GIT_WORKFLOW.md)
-- [技术文档](./docs/TECHNICAL_OVERVIEW.md)
-- [AI PR 审阅指南](./docs/AI_PR_REVIEW.md)
-- [FAQ](./docs/FAQ.md)
+- [构建指南](./Aries-site/docs/BUILDING.md)
+- [代码规范](./Aries-site/docs/CODING_STANDARDS.md)
+- [Git 工作流](./Aries-site/docs/GIT_WORKFLOW.md)
+- [技术文档](./Aries-site/docs/TECHNICAL_OVERVIEW.md)
+- [AI PR 审阅指南](./Aries-site/docs/AI_PR_REVIEW.md)
+- [FAQ](./Aries-site/docs/FAQ.md)
 
 ---
 
