@@ -79,6 +79,7 @@ class AutomationViewModel(
         const val EXTRA_AUTOMATION_SOURCE = "automation_source"
         const val EXTRA_AUTOMATION_AUTO_START = "automation_auto_start"
         const val EXTRA_KEEP_MAIN_ON_TOP = "keep_main_on_top"
+        const val EXTRA_AUTOMATION_DISPATCH_TOKEN = "automation_dispatch_token"
         private const val SHIZUKU_PERMISSION_REQUEST_CODE = 2026
 
         /**

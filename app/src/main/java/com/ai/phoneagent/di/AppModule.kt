@@ -19,6 +19,7 @@ package com.ai.phoneagent.di
 
 import com.ai.phoneagent.AppState
 import com.ai.phoneagent.core.automation.ActivityAutomationInstructionGateway
+import com.ai.phoneagent.core.automation.AutomationDispatchAuthenticator
 import com.ai.phoneagent.core.automation.AutomationInstructionGateway
 import com.ai.phoneagent.core.tools.extended.ExtendedAppMapping
 import com.ai.phoneagent.core.templates.PromptTemplates
@@ -87,8 +88,11 @@ val appModule = module {
     // Task 19 Phase 4: ModelScope 模型下载器迁移
     single { ModelScopeModelDownloader() }
 
+    // Guards the automation dispatch entrypoint with a per-process token.
+    single { AutomationDispatchAuthenticator() }
+
     // Task 19 Phase 4: 自动化指令网关 object → class DI 迁移
-    single { ActivityAutomationInstructionGateway() }
+    single { ActivityAutomationInstructionGateway(get()) }
     single<AutomationInstructionGateway> { get<ActivityAutomationInstructionGateway>() }
 
     single { AutomationLiveNotification(androidContext()) }

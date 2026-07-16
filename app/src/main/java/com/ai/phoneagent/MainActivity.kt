@@ -128,6 +128,7 @@ import com.composables.icons.lucide.Video
 import com.composables.icons.lucide.Image as LucideImage
 import androidx.compose.material3.Text
 import com.ai.phoneagent.core.automation.ActivityAutomationInstructionGateway
+import com.ai.phoneagent.core.automation.AutomationDispatchAuthenticator
 import com.ai.phoneagent.core.automation.AutomationInstructionRequest
 import com.ai.phoneagent.core.automation.AutomationLogBridge
 import com.ai.phoneagent.core.prompt.MainChatPromptRepository
@@ -434,6 +435,7 @@ class MainActivity : AppCompatActivity() {
     private val appPrefsRepository by inject<AppPreferencesRepository>()
     private val floatingChatPrefs by inject<FloatingChatPreferencesRepository>()
     private val automationInstructionGateway by inject<ActivityAutomationInstructionGateway>()
+    private val automationDispatchAuthenticator by inject<AutomationDispatchAuthenticator>()
     private val localMnnInferenceEngine by inject<LocalMnnInferenceEngine>()
     private val modelScopeModelDownloader by inject<ModelScopeModelDownloader>()
     private val prefs by lazy { AppPrefsCompat(appPrefsRepository) }
@@ -1796,16 +1798,28 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleAutomationLaunchIntent() {
         val currentIntent = intent ?: return
+        if (!automationDispatchAuthenticator.isAuthorized(currentIntent)) {
+            // Unauthorized automation dispatch: strip every automation control extra,
+            // do not navigate, and never publish pending launch args.
+            automationDispatchAuthenticator.logRejected(currentIntent)
+            stripAutomationControlExtras(currentIntent)
+            return
+        }
         val args = AutomationViewModel.extractLaunchArgsFromIntent(currentIntent) ?: return
         // Clear consumed extras to avoid re-processing
-        currentIntent.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_TASK)
-        currentIntent.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_SOURCE)
-        currentIntent.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_AUTO_START)
-        currentIntent.removeExtra(AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY)
-        currentIntent.removeExtra(AutomationViewModel.EXTRA_KEEP_MAIN_ON_TOP)
+        stripAutomationControlExtras(currentIntent)
         // Stash args for AutomationScreen to consume when it composes
         AutomationViewModel.pendingLaunchArgs = args
         navigateToRoute(Routes.Automation.route)
+    }
+
+    private fun stripAutomationControlExtras(target: Intent) {
+        target.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_TASK)
+        target.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_SOURCE)
+        target.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_AUTO_START)
+        target.removeExtra(AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY)
+        target.removeExtra(AutomationViewModel.EXTRA_KEEP_MAIN_ON_TOP)
+        target.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_DISPATCH_TOKEN)
     }
     
     /**
