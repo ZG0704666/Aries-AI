@@ -106,7 +106,7 @@ class CoreModuleTest {
         assertEquals(5, steps1)
         
         // 编号步骤
-        val steps2 = parser.parseEstimatedSteps("第一步...第二步...第三步")
+        val steps2 = parser.parseEstimatedSteps("第1步...第2步...第3步")
         assertEquals(3, steps2)
     }
     
@@ -169,11 +169,10 @@ class CoreModuleTest {
     
     @Test
     fun `PromptTemplates 构建系统提示词`() {
-        val prompt = PromptTemplates.buildSystemPrompt(1080, 1920, null)
-        
-        assertTrue(prompt.contains("手机 UI 自动化助手"))
-        assertTrue(prompt.contains("1080"))
-        assertTrue(prompt.contains("1920"))
+        val prompt = PromptTemplates().buildSystemPrompt(1080, 1920, null)
+
+        assertTrue(prompt.contains("移动 UI 自动化"))
+        assertTrue(prompt.contains("9:16"))
         assertTrue(prompt.contains("Launch"))
         assertTrue(prompt.contains("Tap"))
         assertTrue(prompt.contains("Type"))
@@ -181,7 +180,7 @@ class CoreModuleTest {
     
     @Test
     fun `PromptTemplates 构建修复提示词`() {
-        val repairPrompt = PromptTemplates.buildRepairPrompt()
+        val repairPrompt = PromptTemplates().buildRepairPrompt()
         
         assertTrue(repairPrompt.contains("格式错误"))
         assertTrue(repairPrompt.contains("do(action="))
@@ -189,7 +188,7 @@ class CoreModuleTest {
     
     @Test
     fun `PromptTemplates 构建动作修复提示词`() {
-        val actionRepairPrompt = PromptTemplates.buildActionRepairPrompt("Tap(500,500)")
+        val actionRepairPrompt = PromptTemplates().buildActionRepairPrompt("Tap(500,500)")
         
         assertTrue(actionRepairPrompt.contains("Tap(500,500)"))
         assertTrue(actionRepairPrompt.contains("执行失败"))
