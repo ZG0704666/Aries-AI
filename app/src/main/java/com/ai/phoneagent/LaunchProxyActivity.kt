@@ -2,6 +2,7 @@ package com.ai.phoneagent
 
 import android.app.Activity
 import android.app.ActivityOptions
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -56,31 +57,69 @@ class LaunchProxyActivity : Activity() {
         }
     }
 
-    /** Fallback：通过 Shizuku 的 am start --display 命令启动 */
+    /** Fallback：通过 Shizuku 的 am start --display 命令启动（参数化执行，不拼接 shell 字符串） */
     private fun launchViaShellFallback(target: Intent, displayId: Int) {
         try {
             val component = target.component
-            if (component != null) {
-                val componentStr = "${component.packageName}/${component.className}"
-                val flags = target.flags
-                val candidates =
-                        listOf(
-                                "cmd activity start-activity --user 0 --display $displayId --windowingMode 1 -n $componentStr -f $flags",
-                                "am start --user 0 --display $displayId -n $componentStr -f $flags",
-                                "am start --display $displayId -n $componentStr -f $flags",
-                        )
-                for (cmd in candidates) {
-                    val result = runCatching { ShizukuBridge.execResult(cmd) }.getOrNull()
-                    if (result != null && result.exitCode == 0) {
-                        Log.i(TAG, "Launched on display $displayId via shell: $cmd")
-                        return
-                    }
-                }
-                Log.w(TAG, "All shell fallback attempts failed for display $displayId")
+            if (component == null) {
+                Log.w(TAG, "Shell fallback skipped: target component is missing")
+                return
             }
+            if (displayId < 0) {
+                Log.w(TAG, "Shell fallback skipped: invalid display id $displayId")
+                return
+            }
+            if (!isResolvableActivity(component)) {
+                Log.w(TAG, "Shell fallback rejected non-resolvable component")
+                return
+            }
+
+            // flattenToShortString 由已校验的 ComponentName 派生，作为单个参数传递；
+            // flags/displayId 均以十进制独立参数传递，避免任何 shell 字符串拼接。
+            val componentStr = component.flattenToShortString()
+            val flags = target.flags.toString()
+            val display = displayId.toString()
+            val candidates =
+                    listOf(
+                            listOf(
+                                    "cmd", "activity", "start-activity",
+                                    "--user", "0",
+                                    "--display", display,
+                                    "--windowingMode", "1",
+                                    "-n", componentStr,
+                                    "-f", flags,
+                            ),
+                            listOf(
+                                    "am", "start",
+                                    "--user", "0",
+                                    "--display", display,
+                                    "-n", componentStr,
+                                    "-f", flags,
+                            ),
+                            listOf(
+                                    "am", "start",
+                                    "--display", display,
+                                    "-n", componentStr,
+                                    "-f", flags,
+                            ),
+                    )
+            for (args in candidates) {
+                val result = runCatching { ShizukuBridge.execResultArgs(args) }.getOrNull()
+                if (result != null && result.exitCode == 0) {
+                    Log.i(TAG, "Launched on display $displayId via shell")
+                    return
+                }
+            }
+            Log.w(TAG, "All shell fallback attempts failed for display $displayId")
         } catch (e: Exception) {
             Log.w(TAG, "Shell fallback failed: ${e.message}")
         }
+    }
+
+    /** 仅允许启动能被 PackageManager 解析（真实存在）的 Activity 组件。 */
+    private fun isResolvableActivity(component: ComponentName): Boolean {
+        return runCatching { packageManager.getActivityInfo(component, 0) != null }
+                .getOrDefault(false)
     }
 
     companion object {
