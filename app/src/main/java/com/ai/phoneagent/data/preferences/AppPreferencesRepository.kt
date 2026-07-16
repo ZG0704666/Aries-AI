@@ -1,6 +1,9 @@
 package com.ai.phoneagent.data.preferences
 
 import android.content.Context
+import android.util.Log
+import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
@@ -8,9 +11,14 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.ai.phoneagent.data.security.SecretStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 typealias ThemeMode = com.ai.phoneagent.core.designsystem.theme.ThemeMode
@@ -21,7 +29,18 @@ private val Context.appPreferencesDataStore by preferencesDataStore(name = "app_
 
 class AppPreferencesRepository(
     private val context: Context,
+    private val secretStore: SecretStore,
 ) {
+    private val migrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    init {
+        // 尽力而为地在后台迁移历史明文密钥；失败不阻塞启动，下次启动会重试。
+        migrationScope.launch {
+            runCatching { migrateLegacySecrets() }
+                .onFailure { Log.w(TAG, "Legacy secret migration failed; will retry on next launch", it) }
+        }
+    }
+
     private object Keys {
         val apiKey = stringPreferencesKey("api_key")
         val autoglmApiKey = stringPreferencesKey("autoglm_api_key")
@@ -59,14 +78,54 @@ class AppPreferencesRepository(
         val codeAutoCollapse = booleanPreferencesKey("code_auto_collapse")
     }
 
+    /**
+     * 读取敏感配置。密文解不开时（[SecretStore.ReadResult.Unavailable]/[SecretStore.ReadResult.Corrupt]）
+     * 返回空串，但绝不删除存储内容——保留密文让用户重试或重新输入。
+     */
+    private fun Preferences.readSecret(key: Preferences.Key<String>): String {
+        return when (val result = secretStore.decrypt(this[key])) {
+            is SecretStore.ReadResult.Available -> result.value
+            SecretStore.ReadResult.Missing -> ""
+            SecretStore.ReadResult.Unavailable -> {
+                Log.w(TAG, "Secret ${key.name} temporarily unavailable; ciphertext kept")
+                ""
+            }
+            SecretStore.ReadResult.Corrupt -> {
+                Log.w(TAG, "Secret ${key.name} is corrupted; ciphertext kept for re-entry")
+                ""
+            }
+        }
+    }
+
+    /**
+     * 写入敏感配置。
+     *
+     * @return `true` 表示已持久化（空值视为删除，返回 true）；
+     *         `false` 表示加密不可用，本次未写入、旧值保留（显式失败，不崩溃）。
+     */
+    private fun MutablePreferences.writeSecret(key: Preferences.Key<String>, value: String): Boolean {
+        if (value.isBlank()) {
+            remove(key)
+            return true
+        }
+        val encrypted = secretStore.encrypt(value)
+        return if (encrypted != null) {
+            this[key] = encrypted
+            true
+        } else {
+            Log.w(TAG, "Encryption unavailable; secret ${key.name} was NOT updated")
+            false
+        }
+    }
+
     val apiKeyFlow: Flow<String> =
         context.appPreferencesDataStore.data.map { prefs ->
-            prefs[Keys.apiKey] ?: ""
+            prefs.readSecret(Keys.apiKey)
         }
 
     val autoglmApiKeyFlow: Flow<String> =
         context.appPreferencesDataStore.data.map { prefs ->
-            prefs[Keys.autoglmApiKey] ?: ""
+            prefs.readSecret(Keys.autoglmApiKey)
         }
 
     val apiUseThirdPartyFlow: Flow<Boolean> =
@@ -101,7 +160,7 @@ class AppPreferencesRepository(
 
     val ariesApiKeyFlow: Flow<String> =
         context.appPreferencesDataStore.data.map { prefs ->
-            prefs[Keys.ariesApiKey] ?: ""
+            prefs.readSecret(Keys.ariesApiKey)
         }
 
     val apiThirdPartyBaseUrlFlow: Flow<String> =
@@ -182,24 +241,34 @@ class AppPreferencesRepository(
 
     suspend fun getApiKey(): String {
         val prefs = context.appPreferencesDataStore.data.first()
-        return prefs[Keys.apiKey] ?: ""
+        return prefs.readSecret(Keys.apiKey)
     }
 
-    suspend fun setApiKey(value: String) {
+    /**
+     * @return `false` 表示加密不可用、本次未保存（旧值保留），调用方可提示用户稍后重试。
+     */
+    suspend fun setApiKey(value: String): Boolean {
+        var stored = false
         context.appPreferencesDataStore.edit { prefs ->
-            prefs[Keys.apiKey] = value
+            stored = prefs.writeSecret(Keys.apiKey, value)
         }
+        return stored
     }
 
     suspend fun getAutoglmApiKey(): String {
         val prefs = context.appPreferencesDataStore.data.first()
-        return prefs[Keys.autoglmApiKey] ?: ""
+        return prefs.readSecret(Keys.autoglmApiKey)
     }
 
-    suspend fun setAutoglmApiKey(value: String) {
+    /**
+     * @return `false` 表示加密不可用、本次未保存（旧值保留）。
+     */
+    suspend fun setAutoglmApiKey(value: String): Boolean {
+        var stored = false
         context.appPreferencesDataStore.edit { prefs ->
-            prefs[Keys.autoglmApiKey] = value
+            stored = prefs.writeSecret(Keys.autoglmApiKey, value)
         }
+        return stored
     }
 
     suspend fun setApiUseThirdParty(value: Boolean) {
@@ -255,25 +324,29 @@ class AppPreferencesRepository(
         return prefs[Keys.ariesSelectedModel] ?: ""
     }
 
-    suspend fun setAriesApiKey(value: String) {
+    /**
+     * @return `false` 表示加密不可用、本次未保存（旧值保留）。
+     */
+    suspend fun setAriesApiKey(value: String): Boolean {
+        var stored = false
         context.appPreferencesDataStore.edit { prefs ->
-            if (value.isBlank()) prefs.remove(Keys.ariesApiKey)
-            else prefs[Keys.ariesApiKey] = value
+            stored = prefs.writeSecret(Keys.ariesApiKey, value)
         }
+        return stored
     }
 
     suspend fun getAriesApiKey(): String {
         val prefs = context.appPreferencesDataStore.data.first()
-        return prefs[Keys.ariesApiKey] ?: ""
+        return prefs.readSecret(Keys.ariesApiKey)
     }
 
     suspend fun getActiveAriesApiKey(): String {
         val prefs = context.appPreferencesDataStore.data.first()
-        val ariesKey = prefs[Keys.ariesApiKey].orEmpty()
+        val ariesKey = prefs.readSecret(Keys.ariesApiKey)
         if (ariesKey.isNotBlank()) return ariesKey
         val loggedInUser = prefs[Keys.ariesLoggedInUser].orEmpty()
         return if (loggedInUser.isNotBlank()) {
-            prefs[Keys.apiKey].orEmpty()
+            prefs.readSecret(Keys.apiKey)
         } else {
             ""
         }
@@ -293,13 +366,15 @@ class AppPreferencesRepository(
 
     suspend fun getApiLastCheckKey(): String {
         val prefs = context.appPreferencesDataStore.data.first()
-        return prefs[Keys.apiLastCheckKey] ?: ""
+        return prefs.readSecret(Keys.apiLastCheckKey)
     }
 
-    suspend fun setApiLastCheckKey(value: String) {
+    suspend fun setApiLastCheckKey(value: String): Boolean {
+        var stored = false
         context.appPreferencesDataStore.edit { prefs ->
-            prefs[Keys.apiLastCheckKey] = value
+            stored = prefs.writeSecret(Keys.apiLastCheckKey, value)
         }
+        return stored
     }
 
     suspend fun getApiLastCheckOk(): Boolean {
@@ -326,13 +401,15 @@ class AppPreferencesRepository(
 
     suspend fun getApiLastCheckSig(): String {
         val prefs = context.appPreferencesDataStore.data.first()
-        return prefs[Keys.apiLastCheckSig] ?: ""
+        return prefs.readSecret(Keys.apiLastCheckSig)
     }
 
-    suspend fun setApiLastCheckSig(value: String) {
+    suspend fun setApiLastCheckSig(value: String): Boolean {
+        var stored = false
         context.appPreferencesDataStore.edit { prefs ->
-            prefs[Keys.apiLastCheckSig] = value
+            stored = prefs.writeSecret(Keys.apiLastCheckSig, value)
         }
+        return stored
     }
 
     suspend fun setUserAgreementAccepted(value: Boolean) {
@@ -679,5 +756,64 @@ class AppPreferencesRepository(
             return ThemeColorStyle.DYNAMIC.storageKey
         }
         return prefs[Keys.themeAccent] ?: ThemeColorStyle.DEFAULT.storageKey
+    }
+
+    /**
+     * 将历史明文保存的密钥迁移为 AndroidKeyStore 加密存储。
+     *
+     * 流程：读明文 → 加密写 → 回读解密比对；任一步失败都会把该键恢复为原明文，
+     * 保证密钥绝不丢失。幂等，可在每次启动时安全调用。
+     *
+     * @return 本次成功迁移的键数量。
+     */
+    suspend fun migrateLegacySecrets(): Int {
+        val secretKeys = listOf(Keys.apiKey, Keys.autoglmApiKey, Keys.ariesApiKey, Keys.apiLastCheckKey)
+        val before = context.appPreferencesDataStore.data.first()
+        val legacy = linkedMapOf<Preferences.Key<String>, String>()
+        for (key in secretKeys) {
+            val value = before[key]
+            if (secretStore.isLegacyPlaintext(value) && value != null) {
+                legacy[key] = value
+            }
+        }
+        if (legacy.isEmpty()) return 0
+
+        context.appPreferencesDataStore.edit { prefs ->
+            for ((key, plain) in legacy) {
+                val encrypted = secretStore.encrypt(plain)
+                if (encrypted != null) {
+                    prefs[key] = encrypted
+                } else {
+                    Log.w(TAG, "Migration skipped for ${key.name}: encryption unavailable")
+                }
+            }
+        }
+
+        // 回读验证：只有"已是密文且解密结果与原明文一致"才视为成功，否则恢复原值。
+        val after = context.appPreferencesDataStore.data.first()
+        var restored = 0
+        context.appPreferencesDataStore.edit { prefs ->
+            for ((key, plain) in legacy) {
+                val stored = after[key]
+                val verified =
+                    stored != null &&
+                        !secretStore.isLegacyPlaintext(stored) &&
+                        (secretStore.decrypt(stored) as? SecretStore.ReadResult.Available)?.value == plain
+                if (!verified) {
+                    prefs[key] = plain
+                    restored++
+                    Log.w(TAG, "Migration rolled back for ${key.name}; original value restored")
+                }
+            }
+        }
+        val migrated = legacy.size - restored
+        if (migrated > 0) {
+            Log.i(TAG, "Migrated $migrated legacy plaintext secret(s) to encrypted storage")
+        }
+        return migrated
+    }
+
+    private companion object {
+        const val TAG = "AppPreferencesRepo"
     }
 }

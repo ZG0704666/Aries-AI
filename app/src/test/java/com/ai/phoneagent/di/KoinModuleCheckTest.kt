@@ -28,6 +28,7 @@ import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
 import com.ai.phoneagent.data.preferences.MainUiPreferencesRepository
 import com.ai.phoneagent.data.preferences.ToolPermissionsRepository
 import com.ai.phoneagent.data.preferences.VirtualDisplayConfigRepository
+import com.ai.phoneagent.data.security.SecretStore
 import coil.ImageLoader
 import io.mockk.every
 import io.mockk.mockk
@@ -91,7 +92,8 @@ class KoinModuleCheckTest : KoinTest {
         val testOverrides = module {
             single<AriesDatabase> { mockDb }
             single<ConversationDao> { mockDao }
-            single { AppPreferencesRepository(get()) }
+            single<SecretStore> { mockk(relaxed = true) }
+            single { AppPreferencesRepository(get(), get()) }
             single { MainUiPreferencesRepository(get()) }
             single { FloatingChatPreferencesRepository(get()) }
             single { VirtualDisplayConfigRepository(get()) }
