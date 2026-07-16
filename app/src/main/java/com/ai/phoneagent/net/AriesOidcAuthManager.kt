@@ -28,6 +28,7 @@ import kotlin.coroutines.resume
  */
 class AriesOidcAuthManager(
     @Suppress("UNUSED_PARAMETER") application: Application,
+    private val ariesApiClient: AriesApiClient,
 ) {
     data class AuthResult(
         val success: Boolean,
@@ -118,17 +119,17 @@ class AriesOidcAuthManager(
         val tokenResult =
             withContext(Dispatchers.IO) {
                 if (apiLoginResult.userAccessToken.isNotBlank()) {
-                    AriesApiClient.getOrCreateAriesTokenWithUserAccessToken(
+                    ariesApiClient.getOrCreateAriesTokenWithUserAccessToken(
                         userAccessToken = apiLoginResult.userAccessToken,
                         userId = apiLoginResult.userId,
                     )
                 } else if (apiLoginResult.sessionCookieHeader.isNotBlank()) {
-                    AriesApiClient.getOrCreateAriesTokenWithSessionCookie(
+                    ariesApiClient.getOrCreateAriesTokenWithSessionCookie(
                         cookieHeader = apiLoginResult.sessionCookieHeader,
                         userId = apiLoginResult.userId,
                     )
                 } else {
-                    AriesApiClient.getOrCreateAriesTokenWithAuthenticatedClient(
+                    ariesApiClient.getOrCreateAriesTokenWithAuthenticatedClient(
                         client = client,
                         userId = apiLoginResult.userId,
                     )

@@ -8,11 +8,13 @@
  */
 package com.ai.phoneagent
 
-import android.app.Activity
 import android.os.Bundle
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
 import android.view.KeyEvent
 import android.view.WindowManager
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 
 /**
  * 虚拟屏欢迎/兜底 Activity — 焦点隔离模式。
@@ -29,15 +31,21 @@ import android.view.WindowManager
  *
  * **使用注意事项**
  * - `taskAffinity` 设为 `${applicationId}.virtual`，独立于主 Activity 的任务栈。
- * - `dispatchKeyEvent()` 覆盖了 `onBackPressed()`，更早地拦截按键
+ * - `onKeyDown()` 监测进入虚拟屏的按键，并尽快恢复主屏焦点。
  */
-class WelcomeActivity : Activity() {
+class WelcomeActivity : ComponentActivity() {
 
     private val TAG = "WelcomeActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_welcome_virtual)
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() = handleIgnoredBackPress()
+            },
+        )
 
         // ─── 关键：设置窗口不可获得焦点 ───
         // 这告诉系统 WindowManager：这个 Activity 是"背景装饰"，不应参与焦点竞争
@@ -66,24 +74,23 @@ class WelcomeActivity : Activity() {
      *
      * @return true 表示此 Activity 处理了事件（但实际上我们不消费，而是转交给主屏）
      */
-    override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
-        if (event != null && event.action == KeyEvent.ACTION_DOWN) {
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) {
             // 检测到有按键事件进入虚拟屏 Activity → 立即恢复焦点到主屏
-            Log.d(
+            if (BuildConfig.DEBUG) Log.d(
                     TAG,
                     "Key event detected on virtual display: ${event.keyCode}, restoring focus to main"
             )
             restoreFocusToMainDisplay()
         }
         // 不消费事件，让其继续传递（给到虚拟屏上的其他 Window）
-        return super.dispatchKeyEvent(event)
+        return super.onKeyDown(keyCode, event)
     }
 
-    @Suppress("OVERRIDE_DEPRECATION")
-    override fun onBackPressed() {
-        // 返回键被拦截，吞掉。但 dispatchKeyEvent 已经处理了焦点恢复。
-        // (保留这个方法以防 dispatchKeyEvent 被绕过)
-        Log.d(TAG, "Back pressed on virtual display, ignored")
+    private fun handleIgnoredBackPress() {
+        restoreFocusToMainDisplay()
+        // 返回键由 OnBackPressedDispatcher 拦截并吞掉。
+        if (BuildConfig.DEBUG) Log.d(TAG, "Back pressed on virtual display, ignored")
         return
     }
 
@@ -98,7 +105,7 @@ class WelcomeActivity : Activity() {
     private fun scheduleFocusRestore() {
         window?.decorView?.postDelayed(
                 {
-                    Log.d(TAG, "Scheduled focus restore executing")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Scheduled focus restore executing")
                     restoreFocusToMainDisplay()
                 },
                 500

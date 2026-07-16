@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Environment
 import android.webkit.CookieManager
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import com.ai.phoneagent.feature.updates.BuildConfig
 import com.ai.phoneagent.feature.updates.R
 
@@ -148,7 +149,12 @@ object ApkDownloadUtil {
             }
 
         runCatching {
-            appContext.registerReceiver(receiver, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
+            ContextCompat.registerReceiver(
+                appContext,
+                receiver,
+                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
         }
 
         return true

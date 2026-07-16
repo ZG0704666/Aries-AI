@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -433,6 +433,9 @@ class MainActivity : AppCompatActivity() {
 
     private val appPrefsRepository by inject<AppPreferencesRepository>()
     private val floatingChatPrefs by inject<FloatingChatPreferencesRepository>()
+    private val automationInstructionGateway by inject<ActivityAutomationInstructionGateway>()
+    private val localMnnInferenceEngine by inject<LocalMnnInferenceEngine>()
+    private val modelScopeModelDownloader by inject<ModelScopeModelDownloader>()
     private val prefs by lazy { AppPrefsCompat(appPrefsRepository) }
     private val uiPreferencesRepository by lazy { MainUiPreferencesRepository(applicationContext) }
     private val conversationStorageRepository by lazy { ConversationStorageRepository(applicationContext) }
@@ -1957,7 +1960,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshLocalModelReadyState() {
-        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
+        localModelReady = modelScopeModelDownloader.isQwen35ModelReady(this)
         updateLocalModelSwitchAvailabilityUi()
         updateStatusText()
     }
@@ -3084,7 +3087,7 @@ class MainActivity : AppCompatActivity() {
                     hideKeyboard()
                     if (agentModeEnabled) {
                         val dispatchResult =
-                            ActivityAutomationInstructionGateway.dispatchManual(
+                            automationInstructionGateway.dispatchManual(
                                 context = this@MainActivity,
                                 instruction = t,
                             )
@@ -3577,7 +3580,7 @@ class MainActivity : AppCompatActivity() {
 
                     val result =
                         if (localModeEnabled) {
-                            LocalMnnInferenceEngine.sendChatStreamResult(
+                            localMnnInferenceEngine.sendChatStreamResult(
                                 context = this@MainActivity,
                                 messages = chatHistory,
                                 onReasoningDelta = reasoningDeltaHandler,
@@ -4097,7 +4100,7 @@ class MainActivity : AppCompatActivity() {
                 )
             val result = withContext(Dispatchers.IO) {
                 if (localModeEnabled) {
-                    LocalMnnInferenceEngine.sendChatResult(
+                    localMnnInferenceEngine.sendChatResult(
                         context = this@MainActivity,
                         messages = punctuationMessages,
                     )

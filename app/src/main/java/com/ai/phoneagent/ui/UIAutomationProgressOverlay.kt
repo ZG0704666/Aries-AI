@@ -22,23 +22,13 @@ import java.util.concurrent.atomic.AtomicInteger
  * UI自动化进度显示Overlay
  * 在屏幕底部显示进度、状态和控制按钮
  */
-class UIAutomationProgressOverlay private constructor(private val context: Context) {
+class UIAutomationProgressOverlay(context: Context) {
 
     companion object {
         private const val TAG = "UIAutomationProgressOverlay"
-
-        @Volatile
-        private var instance: UIAutomationProgressOverlay? = null
-
-        fun getInstance(context: Context): UIAutomationProgressOverlay {
-            return instance ?: synchronized(this) {
-                instance ?: UIAutomationProgressOverlay(context.applicationContext).also {
-                    instance = it
-                }
-            }
-        }
     }
 
+    private val context = context.applicationContext
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
     private val handler = Handler(Looper.getMainLooper())

@@ -30,7 +30,10 @@ import com.ai.phoneagent.AutomationOverlay
  * 3) run paste action
  * 4) restore original clipboard in finally
  */
-class AppClipboardTransaction(private val context: Context) {
+class AppClipboardTransaction(
+    private val context: Context,
+    private val automationOverlay: AutomationOverlay,
+) {
 
     enum class VerifyState {
         MATCHED,
@@ -89,7 +92,7 @@ class AppClipboardTransaction(private val context: Context) {
 
         val shouldHighlightVerifySuccess = verifyState == VerifyState.MATCHED
         if (shouldHighlightVerifySuccess) {
-            AutomationOverlay.setInputVerifyHighlight(true)
+            automationOverlay.setInputVerifyHighlight(true)
         }
 
         var actionSucceeded = false
@@ -99,7 +102,7 @@ class AppClipboardTransaction(private val context: Context) {
         } finally {
             restored = restoreSnapshot(clipboard, snapshot)
             if (shouldHighlightVerifySuccess) {
-                AutomationOverlay.setInputVerifyHighlight(false)
+                automationOverlay.setInputVerifyHighlight(false)
             }
         }
         return Result(

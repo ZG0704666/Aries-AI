@@ -24,6 +24,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import coil.Coil
 import coil.ImageLoader
 import com.ai.phoneagent.telemetry.TelemetryHeartbeatManager
+import com.ai.phoneagent.vdiso.ShizukuVirtualDisplayEngine
 import com.ai.phoneagent.di.appModule
 import com.ai.phoneagent.di.dataModule
 import com.ai.phoneagent.di.networkModule
@@ -71,18 +72,33 @@ class AriesAgentApp : Application() {
 
         // 初始化全局上下文
         AppState.init(this)
-        AutomationLiveNotification.initialize(this)
 
-        // 初始化 Koin 依赖注入框架
-        startKoin {
+        // 初始化 Koin 依赖注入框架。后续启动组件只从本次返回的容器解析，
+        // 避免通过 GlobalContext 引入隐式 service locator 或第二套实例。
+        val koin = startKoin {
             androidLogger(if (android.util.Log.isLoggable("Koin", android.util.Log.DEBUG)) Level.DEBUG else Level.ERROR)
             androidContext(this@AriesAgentApp)
             modules(appModule, dataModule, networkModule, uiModule)
+        }.koin
+
+        try {
+            val engine = koin.get<ShizukuVirtualDisplayEngine>()
+            VirtualDisplayController.initialize(engine)
+            logi("VirtualDisplayController initialized from Koin")
+        } catch (t: Throwable) {
+            logw("VirtualDisplayController initialization failed", t)
+        }
+
+        try {
+            koin.get<AutomationLiveNotification>().initialize()
+            logi("AutomationLiveNotification initialized from Koin")
+        } catch (t: Throwable) {
+            logw("AutomationLiveNotification initialization failed", t)
         }
 
         // 配置 Coil ImageLoader（使用 Koin 管理的实例）
         try {
-            val imageLoader = org.koin.core.context.GlobalContext.get().get<ImageLoader>()
+            val imageLoader = koin.get<ImageLoader>()
             Coil.setImageLoader { imageLoader }
             logi("Coil ImageLoader initialized from Koin")
         } catch (t: Throwable) {
@@ -90,7 +106,7 @@ class AriesAgentApp : Application() {
         }
 
         try {
-            org.koin.core.context.GlobalContext.get().get<TelemetryHeartbeatManager>().start()
+            koin.get<TelemetryHeartbeatManager>().start()
             logi("TelemetryHeartbeatManager initialized")
         } catch (t: Throwable) {
             logw("TelemetryHeartbeatManager initialization failed", t)

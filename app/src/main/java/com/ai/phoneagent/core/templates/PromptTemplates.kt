@@ -17,7 +17,7 @@
  */
 package com.ai.phoneagent.core.templates
 
-object PromptTemplates {
+class PromptTemplates {
 
     private fun extractFailedTypeText(failedAction: String): String? {
         val isTypeAction =

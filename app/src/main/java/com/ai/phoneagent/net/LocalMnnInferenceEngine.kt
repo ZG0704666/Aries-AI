@@ -13,15 +13,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-object LocalMnnInferenceEngine {
-    private const val TEMP_IMAGE_DIR = "local_mnn_images"
-    private const val TEMP_IMAGE_TTL_MS = 24L * 60L * 60L * 1000L
-    private const val LOCAL_MAX_NEW_TOKENS = 640
-    private const val LOCAL_MAX_DURATION_MS = 75_000L
-    private const val LOCAL_MAX_OUTPUT_CHARS = 3600
-    private const val LOCAL_MAX_REPEAT_CHUNK_STREAK = 22
-    private const val LOCAL_MAX_IMAGE_BYTES = 8L * 1024L * 1024L
-
+class LocalMnnInferenceEngine(
+    private val modelScopeModelDownloader: ModelScopeModelDownloader,
+) {
     private val initMutex = Mutex()
     private val requestMutex = Mutex()
     private val tempImageSeq = AtomicLong(0L)
@@ -168,7 +162,7 @@ object LocalMnnInferenceEngine {
 
     private suspend fun ensureSession(context: Context): LlmSession {
         val configPath =
-            ModelScopeModelDownloader.getQwen35ConfigPath(context)
+            modelScopeModelDownloader.getQwen35ConfigPath(context)
                 ?: throw IOException("Local model config missing, please download model first")
 
         return initMutex.withLock {
@@ -532,5 +526,16 @@ object LocalMnnInferenceEngine {
             }
             return false
         }
+    }
+
+    companion object {
+        private const val TEMP_IMAGE_DIR = "local_mnn_images"
+        private const val TEMP_IMAGE_TTL_MS = 24L * 60L * 60L * 1000L
+        private const val LOCAL_MAX_NEW_TOKENS = 640
+        private const val LOCAL_MAX_DURATION_MS = 75_000L
+        private const val LOCAL_MAX_OUTPUT_CHARS = 3600
+        private const val LOCAL_MAX_REPEAT_CHUNK_STREAK = 22
+        private const val LOCAL_MAX_IMAGE_BYTES = 8L * 1024L * 1024L
+
     }
 }

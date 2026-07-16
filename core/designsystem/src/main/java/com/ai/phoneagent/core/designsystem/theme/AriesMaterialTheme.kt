@@ -86,7 +86,7 @@ fun AriesMaterialTheme(
 
     // 2. Base color scheme: Dynamic style or token-backed preset style
     val baseColorScheme: ColorScheme = when {
-        effectiveThemeColorStyle.isDynamic -> {
+        effectiveThemeColorStyle.isDynamic && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> {

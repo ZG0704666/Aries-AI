@@ -30,7 +30,7 @@ interface AutomationInstructionGateway {
     fun dispatch(context: Context, request: AutomationInstructionRequest): AutomationDispatchResult
 }
 
-object ActivityAutomationInstructionGateway : AutomationInstructionGateway {
+class ActivityAutomationInstructionGateway : AutomationInstructionGateway {
     override fun dispatch(
         context: Context,
         request: AutomationInstructionRequest
@@ -104,4 +104,5 @@ object ActivityAutomationInstructionGateway : AutomationInstructionGateway {
             putExtra(AutomationViewModel.EXTRA_KEEP_MAIN_ON_TOP, request.keepMainOnTop)
         }
     }
+
 }

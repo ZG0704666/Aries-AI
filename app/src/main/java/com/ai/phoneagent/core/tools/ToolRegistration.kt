@@ -24,9 +24,12 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
 import com.ai.phoneagent.PhoneAgentAccessibilityService
 import com.ai.phoneagent.core.tools.extended.ExtendedAppMapping
+import com.ai.phoneagent.core.tools.file.FileToolExecutor
 import com.ai.phoneagent.core.tools.file.registerFileTools
+import com.ai.phoneagent.core.tools.network.NetworkToolExecutor
 import com.ai.phoneagent.core.tools.network.registerNetworkTools
 import com.ai.phoneagent.data.model.*
 import kotlinx.coroutines.delay
@@ -36,32 +39,58 @@ import java.io.ByteArrayOutputStream
  * 工具注册中心
  * 集中注册所有可用的工具
  */
-object ToolRegistration {
+class ToolRegistration(
+    private val handler: AIToolHandler,
+    context: Context,
+    private val fileToolExecutor: FileToolExecutor,
+    private val networkToolExecutor: NetworkToolExecutor,
+    private val appPackageManager: AppPackageManager,
+    private val extendedAppMapping: ExtendedAppMapping,
+) {
+    private val appContext = context.applicationContext
+    private val registrationLock = Any()
 
-    private const val TAG = "ToolRegistration"
+    companion object {
+        private const val TAG = "ToolRegistration"
+    }
+
+    @Volatile
+    private var registrationComplete = false
+
+    @Volatile
+    private var registrationFailure: Throwable? = null
 
     /**
      * 注册所有工具
      */
-    fun registerAllTools(handler: AIToolHandler, context: Context) {
-        registerUITools(handler, context)
-        registerAppTools(handler, context)
-        registerSystemTools(handler, context)
-        
-        // 注册网络工具
-        registerNetworkTools(handler, context)
-        
-        // 注册文件系统工具
-        registerFileTools(handler, context)
-        
-        Log.d(TAG, "所有工具注册完成")
-        Log.d(TAG, "- UI 工具: ${getToolCount(handler, "ui")}")
-        Log.d(TAG, "- 应用工具: ${getToolCount(handler, "app")}")
-        Log.d(TAG, "- 系统工具: ${getToolCount(handler, "system")}")
-        Log.d(TAG, "- 网络工具: ${getToolCount(handler, "network")}")
-        Log.d(TAG, "- 文件工具: ${getToolCount(handler, "file")}")
-        Log.d(TAG, "- 总计: ${handler.getAllToolNames().size} 个工具")
-        Log.d(TAG, "- 应用映射: ${ExtendedAppMapping.getAllMappings().size}+ 个应用")
+    fun registerAllTools() {
+        synchronized(registrationLock) {
+            if (registrationComplete) return
+            registrationFailure?.let { throw it }
+
+            try {
+                registerUITools(handler, appContext)
+                registerAppTools(handler, appContext)
+                registerSystemTools(handler, appContext)
+                registerNetworkTools(handler, networkToolExecutor)
+                registerFileTools(handler, fileToolExecutor)
+
+                registrationComplete = true
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "所有工具注册完成")
+                    Log.d(TAG, "- UI 工具: ${getToolCount(handler, "ui")}")
+                    Log.d(TAG, "- 应用工具: ${getToolCount(handler, "app")}")
+                    Log.d(TAG, "- 系统工具: ${getToolCount(handler, "system")}")
+                    Log.d(TAG, "- 网络工具: ${getToolCount(handler, "network")}")
+                    Log.d(TAG, "- 文件工具: ${getToolCount(handler, "file")}")
+                    Log.d(TAG, "- 总计: ${handler.getAllToolNames().size} 个工具")
+                    Log.d(TAG, "- 应用映射: ${extendedAppMapping.getAllMappings().size}+ 个应用")
+                }
+            } catch (t: Throwable) {
+                registrationFailure = t
+                throw t
+            }
+        }
     }
 
     /**
@@ -378,7 +407,7 @@ object ToolRegistration {
                             error = "需要选择器(resource_id/text/content_desc/class_name)或bounds/x,y兜底"
                         )
                     } else {
-                        Log.d("TOOL_CLICK", "调用click_element: res=$resourceId text=$text class=$className idx=$index bounds=$bounds x=$x y=$y")
+                        if (BuildConfig.DEBUG) Log.d("TOOL_CLICK", "调用click_element: res=$resourceId text=$text class=$className idx=$index bounds=$bounds x=$x y=$y")
                         val success = service.clickElement(resourceId, text, contentDesc, className, index, bounds, x, y)
                         val selector = text ?: resourceId ?: contentDesc ?: className ?: bounds ?: "coords(${x},${y})"
                         ToolResult(
@@ -675,7 +704,7 @@ object ToolRegistration {
      */
     private fun registerAppTools(handler: AIToolHandler, context: Context) {
         // 初始化应用列表缓存（后台操作）
-        AppPackageManager.initializeCache(context)
+        appPackageManager.initializeCache(context)
         
         // 启动应用工具 - 绕过模型直接启动（更快更高效）
         handler.registerTool(
@@ -693,7 +722,7 @@ object ToolRegistration {
                 
                 // 优先使用包名，其次使用应用名，绕过模型直接启动
                 val targetPackage = packageName ?: appName?.let { name ->
-                    AppPackageManager.resolvePackageName(name)
+                    appPackageManager.resolvePackageName(name)
                 }
                 
                 if (targetPackage == null) {
@@ -712,7 +741,7 @@ object ToolRegistration {
                             ToolResult(
                                 toolName = tool.name,
                                 success = true,
-                                result = StringResultData("已启动应用: ${AppPackageManager.getAppName(targetPackage)} ($targetPackage)")
+                                result = StringResultData("已启动应用: ${appPackageManager.getAppName(targetPackage)} ($targetPackage)")
                             )
                         } else {
                             ToolResult(
@@ -739,7 +768,7 @@ object ToolRegistration {
             descriptionGenerator = { "获取已安装应用列表" },
             executor = { tool ->
                 val maxApps = tool.parameters.find { it.name == "max_apps" }?.value?.toIntOrNull() ?: 50
-                val appList = AppPackageManager.getAllInstalledApps()
+                val appList = appPackageManager.getAllInstalledApps()
                     .take(maxApps)
                     .joinToString("\n") { (packageName, appName) ->
                         "$appName ($packageName)"

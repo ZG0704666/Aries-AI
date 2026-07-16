@@ -2,7 +2,6 @@ package com.ai.phoneagent.core.cache
 
 import android.os.SystemClock
 import android.util.Log
-import com.ai.phoneagent.AppState
 import com.ai.phoneagent.AutomationOverlay
 import com.ai.phoneagent.FloatingChatService
 import com.ai.phoneagent.ui.UIAutomationProgressOverlay
@@ -14,9 +13,11 @@ import kotlinx.coroutines.delay
  *
  * 采用引用计数，支持并发截图请求安全嵌套。
  */
-object ScreenshotOverlayGuard {
-    private const val TAG = "ScreenshotOverlayGuard"
-    private const val STUCK_HIDE_TIMEOUT_MS = 10_000L
+class ScreenshotOverlayGuard(
+    private val automationOverlay: AutomationOverlay,
+    private val progressOverlay: UIAutomationProgressOverlay,
+) {
+
     private val hideCounter = AtomicInteger(0)
     @Volatile private var firstHideAtMs: Long = 0L
     @Volatile private var restoreAutomationOverlay = false
@@ -61,25 +62,22 @@ object ScreenshotOverlayGuard {
         restoreProgressOverlay = false
         restoreFloatingOverlay = false
 
-        if (AutomationOverlay.isShowing()) {
+        if (automationOverlay.isShowing()) {
             restoreAutomationOverlay = true
-            runCatching { AutomationOverlay.temporaryHide() }
+            runCatching { automationOverlay.temporaryHide() }
                     .onFailure {
                         restoreAutomationOverlay = false
                         Log.w(TAG, "temporaryHide automation overlay failed: ${it.message}", it)
                     }
         }
 
-        AppState.getAppContext()?.let { appCtx ->
-            val progress = UIAutomationProgressOverlay.getInstance(appCtx)
-            if (progress.isShowing()) {
-                restoreProgressOverlay = true
-                runCatching { progress.temporaryHideForScreenshot() }
-                        .onFailure {
-                            restoreProgressOverlay = false
-                            Log.w(TAG, "temporaryHide progress overlay failed: ${it.message}", it)
-                        }
-            }
+        if (progressOverlay.isShowing()) {
+            restoreProgressOverlay = true
+            runCatching { progressOverlay.temporaryHideForScreenshot() }
+                    .onFailure {
+                        restoreProgressOverlay = false
+                        Log.w(TAG, "temporaryHide progress overlay failed: ${it.message}", it)
+                    }
         }
 
         if (FloatingChatService.isRunning()) {
@@ -134,19 +132,14 @@ object ScreenshotOverlayGuard {
                         Log.w(TAG, "restore floating overlay failed: ${it.message}", it)
                     }
         }
-        AppState.getAppContext()?.let { appCtx ->
-            if (restoreProgressOverlay) {
-                runCatching {
-                            UIAutomationProgressOverlay.getInstance(appCtx)
-                                    .restoreVisibilityAfterScreenshot()
-                        }
-                        .onFailure {
-                            Log.w(TAG, "restore progress overlay failed: ${it.message}", it)
-                        }
-            }
+        if (restoreProgressOverlay) {
+            runCatching { progressOverlay.restoreVisibilityAfterScreenshot() }
+                    .onFailure {
+                        Log.w(TAG, "restore progress overlay failed: ${it.message}", it)
+                    }
         }
         if (restoreAutomationOverlay) {
-            runCatching { AutomationOverlay.restoreVisibility() }
+            runCatching { automationOverlay.restoreVisibility() }
                     .onFailure { Log.w(TAG, "restore automation overlay failed: ${it.message}", it) }
         }
     }
@@ -155,5 +148,11 @@ object ScreenshotOverlayGuard {
         restoreAutomationOverlay = false
         restoreProgressOverlay = false
         restoreFloatingOverlay = false
+    }
+
+    companion object {
+        private const val TAG = "ScreenshotOverlayGuard"
+        private const val STUCK_HIDE_TIMEOUT_MS = 10_000L
+
     }
 }

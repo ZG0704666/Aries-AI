@@ -2,6 +2,7 @@ package com.ai.phoneagent.core.tools
 
 import android.content.Context
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
 import com.ai.phoneagent.data.model.AITool
 import com.ai.phoneagent.data.model.ToolResult
 import com.ai.phoneagent.data.model.StringResultData
@@ -11,19 +12,10 @@ import java.util.concurrent.ConcurrentHashMap
  * AI工具处理器
  * 负责工具的注册、查找和执行
  */
-class AIToolHandler private constructor(private val context: Context) {
+class AIToolHandler(private val context: Context) {
 
     companion object {
         private const val TAG = "AIToolHandler"
-
-        @Volatile
-        private var INSTANCE: AIToolHandler? = null
-
-        fun getInstance(context: Context): AIToolHandler {
-            return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: AIToolHandler(context.applicationContext).also { INSTANCE = it }
-            }
-        }
     }
 
     // 工具注册表
@@ -60,7 +52,7 @@ class AIToolHandler private constructor(private val context: Context) {
             operationDescriptionRegistry[name] = descriptionGenerator
         }
 
-        Log.d(TAG, "Registered tool: $name")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Registered tool: $name")
     }
 
     /**
@@ -111,7 +103,7 @@ class AIToolHandler private constructor(private val context: Context) {
         }
 
         return try {
-            Log.d(TAG, "Executing tool: ${tool.name}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Executing tool: ${tool.name}")
             executor.invoke(tool)
         } catch (e: Exception) {
             Log.e(TAG, "Error executing tool: ${tool.name}", e)

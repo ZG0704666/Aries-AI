@@ -21,7 +21,7 @@ package com.ai.phoneagent.core.tools.extended
  * 扩展应用包名映射
  * 包含 250+ 常用应用的包名映射
  */
-object ExtendedAppMapping {
+class ExtendedAppMapping {
 
     /**
      * 社交通讯应用 (35个)
