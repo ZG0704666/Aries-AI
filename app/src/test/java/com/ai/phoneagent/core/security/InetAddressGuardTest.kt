@@ -5,13 +5,16 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.net.InetAddress
-import java.net.UnknownHostException
 
 /**
  * [InetAddressGuard] 单元测试。
  *
  * 使用纯 JVM JUnit 4 测试，覆盖 IPv4 / IPv6 / 域名解析场景，
  * 验证 SSRF 防护栏对内网 / 私有 / 链路本地 / 云元数据地址的拦截能力。
+ *
+ * **可重复性**：不依赖真实 DNS。域名解析场景直接构造固定 [InetAddress] 后调用
+ * [InetAddressGuard.requirePublic] 的注入重载，避免 VPN/代理将 example.com 解析到
+ * 198.18.0.0/15 等基准测试段时误判为"公网"。
  */
 class InetAddressGuardTest {
 
@@ -40,17 +43,24 @@ class InetAddressGuardTest {
         assertTrue(InetAddressGuard.isInternal("203.0.113.1"))
     }
 
-    @Test(timeout = 15000L)
-    fun `公网域名_应通过`() {
-        // 探测 DNS 是否可用，沙箱无网络时回退到公网 IP 验证
-        val dnsOk = try {
-            InetAddress.getByName("example.com")
-            true
-        } catch (e: UnknownHostException) {
-            false
+    @Test
+    fun `公网域名_注入固定解析地址_应通过`() {
+        // 不调真实 DNS：直接注入 example.com 的固定公网地址 93.184.216.34，
+        // 保证 VPN/代理将 example.com 解析到 198.18.0.0/15 基准测试段时测试仍稳定通过。
+        val fixedPublic = InetAddress.getByName("93.184.216.34")
+        InetAddressGuard.requirePublic("example.com", listOf(fixedPublic))
+        assertFalse(InetAddressGuard.isInternalAddress(fixedPublic))
+    }
+
+    @Test
+    fun `公网域名_注入多解析地址_任一内网应拒绝`() {
+        // 模拟" Split-Horizon DNS"：DNS 同时返回一个公网与一个内网地址，
+        // 防护栏必须因任一内网地址而拒绝整个主机。
+        val publicAddr = InetAddress.getByName("93.184.216.34")
+        val internalAddr = InetAddress.getByName("10.0.0.1")
+        assertThrows(SecurityException::class.java) {
+            InetAddressGuard.requirePublic("example.com", listOf(publicAddr, internalAddr))
         }
-        val target = if (dnsOk) "example.com" else "8.8.8.8"
-        assertFalse(InetAddressGuard.isInternal(target))
     }
 
     // ========== RFC 1918 私有地址应拒绝 ==========

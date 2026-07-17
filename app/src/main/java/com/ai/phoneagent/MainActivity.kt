@@ -439,7 +439,7 @@ class MainActivity : AppCompatActivity() {
     private val localMnnInferenceEngine by inject<LocalMnnInferenceEngine>()
     private val modelScopeModelDownloader by inject<ModelScopeModelDownloader>()
     private val prefs by lazy { AppPrefsCompat(appPrefsRepository) }
-    private val uiPreferencesRepository by lazy { MainUiPreferencesRepository(applicationContext) }
+    private val uiPreferencesRepository by inject<MainUiPreferencesRepository>()
     private val conversationStorageRepository by lazy { ConversationStorageRepository(applicationContext) }
 
     private val conversations = mutableListOf<Conversation>()

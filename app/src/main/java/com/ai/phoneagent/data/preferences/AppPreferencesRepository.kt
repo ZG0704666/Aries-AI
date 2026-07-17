@@ -26,6 +26,7 @@ typealias ThemeAccent = com.ai.phoneagent.core.designsystem.theme.ThemeAccent
 typealias ThemeColorStyle = com.ai.phoneagent.core.designsystem.theme.ThemeColorStyle
 
 private val Context.appPreferencesDataStore by preferencesDataStore(name = "app_prefs")
+private val Context.appSecretsDataStore by preferencesDataStore(name = "app_secrets")
 
 class AppPreferencesRepository(
     private val context: Context,
@@ -35,7 +36,10 @@ class AppPreferencesRepository(
 
     init {
         // 尽力而为地在后台迁移历史明文密钥；失败不阻塞启动，下次启动会重试。
+        // 顺序：先把 secrets 从主 prefs 搬到独立 secrets DataStore（修备份粒度），再做加密迁移。
         migrationScope.launch {
+            runCatching { relocateSecretsToDedicatedStore() }
+                .onFailure { Log.w(TAG, "Secrets relocation failed; will retry on next launch", it) }
             runCatching { migrateLegacySecrets() }
                 .onFailure { Log.w(TAG, "Legacy secret migration failed; will retry on next launch", it) }
         }
@@ -119,12 +123,12 @@ class AppPreferencesRepository(
     }
 
     val apiKeyFlow: Flow<String> =
-        context.appPreferencesDataStore.data.map { prefs ->
+        context.appSecretsDataStore.data.map { prefs ->
             prefs.readSecret(Keys.apiKey)
         }
 
     val autoglmApiKeyFlow: Flow<String> =
-        context.appPreferencesDataStore.data.map { prefs ->
+        context.appSecretsDataStore.data.map { prefs ->
             prefs.readSecret(Keys.autoglmApiKey)
         }
 
@@ -159,7 +163,7 @@ class AppPreferencesRepository(
         }
 
     val ariesApiKeyFlow: Flow<String> =
-        context.appPreferencesDataStore.data.map { prefs ->
+        context.appSecretsDataStore.data.map { prefs ->
             prefs.readSecret(Keys.ariesApiKey)
         }
 
@@ -240,7 +244,7 @@ class AppPreferencesRepository(
         }
 
     suspend fun getApiKey(): String {
-        val prefs = context.appPreferencesDataStore.data.first()
+        val prefs = context.appSecretsDataStore.data.first()
         return prefs.readSecret(Keys.apiKey)
     }
 
@@ -249,14 +253,14 @@ class AppPreferencesRepository(
      */
     suspend fun setApiKey(value: String): Boolean {
         var stored = false
-        context.appPreferencesDataStore.edit { prefs ->
+        context.appSecretsDataStore.edit { prefs ->
             stored = prefs.writeSecret(Keys.apiKey, value)
         }
         return stored
     }
 
     suspend fun getAutoglmApiKey(): String {
-        val prefs = context.appPreferencesDataStore.data.first()
+        val prefs = context.appSecretsDataStore.data.first()
         return prefs.readSecret(Keys.autoglmApiKey)
     }
 
@@ -265,7 +269,7 @@ class AppPreferencesRepository(
      */
     suspend fun setAutoglmApiKey(value: String): Boolean {
         var stored = false
-        context.appPreferencesDataStore.edit { prefs ->
+        context.appSecretsDataStore.edit { prefs ->
             stored = prefs.writeSecret(Keys.autoglmApiKey, value)
         }
         return stored
@@ -329,22 +333,22 @@ class AppPreferencesRepository(
      */
     suspend fun setAriesApiKey(value: String): Boolean {
         var stored = false
-        context.appPreferencesDataStore.edit { prefs ->
+        context.appSecretsDataStore.edit { prefs ->
             stored = prefs.writeSecret(Keys.ariesApiKey, value)
         }
         return stored
     }
 
     suspend fun getAriesApiKey(): String {
-        val prefs = context.appPreferencesDataStore.data.first()
+        val prefs = context.appSecretsDataStore.data.first()
         return prefs.readSecret(Keys.ariesApiKey)
     }
 
     suspend fun getActiveAriesApiKey(): String {
-        val prefs = context.appPreferencesDataStore.data.first()
+        val prefs = context.appSecretsDataStore.data.first()
         val ariesKey = prefs.readSecret(Keys.ariesApiKey)
         if (ariesKey.isNotBlank()) return ariesKey
-        val loggedInUser = prefs[Keys.ariesLoggedInUser].orEmpty()
+        val loggedInUser = context.appPreferencesDataStore.data.first()[Keys.ariesLoggedInUser].orEmpty()
         return if (loggedInUser.isNotBlank()) {
             prefs.readSecret(Keys.apiKey)
         } else {
@@ -365,13 +369,13 @@ class AppPreferencesRepository(
     }
 
     suspend fun getApiLastCheckKey(): String {
-        val prefs = context.appPreferencesDataStore.data.first()
+        val prefs = context.appSecretsDataStore.data.first()
         return prefs.readSecret(Keys.apiLastCheckKey)
     }
 
     suspend fun setApiLastCheckKey(value: String): Boolean {
         var stored = false
-        context.appPreferencesDataStore.edit { prefs ->
+        context.appSecretsDataStore.edit { prefs ->
             stored = prefs.writeSecret(Keys.apiLastCheckKey, value)
         }
         return stored
@@ -400,13 +404,13 @@ class AppPreferencesRepository(
     }
 
     suspend fun getApiLastCheckSig(): String {
-        val prefs = context.appPreferencesDataStore.data.first()
+        val prefs = context.appSecretsDataStore.data.first()
         return prefs.readSecret(Keys.apiLastCheckSig)
     }
 
     suspend fun setApiLastCheckSig(value: String): Boolean {
         var stored = false
-        context.appPreferencesDataStore.edit { prefs ->
+        context.appSecretsDataStore.edit { prefs ->
             stored = prefs.writeSecret(Keys.apiLastCheckSig, value)
         }
         return stored
@@ -662,7 +666,15 @@ class AppPreferencesRepository(
     fun getQwenPendingDownloadIdsBlocking(): Set<String> = runBlocking { getQwenPendingDownloadIds() }
     fun setQwenPendingDownloadIdsBlocking(value: Set<String>) = runBlocking { setQwenPendingDownloadIds(value) }
 
-    /** Batch-write API config; pass null to remove a key. */
+    /**
+     * Batch-write API config; pass null to leave a key untouched, blank to remove a secret.
+     *
+     * 敏感字段（apiKey / lastCheckKey / lastCheckSig）统一走 [writeSecret] 加密落盘；
+     * 任一加密不可用都会中止本次该字段的更新（旧值保留）并反映在返回值中。
+     *
+     * @return `true` 表示全部敏感字段已成功持久化（或未触发敏感字段写入）；
+     *         `false` 表示至少一个敏感字段因加密不可用而未更新，旧值保留——调用方可提示用户稍后重试。
+     */
     suspend fun writeApiConfig(
         apiKey: String? = null,
         removeApiKey: Boolean = false,
@@ -675,25 +687,40 @@ class AppPreferencesRepository(
         lastCheckTime: Long? = null,
         lastCheckSig: String? = null,
         clearCheckResults: Boolean = false,
-    ) {
+    ): Boolean {
+        var secretsOk = true
+        // 敏感字段（apiKey / lastCheckKey / lastCheckSig）写入独立 secrets DataStore；
+        // 任一加密不可用都会中止本次该字段的更新（旧值保留）并反映在返回值中。
+        context.appSecretsDataStore.edit { secrets ->
+            if (removeApiKey) {
+                secrets.remove(Keys.apiKey)
+            } else if (apiKey != null) {
+                secretsOk = secrets.writeSecret(Keys.apiKey, apiKey) && secretsOk
+            }
+            if (clearCheckResults) {
+                secrets.remove(Keys.apiLastCheckSig)
+                secrets.remove(Keys.apiLastCheckKey)
+            }
+            lastCheckKey?.let { secretsOk = secrets.writeSecret(Keys.apiLastCheckKey, it) && secretsOk }
+            lastCheckSig?.let { secretsOk = secrets.writeSecret(Keys.apiLastCheckSig, it) && secretsOk }
+        }
+        // 非敏感字段（开关 / URL / Model / 检查时间与结果布尔）仍写主 prefs，参与云备份与设备迁移。
         context.appPreferencesDataStore.edit { prefs ->
-            if (removeApiKey) prefs.remove(Keys.apiKey)
-            else if (apiKey != null) prefs[Keys.apiKey] = apiKey
             useThirdParty?.let { prefs[Keys.apiUseThirdParty] = it }
             useLocalModel?.let { prefs[Keys.apiUseLocalModel] = it }
             thirdPartyBaseUrl?.let { prefs[Keys.apiThirdPartyBaseUrl] = it }
             thirdPartyModel?.let { prefs[Keys.apiThirdPartyModel] = it }
             if (clearCheckResults) {
-                prefs.remove(Keys.apiLastCheckSig)
-                prefs.remove(Keys.apiLastCheckKey)
                 prefs.remove(Keys.apiLastCheckOk)
                 prefs.remove(Keys.apiLastCheckTime)
             }
-            lastCheckKey?.let { prefs[Keys.apiLastCheckKey] = it }
             lastCheckOk?.let { prefs[Keys.apiLastCheckOk] = it }
             lastCheckTime?.let { prefs[Keys.apiLastCheckTime] = it }
-            lastCheckSig?.let { prefs[Keys.apiLastCheckSig] = it }
         }
+        if (!secretsOk) {
+            Log.w(TAG, "writeApiConfig: encryption unavailable for at least one secret; old values kept")
+        }
+        return secretsOk
     }
 
     fun writeApiConfigBlocking(
@@ -708,7 +735,7 @@ class AppPreferencesRepository(
         lastCheckTime: Long? = null,
         lastCheckSig: String? = null,
         clearCheckResults: Boolean = false,
-    ) = runBlocking {
+    ): Boolean = runBlocking {
         writeApiConfig(
             apiKey = apiKey,
             removeApiKey = removeApiKey,
@@ -761,14 +788,18 @@ class AppPreferencesRepository(
     /**
      * 将历史明文保存的密钥迁移为 AndroidKeyStore 加密存储。
      *
-     * 流程：读明文 → 加密写 → 回读解密比对；任一步失败都会把该键恢复为原明文，
-     * 保证密钥绝不丢失。幂等，可在每次启动时安全调用。
+     * **竞态安全**：整个迁移在单次 `edit` 闭包内完成。闭包内先读取当前值，只有当
+     * 当前值仍等于启动快照中的 legacy 明文时才加密覆盖——若用户在期间保存了新值
+     * （新值必然非 legacy 明文，或与 legacy 不同），该键直接跳过，绝不回写覆盖。
+     * 加密后立即在闭包内回读验证，验证失败则恢复原明文，密钥绝不丢失。
+     *
+     * 幂等，可在每次启动时安全调用。
      *
      * @return 本次成功迁移的键数量。
      */
     suspend fun migrateLegacySecrets(): Int {
-        val secretKeys = listOf(Keys.apiKey, Keys.autoglmApiKey, Keys.ariesApiKey, Keys.apiLastCheckKey)
-        val before = context.appPreferencesDataStore.data.first()
+        val secretKeys = listOf(Keys.apiKey, Keys.autoglmApiKey, Keys.ariesApiKey, Keys.apiLastCheckKey, Keys.apiLastCheckSig)
+        val before = context.appSecretsDataStore.data.first()
         val legacy = linkedMapOf<Preferences.Key<String>, String>()
         for (key in secretKeys) {
             val value = before[key]
@@ -778,39 +809,82 @@ class AppPreferencesRepository(
         }
         if (legacy.isEmpty()) return 0
 
-        context.appPreferencesDataStore.edit { prefs ->
+        var migrated = 0
+        context.appSecretsDataStore.edit { prefs ->
             for ((key, plain) in legacy) {
-                val encrypted = secretStore.encrypt(plain)
-                if (encrypted != null) {
-                    prefs[key] = encrypted
-                } else {
-                    Log.w(TAG, "Migration skipped for ${key.name}: encryption unavailable")
+                // 竞态守卫：当前值必须仍是启动快照里的 legacy 明文，否则跳过——用户期间已改，绝不覆盖。
+                val current = prefs[key]
+                if (current != plain) {
+                    Log.i(TAG, "Migration skipped for ${key.name}: value changed since snapshot")
+                    continue
                 }
-            }
-        }
-
-        // 回读验证：只有"已是密文且解密结果与原明文一致"才视为成功，否则恢复原值。
-        val after = context.appPreferencesDataStore.data.first()
-        var restored = 0
-        context.appPreferencesDataStore.edit { prefs ->
-            for ((key, plain) in legacy) {
-                val stored = after[key]
+                val encrypted = secretStore.encrypt(plain)
+                if (encrypted == null) {
+                    Log.w(TAG, "Migration skipped for ${key.name}: encryption unavailable")
+                    continue
+                }
+                prefs[key] = encrypted
+                // 闭包内就地回读验证：密文能解回原明文才算成功，否则恢复原值，绝不丢密钥。
+                val stored = prefs[key]
                 val verified =
                     stored != null &&
                         !secretStore.isLegacyPlaintext(stored) &&
                         (secretStore.decrypt(stored) as? SecretStore.ReadResult.Available)?.value == plain
                 if (!verified) {
                     prefs[key] = plain
-                    restored++
                     Log.w(TAG, "Migration rolled back for ${key.name}; original value restored")
+                } else {
+                    migrated++
                 }
             }
         }
-        val migrated = legacy.size - restored
         if (migrated > 0) {
             Log.i(TAG, "Migrated $migrated legacy plaintext secret(s) to encrypted storage")
         }
         return migrated
+    }
+
+    /**
+     * 一次性把 secrets 从主 `app_prefs` DataStore 搬到独立 `app_secrets` DataStore。
+     *
+     * 历史上 secrets 与 UI 偏好混在 `app_prefs` 同一文件，导致备份规则被迫排除整个
+     * `app_prefs`，连带丢失 theme/font/conversations 等非敏感偏好。本方法把 5 个 secrets
+     * 键原样搬到独立文件，然后从主 prefs 删除，使备份规则得以仅排除 `app_secrets`。
+     *
+     * 幂等：已搬迁过的键在新文件已存在、旧文件已删除，二次调用无副作用。
+     */
+    private suspend fun relocateSecretsToDedicatedStore(): Int {
+        val secretKeys = listOf(Keys.apiKey, Keys.autoglmApiKey, Keys.ariesApiKey, Keys.apiLastCheckKey, Keys.apiLastCheckSig)
+        val oldPrefs = context.appPreferencesDataStore.data.first()
+        val toMove = linkedMapOf<Preferences.Key<String>, String>()
+        for (key in secretKeys) {
+            val value = oldPrefs[key]
+            if (value != null) toMove[key] = value
+        }
+        if (toMove.isEmpty()) return 0
+
+        // 第一步：把旧值搬到新 secrets DataStore。新文件中已存在该键则跳过——尊重已搬迁成果。
+        context.appSecretsDataStore.edit { secrets ->
+            for ((key, value) in toMove) {
+                if (secrets.contains(key)) continue
+                secrets[key] = value
+            }
+        }
+        // 第二步：从主 prefs 删除已搬迁的键。竞态守卫：只有当主 prefs 当前值仍等于搬迁值才删，
+        // 避免删掉用户期间新写入的非敏感内容（secrets 键本不应再写主 prefs，但安全为先）。
+        var removed = 0
+        context.appPreferencesDataStore.edit { prefs ->
+            for ((key, value) in toMove) {
+                if (prefs[key] == value) {
+                    prefs.remove(key)
+                    removed++
+                }
+            }
+        }
+        if (removed > 0) {
+            Log.i(TAG, "Relocated $removed secret(s) from app_prefs to dedicated app_secrets DataStore")
+        }
+        return removed
     }
 
     private companion object {

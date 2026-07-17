@@ -21,10 +21,10 @@
 
 | 组件 | 最低版本 | 推荐版本 |
 |------|---------|---------|
-| JDK | 11 | 17 |
-| Android SDK | 30 | 34+ |
-| Gradle | 8.0 | 8.4+ |
-| Android Studio | Arctic Fox | Hedgehog+ |
+| JDK | 17 | 17 |
+| Android SDK | 30 | 36+ |
+| Gradle | 9.0 | 9.4.1+ |
+| Android Studio | Meerkat | Meerkat+ |
 | Git | 2.30 | 2.40+ |
 
 ### 设置步骤

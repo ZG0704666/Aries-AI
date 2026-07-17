@@ -1,18 +1,23 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
   备份策略（Android 11 及以下 full backup）：
-  保持 allowBackup="true"，仅排除敏感存储，保留会话数据库与非敏感 UI 偏好，
+  保持 allowBackup="true"，仅排除敏感存储，保留会话数据库、UI 偏好与非敏感配置，
   使升级/换机恢复体验不被破坏。
 
+  敏感 secrets 已独立到 `app_secrets` DataStore 文件（apiKey/autoglmApiKey/ariesApiKey/
+  apiLastCheckKey/apiLastCheckSig），因此备份规则得以仅在文件粒度排除这一个文件，
+  而不再排除整个 `app_prefs`——后者继续保留 theme/font/userAgreement/conversations 等
+  非敏感偏好的换机恢复。
+
   排除清单：
-  - datastore/app_prefs.preferences_pb  API Key 等敏感配置（密文也不离机，换机后密钥不可解，直接重新输入）
+  - datastore/app_secrets.preferences_pb  全部 secrets（API Key 等），密文也不离机，换机后密钥不可解，直接重新输入
   - datastore/tool_permissions.preferences_pb  工具授权状态，按设备重新授予
   - datastore/automation_results.preferences_pb  自动化执行记录，可能含隐私内容
   - datastore/telemetry_prefs.preferences_pb  遥测设备标识，不应跨设备迁移
-  - sharedpref/app_prefs.xml  历史遗留的同名 SharedPreferences（AboutViewModel）
+  - sharedpref/app_prefs.xml  堕历史遗留的同名 SharedPreferences（AboutViewModel）
 -->
 <full-backup-content>
-    <exclude domain="file" path="datastore/app_prefs.preferences_pb"/>
+    <exclude domain="file" path="datastore/app_secrets.preferences_pb"/>
     <exclude domain="file" path="datastore/tool_permissions.preferences_pb"/>
     <exclude domain="file" path="datastore/automation_results.preferences_pb"/>
     <exclude domain="file" path="datastore/telemetry_prefs.preferences_pb"/>

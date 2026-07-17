@@ -32,6 +32,12 @@ class AutomationDispatchAuthenticator {
      * Returns true when [intent] carries no automation control extras (nothing to
      * authorize), or when it carries a valid dispatch token. Returns false when the
      * intent carries automation control extras but the token is missing or invalid.
+     *
+     * 鉴权范围仅覆盖真正会触发无人值守 UI 自动化的控制字段（task / autoStart / source）。
+     * 纯展示字段（[AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY] /
+     * [AutomationViewModel.EXTRA_KEEP_MAIN_ON_TOP]）仅控制 Activity 进栈与置顶行为，
+     * 不携带自动化指令，故移出鉴权范围——内部入口（AutomationOverlay、
+     * AutomationLiveNotification、FloatingChatService.navigateToTaskDetail）可继续附带这些字段而无须 token。
      */
     fun isAuthorized(intent: Intent?): Boolean {
         intent ?: return true
@@ -44,9 +50,7 @@ class AutomationDispatchAuthenticator {
     fun hasAutomationControlExtras(intent: Intent): Boolean {
         return intent.hasExtra(AutomationViewModel.EXTRA_AUTOMATION_TASK) ||
             intent.hasExtra(AutomationViewModel.EXTRA_AUTOMATION_AUTO_START) ||
-            intent.hasExtra(AutomationViewModel.EXTRA_AUTOMATION_SOURCE) ||
-            intent.hasExtra(AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY) ||
-            intent.hasExtra(AutomationViewModel.EXTRA_KEEP_MAIN_ON_TOP)
+            intent.hasExtra(AutomationViewModel.EXTRA_AUTOMATION_SOURCE)
     }
 
     /** Logs a sanitized rejection; never logs the task content or any token. */
@@ -55,8 +59,6 @@ class AutomationDispatchAuthenticator {
         if (intent?.hasExtra(AutomationViewModel.EXTRA_AUTOMATION_TASK) == true) present.add("task")
         if (intent?.hasExtra(AutomationViewModel.EXTRA_AUTOMATION_AUTO_START) == true) present.add("autoStart")
         if (intent?.hasExtra(AutomationViewModel.EXTRA_AUTOMATION_SOURCE) == true) present.add("source")
-        if (intent?.hasExtra(AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY) == true) present.add("forceTop")
-        if (intent?.hasExtra(AutomationViewModel.EXTRA_KEEP_MAIN_ON_TOP) == true) present.add("keepMainOnTop")
         Log.w(TAG, "Rejected unauthorized automation intent fields=$present")
     }
 

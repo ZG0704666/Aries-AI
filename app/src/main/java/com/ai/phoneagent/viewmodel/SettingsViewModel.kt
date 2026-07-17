@@ -474,13 +474,16 @@ class SettingsViewModel(
                         R.string.settings_api_failed
                     },
                 )
-            prefs.writeApiConfig(
+            val secretsStored = prefs.writeApiConfig(
                 apiKey = key.trim(),
                 lastCheckKey = key.trim(),
                 lastCheckOk = result.ok,
                 lastCheckTime = System.currentTimeMillis(),
                 lastCheckSig = apiConfigSignature(key.trim(), normalizedBaseUrl, model),
             )
+            if (!secretsStored) {
+                onToast(stringRes(R.string.settings_api_save_encryption_unavailable))
+            }
             if (!result.ok && force) {
                 onToast(formatApiCheckFailureReason(result.statusCode, result.message))
             }
