@@ -64,10 +64,6 @@ android {
         versionName = "v1.4.2-xyla.alpha"
 
         buildConfigField("String", "GITHUB_TOKEN", "\"\"")
-        buildConfigField("String", "ARIES_LOGTO_ENDPOINT", "\"https://sso.aries.org.cn/\"")
-        buildConfigField("String", "ARIES_LOGTO_APP_ID", "\"${escapedBuildConfigString(localProperty("aries.logto.appId", "ynaappkxpdyahwo8m81ja"))}\"")
-        buildConfigField("String", "ARIES_LOGTO_REDIRECT_URI", "\"io.logto.android://com.ai.phoneagent/callback\"")
-        buildConfigField("String", "ARIES_LOGTO_API_RESOURCE", "\"${escapedBuildConfigString(localProperty("aries.logto.apiResource", "https://api.aries.org.cn/"))}\"")
         buildConfigField(
             "String",
             "TELEMETRY_HEARTBEAT_ENDPOINT",
@@ -92,8 +88,6 @@ android {
         debug {
             val escapedToken = escapedBuildConfigString(githubToken)
             buildConfigField("String", "GITHUB_TOKEN", "\"$escapedToken\"")
-            val endpoint = localProperty("aries.logto.endpoint", "https://sso.aries.org.cn/")
-            buildConfigField("String", "ARIES_LOGTO_ENDPOINT", "\"${escapedBuildConfigString(endpoint)}\"")
         }
 
         release {
@@ -184,8 +178,6 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging.interceptor)
     implementation(libs.gson)
-    implementation(libs.logto.android)
-
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
     androidTestImplementation(libs.androidx.junit)
