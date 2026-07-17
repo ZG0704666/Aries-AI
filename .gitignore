@@ -85,3 +85,5 @@ coverage/
 # Local performance profiling artifacts
 Aries-site/lighthouse-*.report.html
 Aries-site/lighthouse-*.report.json
+
+.codex-local-archive/
