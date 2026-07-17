@@ -186,9 +186,6 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.logto.android)
 
-    // 后台任务（便于自动化/定时流程）
-    implementation(libs.androidx.work.runtime.ktx)
-
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
     androidTestImplementation(libs.androidx.junit)
