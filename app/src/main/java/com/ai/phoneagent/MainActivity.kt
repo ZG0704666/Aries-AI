@@ -129,6 +129,7 @@ import com.composables.icons.lucide.Image as LucideImage
 import androidx.compose.material3.Text
 import com.ai.phoneagent.core.automation.ActivityAutomationInstructionGateway
 import com.ai.phoneagent.core.automation.AutomationDispatchAuthenticator
+import com.ai.phoneagent.core.security.ApiConfigSignature
 import com.ai.phoneagent.core.automation.AutomationInstructionRequest
 import com.ai.phoneagent.core.automation.AutomationLogBridge
 import com.ai.phoneagent.core.prompt.MainChatPromptRepository
@@ -2901,7 +2902,8 @@ class MainActivity : AppCompatActivity() {
                 useThirdParty -> "third_party"
                 else -> "default"
             }
-        return "$mode|${apiKey.trim()}|$normalizedBaseUrl|$normalizedModel"
+        // 签名不保留原始 Key（SHA-256 哈希化），仅用于配置变更检测
+        return ApiConfigSignature.compute(apiKey, normalizedBaseUrl, normalizedModel, mode)
     }
 
     private fun resolveApiKeyFromInput(): String {

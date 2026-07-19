@@ -12,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ai.phoneagent.R
+import com.ai.phoneagent.core.security.ApiConfigSignature
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.net.AriesApiClient
 import com.ai.phoneagent.net.AriesOidcAuthManager
@@ -598,7 +599,19 @@ class SettingsViewModel(
     }
 
     fun apiConfigSignature(apiKey: String, baseUrl: String, model: String): String {
-        return "${if (useThirdPartyApi) "1" else "0"}|${apiKey.trim()}|${baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }}|${model.ifBlank { AutoGlmClient.DEFAULT_MODEL }}"
+        val mode =
+            when {
+                useAriesApi -> "aries"
+                useThirdPartyApi -> "third_party"
+                else -> "default"
+            }
+        // 与 MainActivity 共用同一规范：密钥材料经 SHA-256 哈希化，签名不含原始 Key
+        return ApiConfigSignature.compute(
+            apiKey = apiKey,
+            baseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL },
+            model = model.ifBlank { AutoGlmClient.DEFAULT_MODEL },
+            mode = mode,
+        )
     }
 
     fun validateBaseUrlSecurity(baseUrl: String): String? {

@@ -1,11 +1,11 @@
 ﻿package com.ai.phoneagent.core.automation
 
 import android.content.Intent
-import android.util.Base64
 import android.util.Log
 import com.ai.phoneagent.viewmodel.AutomationViewModel
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.util.Base64
 
 /**
  * Process-local authenticator guarding the automation dispatch entrypoint.
@@ -72,7 +72,9 @@ class AutomationDispatchAuthenticator {
     private fun generateToken(): String {
         val bytes = ByteArray(TOKEN_BYTES)
         SecureRandom().nextBytes(bytes)
-        return Base64.encodeToString(bytes, Base64.NO_WRAP)
+        // java.util.Base64（API 26+，minSdk 30 满足）：与 android.util.Base64 行为一致，
+        // 且使本类可在纯 JVM 单元测试中实例化（android.util.Base64 在 local unit test 下为 stub）。
+        return Base64.getEncoder().withoutPadding().encodeToString(bytes)
     }
 
     private companion object {

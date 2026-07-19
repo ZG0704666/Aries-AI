@@ -17,11 +17,15 @@
  */
 package com.ai.phoneagent.core.automation
 
+import android.app.Application
 import android.content.Intent
 import com.ai.phoneagent.viewmodel.AutomationViewModel
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * [AutomationDispatchAuthenticator] 回归测试。
@@ -30,7 +34,13 @@ import org.junit.Test
  * 三个内部入口（AutomationOverlay / AutomationLiveNotification /
  * FloatingChatService.navigateToTaskDetail）只附带展示字段时不再被拒绝；
  * 同时确认真正的控制字段 task / autoStart / source 仍需 token，无 token 仍拒绝。
+ *
+ * 用 Robolectric 提供可工作的 [Intent] 实现；`application = Application::class`
+ * 避免启动 [com.ai.phoneagent.AriesAgentApp] 触发重复 startKoin（与
+ * [com.ai.phoneagent.di.StatefulSingletonScopeTest] 同一隔离模式）。
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], application = Application::class)
 class AutomationDispatchAuthenticatorTest {
 
     private val authenticator = AutomationDispatchAuthenticator()

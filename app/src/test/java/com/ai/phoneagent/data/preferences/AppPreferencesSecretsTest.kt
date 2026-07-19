@@ -17,17 +17,25 @@
  */
 package com.ai.phoneagent.data.preferences
 
+import android.app.Application
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import androidx.test.core.app.ApplicationProvider
 import com.ai.phoneagent.data.security.SecretStore
+import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * [AppPreferencesRepository.writeApiConfig] 与 [AppPreferencesRepository.migrateLegacySecrets]
@@ -41,18 +49,51 @@ import org.robolectric.RobolectricTestRunner
  * 用 Robolectric 起真 Context 跑真 DataStore，注入测试专用 [SecretStore]（底层用
  * [com.ai.phoneagent.data.security.GcmSecretPayloadCodec] + 注入 AES key，纯 JVM 可跑），
  * 避免依赖 AndroidKeyStore。
+ *
+ * `application = Application::class`：Robolectric 默认会启动清单里的
+ * [com.ai.phoneagent.AriesAgentApp]，其 onCreate 无条件 startKoin——每个测试方法
+ * 都会重建 Application，第二次起即抛 KoinAppAlreadyStartedException。改为启动
+ * 裸 [Application] 与 Koin 完全解耦（与 [com.ai.phoneagent.di.StatefulSingletonScopeTest]
+ * 同一隔离模式）。
  */
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], application = Application::class)
 class AppPreferencesSecretsTest {
 
+    @get:Rule
+    val tempFolder = TemporaryFolder()
+
     private lateinit var secretStore: SecretStore
+    private lateinit var prefsStore: DataStore<Preferences>
+    private lateinit var secretsStore: DataStore<Preferences>
     private lateinit var repo: AppPreferencesRepository
 
     @Before
     fun setUp() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
         secretStore = TestSecretStore()
-        repo = AppPreferencesRepository(context, secretStore)
+        // 每个测试方法使用独立的 DataStore 文件：进程级单例 DataStore 跨用例共享，
+        // 而 TestSecretStore 的 AES key 逐用例随机，混用会让上个用例的密文在本用例
+        // 不可解（readSecret 返回空串）或被误判为 legacy 明文，断言变得不确定。
+        // 同时关闭后台自动迁移，全部改为显式调用，消除与 init 协程的竞态。
+        val dir = tempFolder.newFolder()
+        prefsStore = PreferenceDataStoreFactory.create {
+            File(dir, "app_prefs.preferences_pb")
+        }
+        secretsStore = PreferenceDataStoreFactory.create {
+            File(dir, "app_secrets.preferences_pb")
+        }
+        repo = newRepo(secretStore)
+    }
+
+    private fun newRepo(store: SecretStore): AppPreferencesRepository {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        return AppPreferencesRepository(
+            context = context,
+            secretStore = store,
+            prefsStoreOverride = prefsStore,
+            secretsStoreOverride = secretsStore,
+            backgroundMigrationEnabled = false,
+        )
     }
 
     // ─── #1 批量配置加密 ─────────────────────────────────────────────
@@ -76,7 +117,7 @@ class AppPreferencesSecretsTest {
         assertEquals("sk-test-abc", repo.getApiLastCheckKey())
         assertEquals("sig|0|sk-test-abc|https://api|model", repo.getApiLastCheckSig())
         // 非敏感字段仍可读
-        assertTrue(repo.getApiUseThirdParty())
+        assertTrue(repo.getApiUseThirdPartyBlocking())
         assertEquals("https://api.example.com", repo.getApiThirdPartyBaseUrlBlocking())
         assertEquals("gpt-4", repo.getApiThirdPartyModelBlocking())
         assertEquals(true, repo.getApiLastCheckOkBlocking())
@@ -101,7 +142,8 @@ class AppPreferencesSecretsTest {
             lastCheckTime = 1L,
         )
         repo.writeApiConfig(clearCheckResults = true)
-        assertEquals("", repo.getApiKey())
+        // clearCheckResults 只清检查结果字段，不动 apiKey 本体
+        assertEquals("sk-test", repo.getApiKey())
         assertEquals("", repo.getApiLastCheckKey())
         assertEquals("", repo.getApiLastCheckSig())
         assertEquals(false, repo.getApiLastCheckOkBlocking())
@@ -115,9 +157,8 @@ class AppPreferencesSecretsTest {
         assertEquals("sk-original", repo.getApiKey())
 
         // 切到加密不可用的 SecretStore，再尝试写新 apiKey
-        val context = ApplicationProvider.getApplicationContext<Context>()
         val failingStore = TestSecretStore(encryptAvailable = false)
-        val repoWithFailingStore = AppPreferencesRepository(context, failingStore)
+        val repoWithFailingStore = newRepo(failingStore)
 
         val ok = repoWithFailingStore.writeApiConfig(apiKey = "sk-new")
         assertFalse("加密不可用时 writeApiConfig 应返回 false", ok)
@@ -130,8 +171,7 @@ class AppPreferencesSecretsTest {
     @Test
     fun `migrateLegacySecrets 把明文迁移为密文_回读仍得原值`() = runBlocking {
         // 用「不做加密」的裸 SecretStore 写入明文，模拟历史版本存量
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val legacyRepo = AppPreferencesRepository(context, PlaintextPassThroughStore())
+        val legacyRepo = newRepo(PlaintextPassThroughStore())
         legacyRepo.writeApiConfig(apiKey = "sk-legacy", lastCheckKey = "sk-legacy", lastCheckSig = "sig-legacy")
 
         // 切到加密 SecretStore 跑迁移
@@ -153,8 +193,7 @@ class AppPreferencesSecretsTest {
     @Test
     fun `migrateLegacySecrets 迁移期间用户改值_不覆盖新值`() = runBlocking {
         // 历史明文存量
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val legacyRepo = AppPreferencesRepository(context, PlaintextPassThroughStore())
+        val legacyRepo = newRepo(PlaintextPassThroughStore())
         legacyRepo.writeApiConfig(apiKey = "sk-legacy")
 
         // 启动迁移快照（捕获 legacy 明文），但暂停在闭包内做竞态守卫之前——
