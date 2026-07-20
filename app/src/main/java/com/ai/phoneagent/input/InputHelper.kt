@@ -42,10 +42,10 @@ import rikka.shizuku.ShizukuBinderWrapper
  * - 依赖 Shizuku 权限：未授权时注入会失败（内部为 best-effort）。
  * - Move 事件会做合并/去抖（只保留最新 move），以减少高频注入带来的卡顿。
  */
-object InputHelper {
+class InputHelper {
 
-    private const val TAG = "AriesInputHelper"
-    private const val MODE_ASYNC = 0
+    private val TAG = "AriesInputHelper"
+    private val MODE_ASYNC = 0
 
     private data class TouchCmd(
             val displayId: Int,
@@ -278,4 +278,5 @@ object InputHelper {
         val acc = getIInputManagerAccess()
         runCatching { acc.injectInputEvent.invoke(acc.iInputManager, ev, MODE_ASYNC) }
     }
+
 }

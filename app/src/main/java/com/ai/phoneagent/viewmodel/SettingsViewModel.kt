@@ -12,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ai.phoneagent.R
+import com.ai.phoneagent.core.security.ApiConfigSignature
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.net.AriesApiClient
 import com.ai.phoneagent.net.AriesOidcAuthManager
@@ -26,6 +27,8 @@ class SettingsViewModel(
     application: Application,
     private val prefs: AppPreferencesRepository,
     private val ariesOidcAuthManager: AriesOidcAuthManager,
+    private val ariesApiClient: AriesApiClient,
+    private val modelScopeModelDownloader: ModelScopeModelDownloader,
 ) : AndroidViewModel(application) {
 
     enum class SettingsPage {
@@ -129,7 +132,7 @@ class SettingsViewModel(
         private set
 
     init {
-        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(getApplication())
+        localModelReady = modelScopeModelDownloader.isQwen35ModelReady(getApplication())
         restoreSettings()
         // 响应式监听隐藏模型入口解锁状态（AboutViewModel 切换后实时生效）
         viewModelScope.launch {
@@ -215,7 +218,7 @@ class SettingsViewModel(
     }
 
     fun refreshLocalModelState() {
-        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(getApplication())
+        localModelReady = modelScopeModelDownloader.isQwen35ModelReady(getApplication())
         updateQwenDownloadButtonState()
         updateStatusText()
     }
@@ -343,7 +346,7 @@ class SettingsViewModel(
 
     fun checkApiConnection(onToast: (String) -> Unit) {
         if (useLocalModel) {
-            localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(getApplication())
+            localModelReady = modelScopeModelDownloader.isQwen35ModelReady(getApplication())
             updateQwenDownloadButtonState()
             apiStatusPositive = localModelReady
             apiStatusText =
@@ -395,10 +398,10 @@ class SettingsViewModel(
         qwenDownloadInFlight = true
         updateQwenDownloadButtonState()
         viewModelScope.launch {
-            val result = ModelScopeModelDownloader.enqueueQwen35Downloads(getApplication())
+            val result = modelScopeModelDownloader.enqueueQwen35Downloads(getApplication())
             qwenDownloadInFlight = false
             result.onSuccess {
-                localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(getApplication())
+                localModelReady = modelScopeModelDownloader.isQwen35ModelReady(getApplication())
                 updateQwenDownloadButtonState()
                 val message =
                     when {
@@ -472,13 +475,16 @@ class SettingsViewModel(
                         R.string.settings_api_failed
                     },
                 )
-            prefs.writeApiConfig(
+            val secretsStored = prefs.writeApiConfig(
                 apiKey = key.trim(),
                 lastCheckKey = key.trim(),
                 lastCheckOk = result.ok,
                 lastCheckTime = System.currentTimeMillis(),
                 lastCheckSig = apiConfigSignature(key.trim(), normalizedBaseUrl, model),
             )
+            if (!secretsStored) {
+                onToast(stringRes(R.string.settings_api_save_encryption_unavailable))
+            }
             if (!result.ok && force) {
                 onToast(formatApiCheckFailureReason(result.statusCode, result.message))
             }
@@ -593,7 +599,19 @@ class SettingsViewModel(
     }
 
     fun apiConfigSignature(apiKey: String, baseUrl: String, model: String): String {
-        return "${if (useThirdPartyApi) "1" else "0"}|${apiKey.trim()}|${baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL }}|${model.ifBlank { AutoGlmClient.DEFAULT_MODEL }}"
+        val mode =
+            when {
+                useAriesApi -> "aries"
+                useThirdPartyApi -> "third_party"
+                else -> "default"
+            }
+        // 与 MainActivity 共用同一规范：密钥材料经 SHA-256 哈希化，签名不含原始 Key
+        return ApiConfigSignature.compute(
+            apiKey = apiKey,
+            baseUrl = baseUrl.ifBlank { AutoGlmClient.DEFAULT_BASE_URL },
+            model = model.ifBlank { AutoGlmClient.DEFAULT_MODEL },
+            mode = mode,
+        )
     }
 
     fun validateBaseUrlSecurity(baseUrl: String): String? {
@@ -651,7 +669,16 @@ class SettingsViewModel(
             val result = ariesOidcAuthManager.signIn(activity)
             ariesLoginLoading = false
             if (result.success) {
-                prefs.setAriesApiKey(result.accessToken)
+                val tokenStored = prefs.setAriesApiKey(result.accessToken)
+                if (!tokenStored) {
+                    // 远端认证虽成功，但本机无法安全持久化 Token 时不得提交登录态。
+                    // 主动清理临时会话，避免 UI 显示成功而重启后实际丢失凭据。
+                    ariesOidcAuthManager.signOut()
+                    val message = stringRes(R.string.settings_api_save_encryption_unavailable)
+                    ariesLoginError = message
+                    onError(message)
+                    return@launch
+                }
                 val displayName = result.displayName.ifBlank { stringRes(R.string.aries_sso_user_display) }
                 prefs.setAriesLoggedInUser(displayName)
                 applyApiModeState(ApiMode.Aries)
@@ -692,7 +719,7 @@ class SettingsViewModel(
     private fun fetchAndShowModels(apiKey: String) {
         viewModelScope.launch {
             val modelsResult = withContext(Dispatchers.IO) {
-                AriesApiClient.fetchModels(apiKey)
+                ariesApiClient.fetchModels(apiKey)
             }
             modelsResult.onSuccess { models ->
                 ariesAvailableModels = models
@@ -705,7 +732,7 @@ class SettingsViewModel(
         val key = prefs.getActiveAriesApiKeyBlocking().trim()
         if (ariesAvailableModels.isEmpty() && key.isNotBlank()) {
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { AriesApiClient.fetchModels(key) }
+                val result = withContext(Dispatchers.IO) { ariesApiClient.fetchModels(key) }
                 result.onSuccess { models ->
                     ariesAvailableModels = models
                     if (models.isNotEmpty()) showAriesModelDialog = true

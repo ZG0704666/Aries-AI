@@ -18,6 +18,8 @@
 package com.ai.phoneagent.di
 
 import com.ai.phoneagent.net.AutoGlmClient
+import com.ai.phoneagent.net.AriesApiClient
+import com.ai.phoneagent.core.tools.network.NetworkToolExecutor
 import coil.ImageLoader
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
@@ -27,6 +29,7 @@ import okhttp3.Protocol
 import okhttp3.logging.HttpLoggingInterceptor
 import com.ai.phoneagent.BuildConfig
 import org.koin.android.ext.koin.androidContext
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import java.util.concurrent.TimeUnit
 
@@ -72,6 +75,21 @@ val networkModule = module {
 
     // AutoGlmClient is a Kotlin object (singleton); bind it so it can be injected or mocked in tests.
     single { AutoGlmClient }
+
+    // Task 19 Phase 4: AriesApiClient migrated from object to class (companion facade DI).
+    single { AriesApiClient() }
+
+    // Task 19 Phase 2: 工具专用 OkHttpClient（30s 超时，与共享 client 60s/300s 区分）
+    single(named("tool")) {
+        OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    // Task 19 Phase 2: NetworkToolExecutor 迁移
+    single { NetworkToolExecutor(androidContext(), get(named("tool"))) }
 
     /**
      * Coil ImageLoader singleton for Compose image loading.

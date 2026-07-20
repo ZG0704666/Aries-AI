@@ -26,6 +26,8 @@ import com.ai.phoneagent.data.preferences.MainUiPreferencesRepository
 import com.ai.phoneagent.data.preferences.TelemetryPreferencesRepository
 import com.ai.phoneagent.data.preferences.ToolPermissionsRepository
 import com.ai.phoneagent.data.preferences.VirtualDisplayConfigRepository
+import com.ai.phoneagent.data.security.AndroidKeyStoreSecretStore
+import com.ai.phoneagent.data.security.SecretStore
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
@@ -51,7 +53,8 @@ val dataModule = module {
 
     // DataStore preferences repositories — all require application context.
     single { MainUiPreferencesRepository(androidContext()) }
-    single { AppPreferencesRepository(androidContext()) }
+    single<SecretStore> { AndroidKeyStoreSecretStore() }
+    single { AppPreferencesRepository(androidContext(), get()) }
     single { FloatingChatPreferencesRepository(androidContext()) }
     single { VirtualDisplayConfigRepository(androidContext()) }
     single { ToolPermissionsRepository(androidContext()) }

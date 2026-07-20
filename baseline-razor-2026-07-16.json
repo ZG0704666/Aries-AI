@@ -1,0 +1,18 @@
+﻿{
+  "timestamp": "2026-07-16T17:55+08:00",
+  "apk": { "debug_mb": 107.43, "abis": ["arm64-v8a"] },
+  "tests_total": 246,
+  "tests_failures": 0,
+  "tests_errors": 0,
+  "commits_on_branch": 181,
+  "commit_hashes": [
+    "781d01f razor: remove unused directories and non-arm64 ABIs",
+    "11a4411 security: scope backup exclusions to sensitive stores only",
+    "cfc64d6 security: encrypt API keys at rest with AndroidKeyStore AES-GCM",
+    "fd737ce security: parameterize Shizuku shell launch",
+    "c070750 security: authenticate automation dispatch intents",
+    "7afa23d test: add regression coverage for hardening changes",
+    "46b19fa refactor: unify Koin lifecycle and enforce file/network tool boundaries",
+    "193c520 build: adopt AGP 9.2 toolchain and blocking CI"
+  ]
+}

@@ -1,19 +1,25 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ 数据提取规则：与 backup_rules.xml 保持同一份排除清单。
+  敏感 secrets 位于 `app_secrets`，非敏感偏好位于 `app_preferences`；历史混合存储
+  `app_prefs` 永久排除并仅作升级迁移源，避免首次启动前带走存量 secrets。
+  `app_preferences` 与 aries.db 会话库继续参与云备份与设备迁移。
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="file" path="datastore/app_secrets.preferences_pb"/>
+        <exclude domain="file" path="datastore/app_prefs.preferences_pb"/>
+        <exclude domain="file" path="datastore/tool_permissions.preferences_pb"/>
+        <exclude domain="file" path="datastore/automation_results.preferences_pb"/>
+        <exclude domain="file" path="datastore/telemetry_prefs.preferences_pb"/>
+        <exclude domain="sharedpref" path="app_prefs.xml"/>
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="file" path="datastore/app_secrets.preferences_pb"/>
+        <exclude domain="file" path="datastore/app_prefs.preferences_pb"/>
+        <exclude domain="file" path="datastore/tool_permissions.preferences_pb"/>
+        <exclude domain="file" path="datastore/automation_results.preferences_pb"/>
+        <exclude domain="file" path="datastore/telemetry_prefs.preferences_pb"/>
+        <exclude domain="sharedpref" path="app_prefs.xml"/>
     </device-transfer>
-    -->
 </data-extraction-rules>

@@ -28,6 +28,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Base64
 import android.util.Log
+import com.ai.phoneagent.BuildConfig
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.ai.phoneagent.core.cache.ScreenshotOverlayGuard
@@ -40,6 +41,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import org.koin.android.ext.android.inject
 
 class PhoneAgentAccessibilityService : AccessibilityService() {
 
@@ -109,6 +111,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val screenshotOverlayGuard by inject<ScreenshotOverlayGuard>()
 
     @Volatile private var lastEventTimeMs: Long = 0L
     @Volatile private var lastWindowEventTimeMs: Long = 0L
@@ -236,7 +239,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
     suspend fun tryCaptureScreenshotBase64(): ScreenshotData? {
         if (Build.VERSION.SDK_INT < 30) return null
 
-        return ScreenshotOverlayGuard.withOverlaysHidden(hideDelayMs = 80L) {
+        return screenshotOverlayGuard.withOverlaysHidden(hideDelayMs = 80L) {
             suspendCancellableCoroutine { cont ->
                 val executor = Executors.newSingleThreadExecutor()
                 try {
@@ -588,7 +591,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         }
 
         val result = sb.toString()
-        Log.d(
+        if (BuildConfig.DEBUG) Log.d(
                 "UI_TREE",
                 "XML格式已生成: 根元素=<ui_hierarchy>, package=$pkg, activity=$activity, 节点数=${counter[0]}, 长度=${result.length}"
         )
@@ -629,7 +632,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
                     "json" -> dumpUiTreeJson(maxNodes, detail)
                     else -> dumpUiTreeXml(maxNodes, detail)
                 }
-        Log.d("UI_TREE", "格式=$format, 详情=$detail, 节点≤$maxNodes, 长度=${result.length}")
+        if (BuildConfig.DEBUG) Log.d("UI_TREE", "格式=$format, 详情=$detail, 节点≤$maxNodes, 长度=${result.length}")
         return result
     }
 
@@ -979,7 +982,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             if (root != null) {
                 val found = findNode(root, resourceId, text, contentDesc, className, 0)
                 if (found != null) {
-                    Log.d(
+                    if (BuildConfig.DEBUG) Log.d(
                             "WAIT_ELEMENT",
                             "元素已找到: resourceId=$resourceId, text=$text, 耗时=${android.os.SystemClock.uptimeMillis() - startTime}ms"
                     )
@@ -988,7 +991,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             }
             delay(pollIntervalMs)
         }
-        Log.d("WAIT_ELEMENT", "等待超时: resourceId=$resourceId, text=$text, timeout=${timeoutMs}ms")
+        if (BuildConfig.DEBUG) Log.d("WAIT_ELEMENT", "等待超时: resourceId=$resourceId, text=$text, timeout=${timeoutMs}ms")
         return false
     }
 
@@ -1016,7 +1019,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             results.forEach { add(it) }
         }
 
-        Log.d("FIND_ELEMENTS", "找到 ${results.size} 个匹配元素: resourceId=$resourceId, text=$text")
+        if (BuildConfig.DEBUG) Log.d("FIND_ELEMENTS", "找到 ${results.size} 个匹配元素: resourceId=$resourceId, text=$text")
         return jsonArray.toString()
     }
 
@@ -1136,7 +1139,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
                     }
                 }
         val result = performGlobalAction(action)
-        Log.d("PRESS_KEY", "按键 $keyCode -> action=$action, result=$result")
+        if (BuildConfig.DEBUG) Log.d("PRESS_KEY", "按键 $keyCode -> action=$action, result=$result")
         return result
     }
 
@@ -1181,7 +1184,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             return false
         }
 
-        Log.d(
+        if (BuildConfig.DEBUG) Log.d(
                 "SCROLL_TO_ELEMENT",
                 "开始滚动查找: resourceId=$resourceId, text=$text, direction=$direction"
         )
@@ -1191,14 +1194,14 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         if (root != null) {
             val found = findNode(root, resourceId, text, contentDesc, className, 0)
             if (found != null && isElementVisible(found)) {
-                Log.d("SCROLL_TO_ELEMENT", "元素已可见，无需滚动")
+                if (BuildConfig.DEBUG) Log.d("SCROLL_TO_ELEMENT", "元素已可见，无需滚动")
                 return true
             }
         }
 
         // 执行滚动查找
         repeat(maxScrolls) { scrollCount ->
-            Log.d("SCROLL_TO_ELEMENT", "滚动第 ${scrollCount + 1}/$maxScrolls 次")
+            if (BuildConfig.DEBUG) Log.d("SCROLL_TO_ELEMENT", "滚动第 ${scrollCount + 1}/$maxScrolls 次")
 
             // 执行滚动
             performScroll(direction)
@@ -1211,7 +1214,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
             if (currentRoot != null) {
                 val target = findNode(currentRoot, resourceId, text, contentDesc, className, 0)
                 if (target != null && isElementVisible(target)) {
-                    Log.d("SCROLL_TO_ELEMENT", "滚动成功找到元素，滚动次数: ${scrollCount + 1}")
+                    if (BuildConfig.DEBUG) Log.d("SCROLL_TO_ELEMENT", "滚动成功找到元素，滚动次数: ${scrollCount + 1}")
                     return true
                 }
             }
@@ -1315,7 +1318,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
                 if (clickable.isClickable &&
                                 clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                 ) {
-                    Log.d(
+                    if (BuildConfig.DEBUG) Log.d(
                             "CLICK_ELEMENT",
                             "selector点击成功: res=$resourceId text=$text class=$className idx=$index"
                     )
@@ -1325,7 +1328,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
                 clickable.getBoundsInScreen(r)
                 if (!r.isEmpty) {
                     val ok = clickAwait(r.centerX().toFloat(), r.centerY().toFloat())
-                    Log.d("CLICK_ELEMENT", "selector坐标兜底: bounds=${r.toShortString()} ok=$ok")
+                    if (BuildConfig.DEBUG) Log.d("CLICK_ELEMENT", "selector坐标兜底: bounds=${r.toShortString()} ok=$ok")
                     return ok
                 }
             }
@@ -1334,14 +1337,14 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         if (!bounds.isNullOrBlank()) {
             parseBoundsCenter(bounds)?.let { (cx, cy) ->
                 val ok = clickAwait(cx, cy)
-                Log.d("CLICK_ELEMENT", "bounds兜底: $bounds -> ($cx,$cy) ok=$ok")
+                if (BuildConfig.DEBUG) Log.d("CLICK_ELEMENT", "bounds兜底: $bounds -> ($cx,$cy) ok=$ok")
                 return ok
             }
         }
 
         if (x != null && y != null) {
             val ok = clickAwait(x, y)
-            Log.d("CLICK_ELEMENT", "坐标兜底: ($x,$y) ok=$ok")
+            if (BuildConfig.DEBUG) Log.d("CLICK_ELEMENT", "坐标兜底: ($x,$y) ok=$ok")
             return ok
         }
 

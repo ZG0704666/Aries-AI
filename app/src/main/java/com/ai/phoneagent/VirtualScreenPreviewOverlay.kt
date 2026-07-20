@@ -44,20 +44,9 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * 参考：autoglm_KY FloatingStatusService 工具箱按钮行
  */
-object VirtualScreenPreviewOverlay {
-
-    private const val TAG = "VdPreview"
-    const val ACTION_STOP_AUTOMATION = "com.ai.phoneagent.ACTION_STOP_AUTOMATION"
-    const val ACTION_PAUSE_TOGGLE = "com.ai.phoneagent.ACTION_PAUSE_TOGGLE"
-
-    // 预览窗宽高（展开状态，dp）
-    private const val EXPANDED_WIDTH_DP = 240
-    private const val EXPANDED_HEIGHT_DP = 427 // 16:9 竖屏
-    // 标题栏与底部控制栏高度
-    private const val HEADER_HEIGHT_DP = 28
-    private const val CONTROL_BAR_HEIGHT_DP = 40
-    // 最小化缩略图
-    private const val MINI_SIZE_DP = 48
+class VirtualScreenPreviewOverlay(
+    private val virtualDisplayEngine: ShizukuVirtualDisplayEngine,
+) {
 
     @Volatile private var wm: WindowManager? = null
     @Volatile private var containerView: PreviewContainer? = null
@@ -95,7 +84,12 @@ object VirtualScreenPreviewOverlay {
         val w = windowCtx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val dm = appCtx.resources.displayMetrics
 
-        val view = PreviewContainer(windowCtx)
+        val view =
+                PreviewContainer(
+                        context = windowCtx,
+                        onMinimize = { minimize(it) },
+                        onStop = ::hide,
+                )
 
         // 根据虚拟屏实际比例计算预览窗宽高
         val (contentW, contentH) = VirtualDisplayController.getContentSizeBestEffort(appCtx)
@@ -304,7 +298,7 @@ object VirtualScreenPreviewOverlay {
                 Log.i(TAG, "Preview SurfaceTexture buffer size set to: ${contentW}x${contentH}")
             }
             val surface = Surface(surfaceTexture)
-            val result = ShizukuVirtualDisplayEngine.setOutputSurface(surface)
+            val result = virtualDisplayEngine.setOutputSurface(surface)
             if (result.isSuccess) {
                 isBound = true
                 Log.i(TAG, "Preview surface bound successfully")
@@ -322,7 +316,7 @@ object VirtualScreenPreviewOverlay {
 
     private fun unbindPreview() {
         if (isBound) {
-            runCatching { ShizukuVirtualDisplayEngine.restoreOutputSurfaceToImageReader() }
+            runCatching { virtualDisplayEngine.restoreOutputSurfaceToImageReader() }
             isBound = false
         }
     }
@@ -559,7 +553,11 @@ object VirtualScreenPreviewOverlay {
     //  PreviewContainer - 完整预览视图（标题栏 + 画面 + 控制栏）
     // ═══════════════════════════════════════════════════════
 
-    class PreviewContainer(context: Context) : FrameLayout(context) {
+    class PreviewContainer(
+            context: Context,
+            private val onMinimize: (Context) -> Unit,
+            private val onStop: () -> Unit,
+    ) : FrameLayout(context) {
 
         private var currentWm: WindowManager? = null
         private var currentLp: WindowManager.LayoutParams? = null
@@ -673,7 +671,7 @@ object VirtualScreenPreviewOverlay {
                                 LayoutParams(dp(28), LayoutParams.MATCH_PARENT).apply {
                                     gravity = Gravity.CENTER_VERTICAL or Gravity.END
                                 }
-                        setOnClickListener { minimize(context) }
+                        setOnClickListener { onMinimize(context) }
                     }
             )
             addView(header)
@@ -837,7 +835,7 @@ object VirtualScreenPreviewOverlay {
                     makeCtrlBtn("⏹ 停止") {
                         val ctx = context.applicationContext
                         VirtualDisplayController.cleanupAsync(ctx)
-                        hide()
+                        onStop()
                         val intent =
                                 Intent(ACTION_STOP_AUTOMATION).apply { setPackage(ctx.packageName) }
                         runCatching { ctx.sendBroadcast(intent) }
@@ -919,5 +917,18 @@ object VirtualScreenPreviewOverlay {
                         .toInt()
 
         private fun m3Color(@ColorRes colorRes: Int): Int = ContextCompat.getColor(context, colorRes)
+    }
+
+    companion object {
+        private const val TAG = "VdPreview"
+        const val ACTION_STOP_AUTOMATION = "com.ai.phoneagent.ACTION_STOP_AUTOMATION"
+        const val ACTION_PAUSE_TOGGLE = "com.ai.phoneagent.ACTION_PAUSE_TOGGLE"
+
+        private const val EXPANDED_WIDTH_DP = 240
+        private const val EXPANDED_HEIGHT_DP = 427
+        private const val HEADER_HEIGHT_DP = 28
+        private const val CONTROL_BAR_HEIGHT_DP = 40
+        private const val MINI_SIZE_DP = 48
+
     }
 }

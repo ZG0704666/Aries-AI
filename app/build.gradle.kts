@@ -1,6 +1,7 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
@@ -47,6 +48,7 @@ fun escapedBuildConfigString(value: String): String =
 android {
     namespace = "com.ai.phoneagent"
     compileSdk = 36
+    ndkVersion = "28.2.13676358"
 
     externalNativeBuild {
         cmake {
@@ -62,10 +64,6 @@ android {
         versionName = "v1.4.2-xyla.alpha"
 
         buildConfigField("String", "GITHUB_TOKEN", "\"\"")
-        buildConfigField("String", "ARIES_LOGTO_ENDPOINT", "\"https://sso.aries.org.cn/\"")
-        buildConfigField("String", "ARIES_LOGTO_APP_ID", "\"${escapedBuildConfigString(localProperty("aries.logto.appId", "ynaappkxpdyahwo8m81ja"))}\"")
-        buildConfigField("String", "ARIES_LOGTO_REDIRECT_URI", "\"io.logto.android://com.ai.phoneagent/callback\"")
-        buildConfigField("String", "ARIES_LOGTO_API_RESOURCE", "\"${escapedBuildConfigString(localProperty("aries.logto.apiResource", "https://api.aries.org.cn/"))}\"")
         buildConfigField(
             "String",
             "TELEMETRY_HEARTBEAT_ENDPOINT",
@@ -90,8 +88,6 @@ android {
         debug {
             val escapedToken = escapedBuildConfigString(githubToken)
             buildConfigField("String", "GITHUB_TOKEN", "\"$escapedToken\"")
-            val endpoint = localProperty("aries.logto.endpoint", "https://sso.aries.org.cn/")
-            buildConfigField("String", "ARIES_LOGTO_ENDPOINT", "\"${escapedBuildConfigString(endpoint)}\"")
         }
 
         release {
@@ -105,15 +101,19 @@ android {
 
     lint {
         checkReleaseBuilds = false
-        abortOnError = false
+        abortOnError = true
+    }
+
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+            isIncludeAndroidResources = true
+        }
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-    kotlinOptions {
-        jvmTarget = "11"
     }
 
     buildFeatures {
@@ -134,6 +134,12 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
+    }
+}
+
 configurations.all {
     // 保留 org.jetbrains:annotations（显式声明版本），仅排除 org.intellij:annotations 避免重复
     exclude(group = "org.intellij", module = "annotations")
@@ -150,35 +156,30 @@ dependencies {
     implementation(project(":feature:updates"))
 
     // Shizuku - 虚拟屏核心依赖
-    implementation("dev.rikka.shizuku:api:13.1.5")
-    implementation("dev.rikka.shizuku:provider:13.1.5")
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
 
     // HiddenApiBypass - 放宽隐藏 API 限制（虚拟屏创建必需）
-    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:4.3")
+    implementation(libs.hiddenapibypass)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-service:2.8.7")
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.service)
 
     // 协程
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-    
+    implementation(libs.kotlinx.coroutines.android)
+
     // Immutable Collections
     implementation(libs.kotlinx.collections.immutable)
 
     // 网络与序列化
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-    implementation("com.google.code.gson:gson:2.10.1")
-    implementation("io.logto.sdk:android:1.1.3")
-
-    // 后台任务（便于自动化/定时流程）
-    implementation("androidx.work:work-runtime-ktx:2.9.1")
-
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging.interceptor)
+    implementation(libs.gson)
     testImplementation(libs.junit)
-    testImplementation("org.json:json:20240303")
+    testImplementation(libs.org.json)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
@@ -188,11 +189,12 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.activity.compose)
-    implementation("androidx.navigation:navigation-compose:2.8.5")
+    implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.compose.runtime.livedata)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     
     // Koin - Dependency Injection
@@ -221,21 +223,25 @@ dependencies {
     // Test Dependencies
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     
     // ViewModel 和 LiveData
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.7")
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.livedata.ktx)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     implementation(libs.kotlinx.serialization.json)
     ksp(libs.androidx.room.compiler)
-    
+
     // PDF 处理
-    implementation("com.itextpdf:itext7-core:7.2.5")
+    implementation(libs.itext7.core)
 
     // Office 文档解析（doc/docx/ppt/pptx/xls/xlsx）
-    implementation("org.apache.poi:poi:5.2.5")
-    implementation("org.apache.poi:poi-ooxml:5.2.5")
-    implementation("org.apache.poi:poi-scratchpad:5.2.5")
+    implementation(libs.apache.poi)
+    implementation(libs.apache.poi.ooxml)
+    implementation(libs.apache.poi.scratchpad)
 }

@@ -34,9 +34,12 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.koin.android.ext.android.inject
 import kotlin.coroutines.resume
 
 class AriesApiOAuthActivity : Activity() {
+    private val ariesApiClient by inject<AriesApiClient>()
+
     data class ApiLoginResult(
         val success: Boolean,
         val apiKey: String = "",
@@ -366,7 +369,7 @@ class AriesApiOAuthActivity : Activity() {
                 val setCookieNames = response.headers("Set-Cookie").map { it.substringBefore("=") }
                 Log.e(
                     TAG,
-                    "callback code=${response.code} setCookie=$setCookieNames body=${raw.take(300)}",
+                    "callback code=${response.code} setCookie=$setCookieNames",
                 )
                 callbackResult = parseApiLoginResponse(raw, response.code, requireToken = false)
                 if (callbackResult.success && callbackResult.userAccessToken.isNotBlank()) {
@@ -380,7 +383,7 @@ class AriesApiOAuthActivity : Activity() {
                 .url("${AriesApiClient.BASE_URL}/api/user/token")
                 .get()
                 .apply {
-                    val cookieHeader = AriesApiClient.normalizeCookieHeader(session.currentCookies().joinToString("; "))
+                    val cookieHeader = ariesApiClient.normalizeCookieHeader(session.currentCookies().joinToString("; "))
                     if (cookieHeader.isNotBlank()) {
                         addHeader("Cookie", cookieHeader)
                     }
@@ -389,15 +392,8 @@ class AriesApiOAuthActivity : Activity() {
                     }
                 }
                 .build()
-            val requestCookieNames =
-                tokenRequest.header("Cookie")
-                    .orEmpty()
-                    .split(";")
-                    .mapNotNull { cookie -> cookie.trim().takeIf { it.isNotBlank() }?.substringBefore("=") }
-            Log.e(TAG, "user-token request userId=${callbackResult.userId} cookies=$requestCookieNames")
             session.client.newCall(tokenRequest).execute().use { response ->
                 val raw = response.body?.string().orEmpty()
-                Log.e(TAG, "user-token code=${response.code} body=${raw.take(300)}")
                 val tokenResult = parseApiLoginResponse(raw, response.code)
                 if (tokenResult.success) {
                     val displayName = tokenResult.displayName.ifBlank { callbackResult.displayName }
@@ -609,7 +605,7 @@ class AriesApiOAuthActivity : Activity() {
     }
 
     private fun collectSessionCookieHeader(session: PendingSession): String =
-        AriesApiClient.normalizeCookieHeader(
+        ariesApiClient.normalizeCookieHeader(
             buildString {
                 val webViewCookies = CookieManager.getInstance().getCookie(AriesApiClient.BASE_URL).orEmpty().trim()
                 val clientCookies = session.currentCookies().joinToString("; ").trim()

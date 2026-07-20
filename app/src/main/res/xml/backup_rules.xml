@@ -1,13 +1,27 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  备份策略（Android 11 及以下 full backup）：
+  保持 allowBackup="true"，仅排除敏感存储，保留会话数据库、UI 偏好与非敏感配置，
+  使升级/换机恢复体验不被破坏。
+
+  敏感 secrets 位于 `app_secrets`；非敏感偏好位于新的 `app_preferences`。
+  历史 `app_prefs` 曾混存两类数据，因此永久排除并仅作为首次升级迁移源，避免应用首次启动
+  前云备份带走存量 API Key。迁移后 theme/font/userAgreement/conversations 等非敏感偏好
+  从 `app_preferences` 正常参与换机恢复。
+
+  排除清单：
+  - datastore/app_secrets.preferences_pb  全部 secrets（API Key 等），密文也不离机，换机后密钥不可解，直接重新输入
+  - datastore/app_prefs.preferences_pb  历史混合存储，仅作迁移源，可能仍含升级前 secrets
+  - datastore/tool_permissions.preferences_pb  工具授权状态，按设备重新授予
+  - datastore/automation_results.preferences_pb  自动化执行记录，可能含隐私内容
+  - datastore/telemetry_prefs.preferences_pb  遥测设备标识，不应跨设备迁移
+  - sharedpref/app_prefs.xml  堕历史遗留的同名 SharedPreferences（AboutViewModel）
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="file" path="datastore/app_secrets.preferences_pb"/>
+    <exclude domain="file" path="datastore/app_prefs.preferences_pb"/>
+    <exclude domain="file" path="datastore/tool_permissions.preferences_pb"/>
+    <exclude domain="file" path="datastore/automation_results.preferences_pb"/>
+    <exclude domain="file" path="datastore/telemetry_prefs.preferences_pb"/>
+    <exclude domain="sharedpref" path="app_prefs.xml"/>
 </full-backup-content>

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -128,6 +128,8 @@ import com.composables.icons.lucide.Video
 import com.composables.icons.lucide.Image as LucideImage
 import androidx.compose.material3.Text
 import com.ai.phoneagent.core.automation.ActivityAutomationInstructionGateway
+import com.ai.phoneagent.core.automation.AutomationDispatchAuthenticator
+import com.ai.phoneagent.core.security.ApiConfigSignature
 import com.ai.phoneagent.core.automation.AutomationInstructionRequest
 import com.ai.phoneagent.core.automation.AutomationLogBridge
 import com.ai.phoneagent.core.prompt.MainChatPromptRepository
@@ -433,8 +435,12 @@ class MainActivity : AppCompatActivity() {
 
     private val appPrefsRepository by inject<AppPreferencesRepository>()
     private val floatingChatPrefs by inject<FloatingChatPreferencesRepository>()
+    private val automationInstructionGateway by inject<ActivityAutomationInstructionGateway>()
+    private val automationDispatchAuthenticator by inject<AutomationDispatchAuthenticator>()
+    private val localMnnInferenceEngine by inject<LocalMnnInferenceEngine>()
+    private val modelScopeModelDownloader by inject<ModelScopeModelDownloader>()
     private val prefs by lazy { AppPrefsCompat(appPrefsRepository) }
-    private val uiPreferencesRepository by lazy { MainUiPreferencesRepository(applicationContext) }
+    private val uiPreferencesRepository by inject<MainUiPreferencesRepository>()
     private val conversationStorageRepository by lazy { ConversationStorageRepository(applicationContext) }
 
     private val conversations = mutableListOf<Conversation>()
@@ -1793,16 +1799,28 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleAutomationLaunchIntent() {
         val currentIntent = intent ?: return
+        if (!automationDispatchAuthenticator.isAuthorized(currentIntent)) {
+            // Unauthorized automation dispatch: strip every automation control extra,
+            // do not navigate, and never publish pending launch args.
+            automationDispatchAuthenticator.logRejected(currentIntent)
+            stripAutomationControlExtras(currentIntent)
+            return
+        }
         val args = AutomationViewModel.extractLaunchArgsFromIntent(currentIntent) ?: return
         // Clear consumed extras to avoid re-processing
-        currentIntent.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_TASK)
-        currentIntent.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_SOURCE)
-        currentIntent.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_AUTO_START)
-        currentIntent.removeExtra(AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY)
-        currentIntent.removeExtra(AutomationViewModel.EXTRA_KEEP_MAIN_ON_TOP)
+        stripAutomationControlExtras(currentIntent)
         // Stash args for AutomationScreen to consume when it composes
         AutomationViewModel.pendingLaunchArgs = args
         navigateToRoute(Routes.Automation.route)
+    }
+
+    private fun stripAutomationControlExtras(target: Intent) {
+        target.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_TASK)
+        target.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_SOURCE)
+        target.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_AUTO_START)
+        target.removeExtra(AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY)
+        target.removeExtra(AutomationViewModel.EXTRA_KEEP_MAIN_ON_TOP)
+        target.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_DISPATCH_TOKEN)
     }
     
     /**
@@ -1957,7 +1975,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshLocalModelReadyState() {
-        localModelReady = ModelScopeModelDownloader.isQwen35ModelReady(this)
+        localModelReady = modelScopeModelDownloader.isQwen35ModelReady(this)
         updateLocalModelSwitchAvailabilityUi()
         updateStatusText()
     }
@@ -2884,7 +2902,8 @@ class MainActivity : AppCompatActivity() {
                 useThirdParty -> "third_party"
                 else -> "default"
             }
-        return "$mode|${apiKey.trim()}|$normalizedBaseUrl|$normalizedModel"
+        // 签名不保留原始 Key（SHA-256 哈希化），仅用于配置变更检测
+        return ApiConfigSignature.compute(apiKey, normalizedBaseUrl, normalizedModel, mode)
     }
 
     private fun resolveApiKeyFromInput(): String {
@@ -3084,7 +3103,7 @@ class MainActivity : AppCompatActivity() {
                     hideKeyboard()
                     if (agentModeEnabled) {
                         val dispatchResult =
-                            ActivityAutomationInstructionGateway.dispatchManual(
+                            automationInstructionGateway.dispatchManual(
                                 context = this@MainActivity,
                                 instruction = t,
                             )
@@ -3577,7 +3596,7 @@ class MainActivity : AppCompatActivity() {
 
                     val result =
                         if (localModeEnabled) {
-                            LocalMnnInferenceEngine.sendChatStreamResult(
+                            localMnnInferenceEngine.sendChatStreamResult(
                                 context = this@MainActivity,
                                 messages = chatHistory,
                                 onReasoningDelta = reasoningDeltaHandler,
@@ -4097,7 +4116,7 @@ class MainActivity : AppCompatActivity() {
                 )
             val result = withContext(Dispatchers.IO) {
                 if (localModeEnabled) {
-                    LocalMnnInferenceEngine.sendChatResult(
+                    localMnnInferenceEngine.sendChatResult(
                         context = this@MainActivity,
                         messages = punctuationMessages,
                     )

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Aries AI - Android UI Automation Framework
  * Copyright (C) 2025-2026 ZG0704666
  *
@@ -43,6 +43,8 @@ import kotlinx.coroutines.delay
 class ActionExecutor(
         private val context: Context,
         private val config: AgentConfiguration = AgentConfiguration.DEFAULT,
+        private val automationOverlay: AutomationOverlay,
+        private val appPackageManager: AppPackageManager,
 ) {
     companion object {
         private const val TAG = "ActionExecutor"
@@ -144,11 +146,11 @@ class ActionExecutor(
     private suspend inline fun <T> withAutomationOverlayHidden(
             crossinline block: suspend () -> T
     ): T {
-        AutomationOverlay.temporaryHide()
+        automationOverlay.temporaryHide()
         return try {
             block()
         } finally {
-            AutomationOverlay.restoreVisibility()
+            automationOverlay.restoreVisibility()
         }
     }
 
@@ -252,8 +254,8 @@ class ActionExecutor(
                     .setClassName(ai.packageName, ai.name)
         }
 
-        AppPackageManager.initializeCache(context)
-        val smartResolved = AppPackageManager.resolvePackageName(t)
+        appPackageManager.initializeCache(context)
+        val smartResolved = appPackageManager.resolvePackageName(t)
 
         val candidates =
                 buildList {
@@ -263,12 +265,12 @@ class ActionExecutor(
                     if (t.contains('.') && t.count { it == '.' } >= 1) {
                         add(t)
                     }
-                    service?.let { AppPackageManager.resolvePackageByLabel(it, t) }?.let { add(it) }
+                    service?.let { appPackageManager.resolvePackageByLabel(it, t) }?.let { add(it) }
                 }.distinct()
 
         val finalCandidates =
                 if (candidates.isEmpty()) {
-                    val allApps = AppPackageManager.getAllInstalledApps()
+                    val allApps = appPackageManager.getAllInstalledApps()
                     allApps
                             .filter { (_, appName) ->
                                 appName.contains(t, ignoreCase = true) ||
@@ -1072,7 +1074,7 @@ class ActionExecutor(
             text: String,
             onLog: (String) -> Unit
     ): Boolean {
-        val tx = AppClipboardTransaction(context)
+        val tx = AppClipboardTransaction(context, automationOverlay)
         val result =
                 tx.run(temporaryText = text) { verifyState ->
                     logShizukuTypeStage(onLog, "clipboard_tx", "start", "module=AppClipboardTransaction")
@@ -1169,7 +1171,7 @@ class ActionExecutor(
             when (val readBack = readClipboardTextViaShizuku()) {
                 text -> {
                     logShizukuTypeStage(onLog, "clipboard_set", "ok", "via=shizuku verify=matched")
-                    AutomationOverlay.setInputVerifyHighlight(true)
+                    automationOverlay.setInputVerifyHighlight(true)
                     shouldRestoreVerifyHighlight = true
                 }
                 null -> {
@@ -1217,7 +1219,7 @@ class ActionExecutor(
                     "via=shizuku"
             )
             if (shouldRestoreVerifyHighlight) {
-                AutomationOverlay.setInputVerifyHighlight(false)
+                automationOverlay.setInputVerifyHighlight(false)
             }
         }
     }

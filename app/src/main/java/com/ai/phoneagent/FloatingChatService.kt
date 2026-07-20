@@ -121,6 +121,8 @@ import com.ai.phoneagent.viewmodel.AutomationViewModel
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.*
 import org.koin.android.ext.android.inject
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
 import kotlin.math.roundToInt
 
 /** 悬浮聊天窗口服务 提供小窗模式的聊天界面和虚拟屏工具箱模式 */
@@ -132,8 +134,10 @@ class FloatingChatService : LifecycleService(), SavedStateRegistryOwner {
 
     private val appPrefsRepository by inject<AppPreferencesRepository>()
     private val floatingChatPrefs by inject<FloatingChatPreferencesRepository>()
+    private val localMnnInferenceEngine by inject<LocalMnnInferenceEngine>()
+    private val modelScopeModelDownloader by inject<ModelScopeModelDownloader>()
 
-    companion object {
+    companion object : KoinComponent {
         private const val TAG = "FloatingChatService"
         private const val NOTIFICATION_ID = 2001
         private const val CHANNEL_ID = "floating_chat_channel"
@@ -431,6 +435,7 @@ class FloatingChatService : LifecycleService(), SavedStateRegistryOwner {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
         // 启动前台服务
         startForeground(NOTIFICATION_ID, createNotification())
 
@@ -1197,7 +1202,7 @@ class FloatingChatService : LifecycleService(), SavedStateRegistryOwner {
     private fun requestAIResponse(userText: String) {
         val (apiKey, baseUrl, model) = resolveApiConfig()
         val useLocalModel = appPrefsRepository.getApiUseLocalModelBlocking()
-        if (useLocalModel && !ModelScopeModelDownloader.isQwen35ModelReady(this)) {
+        if (useLocalModel && !modelScopeModelDownloader.isQwen35ModelReady(this)) {
             addMessage("Aries: 本地模型未就绪，请先在主界面下载模型", isUser = false)
             return
         }
@@ -1237,7 +1242,7 @@ class FloatingChatService : LifecycleService(), SavedStateRegistryOwner {
 
             val result =
                 if (useLocalModel) {
-                    LocalMnnInferenceEngine.sendChatStreamResult(
+                    localMnnInferenceEngine.sendChatStreamResult(
                         context = this@FloatingChatService,
                         messages = chatHistory,
                         onReasoningDelta = { delta ->

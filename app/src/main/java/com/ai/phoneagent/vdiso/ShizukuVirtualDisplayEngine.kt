@@ -35,9 +35,9 @@ import java.lang.reflect.Proxy
  * - 强依赖 Shizuku 权限与系统服务反射：不同 ROM/Android 版本可能存在 API 差异，本实现大量采用候选方法匹配 + best-effort。
  * - 注意线程模型：启动/停止为同步方法，但内部图像与 GL 线程在后台运行，停止时要避免资源泄露。
  */
-object ShizukuVirtualDisplayEngine {
+class ShizukuVirtualDisplayEngine {
 
-    private const val TAG = "AriesVdIsoEngine"
+    private val TAG = "AriesVdIsoEngine"
 
     data class Args(
             val name: String = "AutoGLM-Virtual",
@@ -53,17 +53,15 @@ object ShizukuVirtualDisplayEngine {
 
     @Volatile private var vdCallback: Any? = null
 
-    @Volatile private var currentOutputSurface: Surface? = null
-
     @Volatile private var glDispatcher: VdGlFrameDispatcher? = null
 
-    @Volatile private var latestContentWidth: Int = 0
+    private var latestContentWidth: Int = 0
 
-    @Volatile private var latestContentHeight: Int = 0
+    private var latestContentHeight: Int = 0
 
     private val frameLock = Any()
 
-    @Volatile private var stopping: Boolean = false
+    private var stopping: Boolean = false
 
     private fun setVirtualDisplaySurfaceBestEffort(callback: Any, surface: Surface): Result<Unit> {
         // 通过 IDisplayManager.setVirtualDisplaySurface*(...) 反射切换 VirtualDisplay 的输出 Surface。
@@ -181,7 +179,6 @@ object ShizukuVirtualDisplayEngine {
                                 throw IllegalStateException("GL input surface not ready")
                             }
             Log.i(TAG, "GL input surface ready: $inputSurface")
-            currentOutputSurface = inputSurface
 
             // 在第一帧到达前，用创建时的目标分辨率作为内容尺寸兜底。
             synchronized(frameLock) {
@@ -240,8 +237,6 @@ object ShizukuVirtualDisplayEngine {
         val cb = vdCallback
         vdCallback = null
         displayId = null
-
-        currentOutputSurface = null
 
         if (cb != null) {
             runCatching { releaseVirtualDisplayBestEffort(cb) }
@@ -698,4 +693,5 @@ object ShizukuVirtualDisplayEngine {
             }
         }
     }
+
 }
