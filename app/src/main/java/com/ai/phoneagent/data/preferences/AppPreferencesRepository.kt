@@ -13,11 +13,14 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.ai.phoneagent.data.security.SecretStore
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -26,34 +29,63 @@ typealias ThemeMode = com.ai.phoneagent.core.designsystem.theme.ThemeMode
 typealias ThemeAccent = com.ai.phoneagent.core.designsystem.theme.ThemeAccent
 typealias ThemeColorStyle = com.ai.phoneagent.core.designsystem.theme.ThemeColorStyle
 
-private val Context.appPreferencesDataStore by preferencesDataStore(name = "app_prefs")
+private val Context.appPreferencesDataStore by preferencesDataStore(name = "app_preferences")
 private val Context.appSecretsDataStore by preferencesDataStore(name = "app_secrets")
+private val Context.legacyAppPreferencesDataStore by preferencesDataStore(name = "app_prefs")
 
 class AppPreferencesRepository(
     private val context: Context,
     private val secretStore: SecretStore,
     prefsStoreOverride: DataStore<Preferences>? = null,
     secretsStoreOverride: DataStore<Preferences>? = null,
+    legacyStoreOverride: DataStore<Preferences>? = null,
     backgroundMigrationEnabled: Boolean = true,
 ) {
     private val migrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val migrationReady = CompletableDeferred<Unit>()
 
-    // 默认走进程级单例 DataStore（与既有行为一致）；测试可注入独立实例实现用例隔离。
+    // 新的非敏感偏好和 secrets 分别落到独立 DataStore；旧 app_prefs 永久只作为迁移源。
+    // 这样备份规则可以始终排除旧混合文件，避免首次启动前的备份窗口泄露存量 Key。
     private val prefsStore: DataStore<Preferences> = prefsStoreOverride ?: context.appPreferencesDataStore
     private val secretsStore: DataStore<Preferences> = secretsStoreOverride ?: context.appSecretsDataStore
+    private val legacyStore: DataStore<Preferences> = legacyStoreOverride ?: context.legacyAppPreferencesDataStore
+
+    private val readyPrefsFlow: Flow<Preferences> = flow {
+        migrationReady.await()
+        emitAll(prefsStore.data)
+    }
+    private val readySecretsFlow: Flow<Preferences> = flow {
+        migrationReady.await()
+        emitAll(secretsStore.data)
+    }
 
     init {
-        // 尽力而为地在后台迁移历史明文密钥；失败不阻塞启动，下次启动会重试。
-        // 顺序：先把 secrets 从主 prefs 搬到独立 secrets DataStore（修备份粒度），再做加密迁移。
-        // 测试可关闭后台迁移，改为显式调用 migrateLegacySecrets() 以保证确定性。
+        // 顺序：先把旧混合 app_prefs 拆到新的非敏感/敏感 DataStore，再加密 legacy secrets。
+        // 所有公开读写都会等待 migrationReady，首次升级不会短暂读到空 Key，也不会与搬迁并发写入。
         if (backgroundMigrationEnabled) {
             migrationScope.launch {
-                runCatching { relocateSecretsToDedicatedStore() }
-                    .onFailure { Log.w(TAG, "Secrets relocation failed; will retry on next launch", it) }
-                runCatching { migrateLegacySecrets() }
-                    .onFailure { Log.w(TAG, "Legacy secret migration failed; will retry on next launch", it) }
+                try {
+                    runCatching { relocateLegacyPreferences() }
+                        .onFailure { Log.w(TAG, "Legacy preferences relocation failed; will retry on next launch", it) }
+                    runCatching { migrateLegacySecrets() }
+                        .onFailure { Log.w(TAG, "Legacy secret migration failed; will retry on next launch", it) }
+                } finally {
+                    migrationReady.complete(Unit)
+                }
             }
+        } else {
+            migrationReady.complete(Unit)
         }
+    }
+
+    private suspend fun editPrefs(transform: suspend (MutablePreferences) -> Unit) {
+        migrationReady.await()
+        prefsStore.edit(transform)
+    }
+
+    private suspend fun editSecrets(transform: suspend (MutablePreferences) -> Unit) {
+        migrationReady.await()
+        secretsStore.edit(transform)
     }
 
     private object Keys {
@@ -134,95 +166,95 @@ class AppPreferencesRepository(
     }
 
     val apiKeyFlow: Flow<String> =
-        secretsStore.data.map { prefs ->
+        readySecretsFlow.map { prefs ->
             prefs.readSecret(Keys.apiKey)
         }
 
     val autoglmApiKeyFlow: Flow<String> =
-        secretsStore.data.map { prefs ->
+        readySecretsFlow.map { prefs ->
             prefs.readSecret(Keys.autoglmApiKey)
         }
 
     val apiUseThirdPartyFlow: Flow<Boolean> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.apiUseThirdParty] ?: false
         }
 
     val apiUseLocalModelFlow: Flow<Boolean> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.apiUseLocalModel] ?: false
         }
 
     val useAriesApiFlow: Flow<Boolean> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.useAriesApi] ?: false
         }
 
     val ariesApiSectionUnlockedFlow: Flow<Boolean> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.ariesApiSectionUnlocked] ?: false
         }
 
     val ariesLoggedInUserFlow: Flow<String> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.ariesLoggedInUser] ?: ""
         }
 
     val ariesSelectedModelFlow: Flow<String> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.ariesSelectedModel] ?: ""
         }
 
     val ariesApiKeyFlow: Flow<String> =
-        secretsStore.data.map { prefs ->
+        readySecretsFlow.map { prefs ->
             prefs.readSecret(Keys.ariesApiKey)
         }
 
     val apiThirdPartyBaseUrlFlow: Flow<String> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.apiThirdPartyBaseUrl] ?: ""
         }
 
     val apiThirdPartyModelFlow: Flow<String> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.apiThirdPartyModel] ?: ""
         }
 
     val userAgreementAcceptedFlow: Flow<Boolean> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.userAgreementAccepted] ?: false
         }
 
     val permGuideShownFlow: Flow<Boolean> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.permGuideShown] ?: false
         }
 
     val conversationsFlow: Flow<String?> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.conversations]
         }
 
     val qwenPendingDownloadIdsFlow: Flow<Set<String>> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.qwenPendingDownloadIds] ?: emptySet()
         }
 
     val themeModeFlow: Flow<String> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.themeMode] ?: "system"
         }
 
     val themeColorStyleFlow: Flow<String> =
-        prefsStore.data.map(::resolveThemeColorStyleStorage)
+        readyPrefsFlow.map(::resolveThemeColorStyleStorage)
 
     val themeAccentFlow: Flow<String> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.themeAccent] ?: "default"
         }
 
     val amoledDarkEnabledFlow: Flow<Boolean> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.amoledDarkEnabled] ?: false
         }
 
@@ -230,32 +262,32 @@ class AppPreferencesRepository(
         themeColorStyleFlow.map { raw -> ThemeColorStyle.fromStorage(raw).isDynamic }
 
     val chatFontScaleFlow: Flow<Float> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.chatFontScale] ?: 1.0f
         }
 
     val chatFontFamilyFlow: Flow<String> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.chatFontFamily] ?: "default"
         }
 
     val codeAutoWrapFlow: Flow<Boolean> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.codeAutoWrap] ?: true
         }
 
     val codeLineNumbersFlow: Flow<Boolean> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.codeLineNumbers] ?: true
         }
 
     val codeAutoCollapseFlow: Flow<Boolean> =
-        prefsStore.data.map { prefs ->
+        readyPrefsFlow.map { prefs ->
             prefs[Keys.codeAutoCollapse] ?: false
         }
 
     suspend fun getApiKey(): String {
-        val prefs = secretsStore.data.first()
+        val prefs = readySecretsFlow.first()
         return prefs.readSecret(Keys.apiKey)
     }
 
@@ -264,14 +296,14 @@ class AppPreferencesRepository(
      */
     suspend fun setApiKey(value: String): Boolean {
         var stored = false
-        secretsStore.edit { prefs ->
+        editSecrets { prefs ->
             stored = prefs.writeSecret(Keys.apiKey, value)
         }
         return stored
     }
 
     suspend fun getAutoglmApiKey(): String {
-        val prefs = secretsStore.data.first()
+        val prefs = readySecretsFlow.first()
         return prefs.readSecret(Keys.autoglmApiKey)
     }
 
@@ -280,62 +312,62 @@ class AppPreferencesRepository(
      */
     suspend fun setAutoglmApiKey(value: String): Boolean {
         var stored = false
-        secretsStore.edit { prefs ->
+        editSecrets { prefs ->
             stored = prefs.writeSecret(Keys.autoglmApiKey, value)
         }
         return stored
     }
 
     suspend fun setApiUseThirdParty(value: Boolean) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.apiUseThirdParty] = value
         }
     }
 
     suspend fun setApiUseLocalModel(value: Boolean) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.apiUseLocalModel] = value
         }
     }
 
     suspend fun setUseAriesApi(value: Boolean) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.useAriesApi] = value
         }
     }
 
     suspend fun setAriesApiSectionUnlocked(value: Boolean) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.ariesApiSectionUnlocked] = value
         }
     }
 
     suspend fun getAriesApiSectionUnlocked(): Boolean {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.ariesApiSectionUnlocked] ?: false
     }
 
     suspend fun setAriesLoggedInUser(value: String) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             if (value.isBlank()) prefs.remove(Keys.ariesLoggedInUser)
             else prefs[Keys.ariesLoggedInUser] = value
         }
     }
 
     suspend fun getAriesLoggedInUser(): String {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.ariesLoggedInUser] ?: ""
     }
 
     suspend fun setAriesSelectedModel(value: String) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             if (value.isBlank()) prefs.remove(Keys.ariesSelectedModel)
             else prefs[Keys.ariesSelectedModel] = value
         }
     }
 
     suspend fun getAriesSelectedModel(): String {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.ariesSelectedModel] ?: ""
     }
 
@@ -344,22 +376,22 @@ class AppPreferencesRepository(
      */
     suspend fun setAriesApiKey(value: String): Boolean {
         var stored = false
-        secretsStore.edit { prefs ->
+        editSecrets { prefs ->
             stored = prefs.writeSecret(Keys.ariesApiKey, value)
         }
         return stored
     }
 
     suspend fun getAriesApiKey(): String {
-        val prefs = secretsStore.data.first()
+        val prefs = readySecretsFlow.first()
         return prefs.readSecret(Keys.ariesApiKey)
     }
 
     suspend fun getActiveAriesApiKey(): String {
-        val prefs = secretsStore.data.first()
+        val prefs = readySecretsFlow.first()
         val ariesKey = prefs.readSecret(Keys.ariesApiKey)
         if (ariesKey.isNotBlank()) return ariesKey
-        val loggedInUser = prefsStore.data.first()[Keys.ariesLoggedInUser].orEmpty()
+        val loggedInUser = readyPrefsFlow.first()[Keys.ariesLoggedInUser].orEmpty()
         return if (loggedInUser.isNotBlank()) {
             prefs.readSecret(Keys.apiKey)
         } else {
@@ -368,84 +400,84 @@ class AppPreferencesRepository(
     }
 
     suspend fun setApiThirdPartyBaseUrl(value: String) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.apiThirdPartyBaseUrl] = value
         }
     }
 
     suspend fun setApiThirdPartyModel(value: String) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.apiThirdPartyModel] = value
         }
     }
 
     suspend fun getApiLastCheckKey(): String {
-        val prefs = secretsStore.data.first()
+        val prefs = readySecretsFlow.first()
         return prefs.readSecret(Keys.apiLastCheckKey)
     }
 
     suspend fun setApiLastCheckKey(value: String): Boolean {
         var stored = false
-        secretsStore.edit { prefs ->
+        editSecrets { prefs ->
             stored = prefs.writeSecret(Keys.apiLastCheckKey, value)
         }
         return stored
     }
 
     suspend fun getApiLastCheckOk(): Boolean {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.apiLastCheckOk] ?: false
     }
 
     suspend fun setApiLastCheckOk(value: Boolean) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.apiLastCheckOk] = value
         }
     }
 
     suspend fun getApiLastCheckTime(): Long {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.apiLastCheckTime] ?: 0L
     }
 
     suspend fun setApiLastCheckTime(value: Long) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.apiLastCheckTime] = value
         }
     }
 
     suspend fun getApiLastCheckSig(): String {
-        val prefs = secretsStore.data.first()
+        val prefs = readySecretsFlow.first()
         return prefs.readSecret(Keys.apiLastCheckSig)
     }
 
     suspend fun setApiLastCheckSig(value: String): Boolean {
         var stored = false
-        secretsStore.edit { prefs ->
+        editSecrets { prefs ->
             stored = prefs.writeSecret(Keys.apiLastCheckSig, value)
         }
         return stored
     }
 
     suspend fun setUserAgreementAccepted(value: Boolean) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.userAgreementAccepted] = value
         }
     }
 
     suspend fun setPermGuideShown(value: Boolean) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.permGuideShown] = value
         }
     }
 
     suspend fun getConversations(): String? {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.conversations]
     }
 
     suspend fun setConversations(value: String?) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             if (value == null) {
                 prefs.remove(Keys.conversations)
             } else {
@@ -455,12 +487,12 @@ class AppPreferencesRepository(
     }
 
     suspend fun getLegacyConversationsJson(): String? {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.legacyConversationsJson]
     }
 
     suspend fun setLegacyConversationsJson(value: String?) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             if (value == null) {
                 prefs.remove(Keys.legacyConversationsJson)
             } else {
@@ -470,12 +502,12 @@ class AppPreferencesRepository(
     }
 
     suspend fun getLegacyActiveConversationId(defaultValue: Long = -1L): Long {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.legacyActiveConversationId] ?: defaultValue
     }
 
     suspend fun setLegacyActiveConversationId(value: Long?) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             if (value == null) {
                 prefs.remove(Keys.legacyActiveConversationId)
             } else {
@@ -485,29 +517,29 @@ class AppPreferencesRepository(
     }
 
     suspend fun getQwenPendingDownloadIds(): Set<String> {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.qwenPendingDownloadIds] ?: emptySet()
     }
 
     suspend fun setQwenPendingDownloadIds(value: Set<String>) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.qwenPendingDownloadIds] = value
         }
     }
 
     suspend fun getThemeMode(): String {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.themeMode] ?: "system"
     }
 
     suspend fun getThemeColorStyle(): String {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return resolveThemeColorStyleStorage(prefs)
     }
 
     suspend fun setThemeColorStyle(value: String) {
         val style = ThemeColorStyle.fromStorage(value)
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.themeColorStyle] = style.storageKey
             prefs[Keys.dynamicColorEnabled] = style.isDynamic
             if (!style.isDynamic) {
@@ -517,19 +549,19 @@ class AppPreferencesRepository(
     }
 
     suspend fun setThemeMode(value: String) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.themeMode] = value
         }
     }
 
     suspend fun getThemeAccent(): String {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.themeAccent] ?: ThemeColorStyle.DEFAULT.storageKey
     }
 
     suspend fun setThemeAccent(value: String) {
         val accent = ThemeAccent.fromStorage(value)
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.themeAccent] = accent.storageKey
             prefs[Keys.themeColorStyle] = accent.storageKey
             prefs[Keys.dynamicColorEnabled] = false
@@ -537,12 +569,12 @@ class AppPreferencesRepository(
     }
 
     suspend fun getAmoledDarkEnabled(): Boolean {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.amoledDarkEnabled] ?: false
     }
 
     suspend fun setAmoledDarkEnabled(value: Boolean) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.amoledDarkEnabled] = value
         }
     }
@@ -559,56 +591,56 @@ class AppPreferencesRepository(
     }
 
     suspend fun getChatFontScale(): Float {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.chatFontScale] ?: 1.0f
     }
 
     suspend fun setChatFontScale(value: Float) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.chatFontScale] = value
         }
     }
 
     suspend fun getChatFontFamily(): String {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.chatFontFamily] ?: "default"
     }
 
     suspend fun setChatFontFamily(value: String) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.chatFontFamily] = value
         }
     }
 
     suspend fun getCodeAutoWrap(): Boolean {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.codeAutoWrap] ?: true
     }
 
     suspend fun setCodeAutoWrap(value: Boolean) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.codeAutoWrap] = value
         }
     }
 
     suspend fun getCodeLineNumbers(): Boolean {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.codeLineNumbers] ?: true
     }
 
     suspend fun setCodeLineNumbers(value: Boolean) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.codeLineNumbers] = value
         }
     }
 
     suspend fun getCodeAutoCollapse(): Boolean {
-        val prefs = prefsStore.data.first()
+        val prefs = readyPrefsFlow.first()
         return prefs[Keys.codeAutoCollapse] ?: false
     }
 
     suspend fun setCodeAutoCollapse(value: Boolean) {
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             prefs[Keys.codeAutoCollapse] = value
         }
     }
@@ -618,13 +650,13 @@ class AppPreferencesRepository(
     /** Blocking snapshot of the entire prefs — use only from non-suspend call sites. */
     fun getApiKeyBlocking(): String = runBlocking { getApiKey() }
     fun getApiUseThirdPartyBlocking(): Boolean = runBlocking {
-        prefsStore.data.first()[Keys.apiUseThirdParty] ?: false
+        readyPrefsFlow.first()[Keys.apiUseThirdParty] ?: false
     }
     fun getApiUseLocalModelBlocking(): Boolean = runBlocking {
-        prefsStore.data.first()[Keys.apiUseLocalModel] ?: false
+        readyPrefsFlow.first()[Keys.apiUseLocalModel] ?: false
     }
     fun getUseAriesApiBlocking(): Boolean = runBlocking {
-        prefsStore.data.first()[Keys.useAriesApi] ?: false
+        readyPrefsFlow.first()[Keys.useAriesApi] ?: false
     }
     fun getAriesApiSectionUnlockedBlocking(): Boolean = runBlocking { getAriesApiSectionUnlocked() }
     fun setAriesApiSectionUnlockedBlocking(value: Boolean) = runBlocking { setAriesApiSectionUnlocked(value) }
@@ -636,21 +668,21 @@ class AppPreferencesRepository(
     fun setAriesApiKeyBlocking(value: String) = runBlocking { setAriesApiKey(value) }
     fun getActiveAriesApiKeyBlocking(): String = runBlocking { getActiveAriesApiKey() }
     fun getApiThirdPartyBaseUrlBlocking(): String = runBlocking {
-        prefsStore.data.first()[Keys.apiThirdPartyBaseUrl] ?: ""
+        readyPrefsFlow.first()[Keys.apiThirdPartyBaseUrl] ?: ""
     }
     fun getApiThirdPartyModelBlocking(): String = runBlocking {
-        prefsStore.data.first()[Keys.apiThirdPartyModel] ?: ""
+        readyPrefsFlow.first()[Keys.apiThirdPartyModel] ?: ""
     }
     fun getApiLastCheckSigBlocking(): String = runBlocking { getApiLastCheckSig() }
     fun getApiLastCheckOkBlocking(): Boolean = runBlocking { getApiLastCheckOk() }
     fun hasApiLastCheckOkBlocking(): Boolean = runBlocking {
-        prefsStore.data.first().contains(Keys.apiLastCheckOk)
+        readyPrefsFlow.first().contains(Keys.apiLastCheckOk)
     }
     fun getUserAgreementAcceptedBlocking(): Boolean = runBlocking {
-        prefsStore.data.first()[Keys.userAgreementAccepted] ?: false
+        readyPrefsFlow.first()[Keys.userAgreementAccepted] ?: false
     }
     fun getPermGuideShownBlocking(): Boolean = runBlocking {
-        prefsStore.data.first()[Keys.permGuideShown] ?: false
+        readyPrefsFlow.first()[Keys.permGuideShown] ?: false
     }
     fun getAutoglmApiKeyBlocking(): String = runBlocking { getAutoglmApiKey() }
     fun getApiLastCheckKeyBlocking(): String = runBlocking { getApiLastCheckKey() }
@@ -702,7 +734,7 @@ class AppPreferencesRepository(
         var secretsOk = true
         // 敏感字段（apiKey / lastCheckKey / lastCheckSig）写入独立 secrets DataStore；
         // 任一加密不可用都会中止本次该字段的更新（旧值保留）并反映在返回值中。
-        secretsStore.edit { secrets ->
+        editSecrets { secrets ->
             if (removeApiKey) {
                 secrets.remove(Keys.apiKey)
             } else if (apiKey != null) {
@@ -716,7 +748,7 @@ class AppPreferencesRepository(
             lastCheckSig?.let { secretsOk = secrets.writeSecret(Keys.apiLastCheckSig, it) && secretsOk }
         }
         // 非敏感字段（开关 / URL / Model / 检查时间与结果布尔）仍写主 prefs，参与云备份与设备迁移。
-        prefsStore.edit { prefs ->
+        editPrefs { prefs ->
             useThirdParty?.let { prefs[Keys.apiUseThirdParty] = it }
             useLocalModel?.let { prefs[Keys.apiUseLocalModel] = it }
             thirdPartyBaseUrl?.let { prefs[Keys.apiThirdPartyBaseUrl] = it }
@@ -856,46 +888,73 @@ class AppPreferencesRepository(
     }
 
     /**
-     * 一次性把 secrets 从主 `app_prefs` DataStore 搬到独立 `app_secrets` DataStore。
+     * 把历史混合型 `app_prefs` 拆到新的 `app_preferences` 与 `app_secrets`。
      *
-     * 历史上 secrets 与 UI 偏好混在 `app_prefs` 同一文件，导致备份规则被迫排除整个
-     * `app_prefs`，连带丢失 theme/font/conversations 等非敏感偏好。本方法把 5 个 secrets
-     * 键原样搬到独立文件，然后从主 prefs 删除，使备份规则得以仅排除 `app_secrets`。
+     * 旧文件永久列入备份排除清单；非敏感偏好搬到可备份的新文件，secrets 搬到不可备份文件。
+     * 所有公开读写都会等待该方法结束，因此首次升级不会先读到空值，也不会与搬迁并发写入。
+     * 每一步均为幂等操作：目标已有值时尊重目标值，最后只删除仍等于启动快照的 legacy 项。
      *
-     * 幂等：已搬迁过的键在新文件已存在、旧文件已删除，二次调用无副作用。
+     * @return 本次从 legacy 文件移除的条目数。
      */
-    private suspend fun relocateSecretsToDedicatedStore(): Int {
-        val secretKeys = listOf(Keys.apiKey, Keys.autoglmApiKey, Keys.ariesApiKey, Keys.apiLastCheckKey, Keys.apiLastCheckSig)
-        val oldPrefs = prefsStore.data.first()
-        val toMove = linkedMapOf<Preferences.Key<String>, String>()
-        for (key in secretKeys) {
-            val value = oldPrefs[key]
-            if (value != null) toMove[key] = value
-        }
-        if (toMove.isEmpty()) return 0
+    private suspend fun relocateLegacyPreferences(): Int {
+        val legacySnapshot = legacyStore.data.first()
+        val entries = legacySnapshot.asMap()
+        if (entries.isEmpty()) return 0
 
-        // 第一步：把旧值搬到新 secrets DataStore。新文件中已存在该键则跳过——尊重已搬迁成果。
-        secretsStore.edit { secrets ->
-            for ((key, value) in toMove) {
-                if (secrets.contains(key)) continue
-                secrets[key] = value
+        val secretKeyNames =
+            setOf(
+                Keys.apiKey.name,
+                Keys.autoglmApiKey.name,
+                Keys.ariesApiKey.name,
+                Keys.apiLastCheckKey.name,
+                Keys.apiLastCheckSig.name,
+            )
+
+        secretsStore.edit { target ->
+            for ((key, value) in entries) {
+                if (key.name !in secretKeyNames || value !is String) continue
+                @Suppress("UNCHECKED_CAST")
+                val stringKey = key as Preferences.Key<String>
+                if (!target.contains(stringKey)) target[stringKey] = value
             }
         }
-        // 第二步：从主 prefs 删除已搬迁的键。竞态守卫：只有当主 prefs 当前值仍等于搬迁值才删，
-        // 避免删掉用户期间新写入的非敏感内容（secrets 键本不应再写主 prefs，但安全为先）。
+
+        prefsStore.edit { target ->
+            for ((key, value) in entries) {
+                if (key.name in secretKeyNames) continue
+                putUntypedIfAbsent(target, key, value)
+            }
+        }
+
         var removed = 0
-        prefsStore.edit { prefs ->
-            for ((key, value) in toMove) {
-                if (prefs[key] == value) {
-                    prefs.remove(key)
+        legacyStore.edit { legacy ->
+            val current = legacy.asMap()
+            for ((key, value) in entries) {
+                if (current[key] == value) {
+                    removeUntyped(legacy, key)
                     removed++
                 }
             }
         }
         if (removed > 0) {
-            Log.i(TAG, "Relocated $removed secret(s) from app_prefs to dedicated app_secrets DataStore")
+            Log.i(TAG, "Relocated $removed preference(s) out of legacy app_prefs")
         }
         return removed
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun putUntypedIfAbsent(
+        target: MutablePreferences,
+        key: Preferences.Key<*>,
+        value: Any,
+    ) {
+        val typedKey = key as Preferences.Key<Any>
+        if (!target.contains(typedKey)) target[typedKey] = value
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun removeUntyped(target: MutablePreferences, key: Preferences.Key<*>) {
+        target.remove(key as Preferences.Key<Any>)
     }
 
     private companion object {

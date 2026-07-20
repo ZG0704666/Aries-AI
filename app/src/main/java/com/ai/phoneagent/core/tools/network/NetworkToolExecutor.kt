@@ -380,9 +380,12 @@ class NetworkToolExecutor(
             builder.removeHeader("Transfer-Encoding")
         }
         if (!sameOrigin(request.url, nextUrl)) {
-            builder.removeHeader("Authorization")
-            builder.removeHeader("Cookie")
-            builder.removeHeader("Proxy-Authorization")
+            // `http_get` 允许调用方传入任意自定义 Header，无法仅凭名称可靠判断凭据类型
+            //（例如 X-API-Key、X-Token 或业务自定义签名）。跨 origin 时默认清空上一跳全部
+            // Header；OkHttp 会根据 RequestBody 重新生成必要的 Content-Type/Length 等传输头。
+            for (headerName in request.headers.names()) {
+                builder.removeHeader(headerName)
+            }
         }
         return builder.build()
     }

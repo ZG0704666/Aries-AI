@@ -669,7 +669,16 @@ class SettingsViewModel(
             val result = ariesOidcAuthManager.signIn(activity)
             ariesLoginLoading = false
             if (result.success) {
-                prefs.setAriesApiKey(result.accessToken)
+                val tokenStored = prefs.setAriesApiKey(result.accessToken)
+                if (!tokenStored) {
+                    // 远端认证虽成功，但本机无法安全持久化 Token 时不得提交登录态。
+                    // 主动清理临时会话，避免 UI 显示成功而重启后实际丢失凭据。
+                    ariesOidcAuthManager.signOut()
+                    val message = stringRes(R.string.settings_api_save_encryption_unavailable)
+                    ariesLoginError = message
+                    onError(message)
+                    return@launch
+                }
                 val displayName = result.displayName.ifBlank { stringRes(R.string.aries_sso_user_display) }
                 prefs.setAriesLoggedInUser(displayName)
                 applyApiModeState(ApiMode.Aries)

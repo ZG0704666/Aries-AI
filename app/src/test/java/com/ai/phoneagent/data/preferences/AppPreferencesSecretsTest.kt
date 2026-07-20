@@ -22,9 +22,13 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.test.core.app.ApplicationProvider
 import com.ai.phoneagent.data.security.SecretStore
 import java.io.File
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -66,6 +70,7 @@ class AppPreferencesSecretsTest {
     private lateinit var secretStore: SecretStore
     private lateinit var prefsStore: DataStore<Preferences>
     private lateinit var secretsStore: DataStore<Preferences>
+    private lateinit var legacyStore: DataStore<Preferences>
     private lateinit var repo: AppPreferencesRepository
 
     @Before
@@ -77,10 +82,13 @@ class AppPreferencesSecretsTest {
         // 同时关闭后台自动迁移，全部改为显式调用，消除与 init 协程的竞态。
         val dir = tempFolder.newFolder()
         prefsStore = PreferenceDataStoreFactory.create {
-            File(dir, "app_prefs.preferences_pb")
+            File(dir, "app_preferences.preferences_pb")
         }
         secretsStore = PreferenceDataStoreFactory.create {
             File(dir, "app_secrets.preferences_pb")
+        }
+        legacyStore = PreferenceDataStoreFactory.create {
+            File(dir, "app_prefs.preferences_pb")
         }
         repo = newRepo(secretStore)
     }
@@ -92,6 +100,7 @@ class AppPreferencesSecretsTest {
             secretStore = store,
             prefsStoreOverride = prefsStore,
             secretsStoreOverride = secretsStore,
+            legacyStoreOverride = legacyStore,
             backgroundMigrationEnabled = false,
         )
     }
@@ -209,5 +218,33 @@ class AppPreferencesSecretsTest {
         val migrated2 = repo.migrateLegacySecrets()
         assertEquals("新密文不应被再次迁移", 0, migrated2)
         assertEquals("sk-user-new", repo.getApiKey())
+    }
+
+    @Test
+    fun `首次升级立即读取_等待旧混合存储拆分完成`() = runBlocking {
+        legacyStore.edit { legacy ->
+            legacy[stringPreferencesKey("api_key")] = "sk-upgrade"
+            legacy[stringPreferencesKey("api_last_check_sig")] = "sig-upgrade"
+            legacy[booleanPreferencesKey("api_use_third_party")] = true
+            legacy[stringPreferencesKey("theme_mode")] = "dark"
+        }
+
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val upgradingRepo =
+            AppPreferencesRepository(
+                context = context,
+                secretStore = secretStore,
+                prefsStoreOverride = prefsStore,
+                secretsStoreOverride = secretsStore,
+                legacyStoreOverride = legacyStore,
+                backgroundMigrationEnabled = true,
+            )
+
+        // 紧接构造函数读取：getter 必须等待 relocation + 加密迁移，而不是短暂返回空 Key。
+        assertEquals("sk-upgrade", upgradingRepo.getApiKey())
+        assertEquals("sig-upgrade", upgradingRepo.getApiLastCheckSig())
+        assertTrue(upgradingRepo.getApiUseThirdPartyBlocking())
+        assertEquals("dark", upgradingRepo.getThemeModeBlocking())
+        assertTrue("legacy app_prefs 迁移完成后应清空", legacyStore.data.first().asMap().isEmpty())
     }
 }

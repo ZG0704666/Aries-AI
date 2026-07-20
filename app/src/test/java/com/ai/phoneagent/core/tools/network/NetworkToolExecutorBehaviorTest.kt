@@ -176,6 +176,30 @@ class NetworkToolExecutorBehaviorTest {
     }
 
     @Test
+    fun `跨域重定向_移除全部调用方自定义请求头`() = runBlocking {
+        val requests = mutableListOf<Request>()
+        val result = executor { request ->
+            requests += request
+            if (requests.size == 1) {
+                response(request, 302, "", "Location" to "https://other.test/next")
+            } else {
+                response(request, 200, "ok")
+            }
+        }.httpGet(
+            tool(
+                "http_get",
+                "url" to "https://public.test/start",
+                "headers" to "X-API-Key: secret-value\nX-Custom-Signature: signed-value\nAccept: application/json",
+            )
+        )
+
+        assertTrue(result.success)
+        assertEquals(2, requests.size)
+        assertEquals("secret-value", requests.first().header("X-API-Key"))
+        assertTrue("跨域后的第二跳不应保留上一跳 Header", requests.last().headers.names().isEmpty())
+    }
+
+    @Test
     fun `重定向循环_超过五次后失败`() = runBlocking {
         var requests = 0
         val result = executor { request ->
