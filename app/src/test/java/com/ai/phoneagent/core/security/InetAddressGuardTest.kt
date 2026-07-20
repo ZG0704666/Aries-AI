@@ -5,6 +5,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.net.InetAddress
+import java.net.Inet6Address
 
 /**
  * [InetAddressGuard] 单元测试。
@@ -88,6 +89,24 @@ class InetAddressGuardTest {
     @Test
     fun `云元数据_169_254_应拒绝`() {
         assertTrue(InetAddressGuard.isInternal("169.254.169.254"))
+    }
+
+    @Test
+    fun `IPv4映射IPv6_内嵌云元数据地址_应拒绝`() {
+        val mappedMetadataAddress = Inet6Address.getByAddress(
+            null,
+            byteArrayOf(
+                0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0xFF.toByte(), 0xFF.toByte(),
+                169.toByte(), 254.toByte(), 169.toByte(), 254.toByte()
+            ),
+            -1
+        )
+
+        assertTrue(InetAddressGuard.isInternalAddress(mappedMetadataAddress))
+        assertThrows(SecurityException::class.java) {
+            InetAddressGuard.requirePublic("metadata.example", listOf(mappedMetadataAddress))
+        }
     }
 
     // ========== 回环应拒绝 ==========

@@ -166,7 +166,8 @@ object InetAddressGuard {
         }
         // ::ffff:a.b.c.d — 字节 0-9 为 0，字节 10-11 为 0xFF
         if ((0..9).all { b[it].toInt() == 0 } &&
-            b[10].toInt() == 0xFF && b[11].toInt() == 0xFF
+            (b[10].toInt() and 0xFF) == 0xFF &&
+            (b[11].toInt() and 0xFF) == 0xFF
         ) {
             return isPrivateIPv4(b.copyOfRange(12, 16))
         }
