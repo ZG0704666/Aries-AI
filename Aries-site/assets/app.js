@@ -6,7 +6,9 @@
     qqJoinUrl: 'https://qm.qq.com/q/ASVDJPrIxq',
     githubReleasesPageUrl: 'https://github.com/ZG0704666/Aries-AI/releases',
     githubLatestReleaseApi: 'https://api.github.com/repos/ZG0704666/Aries-AI/releases/latest',
-    fixedApkUrl: 'https://github.com/ZG0704666/Aries-AI/releases/download/V1.2.0/app-release.apk',
+    githubReleasesAtomUrl: 'https://github.com/ZG0704666/Aries-AI/releases.atom',
+    apkAssetName: 'app-release.apk',
+    fixedApkUrl: 'https://github.com/ZG0704666/Aries-AI/releases/download/V1.5.0/app-release.apk',
     apps: [
       '淘宝', '支付宝', '美团', '高德地图', '微信', 'QQ', '京东', '知乎', 'B站', '抖音', '小红书', '携程',
       '12306', '饿了么', '拼多多', '闲鱼', '快手', '网易云音乐', '微博', 'Keep', 'WPS', '大众点评', '滴滴出行', '百度地图',
@@ -210,18 +212,43 @@
         const res = await fetch(ARIES_DATA.githubLatestReleaseApi, {
           headers: { 'Accept': 'application/vnd.github+json' },
         });
-        if (!res.ok) return;
-        const data = await res.json();
-        const assets = Array.isArray(data && data.assets) ? data.assets : [];
-        const apk = assets.find(a => typeof a?.name === 'string' && a.name.toLowerCase().endsWith('.apk'))
-          || assets.find(a => typeof a?.browser_download_url === 'string' && a.browser_download_url.toLowerCase().endsWith('.apk'));
-        const url = apk && typeof apk.browser_download_url === 'string' ? apk.browser_download_url : '';
-        resolvedAssetUrl = url || ARIES_DATA.fixedApkUrl;
+        if (res.ok) {
+          const data = await res.json();
+          const assets = Array.isArray(data && data.assets) ? data.assets : [];
+          const apk = assets.find(a => typeof a?.name === 'string' && a.name.toLowerCase().endsWith('.apk'))
+            || assets.find(a => typeof a?.browser_download_url === 'string' && a.browser_download_url.toLowerCase().endsWith('.apk'));
+          const url = apk && typeof apk.browser_download_url === 'string' ? apk.browser_download_url : '';
+          if (url) {
+            resolvedAssetUrl = url;
+            return;
+          }
+        }
+        // API 失败/限流（匿名请求有速率限制）或未找到 apk 资产时，走 Atom 兜底。
+        resolvedAssetUrl = (await resolveLatestReleaseApkUrlViaAtom()) || ARIES_DATA.fixedApkUrl;
       } catch (_) {
-        resolvedAssetUrl = ARIES_DATA.fixedApkUrl;
+        resolvedAssetUrl = (await resolveLatestReleaseApkUrlViaAtom().catch(() => '')) || ARIES_DATA.fixedApkUrl;
       } finally {
         refreshHrefs();
       }
+    }
+
+    // 通过 GitHub Releases 的 Atom feed 解析最新版本号并拼装 apk 下载地址。
+    // Atom feed 不受 api.github.com 的匿名速率限制约束，作为 API 失败时的兜底。
+    // 逻辑与 App 端 feature/updates 的 AtomReleaseFallback 保持一致。
+    async function resolveLatestReleaseApkUrlViaAtom() {
+      const res = await fetch(ARIES_DATA.githubReleasesAtomUrl, {
+        headers: { 'Accept': 'application/atom+xml' },
+      });
+      if (!res.ok) return '';
+      const xml = await res.text();
+      const entryStart = xml.indexOf('<entry');
+      if (entryStart < 0) return '';
+      const entryEnd = xml.indexOf('</entry>', entryStart);
+      const entry = xml.slice(entryStart, entryEnd < 0 ? undefined : entryEnd);
+      const m = entry.match(/\/releases\/tag\/([^"\/<\s]+)/);
+      if (!m || !m[1]) return '';
+      const tag = decodeURIComponent(m[1]);
+      return 'https://github.com/ZG0704666/Aries-AI/releases/download/' + tag + '/' + ARIES_DATA.apkAssetName;
     }
 
     function ensureLatestReleaseResolved() {
