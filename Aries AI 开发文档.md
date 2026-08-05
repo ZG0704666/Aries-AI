@@ -48,7 +48,7 @@
 
 **更新**：
 - **语音识别健壮性修复（Sherpa-ncnn）**：模型拷贝对空目录 asset 条目容错跳过（不再因 `open()` 异常中断整个拷贝）；模型目录查找支持三级候选布局（嵌套 / legacy 嵌套 / 平铺），提升不同打包方式的兼容性。
-- **官网下载链路加固**：GitHub API 匿名限流时自动回退到 Releases Atom feed 解析最新版本号并拼装 APK 下载地址，与 App 端 `feature/updates` 的 `AtomReleaseFallback` 逻辑保持一致。
+- **官网下载链路加固**：下载弹窗优先通过 CORS 安全的 GitHub API（`api.github.com`）解析最新 APK 下载地址，API 失败/限流时回退到固定的已发布版本下载链接；`github.com` 的 Releases Atom feed 不支持跨域（响应无 `Access-Control-Allow-Origin`），浏览器端直接 `fetch` 会被 CORS 拦截，故不再作为兜底来源。App 端 `feature/updates` 的 `AtomReleaseFallback` 逻辑不受影响。
 - **版本号同步**：App（v1.5.1 / versionCode 20）与官网下载链接（指向已发布的 V1.5.0）统一对齐。
 
 **核心功能状态**：

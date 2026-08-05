@@ -9,8 +9,6 @@
   const ARIES_DATA = window.ARIES_DATA || {
     githubReleasesPageUrl: 'https://github.com/ZG0704666/Aries-AI/releases',
     githubLatestReleaseApi: 'https://api.github.com/repos/ZG0704666/Aries-AI/releases/latest',
-    githubReleasesAtomUrl: 'https://github.com/ZG0704666/Aries-AI/releases.atom',
-    apkAssetName: 'app-release.apk',
     fixedApkUrl: 'https://github.com/ZG0704666/Aries-AI/releases/download/V1.5.0/app-release.apk',
   };
 
@@ -99,7 +97,7 @@
 
     refreshHrefs();
 
-    // 异步获取最新版本（API 限流时自动走 Atom feed 兜底）
+    // 异步获取最新版本（API 失败/限流时回退到固定下载地址）
     (async function resolveLatestReleaseApkUrl() {
       try {
         const res = await fetch(ARIES_DATA.githubLatestReleaseApi, {
@@ -116,29 +114,15 @@
             return;
           }
         }
-        resolvedAssetUrl = (await resolveViaAtom()) || ARIES_DATA.fixedApkUrl;
+        // 注意：github.com 的 Releases Atom feed 不支持跨域（响应无 Access-Control-Allow-Origin），
+        // 浏览器端直接 fetch 会被 CORS 拦截，因此直接回退到固定的已发布版本下载地址。
+        resolvedAssetUrl = ARIES_DATA.fixedApkUrl;
       } catch (_) {
-        resolvedAssetUrl = (await resolveViaAtom().catch(() => '')) || ARIES_DATA.fixedApkUrl;
+        resolvedAssetUrl = ARIES_DATA.fixedApkUrl;
       } finally {
         refreshHrefs();
       }
     })();
-
-    async function resolveViaAtom() {
-      const res = await fetch(ARIES_DATA.githubReleasesAtomUrl, {
-        headers: { 'Accept': 'application/atom+xml' },
-      });
-      if (!res.ok) return '';
-      const xml = await res.text();
-      const entryStart = xml.indexOf('<entry');
-      if (entryStart < 0) return '';
-      const entryEnd = xml.indexOf('</entry>', entryStart);
-      const entry = xml.slice(entryStart, entryEnd < 0 ? undefined : entryEnd);
-      const m = entry.match(/\/releases\/tag\/([^"\/<\s]+)/);
-      if (!m || !m[1]) return '';
-      const tag = decodeURIComponent(m[1]);
-      return 'https://github.com/ZG0704666/Aries-AI/releases/download/' + tag + '/' + (ARIES_DATA.apkAssetName || 'app-release.apk');
-    }
 
     bindOpenLink(mirrorFast, () => {
       const u = getResolvedAssetUrl();

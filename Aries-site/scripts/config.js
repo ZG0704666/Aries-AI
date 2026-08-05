@@ -7,8 +7,6 @@ window.ARIES_DATA = {
   qqJoinUrl: 'https://qm.qq.com/q/ASVDJPrIxq',
   githubReleasesPageUrl: 'https://github.com/ZG0704666/Aries-AI/releases',
   githubLatestReleaseApi: 'https://api.github.com/repos/ZG0704666/Aries-AI/releases/latest',
-  githubReleasesAtomUrl: 'https://github.com/ZG0704666/Aries-AI/releases.atom',
-  apkAssetName: 'app-release.apk',
   fixedApkUrl: 'https://github.com/ZG0704666/Aries-AI/releases/download/V1.5.0/app-release.apk',
   apps: [
     '淘宝', '支付宝', '美团', '高德地图', '微信', 'QQ', '京东', '知乎', 'B站', '抖音', '小红书', '携程',

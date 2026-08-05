@@ -6,8 +6,6 @@
     qqJoinUrl: 'https://qm.qq.com/q/ASVDJPrIxq',
     githubReleasesPageUrl: 'https://github.com/ZG0704666/Aries-AI/releases',
     githubLatestReleaseApi: 'https://api.github.com/repos/ZG0704666/Aries-AI/releases/latest',
-    githubReleasesAtomUrl: 'https://github.com/ZG0704666/Aries-AI/releases.atom',
-    apkAssetName: 'app-release.apk',
     fixedApkUrl: 'https://github.com/ZG0704666/Aries-AI/releases/download/V1.5.0/app-release.apk',
     apps: [
       '淘宝', '支付宝', '美团', '高德地图', '微信', 'QQ', '京东', '知乎', 'B站', '抖音', '小红书', '携程',
@@ -223,32 +221,15 @@
             return;
           }
         }
-        // API 失败/限流（匿名请求有速率限制）或未找到 apk 资产时，走 Atom 兜底。
-        resolvedAssetUrl = (await resolveLatestReleaseApkUrlViaAtom()) || ARIES_DATA.fixedApkUrl;
+        // API 失败/限流（匿名请求有速率限制）或未找到 apk 资产时，回退到固定的已发布版本下载地址。
+        // 注意：github.com 的 Releases Atom feed 不支持跨域（响应无 Access-Control-Allow-Origin），
+        // 浏览器端直接 fetch 会被 CORS 拦截，不能作为兜底来源。
+        resolvedAssetUrl = ARIES_DATA.fixedApkUrl;
       } catch (_) {
-        resolvedAssetUrl = (await resolveLatestReleaseApkUrlViaAtom().catch(() => '')) || ARIES_DATA.fixedApkUrl;
+        resolvedAssetUrl = ARIES_DATA.fixedApkUrl;
       } finally {
         refreshHrefs();
       }
-    }
-
-    // 通过 GitHub Releases 的 Atom feed 解析最新版本号并拼装 apk 下载地址。
-    // Atom feed 不受 api.github.com 的匿名速率限制约束，作为 API 失败时的兜底。
-    // 逻辑与 App 端 feature/updates 的 AtomReleaseFallback 保持一致。
-    async function resolveLatestReleaseApkUrlViaAtom() {
-      const res = await fetch(ARIES_DATA.githubReleasesAtomUrl, {
-        headers: { 'Accept': 'application/atom+xml' },
-      });
-      if (!res.ok) return '';
-      const xml = await res.text();
-      const entryStart = xml.indexOf('<entry');
-      if (entryStart < 0) return '';
-      const entryEnd = xml.indexOf('</entry>', entryStart);
-      const entry = xml.slice(entryStart, entryEnd < 0 ? undefined : entryEnd);
-      const m = entry.match(/\/releases\/tag\/([^"\/<\s]+)/);
-      if (!m || !m[1]) return '';
-      const tag = decodeURIComponent(m[1]);
-      return 'https://github.com/ZG0704666/Aries-AI/releases/download/' + tag + '/' + ARIES_DATA.apkAssetName;
     }
 
     function ensureLatestReleaseResolved() {
