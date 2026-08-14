@@ -5,7 +5,7 @@
     qqGroupId: '746439473',
     qqJoinUrl: 'https://qm.qq.com/q/ASVDJPrIxq',
     githubReleasesPageUrl: 'https://github.com/ZG0704666/Aries-AI/releases',
-    githubLatestReleaseApi: 'https://api.github.com/repos/ZG0704666/Aries-AI/releases/latest',
+    githubLatestApkUrl: 'https://github.com/ZG0704666/Aries-AI/releases/latest/download/app-release.apk',
     fixedApkUrl: 'https://github.com/ZG0704666/Aries-AI/releases/download/V1.5.0/app-release.apk',
     apps: [
       '淘宝', '支付宝', '美团', '高德地图', '微信', 'QQ', '京东', '知乎', 'B站', '抖音', '小红书', '携程',
@@ -158,10 +158,6 @@
       document.getElementById('btn-download-latest'),
     ].filter(Boolean);
 
-    let resolvedAssetUrl = '';
-    let latestReleaseResolved = false;
-    let latestReleasePromise = null;
-
     function openInNewTab(url) {
       window.open(url, '_blank', 'noopener');
     }
@@ -171,7 +167,6 @@
       modal.classList.add('flex');
       modal.classList.add('show');
       modal.setAttribute('aria-hidden', 'false');
-      ensureLatestReleaseResolved();
     }
 
     function hide() {
@@ -190,7 +185,7 @@
     }
 
     function getResolvedAssetUrl() {
-      return resolvedAssetUrl || ARIES_DATA.fixedApkUrl;
+      return ARIES_DATA.githubLatestApkUrl || ARIES_DATA.fixedApkUrl;
     }
 
     function setHref(el, url) {
@@ -203,44 +198,6 @@
       setHref(official, u || ARIES_DATA.githubReleasesPageUrl);
       setHref(mirrorFast, u ? toGhFast(u) : '');
       setHref(mirrorGitMirror, u ? toGitMirror(u) : '');
-    }
-
-    async function resolveLatestReleaseApkUrl() {
-      try {
-        const res = await fetch(ARIES_DATA.githubLatestReleaseApi, {
-          headers: { 'Accept': 'application/vnd.github+json' },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const assets = Array.isArray(data && data.assets) ? data.assets : [];
-          const apk = assets.find(a => typeof a?.name === 'string' && a.name.toLowerCase().endsWith('.apk'))
-            || assets.find(a => typeof a?.browser_download_url === 'string' && a.browser_download_url.toLowerCase().endsWith('.apk'));
-          const url = apk && typeof apk.browser_download_url === 'string' ? apk.browser_download_url : '';
-          if (url) {
-            resolvedAssetUrl = url;
-            return;
-          }
-        }
-        // API 失败/限流（匿名请求有速率限制）或未找到 apk 资产时，回退到固定的已发布版本下载地址。
-        // 注意：github.com 的 Releases Atom feed 不支持跨域（响应无 Access-Control-Allow-Origin），
-        // 浏览器端直接 fetch 会被 CORS 拦截，不能作为兜底来源。
-        resolvedAssetUrl = ARIES_DATA.fixedApkUrl;
-      } catch (_) {
-        resolvedAssetUrl = ARIES_DATA.fixedApkUrl;
-      } finally {
-        refreshHrefs();
-      }
-    }
-
-    function ensureLatestReleaseResolved() {
-      if (latestReleaseResolved) return;
-      if (latestReleasePromise) return;
-      latestReleasePromise = resolveLatestReleaseApkUrl()
-        .catch(() => { })
-        .finally(() => {
-          latestReleaseResolved = true;
-          latestReleasePromise = null;
-        });
     }
 
     function bindOpenLink(el, getUrl) {
@@ -267,7 +224,6 @@
     });
 
     refreshHrefs();
-    runWhenIdle(ensureLatestReleaseResolved, 4000);
 
     bindOpenLink(mirrorFast, () => {
       const u = getResolvedAssetUrl();

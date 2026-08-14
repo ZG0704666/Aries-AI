@@ -8,7 +8,7 @@
 
   const ARIES_DATA = window.ARIES_DATA || {
     githubReleasesPageUrl: 'https://github.com/ZG0704666/Aries-AI/releases',
-    githubLatestReleaseApi: 'https://api.github.com/repos/ZG0704666/Aries-AI/releases/latest',
+    githubLatestApkUrl: 'https://github.com/ZG0704666/Aries-AI/releases/latest/download/app-release.apk',
     fixedApkUrl: 'https://github.com/ZG0704666/Aries-AI/releases/download/V1.5.0/app-release.apk',
   };
 
@@ -27,8 +27,6 @@
       document.getElementById('btn-download-nav'),
       document.getElementById('btn-download-latest'),
     ].filter(Boolean);
-
-    let resolvedAssetUrl = '';
 
     function openInNewTab(url) {
       window.open(url, '_blank', 'noopener');
@@ -57,7 +55,7 @@
     }
 
     function getResolvedAssetUrl() {
-      return resolvedAssetUrl || ARIES_DATA.fixedApkUrl;
+      return ARIES_DATA.githubLatestApkUrl || ARIES_DATA.fixedApkUrl;
     }
 
     function setHref(el, url) {
@@ -97,33 +95,6 @@
 
     refreshHrefs();
 
-    // 异步获取最新版本（API 失败/限流时回退到固定下载地址）
-    (async function resolveLatestReleaseApkUrl() {
-      try {
-        const res = await fetch(ARIES_DATA.githubLatestReleaseApi, {
-          headers: { 'Accept': 'application/vnd.github+json' },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const assets = Array.isArray(data && data.assets) ? data.assets : [];
-          const apk = assets.find(a => typeof a?.name === 'string' && a.name.toLowerCase().endsWith('.apk'))
-            || assets.find(a => typeof a?.browser_download_url === 'string' && a.browser_download_url.toLowerCase().endsWith('.apk'));
-          const url = apk && typeof apk.browser_download_url === 'string' ? apk.browser_download_url : '';
-          if (url) {
-            resolvedAssetUrl = url;
-            return;
-          }
-        }
-        // 注意：github.com 的 Releases Atom feed 不支持跨域（响应无 Access-Control-Allow-Origin），
-        // 浏览器端直接 fetch 会被 CORS 拦截，因此直接回退到固定的已发布版本下载地址。
-        resolvedAssetUrl = ARIES_DATA.fixedApkUrl;
-      } catch (_) {
-        resolvedAssetUrl = ARIES_DATA.fixedApkUrl;
-      } finally {
-        refreshHrefs();
-      }
-    })();
-
     bindOpenLink(mirrorFast, () => {
       const u = getResolvedAssetUrl();
       return u ? toGhFast(u) : '';
@@ -147,7 +118,6 @@
     initDownloadModal();
   }
 })();
-
 
 
 
