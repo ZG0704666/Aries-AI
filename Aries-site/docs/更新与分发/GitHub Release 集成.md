@@ -537,14 +537,14 @@ Aries AI 官方站点（`Aries-site`）也集成了 GitHub Release 信息。通�
 ```javascript
 window.ARIES_DATA = {
   githubReleasesPageUrl: 'https://github.com/ZG0704666/Aries-AI/releases',
-  githubLatestReleaseApi: 'https://api.github.com/repos/ZG0704666/Aries-AI/releases/latest',
-  fixedApkUrl: 'https://github.com/ZG0704666/Aries-AI/releases/download/V1.2.0/app-release.apk',
+  githubLatestApkUrl: 'https://github.com/ZG0704666/Aries-AI/releases/latest/download/app-release.apk',
+  fixedApkUrl: 'https://github.com/ZG0704666/Aries-AI/releases/download/V1.5.0/app-release.apk',
 };
 ```
 
 > Source: [config.js](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/scripts/config.js#L5-L13)
 
-站点启动时异步调用 `githubLatestReleaseApi` 获取最新 release 的 APK asset URL，失败则回退到 `fixedApkUrl`。下载弹窗提供官方直连、ghfast.top 镜像、gitmirror.com 镜像三个下载通道。
+静态站点直接使用 GitHub 提供的 `releases/latest/download/app-release.apk` 永久链接，由浏览器导航跟随重定向到最新 Release 资产，不再跨域 `fetch` GitHub API 或 Atom Feed。若配置中未提供该永久链接，则使用 `fixedApkUrl`。下载弹窗提供官方直连、ghfast.top 镜像、gitmirror.com 镜像三个下载通道。
 
 > Source: [modal.js](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/scripts/modal.js#L101-L118)
 
@@ -700,7 +700,7 @@ val githubToken: String by lazy {
 | 配置项 | 类型 | 说明 |
 |--------|------|------|
 | `githubReleasesPageUrl` | String | GitHub Releases 页面链接 |
-| `githubLatestReleaseApi` | String | GitHub 最新 Release API 地址 |
+| `githubLatestApkUrl` | String | GitHub 最新 Release APK 永久链接（通过导航重定向，不执行跨域请求） |
 | `fixedApkUrl` | String | 固定的 APK 回退下载链接 |
 
 > Source: [config.js](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/scripts/config.js#L5-L13)

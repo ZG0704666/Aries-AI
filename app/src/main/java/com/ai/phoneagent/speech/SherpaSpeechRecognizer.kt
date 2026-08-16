@@ -171,10 +171,17 @@ class SherpaSpeechRecognizer(private val context: Context) {
                         parent.mkdirs()
                     }
                 }
-                assetManager.open(assetPath).use { inputStream ->
-                    FileOutputStream(outputFile).use { outputStream ->
-                        inputStream.copyTo(outputStream)
+                // 空目录与文件在 AssetManager.list() 下都表现为"无子项"。
+                // 对空目录调用 open() 会抛异常；这里容错跳过，避免中断整个模型拷贝。
+                runCatching {
+                    assetManager.open(assetPath).use { inputStream ->
+                        FileOutputStream(outputFile).use { outputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
                     }
+                }.onFailure { e ->
+                    Log.w(TAG, "Skip non-file asset entry '$assetPath': ${e.message}")
+                    runCatching { if (outputFile.exists() && outputFile.length() == 0L) outputFile.delete() }
                 }
             }
         }
@@ -184,8 +191,17 @@ class SherpaSpeechRecognizer(private val context: Context) {
 
     private fun createRecognizer(): Boolean {
         val modelDirName = "sherpa-ncnn-streaming-zipformer-bilingual-zh-en-2023-02-13"
-        val assetModelDir = "sherpa-models/$modelDirName"
-        val legacyAssetModelDir = "sherpa-models/models/$modelDirName"
+
+        // 候选模型目录（按优先级依次尝试）：
+        // 1. 文档约定的嵌套布局  sherpa-models/<modelDirName>/
+        // 2. legacy 嵌套布局     sherpa-models/models/<modelDirName>/
+        // 3. 平铺布局            sherpa-models/  （模型文件直接放在 sherpa-models/ 根目录下）
+        val candidateAssetDirs =
+                listOf(
+                        "sherpa-models/$modelDirName",
+                        "sherpa-models/models/$modelDirName",
+                        "sherpa-models"
+                )
 
         val requiredFiles =
                 listOf(
@@ -199,17 +215,14 @@ class SherpaSpeechRecognizer(private val context: Context) {
                 )
 
         val localModelDir =
-                ensureModelDirReady(
-                        assetDir = assetModelDir,
-                        targetRootDir = context.filesDir,
-                        requiredFiles = requiredFiles
-                )
-                        ?: ensureModelDirReady(
-                                assetDir = legacyAssetModelDir,
-                                targetRootDir = context.filesDir,
-                                requiredFiles = requiredFiles
-                        )
-                                ?: return false
+                candidateAssetDirs.firstNotNullOfOrNull { assetDir ->
+                    ensureModelDirReady(
+                            assetDir = assetDir,
+                            targetRootDir = context.filesDir,
+                            requiredFiles = requiredFiles
+                    )
+                }
+                        ?: return false
 
         val featConfig =
                 getFeatureExtractorConfig(sampleRate = SAMPLE_RATE.toFloat(), featureDim = 80)
