@@ -129,7 +129,7 @@ class AppPreferencesSecretsTest {
         isolated.setUserAgreementAccepted(true)
         assertEquals(4, threads.size)
         assertTrue(threads.all { it !== caller })
-        assertTrue(isolated.getUserAgreementAccepted())
+        assertTrue(isolated.userAgreementAcceptedFlow.first())
     }
 
     @Test
