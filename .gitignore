@@ -18,7 +18,7 @@ wiki/
 captures/
 local.properties
 release/
-**/build/
+build/
 *.compiler.options
 
 # Local environment, temp files, and logs
@@ -27,7 +27,7 @@ release/
 !.env.example
 *.bak*
 *.log
-**/logs/
+logs/
 /temp/
 .tmp_material_113/
 .tmp_material_113.zip
@@ -57,9 +57,6 @@ app/src/main/assets/sherpa-models/**
 # Local tool configs and secrets
 .opencode/
 analytics.settings
-key/key
-.tmp_material_113/
-.tmp_material_113.zip
 tmp_onboarding_check.png
 
 # Local planning / scratch workspace files
@@ -69,7 +66,6 @@ tmp_onboarding_check.png
 nul
 
 # Local test artifacts / temporary outputs
-build.log
 *.tmp
 *.temp
 logcat*.txt
@@ -87,3 +83,6 @@ Aries-site/lighthouse-*.report.html
 Aries-site/lighthouse-*.report.json
 
 .codex-local-archive/
+
+# JavaScript dependencies (site, design tools, worker)
+node_modules/

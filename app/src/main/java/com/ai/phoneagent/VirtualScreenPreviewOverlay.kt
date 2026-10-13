@@ -355,8 +355,8 @@ class VirtualScreenPreviewOverlay(
         init {
             val bg = GradientDrawable()
             bg.shape = GradientDrawable.OVAL
-            bg.setColor(m3Color(R.color.m3t_vd_mini_bg))
-            bg.setStroke(dp(1), m3Color(R.color.m3t_vd_mini_stroke))
+            bg.setColor(m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_mini_bg))
+            bg.setStroke(dp(1), m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_mini_stroke))
             background = bg
             elevation = dp(6).toFloat()
 
@@ -447,8 +447,8 @@ class VirtualScreenPreviewOverlay(
             // 整体背景
             val bg = GradientDrawable()
             bg.cornerRadius = dp(8).toFloat()
-            bg.setColor(m3Color(R.color.m3t_vd_bg_progress_bg))
-            bg.setStroke(dp(1), m3Color(R.color.m3t_vd_bg_progress_stroke))
+            bg.setColor(m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_bg_progress_bg))
+            bg.setStroke(dp(1), m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_bg_progress_stroke))
             background = bg
             elevation = dp(6).toFloat()
 
@@ -466,7 +466,7 @@ class VirtualScreenPreviewOverlay(
             statusText =
                     TextView(context).apply {
                         text = "后台运行中..."
-                        setTextColor(m3Color(R.color.m3t_vd_bg_progress_text))
+                        setTextColor(m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_bg_progress_text))
                         textSize = 12f
                         gravity = Gravity.CENTER_VERTICAL
                         layoutParams =
@@ -483,7 +483,7 @@ class VirtualScreenPreviewOverlay(
             val closeBtn =
                     TextView(context).apply {
                         text = "✕"
-                        setTextColor(m3Color(R.color.m3t_vd_bg_progress_close_text))
+                        setTextColor(m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_bg_progress_close_text))
                         textSize = 12f
                         gravity = Gravity.CENTER
                         layoutParams = LayoutParams(dp(24), LayoutParams.MATCH_PARENT)
@@ -616,8 +616,8 @@ class VirtualScreenPreviewOverlay(
             // 整体背景
             val bg = GradientDrawable()
             bg.cornerRadius = dp(12).toFloat()
-            bg.setColor(m3Color(R.color.m3t_vd_container_bg))
-            bg.setStroke(dp(1), m3Color(R.color.m3t_vd_container_stroke))
+            bg.setColor(m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_container_bg))
+            bg.setStroke(dp(1), m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_container_stroke))
             background = bg
             clipToOutline = true
             elevation = dp(8).toFloat()
@@ -626,13 +626,13 @@ class VirtualScreenPreviewOverlay(
             val header =
                     FrameLayout(context).apply {
                         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, dp(HEADER_HEIGHT_DP))
-                        setBackgroundColor(m3Color(R.color.m3t_vd_header_bg))
+                        setBackgroundColor(m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_header_bg))
                     }
 
             header.addView(
                     TextView(context).apply {
                         text = "虚拟屏预览"
-                        setTextColor(m3Color(R.color.m3t_vd_header_text))
+                        setTextColor(m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_header_text))
                         textSize = 11f
                         layoutParams =
                                 LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
@@ -646,7 +646,7 @@ class VirtualScreenPreviewOverlay(
             val statusTv =
                     TextView(context).apply {
                         text = "执行中..."
-                        setTextColor(m3Color(R.color.m3t_vd_status_text))
+                        setTextColor(m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_status_text))
                         textSize = 10f
                         gravity = Gravity.CENTER_VERTICAL or Gravity.END
                         setPadding(dp(6), 0, dp(6), 0)
@@ -664,7 +664,7 @@ class VirtualScreenPreviewOverlay(
             header.addView(
                     TextView(context).apply {
                         text = "－"
-                        setTextColor(m3Color(R.color.m3t_vd_header_action))
+                        setTextColor(m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_header_action))
                         textSize = 16f
                         gravity = Gravity.CENTER
                         layoutParams =
@@ -771,7 +771,7 @@ class VirtualScreenPreviewOverlay(
                     LinearLayout(context).apply {
                         orientation = LinearLayout.HORIZONTAL
                         gravity = Gravity.CENTER_VERTICAL
-                        setBackgroundColor(m3Color(R.color.m3t_vd_control_bar_bg))
+                        setBackgroundColor(m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_control_bar_bg))
                         layoutParams =
                                 LayoutParams(LayoutParams.MATCH_PARENT, dp(CONTROL_BAR_HEIGHT_DP))
                                         .apply { gravity = Gravity.BOTTOM }
@@ -782,7 +782,7 @@ class VirtualScreenPreviewOverlay(
             fun makeCtrlBtn(label: String, flex: Float = 1f, onClick: () -> Unit): TextView {
                 return TextView(context).apply {
                     text = label
-                    setTextColor(m3Color(R.color.m3t_vd_header_text))
+                    setTextColor(m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_header_text))
                     textSize = 10f
                     gravity = Gravity.CENTER
                     layoutParams =
@@ -797,7 +797,7 @@ class VirtualScreenPreviewOverlay(
                     val pressedBg =
                             GradientDrawable().apply {
                                 cornerRadius = dp(4).toFloat()
-                                setColor(m3Color(R.color.m3t_vd_control_btn_bg))
+                                setColor(m3Color(com.ai.phoneagent.core.designsystem.R.color.m3t_vd_control_btn_bg))
                             }
                     background = pressedBg
                 }

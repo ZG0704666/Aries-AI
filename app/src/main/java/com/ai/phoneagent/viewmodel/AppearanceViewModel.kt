@@ -17,6 +17,12 @@ class AppearanceViewModel(
     private val prefs: AppPreferencesRepository,
 ) : AndroidViewModel(application) {
 
+    private val mainUiPrefs = com.ai.phoneagent.data.preferences.MainUiPreferencesRepository(application)
+    val thinkingExpanded = mainUiPrefs.thinkingExpandedByDefaultFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    fun setThinkingExpanded(value: Boolean) { viewModelScope.launch { mainUiPrefs.setThinkingExpandedByDefault(value) } }
+    val plainMessages = mainUiPrefs.plainMessagesFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    fun setPlainMessages(value: Boolean) { viewModelScope.launch { mainUiPrefs.setPlainMessages(value) } }
+
     val themeMode: StateFlow<ThemeMode> =
         prefs.themeModeFlow
             .map { raw ->

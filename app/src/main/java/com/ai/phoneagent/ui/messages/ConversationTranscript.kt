@@ -1,5 +1,12 @@
 package com.ai.phoneagent.ui.messages
 
+import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import com.composables.icons.lucide.Search
+import com.composables.icons.lucide.ScanLine
+import com.composables.icons.lucide.AlarmClock
+import com.composables.icons.lucide.TrainFront
+import com.composables.icons.lucide.ArrowUpRight
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
@@ -12,6 +19,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,6 +66,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -150,6 +160,8 @@ data class TranscriptMessageUi(
     val copyText: String,
     val retryText: String?,
     val isStreaming: Boolean = false,
+    val runId: String? = null,
+    val openTaskDetails: Boolean = false,
     val thinkingDurationMs: Long? = null,
 )
 
@@ -354,7 +366,7 @@ private fun TranscriptMessageListItem(
     onEditMessage: (TranscriptMessageUi) -> Unit,
     codeBlockPrefs: CodeBlockPrefs,
 ) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -398,7 +410,7 @@ private fun StreamingTranscriptMessageListItem(
     onEditMessage: (TranscriptMessageUi) -> Unit,
     codeBlockPrefs: CodeBlockPrefs,
 ) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -425,151 +437,33 @@ fun TranscriptEmptyHintCard(
     modifier: Modifier = Modifier,
     onSuggestionClick: (String) -> Unit = {},
 ) {
-    val context = LocalContext.current
-    val appIconSize = dimensionResource(R.dimen.m3t_about_icon_card_size)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
-    val emptyHintCardMaxWidth = dimensionResource(R.dimen.m3t_transcript_empty_card_max_width)
-    val suggestionIconSize = spacingLg
-    val suggestionArrowSize = dimensionResource(R.dimen.m3t_input_bar_icon_size)
-    val cardElevation = dimensionResource(R.dimen.m3t_message_streaming_tonal_elevation)
-    val brandIconSize = appIconSize - spacingXs
-    val suggestions = remember(context) {
-        val suggestionIcons = listOf(
-            Lucide.Search,
-            Lucide.Sparkles,
-            Lucide.MessageCircle,
-        )
-        context.resources
-            .getStringArray(R.array.transcript_suggestion_examples)
-            .toList()
-            .take(suggestionIcons.size)
-            .mapIndexed { index, prompt ->
-                TranscriptEmptySuggestionItem(
-                    label = prompt,
-                    prompt = prompt,
-                    icon = suggestionIcons.getOrElse(index) { Lucide.Sparkles },
-                )
+    val gap = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_home_section_gap)
+    val small = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val brandSize = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_brand_size)
+    val iconSize = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_brand_icon)
+    val rowHeight = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_suggestion_height)
+    val prompts = androidx.compose.ui.res.stringArrayResource(R.array.ui_v2_suggestions)
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(gap)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_home_icon_gap))) {
+            Box(Modifier.size(brandSize).background(
+                Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)),
+                MaterialTheme.shapes.large), contentAlignment = Alignment.Center) {
+                Icon(Lucide.Sparkles, null, Modifier.size(iconSize), tint = Color.White)
             }
-    }
-    val suggestionIconColors = listOf(
-        MaterialTheme.colorScheme.primary,
-        MaterialTheme.colorScheme.tertiary,
-        MaterialTheme.colorScheme.secondary,
-    )
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .widthIn(max = emptyHintCardMaxWidth),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(spacingXl),
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacingMd),
-        ) {
-            Image(
-                painter = painterResource(R.drawable.ic_launcher_foreground),
-                contentDescription = null,
-                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
-                modifier = Modifier.size(brandIconSize),
-            )
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(spacingXs),
-            ) {
-                Text(
-                    text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = stringResource(R.string.transcript_empty_brand_tagline),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
+            Text(stringResource(R.string.ui_v2_hero), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
         }
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = cardElevation,
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacingLg, vertical = spacingLg),
-                verticalArrangement = Arrangement.spacedBy(spacingMd),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacingSm),
-                ) {
-                    Icon(
-                        imageVector = Lucide.Sparkles,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(suggestionIconSize),
-                    )
-                    Text(
-                        text = stringResource(R.string.transcript_empty_suggestion_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-
-                Column {
-                    suggestions.forEachIndexed { index, suggestion ->
-                        if (index > 0) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSuggestionClick(suggestion.prompt) }
-                                .padding(vertical = spacingMd),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(spacingSm),
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                            ) {
-                                Icon(
-                                    imageVector = suggestion.icon,
-                                    contentDescription = null,
-                                    tint = suggestionIconColors[index % suggestionIconColors.size],
-                                    modifier = Modifier.padding(spacingSm).size(suggestionIconSize),
-                                )
-                            }
-
-                            Text(
-                                text = suggestion.label,
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-
-                            Icon(
-                                painter = painterResource(R.drawable.ic_arrow_right),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(suggestionArrowSize),
-                            )
-                        }
-                    }
+        Text(stringResource(R.string.ui_v2_subtitle), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.ui_v2_try), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val promptIcons = listOf(Lucide.Search, Lucide.ScanLine, Lucide.AlarmClock, Lucide.TrainFront)
+        prompts.forEachIndexed { index, prompt ->
+            Surface(onClick = { onSuggestionClick(prompt) }, shape = MaterialTheme.shapes.small,
+                color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.small)) {
+                Row(Modifier.heightIn(min = rowHeight).padding(horizontal = gap, vertical = small),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(small)) {
+                    Icon(promptIcons[index % promptIcons.size], null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_suggestion_icon)))
+                    Text(prompt, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    Icon(Lucide.ArrowUpRight, null, Modifier.size(gap), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -584,14 +478,14 @@ private fun UserMessageBubble(
     onRetryMessage: (TranscriptMessageUi) -> Unit,
     onEditMessage: (TranscriptMessageUi) -> Unit,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
     val bubbleMaxWidth = dimensionResource(R.dimen.m3t_message_user_bubble_max_width)
     val actionGap = dimensionResource(R.dimen.m3t_message_action_gap)
     val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
-    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
+    val plain = plainMessagesEnabled()
     var isEditing by remember { mutableStateOf(false) }
     var editText by remember(item.body) { mutableStateOf(item.body) }
     var showActions by remember(item.id) { mutableStateOf(false) }
@@ -607,10 +501,10 @@ private fun UserMessageBubble(
         verticalArrangement = Arrangement.spacedBy(spacingSm),
     ) {
         Surface(
-            modifier = Modifier.widthIn(max = bubbleMaxWidth),
-            shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            tonalElevation = messageElevation,
+            modifier = Modifier.widthIn(max = bubbleMaxWidth).then(if (plain) Modifier else Modifier.ariesGlass(MaterialTheme.shapes.large)),
+            shape = MaterialTheme.shapes.large,
+            color = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onSurface,
         ) {
             if (isEditing) {
                 TextField(
@@ -622,8 +516,8 @@ private fun UserMessageBubble(
                     textStyle = MaterialTheme.typography.bodyLarge,
                     colors =
                         TextFieldDefaults.colors(
-                            focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                             cursorColor = MaterialTheme.colorScheme.primary,
                             focusedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                             unfocusedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -641,7 +535,7 @@ private fun UserMessageBubble(
                     text = item.body,
                     modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
         }
@@ -739,9 +633,10 @@ private fun UserMessageBubble(
             ) {
                 item.attachments.forEach { attachmentName ->
                     Surface(
+                        modifier = Modifier.ariesGlass(CircleShape),
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        tonalElevation = messageElevation,
+                        color = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
                     ) {
                         Text(
                             text = attachmentName,
@@ -766,9 +661,9 @@ private fun AssistantMessageBlock(
     onRetryMessage: (TranscriptMessageUi) -> Unit,
     onAutomationAction: (TranscriptMessageUi) -> Unit,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
     val maxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
     val actionGap = dimensionResource(R.dimen.m3t_message_action_gap)
     val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
@@ -843,8 +738,8 @@ private fun StreamingAssistantMessageBlock(
     itemState: StreamingTranscriptMessageState,
     thinkingExpandedByDefault: Boolean,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
     val maxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
     val transcriptBlockGap = dimensionResource(R.dimen.m3t_transcript_block_gap)
 
@@ -888,7 +783,7 @@ private fun StreamingAssistantThinkingSection(
 private fun StreamingAssistantBodySection(
     itemState: StreamingTranscriptMessageState,
 ) {
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
     val bodyPreview = itemState.bodyPreview
     val showLoadingIndicator =
         bodyPreview.showLoadingIndicator && itemState.thinking.isNullOrBlank()
@@ -909,11 +804,13 @@ private fun StreamingAssistantBodyPreview(
 ) {
     val streamingElevation = dimensionResource(R.dimen.m3t_message_streaming_tonal_elevation)
     val transcriptBlockGap = dimensionResource(R.dimen.m3t_transcript_block_gap)
+    val plain = plainMessagesEnabled()
     Surface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = streamingElevation,
-        modifier = Modifier.heightIn(min = 44.dp),
+        color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.heightIn(min = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_toolbar_button))
+            .then(if (plain) Modifier else Modifier.ariesGlass(MaterialTheme.shapes.large)),
     ) {
         if (showLoadingIndicator) {
             StreamingLoadingIndicator(
@@ -1012,13 +909,15 @@ private fun AssistantMessageBody(
     isStreaming: Boolean,
     spacingMd: Dp,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
     val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
     val streamingElevation = dimensionResource(R.dimen.m3t_message_streaming_tonal_elevation)
+    val plain = plainMessagesEnabled()
     Surface(
+        modifier = if (plain) Modifier else Modifier.ariesGlass(MaterialTheme.shapes.large),
         shape = MaterialTheme.shapes.large,
-        color = if (isStreaming) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.surface,
-        tonalElevation = if (isStreaming) streamingElevation else messageElevation,
+        color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         if (isStreaming && shouldRenderStreamingMarkdown(body)) {
             StreamingMarkdownPreview(
@@ -1689,8 +1588,8 @@ private fun CodeBlockSegment(
     blockKey: String,
     prefs: CodeBlockPrefs,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
     val lines = remember(code) { if (code.isEmpty()) listOf("") else code.split('\n') }
     val lineNumberWidth = remember(lines.size) { lines.size.toString().length }
     val canCollapse = prefs.autoCollapse && lines.size > CODE_BLOCK_COLLAPSE_LINE_THRESHOLD
@@ -1782,9 +1681,9 @@ private fun ThinkingSection(
     val thinkingText = thinking?.trim().orEmpty()
     if (thinkingText.isEmpty()) return
 
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
     val thinkingIconBox = dimensionResource(R.dimen.m3t_message_thinking_icon_box_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
     val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
@@ -2123,9 +2022,9 @@ private fun AutomationMessageCard(
     automation: TranscriptAutomationUi,
     onAutomationAction: (TranscriptMessageUi) -> Unit,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
     val chipIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
     val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
     val logBlocks = remember(automation.logs.size, automation.logs.lastOrNull()) {
@@ -2151,10 +2050,10 @@ private fun AutomationMessageCard(
     )
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = messageElevation,
+        modifier = Modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.large),
+        shape = MaterialTheme.shapes.large,
+        color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Column(
             modifier = Modifier
@@ -2188,6 +2087,11 @@ private fun AutomationMessageCard(
                 )
             }
 
+            if (item.runId != null) {
+                androidx.compose.material3.TextButton(onClick = { onAutomationAction(item.copy(openTaskDetails = true)) }) {
+                    Text(stringResource(R.string.ui_v2_details))
+                }
+            }
             actionDescription?.let { desc ->
                 Text(
                     text = desc,
@@ -2387,8 +2291,8 @@ private fun AutomationActionChips(
     chips: List<AutomationActionChipUi>,
     iconSize: Dp,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(spacingXs),
         verticalArrangement = Arrangement.spacedBy(spacingXs),
@@ -2462,4 +2366,12 @@ private fun MessageActionButton(
             content = { content() },
         )
     }
+}
+
+@Composable
+private fun plainMessagesEnabled(): Boolean {
+    val context = LocalContext.current.applicationContext
+    val prefs = remember(context) { com.ai.phoneagent.data.preferences.MainUiPreferencesRepository(context) }
+    val plain by prefs.plainMessagesFlow.collectAsState(initial = false)
+    return plain
 }

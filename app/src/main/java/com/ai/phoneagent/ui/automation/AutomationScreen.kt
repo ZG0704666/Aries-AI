@@ -1,13 +1,12 @@
 package com.ai.phoneagent.ui.automation
 
-import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.provider.Settings
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -34,18 +33,6 @@ fun AutomationScreen(
         viewModelStoreOwner = activityOwner ?: LocalViewModelStoreOwner.current!!,
     )
 
-    val audioPermissionLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            viewModel.onAudioPermissionResult(granted)
-        }
-
-    DisposableEffect(hostActivity) {
-        viewModel.attachHostActivity(hostActivity)
-        onDispose {
-            viewModel.attachHostActivity(null)
-        }
-    }
-
     // Consume pending launch args from MainActivity intent dispatch
     LaunchedEffect(Unit) {
         AutomationViewModel.pendingLaunchArgs?.let { args ->
@@ -71,6 +58,10 @@ fun AutomationScreen(
         }
     }
 
+    val task by viewModel.taskSnapshot.collectAsState()
+    LaunchedEffect(task?.runId) {
+        task?.takeIf { !it.status.isTerminal && navController.currentDestination?.route == "automation" }?.let { navController.navigate("task/${it.runId}") { launchSingleTop = true } }
+    }
     AutomationControlScreen(
         statusSummary = viewModel.statusSummary,
         interactionModeText = viewModel.interactionModeText,
@@ -81,19 +72,8 @@ fun AutomationScreen(
         isBackgroundMode = viewModel.isBackgroundMode,
         virtualDisplayStatus = viewModel.virtualDisplayStatus,
         useShizukuInteraction = viewModel.useShizukuInteraction,
-        autoApprove = viewModel.autoApprove,
-        isListening = viewModel.isListening,
-        taskText = viewModel.taskText,
-        taskHint = viewModel.taskHint,
-        recommendText = viewModel.recommendText,
         logText = viewModel.logText,
         showShizukuAuthorize = viewModel.showShizukuAuthorize,
-        startButtonText = viewModel.startButtonText,
-        startButtonEnabled = viewModel.startButtonEnabled,
-        startButtonTerminateStyle = viewModel.startButtonTerminateStyle,
-        pauseButtonText = viewModel.pauseButtonText,
-        pauseButtonEnabled = viewModel.pauseButtonEnabled,
-        stopButtonEnabled = viewModel.stopButtonEnabled,
         onBack = { navController.popBackStack() },
         onOpenAccessibility = {
             context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -102,18 +82,6 @@ fun AutomationScreen(
         onRefreshStatus = { viewModel.onRefreshStatus() },
         onExecutionModeChange = { viewModel.onExecutionModeChange(it) },
         onShizukuModeChange = { viewModel.onShizukuModeChange(it) },
-        onAutoApproveChange = { viewModel.onAutoApproveChange(it) },
-        onTaskChange = { viewModel.onTaskChange(it) },
-        onVoiceTask = {
-            val needPermission = viewModel.onVoiceTaskClick(viewModel.hasRecordAudioPermission())
-            if (needPermission) {
-                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-            }
-        },
-        onUseRecommendTask = { viewModel.onUseRecommendTask() },
-        onStart = { viewModel.onStartOrTerminateClick() },
-        onPause = { viewModel.onPauseClick() },
-        onStop = { viewModel.onStopClick() },
         onCopyLog = { viewModel.copyLog() },
     )
 }

@@ -49,6 +49,12 @@ fun AriesNavGraph(
         composable(Routes.Home.route) { homeContent() }
         composable(Routes.Settings.route) { SettingsRoute(navController = navController) }
         composable(Routes.About.route) { AboutRoute(navController = navController) }
+        composable("task/{runId}", arguments = listOf(navArgument("runId") { type = NavType.StringType })) { entry ->
+            com.ai.phoneagent.ui.automation.TaskScreen(navController, entry.arguments?.getString("runId").orEmpty())
+        }
+        composable("task/{runId}/result", arguments = listOf(navArgument("runId") { type = NavType.StringType })) { entry ->
+            com.ai.phoneagent.ui.automation.TaskScreen(navController, entry.arguments?.getString("runId").orEmpty(), true)
+        }
         composable(Routes.Automation.route) { AutomationScreen(navController = navController) }
         composable(Routes.UpdateHistory.route) { UpdateHistoryScreen(navController = navController) }
         composable(Routes.PermissionGuide.route) { PermissionGuideScreen(navController = navController) }

@@ -1,6 +1,7 @@
 package com.ai.phoneagent.ui.settings
 
 import android.Manifest
+import com.ai.phoneagent.R
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -70,13 +71,23 @@ import org.koin.androidx.compose.koinViewModel
 fun SettingsRoute(
     navController: NavController,
     viewModel: SettingsViewModel = koinViewModel(),
+    isActive: Boolean = true,
+    onExitToChat: (() -> Unit)? = null,
+    embedded: Boolean = false,
 ) {
     val context = LocalContext.current
+    val automationOwner = remember(context) {
+        var current = context
+        while (current is android.content.ContextWrapper && current !is Activity) current = current.baseContext
+        current as androidx.lifecycle.ViewModelStoreOwner
+    }
+    val automationVm: AutomationViewModel = koinViewModel(viewModelStoreOwner = automationOwner)
     val lifecycleOwner = LocalLifecycleOwner.current
     var isExitingSettingsRoute by remember { mutableStateOf(false) }
 
-    val exitSettingsRoute = remember(navController) {
+    val exitSettingsRoute = remember(navController, onExitToChat) {
         exitSettingsRoute@{
+            if (onExitToChat != null) { onExitToChat(); return@exitSettingsRoute }
             if (isExitingSettingsRoute) return@exitSettingsRoute
             isExitingSettingsRoute = true
             if (!navController.popBackStack()) {
@@ -85,12 +96,15 @@ fun SettingsRoute(
         }
     }
 
-    DisposableEffect(lifecycleOwner, viewModel) {
+    androidx.compose.runtime.LaunchedEffect(isActive) {
+        if (isActive) { viewModel.refreshLocalModelState(); automationVm.onRefreshStatus() }
+    }
+    DisposableEffect(lifecycleOwner, viewModel, isActive) {
         val observer =
             LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) {
+                if (event == Lifecycle.Event.ON_RESUME && isActive) {
                     viewModel.refreshLocalModelState()
-                    viewModel.restoreSettings()
+                    if (!embedded) viewModel.restoreSettings()
                 }
             }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -98,7 +112,7 @@ fun SettingsRoute(
     }
 
     val isSubPage = viewModel.currentPage != SettingsViewModel.SettingsPage.Home
-    if (isSubPage) {
+    if (isSubPage && isActive) {
         BackHandler {
             viewModel.openHomePage()
         }
@@ -133,9 +147,18 @@ fun SettingsRoute(
             SettingsViewModel.SettingsPage.Home -> {
                 DrawerSettingsScreen(
                     onBack = exitSettingsRoute,
+                    embedded = embedded,
+                    accountName = viewModel.ariesLoggedInUser,
+                    modelSummary = viewModel.resolveApiModel(),
+                    executionSummary = stringResource(if (automationVm.isBackgroundMode) R.string.ui_v2_background else R.string.ui_v2_foreground),
+                    confirmationSummary = stringResource(if (automationVm.autoApprove) R.string.ui_v2_confirm_enabled else R.string.ui_v2_confirm_disabled),
+                    accessibilitySummary = automationVm.accessibilityStatusText,
+                    onOpenControl = { navController.navigate(Routes.Automation.route) },
+                    onOpenPermissions = { navController.navigate(Routes.PermissionGuide.route) },
+                    onOpenAccount = { viewModel.openModelApiPage() },
                     onOpenAppearance = { viewModel.navigateTo(SettingsViewModel.SettingsPage.Appearance) },
                     onOpenModelApi = { viewModel.openModelApiPage() },
-                    onOpenAutomation = { navController.navigate(Routes.Automation.route) },
+                    onOpenAutomation = { viewModel.navigateTo(SettingsViewModel.SettingsPage.Automation) },
                     onOpenAbout = { viewModel.navigateTo(SettingsViewModel.SettingsPage.About) },
                 )
             }
@@ -225,8 +248,15 @@ fun SettingsRoute(
                 }
             }
 
+            SettingsViewModel.SettingsPage.Automation -> {
+                AutomationPreferencesScreen(onBack = { viewModel.openHomePage() },
+                    onOpenControl = { navController.navigate(Routes.Automation.route) })
+            }
+
             SettingsViewModel.SettingsPage.Membership -> {
                 MembershipScreen(
+                    accountName = viewModel.ariesLoggedInUser,
+                    effectiveModel = viewModel.resolveApiModel(),
                     onBack = { viewModel.openHomePage() },
                 )
             }

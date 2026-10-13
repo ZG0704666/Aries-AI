@@ -33,11 +33,25 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontVariation
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.ai.phoneagent.core.designsystem.R
+
+@OptIn(ExperimentalTextApi::class)
+val AriesFontFamily = FontFamily(
+    Font(R.font.noto_sans_sc, FontWeight.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(400))),
+    Font(R.font.noto_sans_sc, FontWeight.Medium, variationSettings = FontVariation.Settings(FontVariation.weight(500))),
+    Font(R.font.noto_sans_sc, FontWeight.SemiBold, variationSettings = FontVariation.Settings(FontVariation.weight(600))),
+    Font(R.font.noto_sans_sc, FontWeight.Bold, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
+)
 
 /**
  * Aries Material Theme.
@@ -136,31 +150,46 @@ fun AriesMaterialTheme(
         )
 
     // 4. Font scale + font family: update all M3 type-scale TextStyles
-    val baseTypography = Typography()
+    val effectiveFontFamily = if (fontFamily == FontFamily.Default) AriesFontFamily else fontFamily
+    val baseTypography = Typography(
+        headlineLarge = TextStyle(fontSize = with(androidx.compose.ui.platform.LocalDensity.current) { dimensionResource(R.dimen.aries_type_hero).toSp() }, fontWeight = FontWeight.SemiBold),
+        headlineMedium = TextStyle(fontSize = with(androidx.compose.ui.platform.LocalDensity.current) { dimensionResource(R.dimen.aries_type_headline).toSp() }, fontWeight = FontWeight.SemiBold),
+        titleLarge = TextStyle(fontSize = with(androidx.compose.ui.platform.LocalDensity.current) { dimensionResource(R.dimen.aries_type_title).toSp() }, fontWeight = FontWeight.SemiBold),
+        bodyLarge = TextStyle(fontSize = with(androidx.compose.ui.platform.LocalDensity.current) { dimensionResource(R.dimen.aries_type_body).toSp() }),
+        bodyMedium = TextStyle(fontSize = with(androidx.compose.ui.platform.LocalDensity.current) { dimensionResource(R.dimen.aries_type_body).toSp() }),
+        bodySmall = TextStyle(fontSize = with(androidx.compose.ui.platform.LocalDensity.current) { dimensionResource(R.dimen.aries_type_caption).toSp() }),
+    )
     val typography: Typography =
         Typography(
-            displayLarge = baseTypography.displayLarge.scaledBy(fontScale).withFontFamily(fontFamily),
-            displayMedium = baseTypography.displayMedium.scaledBy(fontScale).withFontFamily(fontFamily),
-            displaySmall = baseTypography.displaySmall.scaledBy(fontScale).withFontFamily(fontFamily),
-            headlineLarge = baseTypography.headlineLarge.scaledBy(fontScale).withFontFamily(fontFamily),
-            headlineMedium = baseTypography.headlineMedium.scaledBy(fontScale).withFontFamily(fontFamily),
-            headlineSmall = baseTypography.headlineSmall.scaledBy(fontScale).withFontFamily(fontFamily),
-            titleLarge = baseTypography.titleLarge.scaledBy(fontScale).withFontFamily(fontFamily),
-            titleMedium = baseTypography.titleMedium.scaledBy(fontScale).withFontFamily(fontFamily),
-            titleSmall = baseTypography.titleSmall.scaledBy(fontScale).withFontFamily(fontFamily),
-            bodyLarge = baseTypography.bodyLarge.scaledBy(fontScale).withFontFamily(fontFamily),
-            bodyMedium = baseTypography.bodyMedium.scaledBy(fontScale).withFontFamily(fontFamily),
-            bodySmall = baseTypography.bodySmall.scaledBy(fontScale).withFontFamily(fontFamily),
-            labelLarge = baseTypography.labelLarge.scaledBy(fontScale).withFontFamily(fontFamily),
-            labelMedium = baseTypography.labelMedium.scaledBy(fontScale).withFontFamily(fontFamily),
-            labelSmall = baseTypography.labelSmall.scaledBy(fontScale).withFontFamily(fontFamily),
+            displayLarge = baseTypography.displayLarge.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
+            displayMedium = baseTypography.displayMedium.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
+            displaySmall = baseTypography.displaySmall.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
+            headlineLarge = baseTypography.headlineLarge.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
+            headlineMedium = baseTypography.headlineMedium.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
+            headlineSmall = baseTypography.headlineSmall.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
+            titleLarge = baseTypography.titleLarge.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
+            titleMedium = baseTypography.titleMedium.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
+            titleSmall = baseTypography.titleSmall.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
+            bodyLarge = baseTypography.bodyLarge.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
+            bodyMedium = baseTypography.bodyMedium.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
+            bodySmall = baseTypography.bodySmall.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
+            labelLarge = baseTypography.labelLarge.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
+            labelMedium = baseTypography.labelMedium.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
+            labelSmall = baseTypography.labelSmall.scaledBy(fontScale).withFontFamily(effectiveFontFamily),
         )
 
     MaterialTheme(
         colorScheme = colorScheme,
         shapes = shapes,
         typography = typography,
-        content = content,
+        content = {
+            CompositionLocalProvider(
+                LocalAriesBackdrop provides AriesBackdropStyle(darkTheme, amoledDark, effectiveThemeColorStyle == ThemeColorStyle.DEFAULT),
+                androidx.compose.material3.LocalContentColor provides colorScheme.onSurface,
+            ) {
+                AriesBackdrop { content() }
+            }
+        },
     )
 }
 

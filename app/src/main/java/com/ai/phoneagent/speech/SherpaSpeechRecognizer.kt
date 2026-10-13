@@ -39,6 +39,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -51,6 +53,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
     companion object {
         private const val TAG = "SherpaSpeechRecognizer"
         private const val SAMPLE_RATE = 16000
+        private val initializationMutex = Mutex()
     }
 
     /** 识别结果回调 */
@@ -100,11 +103,11 @@ class SherpaSpeechRecognizer(private val context: Context) {
      * 初始化语音识别引擎
      * @return true表示初始化成功
      */
-    suspend fun initialize(): Boolean {
-        if (isInitialized) return true
+    suspend fun initialize(): Boolean = initializationMutex.withLock {
+        if (isInitialized) return@withLock true
 
         Log.d(TAG, "Initializing sherpa-ncnn...")
-        return try {
+        try {
             withContext(Dispatchers.IO) {
                 if (!SherpaNcnn.isNativeLibraryReady()) {
                     Log.e(
@@ -298,6 +301,9 @@ class SherpaSpeechRecognizer(private val context: Context) {
 
         // 如果缓存目录存在但不完整（常见于首次运行中断/拷贝失败），需要删除并重新拷贝
         if (!isComplete()) {
+            // 兼容布局是可选候选；不存在时直接尝试下一项，不创建空缓存或报加载错误。
+            val assetEntries = context.assets.list(assetDir)?.toSet().orEmpty()
+            if (!assetEntries.containsAll(requiredFiles)) return null
             if (targetDir.exists()) {
                 Log.w(
                         TAG,
@@ -307,6 +313,10 @@ class SherpaSpeechRecognizer(private val context: Context) {
             }
             return try {
                 copyAssetDirRecursive(assetDir, targetDir, overwrite = true)
+                if (isComplete()) targetDir else {
+                    Log.e(TAG, "Model assets are incomplete: $assetDir")
+                    null
+                }
             } catch (e: IOException) {
                 Log.e(TAG, "Failed to copy model assets.", e)
                 null

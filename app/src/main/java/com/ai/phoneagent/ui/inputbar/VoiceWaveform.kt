@@ -37,9 +37,9 @@ fun VoiceWaveform(
     val barSpacing = 3.dp
     val maxHeight = 48.dp
     val minHeight = 6.dp
-    val waveStart = colorResource(id = R.color.m3t_voice_wave_start)
-    val waveMid = colorResource(id = R.color.m3t_voice_wave_mid)
-    val waveEnd = colorResource(id = R.color.m3t_voice_wave_end)
+    val waveStart = colorResource(id = com.ai.phoneagent.core.designsystem.R.color.m3t_voice_wave_start)
+    val waveMid = colorResource(id = com.ai.phoneagent.core.designsystem.R.color.m3t_voice_wave_mid)
+    val waveEnd = colorResource(id = com.ai.phoneagent.core.designsystem.R.color.m3t_voice_wave_end)
     
     Row(
         modifier = modifier,

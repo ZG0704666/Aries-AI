@@ -16,6 +16,7 @@ data class StoredMessageRecord(
     val author: String,
     val content: String,
     val isUser: Boolean,
+    val runId: String? = null,
     val thinkingDurationMs: Long? = null,
     val attachments: List<StoredAttachmentRecord> = emptyList(),
 )

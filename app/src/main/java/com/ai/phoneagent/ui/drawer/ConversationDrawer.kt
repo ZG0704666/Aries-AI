@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,6 +28,13 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalDensity
+import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import com.composables.icons.lucide.MessageCircle
+import com.ai.phoneagent.core.designsystem.R as DesignR
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -83,11 +91,12 @@ fun ConversationDrawer(
     onConversationClick: (Long) -> Unit,
     onConversationLongClick: (Long) -> Unit,
     onSettingsClick: (() -> Unit)? = null,
+    showSettingsEntry: Boolean = true,
 ) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
+    val spacingXl = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xl)
     val itemHorizontalPadding = dimensionResource(R.dimen.m3t_drawer_conversation_item_padding_h)
     val itemVerticalPadding = dimensionResource(R.dimen.m3t_drawer_conversation_item_padding_v)
     val itemRadius = dimensionResource(R.dimen.m3t_drawer_conversation_radius)
@@ -95,32 +104,28 @@ fun ConversationDrawer(
     Column(
         modifier = Modifier.fillMaxSize(),
     ) {
-        TextField(
+        BasicTextField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth()
+                .ariesGlass(RoundedCornerShape(dimensionResource(DesignR.dimen.aries_action_radius)))
+                .heightIn(min = dimensionResource(DesignR.dimen.aries_search_height)),
             singleLine = true,
-            shape = MaterialTheme.shapes.large,
-            leadingIcon = {
-                Icon(
-                    imageVector = Lucide.Search,
-                    contentDescription = null,
-                )
+            textStyle = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            decorationBox = { field ->
+                Row(Modifier.padding(horizontal = dimensionResource(DesignR.dimen.aries_setting_padding), vertical = spacingSm),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacingSm)) {
+                    Icon(Lucide.Search, null, Modifier.size(dimensionResource(DesignR.dimen.aries_suggestion_icon)), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Box(Modifier.weight(1f)) {
+                        if (searchQuery.isEmpty()) Text(stringResource(R.string.drawer_search_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        field()
+                    }
+                }
             },
-            placeholder = {
-                Text(text = stringResource(R.string.drawer_search_hint))
-            },
-            colors =
-                TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                ),
         )
 
+        if (items.none { it is DrawerConversationUiItem.Header }) {
         Text(
             text = stringResource(R.string.drawer_section_recent),
             style = MaterialTheme.typography.labelMedium,
@@ -130,6 +135,7 @@ fun ConversationDrawer(
                     .fillMaxWidth()
                     .padding(top = spacingXl, start = itemHorizontalPadding, end = itemHorizontalPadding),
         )
+        }
 
         if (items.isEmpty()) {
             Box(
@@ -169,6 +175,7 @@ fun ConversationDrawer(
             }
         }
 
+        if (showSettingsEntry) {
         Spacer(modifier = Modifier.height(spacingMd))
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -209,11 +216,12 @@ fun ConversationDrawer(
         }
     }
 }
+}
 
 @Composable
 private fun DrawerConversationHeader(label: String) {
     val horizontalPadding = dimensionResource(R.dimen.m3t_drawer_conversation_item_padding_h)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
 
     Text(
         text = label,
@@ -238,20 +246,16 @@ private fun DrawerConversationRow(
 ) {
     val haptic = LocalHapticFeedback.current
     var menuExpanded by remember(item.conversationId) { mutableStateOf(false) }
-    val backgroundColor =
-        if (item.selected) {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        } else {
-            Color.Transparent
-        }
+    val shape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_action_radius))
+    val density = LocalDensity.current
 
     Box(modifier = Modifier.fillMaxWidth()) {
-        Column(
+        Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(itemRadius))
-                    .background(backgroundColor)
+                    .then(if (item.selected) Modifier.ariesGlass(shape, selected = true) else Modifier)
+                    .clip(shape)
                     .combinedClickable(
                         onClick = onClick,
                         onLongClickLabel = stringResource(R.string.drawer_more_actions),
@@ -260,12 +264,17 @@ private fun DrawerConversationRow(
                             menuExpanded = true
                         },
                     )
+                    .heightIn(min = dimensionResource(DesignR.dimen.aries_history_row_height))
                     .padding(horizontal = horizontalPadding, vertical = verticalPadding),
-            verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs)),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(dimensionResource(DesignR.dimen.m3t_spacing_sm)),
         ) {
+            Icon(Lucide.MessageCircle, null, Modifier.size(dimensionResource(DesignR.dimen.aries_nav_icon)),
+                tint = if (item.selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(dimensionResource(DesignR.dimen.m3t_spacing_xxxs))) {
             Text(
                 text = item.title,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleSmall.copy(fontSize = with(density) { dimensionResource(DesignR.dimen.aries_row_title).toSp() }, fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -273,31 +282,25 @@ private fun DrawerConversationRow(
             if (item.preview.isNotBlank()) {
                 Text(
                     text = item.preview,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = with(density) { dimensionResource(DesignR.dimen.aries_row_caption).toSp() }),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-        }
-
-        DropdownMenu(
-            expanded = menuExpanded,
-            onDismissRequest = { menuExpanded = false },
-        ) {
-            DropdownMenuItem(
-                text = { Text(text = stringResource(R.string.drawer_delete_conversation)) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Lucide.Trash2,
-                        contentDescription = null,
+            }
+            Box {
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.drawer_delete_conversation)) },
+                        leadingIcon = { Icon(Lucide.Trash2, contentDescription = null) },
+                        onClick = {
+                            menuExpanded = false
+                            onLongClick()
+                        },
                     )
-                },
-                onClick = {
-                    menuExpanded = false
-                    onLongClick()
-                },
-            )
+                }
+            }
         }
     }
 }

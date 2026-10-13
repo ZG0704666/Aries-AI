@@ -3,7 +3,6 @@ package com.ai.phoneagent.core.cache
 import android.os.SystemClock
 import android.util.Log
 import com.ai.phoneagent.AutomationOverlay
-import com.ai.phoneagent.FloatingChatService
 import com.ai.phoneagent.ui.UIAutomationProgressOverlay
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.delay
@@ -22,7 +21,6 @@ class ScreenshotOverlayGuard(
     @Volatile private var firstHideAtMs: Long = 0L
     @Volatile private var restoreAutomationOverlay = false
     @Volatile private var restoreProgressOverlay = false
-    @Volatile private var restoreFloatingOverlay = false
 
     suspend fun <T> withOverlaysHidden(
             hideDelayMs: Long = 80L,
@@ -60,7 +58,6 @@ class ScreenshotOverlayGuard(
 
         restoreAutomationOverlay = false
         restoreProgressOverlay = false
-        restoreFloatingOverlay = false
 
         if (automationOverlay.isShowing()) {
             restoreAutomationOverlay = true
@@ -80,18 +77,7 @@ class ScreenshotOverlayGuard(
                     }
         }
 
-        if (FloatingChatService.isRunning()) {
-            restoreFloatingOverlay = true
-            runCatching { FloatingChatService.temporaryHideForScreenshot() }
-                    .onFailure {
-                        restoreFloatingOverlay = false
-                        Log.w(TAG, "temporaryHide floating overlay failed: ${it.message}", it)
-                    }
-        }
-
-        return restoreAutomationOverlay ||
-                restoreProgressOverlay ||
-                restoreFloatingOverlay
+        return restoreAutomationOverlay || restoreProgressOverlay
     }
 
     private fun endHide() {
@@ -126,12 +112,6 @@ class ScreenshotOverlayGuard(
     }
 
     private fun restoreAllTrackedOverlays() {
-        if (restoreFloatingOverlay) {
-            runCatching { FloatingChatService.restoreVisibilityAfterScreenshot() }
-                    .onFailure {
-                        Log.w(TAG, "restore floating overlay failed: ${it.message}", it)
-                    }
-        }
         if (restoreProgressOverlay) {
             runCatching { progressOverlay.restoreVisibilityAfterScreenshot() }
                     .onFailure {
@@ -147,7 +127,6 @@ class ScreenshotOverlayGuard(
     private fun clearRestoreFlags() {
         restoreAutomationOverlay = false
         restoreProgressOverlay = false
-        restoreFloatingOverlay = false
     }
 
     companion object {

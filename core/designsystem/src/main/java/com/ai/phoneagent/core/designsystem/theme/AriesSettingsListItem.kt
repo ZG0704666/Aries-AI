@@ -2,6 +2,10 @@ package com.ai.phoneagent.core.designsystem.theme
 
 import android.content.res.Configuration
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -29,8 +33,7 @@ import androidx.compose.ui.unit.dp
 // ---------------------------------------------------------------------------
 // AriesSettingsListItem — Material 3 flat-list settings components
 //
-// All variants are built on top of androidx.compose.material3.ListItem.
-// No Card wrapping, no elevation shadow, no border/outline.
+// Shared settings rows use Pencil glass with transparent ListItem content.
 // Colors are always driven by MaterialTheme tokens — never hardcoded.
 // ---------------------------------------------------------------------------
 
@@ -50,9 +53,11 @@ fun AriesSettingsNavigationItem(
     ListItem(
         modifier = modifier
             .fillMaxWidth()
+            .ariesGlass(MaterialTheme.shapes.large)
+            .clip(MaterialTheme.shapes.large)
             .clickable(onClick = onClick),
         colors = ListItemDefaults.colors(
-            containerColor = MaterialTheme.colorScheme.background,
+            containerColor = Color.Transparent,
         ),
         headlineContent = {
             Text(
@@ -100,9 +105,11 @@ fun AriesSettingsSwitchItem(
     ListItem(
         modifier = modifier
             .fillMaxWidth()
+            .ariesGlass(MaterialTheme.shapes.large)
+            .clip(MaterialTheme.shapes.large)
             .clickable(enabled = enabled) { onCheckedChange(!checked) },
         colors = ListItemDefaults.colors(
-            containerColor = MaterialTheme.colorScheme.background,
+            containerColor = Color.Transparent,
         ),
         headlineContent = {
             Text(
@@ -147,14 +154,14 @@ fun AriesSettingsValueItem(
     onClick: (() -> Unit)? = null,
 ) {
     val clickModifier = if (onClick != null) {
-        modifier.fillMaxWidth().clickable(onClick = onClick)
+        modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.large).clip(MaterialTheme.shapes.large).clickable(onClick = onClick)
     } else {
-        modifier.fillMaxWidth()
+        modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.large)
     }
     ListItem(
         modifier = clickModifier,
         colors = ListItemDefaults.colors(
-            containerColor = MaterialTheme.colorScheme.background,
+            containerColor = Color.Transparent,
         ),
         headlineContent = {
             Text(
@@ -200,14 +207,14 @@ fun AriesSettingsCustomItem(
     onClick: (() -> Unit)? = null,
 ) {
     val clickModifier = if (onClick != null) {
-        modifier.fillMaxWidth().clickable(onClick = onClick)
+        modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.large).clip(MaterialTheme.shapes.large).clickable(onClick = onClick)
     } else {
-        modifier.fillMaxWidth()
+        modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.large)
     }
     Column(modifier = clickModifier) {
         ListItem(
             colors = ListItemDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.background,
+                containerColor = Color.Transparent,
             ),
             headlineContent = {
                 Text(

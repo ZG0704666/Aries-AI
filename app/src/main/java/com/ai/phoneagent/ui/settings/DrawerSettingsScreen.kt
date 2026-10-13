@@ -1,6 +1,24 @@
 package com.ai.phoneagent.ui.settings
 
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.composables.icons.lucide.ChevronDown
+import com.ai.phoneagent.core.designsystem.theme.AriesGlassButton
+
+import com.ai.phoneagent.ui.components.AriesPageTopBar
 import android.content.res.Configuration
+import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import com.composables.icons.lucide.CircleHelp
+import com.composables.icons.lucide.Palette
+import com.composables.icons.lucide.Smartphone
+import com.composables.icons.lucide.ShieldCheck
+import com.composables.icons.lucide.Accessibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +30,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,6 +39,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.composables.icons.lucide.ChevronRight
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.ExternalLink
@@ -106,138 +126,94 @@ fun DrawerSettingsScreen(
     onOpenModelApi: () -> Unit,
     onOpenAutomation: () -> Unit,
     onOpenAbout: () -> Unit,
+    embedded: Boolean = false,
+    accountName: String = "",
+    onOpenAccount: () -> Unit = onOpenModelApi,
+    modelSummary: String = "",
+    executionSummary: String = "",
+    confirmationSummary: String = "",
+    accessibilitySummary: String = "",
+    onOpenControl: () -> Unit = onOpenAutomation,
+    onOpenPermissions: () -> Unit = onOpenAutomation,
 ) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
-    var searchQuery by rememberSaveable { mutableStateOf("") }
-
-    val entries =
-        listOf(
-            SettingsEntryUi(
-                type = SettingsEntryType.Appearance,
-                title = stringResource(R.string.settings_entry_appearance_title),
-                subtitle = stringResource(R.string.settings_entry_appearance_subtitle),
-                icon = Lucide.Sparkles,
-            ),
-            SettingsEntryUi(
-                type = SettingsEntryType.ModelApi,
-                title = stringResource(R.string.settings_entry_model_api_title),
-                subtitle = stringResource(R.string.settings_entry_model_api_subtitle),
-                icon = Lucide.KeyRound,
-            ),
-            SettingsEntryUi(
-                type = SettingsEntryType.Automation,
-                title = stringResource(R.string.settings_entry_automation_title),
-                subtitle = stringResource(R.string.settings_entry_automation_subtitle),
-                icon = Lucide.Cpu,
-            ),
-            SettingsEntryUi(
-                type = SettingsEntryType.About,
-                title = stringResource(R.string.settings_entry_about_title),
-                subtitle = stringResource(R.string.settings_entry_about_subtitle),
-                icon = Lucide.Info,
-            ),
-        )
-
-    val query = searchQuery.trim()
-    val filteredEntries =
-        entries.filter { entry ->
-            query.isBlank() ||
-                entry.title.contains(query, ignoreCase = true) ||
-                entry.subtitle.contains(query, ignoreCase = true)
+    val padding = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding)
+    val gap = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_card_gap)
+    val inner = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
+    val cardShape = RoundedCornerShape(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_card_radius))
+    val colors = MaterialTheme.colorScheme
+    val entries = listOf(
+        SettingsEntryUi(SettingsEntryType.Appearance, stringResource(R.string.settings_entry_appearance_title), stringResource(R.string.settings_entry_appearance_subtitle), Lucide.Palette),
+        SettingsEntryUi(SettingsEntryType.ModelApi, stringResource(R.string.ui_v2_model_title), modelSummary, Lucide.Cpu),
+        SettingsEntryUi(SettingsEntryType.About, stringResource(R.string.ui_v2_about_title), stringResource(R.string.ui_v2_about_hint), Lucide.CircleHelp),
+    )
+    LazyColumn(Modifier.fillMaxSize().navigationBarsPadding(),
+        contentPadding = PaddingValues(horizontal = padding, vertical = inner), verticalArrangement = Arrangement.spacedBy(gap)) {
+        item {
+            Surface(onClick = onOpenAccount, modifier = Modifier.fillMaxWidth().ariesGlass(cardShape),
+                shape = cardShape, color = Color.Transparent, contentColor = colors.onSurface) {
+                Row(Modifier.fillMaxWidth().padding(inner), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    Box(Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_avatar_size)).background(colors.primary, CircleShape), contentAlignment = Alignment.Center) {
+                        Text(accountName.take(1).ifBlank { stringResource(R.string.ui_v2_avatar) }, color = colors.onPrimary, fontWeight = FontWeight.Bold)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(accountName.ifBlank { stringResource(R.string.ui_v2_account) }, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(if (accountName.isBlank()) R.string.membership_account_unavailable else R.string.ui_v2_account_hint), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                    }
+                    Icon(Lucide.ChevronRight, null, tint = colors.onSurfaceVariant, modifier = Modifier.size(inner))
+                }
+            }
         }
-    val sections =
-        listOf(
-            SettingsSectionUi(
-                title = stringResource(R.string.settings_section_appearance),
-                entries = entries.filter { it.type == SettingsEntryType.Appearance },
-            ),
-            SettingsSectionUi(
-                title = stringResource(R.string.settings_section_model_automation),
-                entries = entries.filter {
-                    it.type == SettingsEntryType.ModelApi || it.type == SettingsEntryType.Automation
-                },
-            ),
-            SettingsSectionUi(
-                title = stringResource(R.string.settings_section_about),
-                entries = entries.filter { it.type == SettingsEntryType.About },
-            ),
-        )
-    val openEntry: (SettingsEntryType) -> Unit = { type ->
-        when (type) {
-            SettingsEntryType.Appearance -> onOpenAppearance()
-            SettingsEntryType.ModelApi -> onOpenModelApi()
-            SettingsEntryType.Automation -> onOpenAutomation()
-            SettingsEntryType.About -> onOpenAbout()
+        entries.forEach { entry ->
+            item {
+                Surface(onClick = { when(entry.type) {
+                    SettingsEntryType.Appearance -> onOpenAppearance()
+                    SettingsEntryType.ModelApi -> onOpenModelApi()
+                    else -> onOpenAbout()
+                } }, modifier = Modifier.fillMaxWidth().ariesGlass(cardShape), shape = cardShape,
+                    color = Color.Transparent, contentColor = colors.onSurface) {
+                    SettingsGlassRow(entry.title, entry.subtitle, entry.icon, Modifier.padding(horizontal = inner, vertical = padding + gap))
+                }
+            }
+        }
+        item {
+            Surface(modifier = Modifier.fillMaxWidth().ariesGlass(cardShape), shape = cardShape,
+                color = Color.Transparent, contentColor = colors.onSurface) {
+                Column(Modifier.padding(inner)) {
+                    Text(stringResource(R.string.ui_v2_quick_settings), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.ui_v2_quick_settings_hint), style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                    val rows = listOf(
+                        Triple(stringResource(R.string.automation_execution_mode_label), executionSummary, Lucide.Smartphone),
+                        Triple(stringResource(R.string.ui_v2_auto_confirmation), confirmationSummary, Lucide.ShieldCheck),
+                        Triple(stringResource(R.string.automation_status_accessibility_short_label), accessibilitySummary, Lucide.Accessibility),
+                    )
+                    rows.forEachIndexed { index, row ->
+                        SettingsGlassRow(row.first, row.second, row.third,
+                            Modifier.clickable(onClick = if (index == 2) onOpenPermissions else onOpenAutomation).padding(vertical = gap))
+                    }
+                    Surface(onClick = onOpenControl, modifier = Modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.small),
+                        color = Color.Transparent, contentColor = colors.onSurface, shape = MaterialTheme.shapes.small) {
+                        Row(Modifier.padding(gap), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Lucide.Cpu, null, Modifier.size(inner), tint = colors.primary)
+                            Text(stringResource(R.string.ui_v2_open_control), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
         }
     }
+}
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = { Text(text = stringResource(R.string.settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Lucide.ArrowLeft,
-                            contentDescription = stringResource(R.string.about_back),
-                        )
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                    ),
-                modifier = Modifier.statusBarsPadding(),
-            )
-        },
-    ) { innerPadding ->
-        LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .navigationBarsPadding(),
-            contentPadding = PaddingValues(start = spacingLg, top = spacingSm, end = spacingLg, bottom = spacingXl),
-            verticalArrangement = Arrangement.spacedBy(spacingSm),
-        ) {
-            item {
-                SettingsSearchField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = stringResource(R.string.settings_search_hint),
-                )
-            }
-
-            if (searchQuery.isBlank()) {
-                sections.forEach { section ->
-                    item(key = "section_${section.title}") {
-                        SettingsSectionCard(
-                            title = section.title,
-                            entries = section.entries,
-                            onEntryClick = openEntry,
-                        )
-                    }
-                }
-            } else {
-                item(key = "search_results") {
-                    SettingsSectionCard(
-                        title = stringResource(R.string.settings_search_results),
-                        entries = filteredEntries,
-                        onEntryClick = openEntry,
-                    )
-                }
-            }
-
-            if (filteredEntries.isEmpty()) {
-                item {
-                    SettingsEmptySearchState(text = stringResource(R.string.settings_search_empty))
-                }
-            }
+@Composable
+private fun SettingsGlassRow(title: String, subtitle: String, icon: ImageVector, modifier: Modifier = Modifier) {
+    val gap = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_home_icon_gap)
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(gap)) {
+        Icon(icon, null, Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_composer_icon)), tint = MaterialTheme.colorScheme.primary)
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        Icon(Lucide.ChevronRight, null, Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_nav_icon)), tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -247,7 +223,7 @@ private fun SettingsSearchField(
     onValueChange: (String) -> Unit,
     placeholder: String,
 ) {
-    val radiusXl = dimensionResource(R.dimen.m3t_radius_xl)
+    val radiusXl = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_radius_xl)
     TextField(
         value = value,
         onValueChange = onValueChange,
@@ -279,9 +255,9 @@ private fun SettingsSectionCard(
     entries: List<SettingsEntryUi>,
     onEntryClick: (SettingsEntryType) -> Unit,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -309,7 +285,7 @@ private fun SettingsSectionCard(
 
 @Composable
 private fun SettingsEmptySearchState(text: String) {
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingLg = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
@@ -333,11 +309,11 @@ private fun SettingsEntryRow(
     entry: SettingsEntryUi,
     onClick: () -> Unit,
 ) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val iconSize = dimensionResource(R.dimen.m3t_about_row_icon_size)
-    val chevronSize = dimensionResource(R.dimen.m3t_about_chevron_size)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
+    val iconSize = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_about_row_icon_size)
+    val chevronSize = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_about_chevron_size)
 
     Surface(
         modifier =
@@ -367,7 +343,7 @@ private fun SettingsEntryRow(
             }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs)),
+                verticalArrangement = Arrangement.spacedBy(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)),
             ) {
                 Text(
                     text = entry.title,
@@ -436,12 +412,12 @@ fun DrawerModelApiConfigScreen(
     onCheckApi: () -> Unit,
     onDownloadQwenModel: () -> Unit,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
-    val compactButtonHeight = dimensionResource(R.dimen.m3t_compact_button_height)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
+    val spacingXl = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xl)
+    val compactButtonHeight = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_compact_button_height)
     val isRemoteMode =
         currentApiMode == SettingsViewModel.ApiMode.Official ||
             currentApiMode == SettingsViewModel.ApiMode.ThirdParty
@@ -515,26 +491,12 @@ fun DrawerModelApiConfigScreen(
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         }
 
+    var providerMenu by rememberSaveable { mutableStateOf(false) }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { Text(text = stringResource(R.string.settings_section_api)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Lucide.ArrowLeft,
-                            contentDescription = stringResource(R.string.about_back),
-                        )
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                    ),
-                modifier = Modifier.statusBarsPadding(),
-            )
+            AriesPageTopBar(stringResource(R.string.settings_section_api), onBack)
         },
     ) { innerPadding ->
         LazyColumn(
@@ -543,83 +505,57 @@ fun DrawerModelApiConfigScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
                     .navigationBarsPadding(),
-            contentPadding = PaddingValues(start = spacingLg, top = spacingSm, end = spacingLg, bottom = spacingXl),
-            verticalArrangement = Arrangement.spacedBy(spacingSm),
+            contentPadding = PaddingValues(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding)),
+            verticalArrangement = Arrangement.spacedBy(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_setting_gap)),
         ) {
-            item {
+            if (showAriesApiSection) item {
                 ModelApiSectionCard {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(spacingSm),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                        ) {
-                            Icon(
-                                imageVector =
-                                    when (currentApiMode) {
-                                        SettingsViewModel.ApiMode.Official -> Lucide.KeyRound
-                                        SettingsViewModel.ApiMode.ThirdParty -> Lucide.Cloud
-                                        SettingsViewModel.ApiMode.Local -> Lucide.Cpu
-                                        SettingsViewModel.ApiMode.Aries -> Lucide.Sparkles
-                                    },
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(spacingSm),
-                            )
-                        }
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(spacingXs),
-                        ) {
-                            Text(
-                                text = modeTitle,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Text(
-                                text = modeDescription,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                    SectionIntro(title = stringResource(R.string.ui_v2_account))
+                    Spacer(Modifier.height(spacingSm))
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (ariesLoggedInUser.isNotBlank()) ariesLoggedInUser else stringResource(R.string.settings_model_api_aries_login_required),
+                            Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        androidx.compose.material3.TextButton(onClick = onOpenMembership) { Text(stringResource(R.string.settings_model_api_aries_membership)) }
+                    }
+                    if (currentApiMode == SettingsViewModel.ApiMode.Aries) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(spacingSm)) {
+                            AriesGlassButton(onClick = if (ariesLoggedInUser.isBlank()) onAriesLoginClick else onAriesLogout) {
+                                Text(stringResource(if (ariesLoggedInUser.isBlank()) R.string.settings_model_api_aries_login else R.string.settings_model_api_aries_logout))
+                            }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(spacingMd))
-
-                    StatusPill(
-                        title = stringResource(R.string.settings_model_api_status_title),
-                        status = apiStatus,
-                        containerColor = statusPillContainerColor,
-                        contentColor = statusPillContentColor,
-                    )
                 }
             }
-
             item {
                 ModelApiSectionCard {
-                    SectionIntro(
-                        title = stringResource(R.string.settings_model_api_mode_title),
-                        subtitle = stringResource(R.string.settings_model_api_mode_subtitle),
-                    )
-
-                    Spacer(modifier = Modifier.height(spacingMd))
-
-                    Column {
-                        modeOptions.forEachIndexed { index, option ->
-                            ModeOptionRow(
-                                title = option.title,
-                                description = option.description,
-                                icon = option.icon,
-                                selected = currentApiMode == option.mode,
-                                onClick = { onApiModeChange(option.mode) },
-                            )
-                            if (index != modeOptions.lastIndex) {
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    SectionIntro(title = stringResource(R.string.settings_model_api_mode_title))
+                    Spacer(Modifier.height(spacingSm))
+                    Box {
+                        Surface(onClick = { providerMenu = true },
+                            modifier = Modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.medium),
+                            shape = MaterialTheme.shapes.medium, color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface) {
+                            Row(Modifier.padding(spacingSm), horizontalArrangement = Arrangement.spacedBy(spacingSm), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(modeOptions.firstOrNull { it.mode == currentApiMode }?.icon ?: Lucide.Cloud, null,
+                                    Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_suggestion_icon)), tint = MaterialTheme.colorScheme.primary)
+                                Text(modeTitle, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Icon(Lucide.ChevronDown, null, Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_nav_icon)))
                             }
+                        }
+                        DropdownMenu(expanded = providerMenu, onDismissRequest = { providerMenu = false }) {
+                            modeOptions.forEach { option ->
+                                DropdownMenuItem(text = { Column { Text(option.title); Text(option.description, style = MaterialTheme.typography.bodySmall) } },
+                                    leadingIcon = { Icon(option.icon, null) },
+                                    trailingIcon = { if (currentApiMode == option.mode) Icon(Lucide.CircleCheck, null, tint = MaterialTheme.colorScheme.primary) },
+                                    onClick = { providerMenu = false; onApiModeChange(option.mode) })
+                            }
+                        }
+                    }
+                    if (currentApiMode == SettingsViewModel.ApiMode.Aries) {
+                        Spacer(Modifier.height(spacingSm))
+                        AriesGlassButton(onClick = onChangeAriesModel, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Lucide.Sparkles, null)
+                            Spacer(Modifier.width(spacingSm))
+                            Text(if (ariesSelectedModel.isNotBlank()) stringResource(R.string.aries_current_model, ariesSelectedModel) else stringResource(R.string.aries_model_change))
                         }
                     }
                 }
@@ -644,6 +580,7 @@ fun DrawerModelApiConfigScreen(
                             value = apiInput,
                             onValueChange = onApiInputChange,
                             label = stringResource(R.string.m3t_sidebar_api_hint),
+                            secret = true,
                             placeholder = stringResource(R.string.settings_model_api_key_placeholder),
                             leadingIcon = {
                                 Icon(Lucide.KeyRound, contentDescription = null)
@@ -724,73 +661,13 @@ fun DrawerModelApiConfigScreen(
                 }
             }
 
-            if (currentApiMode == SettingsViewModel.ApiMode.Aries) {
-                item {
-                    ModelApiSectionCard {
-                        SectionIntro(
-                            title = stringResource(R.string.settings_model_api_aries_title),
-                            subtitle = stringResource(R.string.settings_model_api_aries_subtitle),
-                        )
-
-                        Spacer(modifier = Modifier.height(spacingMd))
-
-                        StatusPanel(
-                            title = stringResource(R.string.settings_model_api_status_title),
-                            body =
-                                if (ariesLoggedInUser.isNotBlank()) {
-                                    stringResource(R.string.settings_model_api_aries_logged_in, ariesLoggedInUser)
-                                } else {
-                                    stringResource(R.string.settings_model_api_aries_login_required)
-                                },
-                            containerColor = statusContainerColor,
-                            contentColor = statusContentColor,
-                        )
-
-                        Spacer(modifier = Modifier.height(spacingMd))
-
-                        Column(verticalArrangement = Arrangement.spacedBy(spacingSm)) {
-                            if (ariesLoggedInUser.isNotBlank()) {
-                                OutlinedButton(
-                                    onClick = onChangeAriesModel,
-                                    modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
-                                ) {
-                                    Icon(Lucide.Cpu, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(spacingSm))
-                                    if (ariesSelectedModel.isNotBlank()) {
-                                        Text(stringResource(R.string.aries_current_model, ariesSelectedModel))
-                                    } else {
-                                        Text(stringResource(R.string.aries_model_change))
-                                    }
-                                }
-                                OutlinedButton(
-                                    onClick = onAriesLogout,
-                                    modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
-                                ) {
-                                    Text(stringResource(R.string.settings_model_api_aries_logout))
-                                }
-                            } else {
-                                Button(
-                                    onClick = onAriesLoginClick,
-                                    modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
-                                ) {
-                                    Icon(Lucide.LogIn, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(spacingSm))
-                                    Text(stringResource(R.string.settings_model_api_aries_login))
-                                }
-                            }
-
-                            FilledTonalButton(
-                                onClick = onOpenMembership,
-                                modifier = Modifier.fillMaxWidth().height(compactButtonHeight),
-                            ) {
-                                Icon(Lucide.Crown, contentDescription = null)
-                                Spacer(modifier = Modifier.width(spacingSm))
-                                Text(stringResource(R.string.settings_model_api_aries_membership))
-                            }
-                        }
-                    }
+            item {
+                ModelApiSectionCard {
+                    StatusPill(title = stringResource(R.string.settings_model_api_status_title), status = apiStatus,
+                        containerColor = Color.Transparent, contentColor = statusPillContentColor)
                 }
             }
+
         }
     }
 }
@@ -799,11 +676,13 @@ fun DrawerModelApiConfigScreen(
 private fun ModelApiSectionCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
+    val shape = RoundedCornerShape(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_setting_radius))
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth().ariesGlass(shape),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface),
+        shape = shape,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = spacingLg, vertical = spacingMd),
@@ -827,7 +706,7 @@ private fun SectionIntro(
             color = MaterialTheme.colorScheme.onSurface,
         )
         if (tooltipText != null) {
-            Spacer(modifier = Modifier.width(dimensionResource(R.dimen.m3t_spacing_xs)))
+            Spacer(modifier = Modifier.width(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)))
             InfoTooltip(tooltipText = tooltipText)
         }
     }
@@ -847,9 +726,9 @@ private fun StatusPill(
     containerColor: androidx.compose.ui.graphics.Color,
     contentColor: androidx.compose.ui.graphics.Color,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -882,9 +761,9 @@ private fun StatusPanel(
     containerColor: androidx.compose.ui.graphics.Color,
     contentColor: androidx.compose.ui.graphics.Color,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
     Surface(
         color = containerColor,
         shape = MaterialTheme.shapes.large,
@@ -915,8 +794,8 @@ private fun ModeOptionRow(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         color = MaterialTheme.colorScheme.surface,
@@ -935,11 +814,11 @@ private fun ModeOptionRow(
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
-                modifier = Modifier.size(dimensionResource(R.dimen.m3t_about_row_icon_size)),
+                modifier = Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_about_row_icon_size)),
             )
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs)),
+                verticalArrangement = Arrangement.spacedBy(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)),
             ) {
                 Text(
                     text = title,
@@ -959,32 +838,25 @@ private fun ModeOptionRow(
 }
 
 @Composable
-private fun FilledInputField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    placeholder: String,
-    leadingIcon: @Composable (() -> Unit)? = null,
-) {
-    TextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth(),
-        label = { Text(label) },
-        placeholder = { Text(placeholder) },
-        leadingIcon = leadingIcon,
-        singleLine = true,
-        shape = MaterialTheme.shapes.large,
-        colors =
-            TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                disabledIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-            ),
-    )
+private fun FilledInputField(value: String, onValueChange: (String) -> Unit, label: String, placeholder: String,
+    leadingIcon: @Composable (() -> Unit)? = null, secret: Boolean = false) {
+    val gap = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    BasicTextField(value = value, onValueChange = onValueChange, singleLine = true,
+        visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
+        textStyle = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        modifier = Modifier.fillMaxWidth().heightIn(min = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_search_height)).ariesGlass(MaterialTheme.shapes.medium),
+        decorationBox = { field ->
+            Row(Modifier.fillMaxWidth().padding(horizontal = gap, vertical = gap), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(gap)) {
+                leadingIcon?.invoke()
+                Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Box(Modifier.weight(1f)) {
+                    if (value.isEmpty()) Text(placeholder, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    field()
+                }
+            }
+        })
 }
 
 @Preview(name = "DrawerSettingsScreen - Light", showBackground = true)

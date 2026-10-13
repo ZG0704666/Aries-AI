@@ -165,7 +165,6 @@ import com.ai.phoneagent.data.local.ConversationStorageRepository
 import com.ai.phoneagent.data.local.StoredAttachmentRecord
 import com.ai.phoneagent.data.local.StoredMessageRecord
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
-import com.ai.phoneagent.data.preferences.FloatingChatPreferencesRepository
 import com.ai.phoneagent.data.preferences.MainUiPreferencesRepository
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
 import com.ai.phoneagent.core.designsystem.theme.ThemeColorStyle
@@ -348,6 +347,7 @@ class MainActivity : AppCompatActivity() {
             val author: String,
             val content: String,
             val isUser: Boolean,
+            val runId: String? = null,
             val thinkingDurationMs: Long? = null,
             val attachments: List<AttachmentInfo>? = null,
     )
@@ -367,7 +367,8 @@ class MainActivity : AppCompatActivity() {
             messages =
                 messages.map { message ->
                     StoredMessageRecord(
-                        author = message.author,
+                        runId = message.runId,
+                author = message.author,
                         content = message.content,
                         isUser = message.isUser,
                         thinkingDurationMs = message.thinkingDurationMs,
@@ -394,7 +395,8 @@ class MainActivity : AppCompatActivity() {
             messages =
                 messages.map { message ->
                     UiMessage(
-                        author = message.author,
+                        runId = message.runId,
+                author = message.author,
                         content = message.content,
                         isUser = message.isUser,
                         thinkingDurationMs = message.thinkingDurationMs,
@@ -431,10 +433,8 @@ class MainActivity : AppCompatActivity() {
     private val homeContentAlphaState = mutableStateOf(1f)
     private val homeContentScaleState = mutableStateOf(1f)
     private val showHistoryDialogState = mutableStateOf(false)
-    private lateinit var overlayPermissionLauncher: ActivityResultLauncher<Intent>
 
     private val appPrefsRepository by inject<AppPreferencesRepository>()
-    private val floatingChatPrefs by inject<FloatingChatPreferencesRepository>()
     private val automationInstructionGateway by inject<ActivityAutomationInstructionGateway>()
     private val automationDispatchAuthenticator by inject<AutomationDispatchAuthenticator>()
     private val localMnnInferenceEngine by inject<LocalMnnInferenceEngine>()
@@ -459,7 +459,12 @@ class MainActivity : AppCompatActivity() {
 
 
     // 防止并发请求导致重试时更容易出现空回复/失败提示
-    private var isRequestInFlight: Boolean = false
+    private val chatRequestOwner = com.ai.phoneagent.net.ChatRequestOwner()
+    private val isRequestInFlight: Boolean get() = chatRequestOwner.conversationId != null
+    private val requestConversationId: Long? get() = chatRequestOwner.conversationId
+    private var chatRequestJob: Job? = null
+    private var selectedMainPage by mutableStateOf(1)
+    private var openModelPage by mutableStateOf(false)
     
     // 用于停止生成的标志
     private var shouldStopGeneration: Boolean = false
@@ -471,12 +476,7 @@ class MainActivity : AppCompatActivity() {
     private var voiceSessionSeed: Long = 0L
     @Volatile private var activeVoiceSessionId: Long = 0L
 
-    // 小窗模式相关
-    private var isAnimatingToMiniWindow = false
-    private val OVERLAY_PERMISSION_REQUEST_CODE = 1234
-    private val NOTIFICATION_PERMISSION_REQUEST_CODE = 1235
     private val CAMERA_PERMISSION_REQUEST_CODE = 1236
-    private var pendingEnterMiniWindowAfterNotifPerm: Boolean = false
     private var pendingAutomationLogUiRefresh: Boolean = false
     private var automationLogReceiverRegistered: Boolean = false
     private var automationTerminatePendingRef: AutomationMessageRef? = null
@@ -599,7 +599,7 @@ class MainActivity : AppCompatActivity() {
         refreshDrawerConversationItems()
     }
 
-    private fun tryRestoreConversations(): Boolean {
+    private fun tryRestoreConversations(restoreActive: Boolean): Boolean {
         val stored =
             runCatching {
                 runBlocking(Dispatchers.IO) { conversationStorageRepository.loadConversations() }
@@ -619,7 +619,10 @@ class MainActivity : AppCompatActivity() {
                 runCatching {
                     runBlocking(Dispatchers.IO) { uiPreferencesRepository.getActiveConversationId() }
                 }.getOrNull() ?: -1L
-            activeConversation = conversations.firstOrNull { it.id == activeId } ?: conversations.firstOrNull()
+            val initialId = com.ai.phoneagent.navigation.initialConversationId(
+                conversations.map { it.toStorageRecord() }, activeId, restoreActive,
+            )
+            activeConversation = conversations.firstOrNull { it.id == initialId }
 
             activeConversation?.let { renderConversation(it) }
             refreshDrawerConversationItems()
@@ -669,26 +672,28 @@ class MainActivity : AppCompatActivity() {
         // }
     }
     
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("aries_main_page", selectedMainPage)
+        super.onSaveInstanceState(outState)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
 
         super.onCreate(savedInstanceState)
+        selectedMainPage = savedInstanceState?.getInt("aries_main_page", 1) ?: 1
 
         onboardingOverlay = MainOnboardingOverlay(
             activity = this,
             appPrefs = appPrefsRepository,
         )
 
-        overlayPermissionLauncher =
-            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-                if (Settings.canDrawOverlays(this)) {
-                    Toast.makeText(this, "悬浮窗权限已授予", Toast.LENGTH_SHORT).show()
-                    enterMiniWindowMode()
-                } else {
-                    Toast.makeText(this, "需要悬浮窗权限才能使用小窗模式", Toast.LENGTH_SHORT).show()
-                }
-            }
-
         setContent {
+            val automationVm: AutomationViewModel = org.koin.androidx.compose.koinViewModel(viewModelStoreOwner = this@MainActivity)
+            DisposableEffect(automationVm) {
+                automationVm.attachHostActivity(this@MainActivity)
+                onDispose { automationVm.attachHostActivity(null) }
+            }
+            LaunchedEffect(Unit) { appPrefsRepository.restorePencilAppearanceOnce() }
             val themeModeStr by appPrefsRepository.themeModeFlow.collectAsState(initial = "system")
             val themeColorStyleRaw by appPrefsRepository.themeColorStyleFlow.collectAsState(initial = ThemeColorStyle.DEFAULT.storageKey)
             val amoledDark by appPrefsRepository.amoledDarkEnabledFlow.collectAsState(initial = false)
@@ -818,8 +823,13 @@ class MainActivity : AppCompatActivity() {
 
         elevateAiBar()
 
-        if (!tryRestoreConversations()) {
+        // A fresh app entry starts blank; recreation restores the selected conversation.
+        tryRestoreConversations(restoreActive = savedInstanceState != null)
+        if (activeConversation == null) {
             startNewChat(clearUi = true)
+        } else if (savedInstanceState == null) {
+            // Persist the reused empty selection so recreation cannot reopen old history.
+            persistConversations()
         }
 
         initSherpaModel()
@@ -836,6 +846,10 @@ class MainActivity : AppCompatActivity() {
         codeBlockPrefs: CodeBlockPrefs,
     ) {
         DebugRecomposeLogger(scope = "HomeRoute")
+        val settingsVm: com.ai.phoneagent.viewmodel.SettingsViewModel = org.koin.androidx.compose.koinViewModel()
+        LaunchedEffect(openModelPage) {
+            if (openModelPage) { settingsVm.openModelApiPage(); openModelPage = false }
+        }
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val composeScope = rememberCoroutineScope()
         val currentTranscriptItems by remember { transcriptItemsState }
@@ -884,19 +898,6 @@ class MainActivity : AppCompatActivity() {
                     hideKeyboard()
                     composeScope.launch { drawerState.open() }
                 }
-            }
-        }
-        val onNewChat = remember(drawerState, composeScope) {
-            {
-                vibrateLight()
-                composeScope.launch { drawerState.close() }
-                startNewChat(clearUi = true)
-            }
-        }
-        val onOpenFloatingWindow = remember {
-            {
-                vibrateLight()
-                enterMiniWindowMode()
             }
         }
         val onDrawerSearchQueryChange = remember {
@@ -992,13 +993,11 @@ class MainActivity : AppCompatActivity() {
 
         HomeScreen(
             drawerState = drawerState,
-            drawerGesturesEnabled = !onboardingOverlay.isShowing(),
+            drawerGesturesEnabled = !onboardingOverlay.isShowing() && inputBarState.value !is InputState.VoiceRecording && inputBarState.value !is InputState.VoiceRecognizing,
             statusText = currentStatusText,
             statusVisible = currentStatusVisible,
             onToggleStatus = onToggleStatus,
             onOpenDrawer = onOpenDrawer,
-            onNewChat = onNewChat,
-            onOpenFloatingWindow = onOpenFloatingWindow,
             modelName = modelDisplayName,
             drawerSearchQuery = currentDrawerSearchQuery,
             drawerItems = currentDrawerItems,
@@ -1027,6 +1026,20 @@ class MainActivity : AppCompatActivity() {
             onboardingContent = { onboardingOverlay.Render() },
             historyDialogContent = { HomeHistoryDialog() },
             onDrawerClosed = onDrawerClosed,
+            selectedPage = selectedMainPage,
+            onPageSelected = { page ->
+                selectedMainPage = page
+                if (page != 1) clearAutomationAutoConfirm() else syncAutomationAutoConfirmState()
+            },
+            settingsAtRoot = settingsVm.currentPage == com.ai.phoneagent.viewmodel.SettingsViewModel.SettingsPage.Home,
+            settingsContent = { active ->
+                navControllerState.value?.let { controller ->
+                    com.ai.phoneagent.ui.settings.SettingsRoute(
+                        navController = controller, viewModel = settingsVm,
+                        isActive = active, onExitToChat = { selectedMainPage = 1 }, embedded = true,
+                    )
+                }
+            },
         )
     }
 
@@ -1193,8 +1206,9 @@ class MainActivity : AppCompatActivity() {
         answer: String,
         bodyPreview: StreamingTranscriptBodyPreview? = null,
     ) {
-        val conversationId = activeConversation?.id ?: -1L
-        val futureAssistantIndex = activeConversation?.messages?.size ?: -1
+        val owner = conversations.firstOrNull { it.id == requestConversationId } ?: return
+        val conversationId = owner.id
+        val futureAssistantIndex = owner.messages.size
         val streamingId =
             if (conversationId >= 0L && futureAssistantIndex >= 0) {
                 "$conversationId-ai-$futureAssistantIndex"
@@ -1278,6 +1292,7 @@ class MainActivity : AppCompatActivity() {
                 conversationId = conversationId,
                 messageIndex = index,
                 id = "$conversationId-user-$index",
+                runId = message.runId,
                 author = message.author,
                 body = message.content.trim(),
                 thinking = null,
@@ -1340,6 +1355,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
         return TranscriptMessageUi(
+            runId = message.runId,
             conversationId = conversationId,
             messageIndex = index,
             id = "$conversationId-ai-$index",
@@ -1502,6 +1518,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleTranscriptAutomationAction(item: TranscriptMessageUi) {
+        if (item.openTaskDetails && item.runId != null) {
+            navigateToRoute("task/${item.runId}")
+            return
+        }
         val automation = item.automation ?: return
         if (!item.isAutomation || (!automation.actionEnabled && !automation.secondaryActionEnabled)) return
 
@@ -1548,8 +1568,10 @@ class MainActivity : AppCompatActivity() {
                 ).show()
                 return
             }
-            resetAutomationPanelForRetry(item, automation.retryInstruction)
+            val runId = java.util.UUID.randomUUID().toString()
+            resetAutomationPanelForRetry(item, automation.retryInstruction, runId)
             AutomationViewModel.pendingLaunchArgs = AutomationViewModel.LaunchArgs(
+                runId = runId,
                 automationTask = automation.retryInstruction,
                 automationSource = AutomationInstructionRequest.Source.ADVANCED_AI.wireValue,
                 automationAutoStart = true,
@@ -1580,6 +1602,7 @@ class MainActivity : AppCompatActivity() {
     private fun resetAutomationPanelForRetry(
         item: TranscriptMessageUi,
         retryInstruction: String,
+        runId: String,
     ) {
         val conversation =
             conversations.firstOrNull { it.id == item.conversationId }
@@ -1596,12 +1619,11 @@ class MainActivity : AppCompatActivity() {
                 .stripAutomationRuntimeMarkers(origin.content)
                 .ifBlank { "待转交自动化命令：\n$retryInstruction" }
         val updated = (commandBody.trimEnd() + "\n[[AUTO_CONFIRMED]]").trim()
-        if (updated == origin.content) return
 
         val messageRef = AutomationMessageRef(item.conversationId, messageIndex)
         clearAutomationTerminatePending(messageRef)
         clearAutomationAutoConfirm(messageRef)
-        conversation.messages[messageIndex] = origin.copy(content = updated)
+        conversation.messages[messageIndex] = origin.copy(content = updated, runId = runId)
         conversation.updatedAt = System.currentTimeMillis()
         syncMessageTranscript(conversation)
         persistConversations()
@@ -1621,6 +1643,10 @@ class MainActivity : AppCompatActivity() {
     ): Boolean {
         if (conversations.none { it.id == conversationId }) {
             return false
+        }
+        if (requestConversationId == conversationId) {
+            shouldStopGeneration = true
+            chatRequestJob?.cancel()
         }
         conversations.removeAll { it.id == conversationId }
         if (activeConversation?.id == conversationId) {
@@ -1681,7 +1707,6 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
 
-        handleReturnFromFloatingWindow()
         handleAutomationOverlayReturnIntent()
         refreshAutomationCardsForCurrentConversation()
 
@@ -1690,8 +1715,6 @@ class MainActivity : AppCompatActivity() {
         maybeShowPermissionBottomSheet()
         onboardingOverlay.onResume()
 
-        // 设置消息同步监听器
-        setupMessageSyncListener()
 
         if (pendingAutomationLogUiRefresh) {
             activeConversation?.let { syncMessageTranscript(it) }
@@ -1705,83 +1728,8 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleReturnFromFloatingWindow()
         handleAutomationOverlayReturnIntent()
         handleAutomationLaunchIntent()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        // 不再清除消息同步监听器，保持双向同步
-        // 监听器会在 Activity 销毁时自动失效
-    }
-
-    /**
-     * 设置消息同步监听器，用于接收悬浮窗中的新消息
-     */
-    private fun setupMessageSyncListener() {
-        FloatingChatService.setMessageSyncListener(object : FloatingChatService.Companion.MessageSyncListener {
-            override fun onMessageAdded(message: String, isUser: Boolean) {
-                // 在主线程更新 UI
-                runOnUiThread {
-                    val c = requireActiveConversation()
-                    val content =
-                        message
-                            .removePrefix("我: ")
-                            .removePrefix("AI: ")
-                            .removePrefix("Aries: ")
-                            .let { if (isUser) it else stripAutomationMarker(it) }
-                            .trim()
-                    val author = if (isUser) "我" else "Aries AI"
-                    
-                    // 检查是否已存在该消息（避免重复）
-                    val exists = hasEquivalentConversationMessage(c, content, isUser)
-                    if (!exists) {
-                        c.messages.add(UiMessage(author = author, content = content, isUser = isUser))
-                        c.updatedAt = System.currentTimeMillis()
-                        syncMessageTranscript(c)
-                        smoothScrollToBottom()
-                        persistConversations()
-                    }
-                }
-            }
-            
-            override fun onMessagesCleared() {
-                runOnUiThread {
-                    resetAutomationPanelRuntimeState()
-                    clearStreamingTranscript()
-                    syncMessageTranscript()
-                }
-            }
-        })
-    }
-    
-    /**
-     * 处理从悬浮窗返回的动画和消息同步
-     */
-    private fun handleReturnFromFloatingWindow() {
-        val fromFloating = intent?.getBooleanExtra("from_floating", false) ?: false
-        if (!fromFloating) return
-        
-        // 清除标志避免重复触发
-        intent?.removeExtra("from_floating")
-        
-        runCatching {
-            sendBroadcast(
-                Intent(FloatingChatService.ACTION_FLOATING_RETURNED).setPackage(packageName)
-            )
-        }
-
-        // 【减轻闪动】禁用过渡动画，并用轻微淡入接管首帧观感
-        runCatching { overridePendingTransition(0, 0) }
-        homeContentAlphaState.value = 0.92f
-        lifecycleScope.launch {
-            delay(120)
-            homeContentAlphaState.value = 1f
-        }
-
-        // 同步悬浮窗中的消息到主界面
-        syncMessagesFromFloatingWindow()
     }
 
     private fun handleAutomationOverlayReturnIntent() {
@@ -1823,72 +1771,6 @@ class MainActivity : AppCompatActivity() {
         target.removeExtra(AutomationViewModel.EXTRA_AUTOMATION_DISPATCH_TOKEN)
     }
     
-    /**
-     * 从悬浮窗同步消息到主界面
-     */
-    private fun syncMessagesFromFloatingWindow() {
-        val c = requireActiveConversation()
-        var floatingMessages: List<String>? = null
-
-        // 首先尝试从运行中的服务获取消息
-        val floatingService = FloatingChatService.getInstance()
-        if (floatingService != null) {
-            floatingMessages = floatingService.getMessages()
-        }
-
-        // 如果服务未运行，从本地持久化恢复消息
-        if (floatingMessages == null || floatingMessages.isEmpty()) {
-            try {
-                val json = floatingChatPrefs.getFloatingMessagesBlocking()
-                if (json != null) {
-                    val type = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
-                    floatingMessages = com.google.gson.Gson().fromJson(json, type) ?: emptyList()
-                }
-            } catch (e: Exception) {
-                floatingMessages = emptyList()
-            }
-        }
-
-        if (floatingMessages?.isEmpty() != false) return
-
-        // 解析悬浮窗消息并添加到当前对话
-        for (msg in floatingMessages.orEmpty()) {
-            val isUser = msg.startsWith("我:") || msg.startsWith("我: ")
-            val content =
-                msg.removePrefix("我: ")
-                    .removePrefix("我:")
-                    .removePrefix("Aries: ")
-                    .removePrefix("Aries:")
-                    .removePrefix("AI: ")
-                    .removePrefix("AI:")
-                    .let { if (isUser) it else stripAutomationMarker(it) }
-                    .trim()
-
-            // 跳过空消息和"思考中"消息
-            if (content.isBlank() || content == "思考中...") continue
-
-            // 检查是否已存在该消息
-            val exists = hasEquivalentConversationMessage(c, content, isUser)
-            if (!exists) {
-                val author = if (isUser) "我" else "Aries AI"
-                c.messages.add(UiMessage(author = author, content = content, isUser = isUser))
-            }
-        }
-
-        c.updatedAt = System.currentTimeMillis()
-
-        // 重新渲染对话
-        renderConversation(c)
-        persistConversations()
-
-        // 清空浮窗消息存储（已同步完成）
-        try {
-            floatingChatPrefs.clearFloatingMessagesBlocking()
-        } catch (e: Exception) {
-            // ignore
-        }
-    }
-
     private fun registerAutomationLogReceiverIfNeeded() {
         if (automationLogReceiverRegistered) return
         val filter = IntentFilter(AutomationLogBridge.ACTION_AUTOMATION_LOG)
@@ -2167,7 +2049,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isHomeAutomationAutoConfirmEnabled(): Boolean {
-        if (navControllerState.value?.currentDestination?.route != Routes.Home.route) return false
+        if (navControllerState.value?.currentDestination?.route != Routes.Home.route || selectedMainPage != 1) return false
         return VirtualDisplayConfig.getAutoApproveAutomation(this)
     }
 
@@ -2374,118 +2256,6 @@ class MainActivity : AppCompatActivity() {
         return AutomationReadyState(false, reason)
     }
     
-    /**
-     * 进入小窗模式
-     */
-    private fun enterMiniWindowMode() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val notifGranted =
-                    ContextCompat.checkSelfPermission(
-                            this,
-                            Manifest.permission.POST_NOTIFICATIONS
-                    ) == PackageManager.PERMISSION_GRANTED
-            if (!notifGranted) {
-                pendingEnterMiniWindowAfterNotifPerm = true
-                ActivityCompat.requestPermissions(
-                        this,
-                        arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                        NOTIFICATION_PERMISSION_REQUEST_CODE
-                )
-                return
-            }
-        }
-
-        // 检查悬浮窗权限
-        if (!Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "请授予悬浮窗权限", Toast.LENGTH_SHORT).show()
-            val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:$packageName")
-            )
-            overlayPermissionLauncher.launch(intent)
-            return
-        }
-        
-        if (isAnimatingToMiniWindow) return
-        isAnimatingToMiniWindow = true
-        
-        hideKeyboard()
-        
-        // 播放缩小动画并启动悬浮窗
-        playCollapseToMiniWindowAnimation()
-    }
-    
-    /**
-     * 缩小到小窗的动画 - 类似微信语音通话缩小效果，一步到位
-     * 使用非线性弹性曲线，平滑过渡到目标位置
-     */
-    private fun playCollapseToMiniWindowAnimation() {
-        val displayMetrics = resources.displayMetrics
-        val density = displayMetrics.density
-        
-        // 目标小窗尺寸和位置
-        val miniWindowWidth = 280 * density
-        val miniWindowHeight = 360 * density
-
-        val fallbackX = ((displayMetrics.widthPixels - miniWindowWidth) / 2f).toInt()
-        val fallbackY = ((displayMetrics.heightPixels - miniWindowHeight) / 2f).toInt()
-        val savedX = floatingChatPrefs.getWindowXBlocking()
-        val savedY = floatingChatPrefs.getWindowYBlocking()
-        val targetX = (savedX.takeIf { it >= 0 } ?: fallbackX).toFloat()
-        val targetY = (savedY.takeIf { it >= 0 } ?: fallbackY).toFloat()
-        
-        // 仅保留近期消息，避免历史过大导致小窗启动异常
-        val messagesList = ArrayList<String>()
-        activeConversation?.messages?.takeLast(120)?.forEach { msg ->
-            val sanitizedContent =
-                if (msg.isUser) {
-                    msg.content.trim()
-                } else {
-                    stripAutomationMarker(msg.content).trim()
-                }
-            if (sanitizedContent.isNotBlank()) {
-                messagesList.add("${if (msg.isUser) "我" else "Aries"}: $sanitizedContent")
-            }
-        }
-
-        val startOk = runCatching {
-            FloatingChatService.cacheMessagesForNextStart(this@MainActivity, messagesList)
-            // 消息从本地缓存恢复，避免通过 Intent 传长列表触发崩溃
-            FloatingChatService.start(
-                this@MainActivity,
-                messages = null,
-                fromX = targetX,
-                fromY = targetY,
-                fromWidth = miniWindowWidth,
-                fromHeight = miniWindowHeight,
-                showDelayMs = 120L,
-            )
-            true
-        }.getOrElse {
-            Toast.makeText(this, "小窗启动失败，请重试", Toast.LENGTH_SHORT).show()
-            false
-        }
-        if (!startOk) {
-            isAnimatingToMiniWindow = false
-            return
-        }
-
-        isAnimatingToMiniWindow = false
-
-        runCatching {
-            homeContentAlphaState.value = 0.85f
-            homeContentScaleState.value = 0.985f
-            lifecycleScope.launch {
-                delay(140)
-                moveTaskToBack(true)
-                homeContentAlphaState.value = 1f
-                homeContentScaleState.value = 1f
-            }
-        }.recoverCatching {
-            moveTaskToBack(true)
-        }
-    }
-    
     override fun onRequestPermissionsResult(
             requestCode: Int,
             permissions: Array<out String>,
@@ -2512,18 +2282,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
-            val granted =
-                    grantResults.isNotEmpty() &&
-                            grantResults[0] == PackageManager.PERMISSION_GRANTED
-            if (pendingEnterMiniWindowAfterNotifPerm && granted) {
-                pendingEnterMiniWindowAfterNotifPerm = false
-                enterMiniWindowMode()
-            } else {
-                pendingEnterMiniWindowAfterNotifPerm = false
-                Toast.makeText(this, "需要通知权限以显示小窗运行通知", Toast.LENGTH_SHORT).show()
-            }
-        }
+
         
         if (requestCode == CAMERA_PERMISSION_REQUEST_CODE) {
             val granted =
@@ -2562,6 +2321,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun navigateToRoute(route: String, closeDrawerFirst: Boolean = false) {
+        if (route == Routes.Settings.route) {
+            selectedMainPage = 2
+            clearAutomationAutoConfirm()
+            navControllerState.value?.popBackStack(Routes.Home.route, false)
+            return
+        }
         val navigate = routeNavigationActionState.value ?: return
         if (closeDrawerFirst) {
             navigateFromDrawer {
@@ -2715,12 +2480,10 @@ class MainActivity : AppCompatActivity() {
             remoteApiOk = null
             remoteApiChecking = false
             lastCheckedApiKey = ""
-            prefs.edit()
-                    .remove(apiLastCheckSigPref)
-                    .remove(apiLastCheckKeyPref)
-                    .remove(apiLastCheckOkPref)
-                    .remove(apiLastCheckTimePref)
-                    .apply()
+            // DataStore edits suspend; never bridge them with runBlocking on the UI thread.
+            lifecycleScope.launch(Dispatchers.IO) {
+                appPrefsRepository.writeApiConfig(clearCheckResults = true)
+            }
             updateStatusText()
             return
         }
@@ -2739,12 +2502,10 @@ class MainActivity : AppCompatActivity() {
             remoteApiOk = null
             remoteApiChecking = false
             lastCheckedApiKey = ""
-            prefs.edit()
-                    .remove(apiLastCheckSigPref)
-                    .remove(apiLastCheckKeyPref)
-                    .remove(apiLastCheckOkPref)
-                    .remove(apiLastCheckTimePref)
-                    .apply()
+            // DataStore edits suspend; never bridge them with runBlocking on the UI thread.
+            lifecycleScope.launch(Dispatchers.IO) {
+                appPrefsRepository.writeApiConfig(clearCheckResults = true)
+            }
             updateStatusText()
             return
         }
@@ -2854,18 +2615,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun resolveApiModel(content: Any? = null): String {
-        if (isLocalModelModeEnabled()) {
-            return ModelScopeModelDownloader.QWEN35_MODEL_NAME
-        }
-        if (useAriesApi) {
-            return if (containsImagePayload(content)) {
-                AriesApiClient.ARIES_VISION_MODEL
-            } else {
-                AriesApiClient.ARIES_CHAT_MODEL
-            }
-        }
-        if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_MODEL
-        return apiModel.trim().ifBlank { AutoGlmClient.DEFAULT_MODEL }
+        return com.ai.phoneagent.net.ChatModelResolver.resolve(
+            local = isLocalModelModeEnabled(), aries = useAriesApi, thirdParty = useThirdPartyApi,
+            selected = ariesSelectedModel, custom = apiModel, hasImages = containsImagePayload(content),
+        )
     }
 
     private fun containsImagePayload(content: Any?): Boolean =
@@ -3044,8 +2797,8 @@ class MainActivity : AppCompatActivity() {
         attachmentManager: com.ai.phoneagent.helper.AttachmentManager,
     ) {
         DebugRecomposeLogger(scope = "HomeAttachmentPreview")
-        val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-        val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+        val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+        val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
         val attachments by chatViewModel.attachments.collectAsState()
         if (attachments.isEmpty()) return
 
@@ -3124,8 +2877,6 @@ class MainActivity : AppCompatActivity() {
                         }
                     } else {
                         sendMessage(t)
-                        inputTextState.value = ""
-                        chatViewModel.clearAttachments()
                     }
                 } else {
                     Toast.makeText(this@MainActivity, "请输入内容或添加附件", Toast.LENGTH_SHORT).show()
@@ -3157,6 +2908,7 @@ class MainActivity : AppCompatActivity() {
                 chatViewModel.toggleAttachmentSelector()
             },
             hasAttachments = attachments.isNotEmpty(),
+            modelName = resolveApiModel(if (attachments.any { it.mimeType.startsWith("image/") }) listOf(mapOf("type" to "image_url")) else null),
             agentModeEnabled = agentModeEnabled,
             onAgentToggle = { enabled ->
                 agentModeEnabledState.value = enabled
@@ -3167,7 +2919,8 @@ class MainActivity : AppCompatActivity() {
                 ).show()
             },
             onModelSelect = {
-                Toast.makeText(this@MainActivity, "模型选择器已打开", Toast.LENGTH_SHORT).show()
+                openModelPage = true
+                navigateToRoute(Routes.Settings.route)
             },
             onModeChange = { isVoice ->
                 vibrateLight()
@@ -3350,7 +3103,14 @@ class MainActivity : AppCompatActivity() {
         }
         
         // 使用 ViewModel 处理附件，构建完整消息内容
-        lifecycleScope.launch {
+        if (!chatRequestOwner.begin(c.id)) return
+        shouldStopGeneration = false
+        val capturedAttachments = if (resendUser) chatViewModel.attachments.value.toList() else emptyList()
+        val capturedModel = com.ai.phoneagent.net.ChatModelResolver.resolve(localModeEnabled, usingAriesApi, useThirdPartyApi, ariesSelectedModel, apiModel,
+            containsImagePayload(content) || capturedAttachments.any { it.mimeType.startsWith("image/") })
+        if (resendUser) { inputTextState.value = ""; chatViewModel.clearAttachments() }
+        chatRequestJob = lifecycleScope.launch {
+          try {
             val requestApiKey =
                 if (localModeEnabled) {
                     ""
@@ -3377,14 +3137,14 @@ class MainActivity : AppCompatActivity() {
                 }
                 else -> content.toString()
             }
-            val userAttachments = if (resendUser) chatViewModel.attachments.value.toList() else emptyList()
+            val userAttachments = capturedAttachments
             val messageContent: Any =
                 if (resendUser && userAttachments.isNotEmpty()) {
                     chatViewModel.buildMessageWithAttachments(baseUserText, userAttachments)
                 } else {
                     content
                 }
-            val resolvedModel = resolveApiModel(messageContent)
+            val resolvedModel = capturedModel
 
             // 用户消息展示保持纯文本，附件通过图标展示
             val messageContentStr = baseUserText
@@ -3400,22 +3160,16 @@ class MainActivity : AppCompatActivity() {
                     )
                 )
                 c.updatedAt = System.currentTimeMillis()
-                syncMessageTranscript(c)
+                if (activeConversation?.id == c.id) syncMessageTranscript(c)
                 persistConversations()
                 smoothScrollToBottom()
                 
-                // 同步消息到悬浮窗（如果运行中）
-                if (FloatingChatService.isRunning()) {
-                    FloatingChatService.getInstance()?.addMessage("我: $messageContentStr", isUser = true)
-                }
 
-                inputTextState.value = ""
-                
-                // 发送后清除附件
-                chatViewModel.clearAttachments()
+
+
             }
 
-            isRequestInFlight = true
+
             
             // 重置停止标志
             shouldStopGeneration = false
@@ -3441,7 +3195,6 @@ class MainActivity : AppCompatActivity() {
                 val streamBufferLock = Any()
                 val streamUiScheduleLock = Any()
                 var pendingStreamUiUpdate: Job? = null
-                var floatingStreamStarted = false
 
                 fun flushStreamingTranscriptUi() {
                     val (reasoningSnapshot, contentSnapshot) =
@@ -3508,10 +3261,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                if (FloatingChatService.isRunning()) {
-                    FloatingChatService.getInstance()?.beginExternalStreamAiReply()
-                    floatingStreamStarted = true
-                }
+
 
                 // 构建对话历史
                 val chatHistory = buildChatHistory(c, retryMode).toMutableList()
@@ -3557,9 +3307,7 @@ class MainActivity : AppCompatActivity() {
                                 answer = "",
                             )
                         }
-                        if (FloatingChatService.isRunning()) {
-                            FloatingChatService.getInstance()?.resetExternalStreamAiReply()
-                        }
+
                     }
 
                     val reasoningDeltaHandler: (String) -> Unit = { delta ->
@@ -3570,10 +3318,7 @@ class MainActivity : AppCompatActivity() {
                                 reasoningSb.append(delta)
                             }
                             requestStreamingTranscriptUiUpdate()
-                            if (FloatingChatService.isRunning()) {
-                                FloatingChatService.getInstance()
-                                    ?.appendExternalReasoningDelta(delta)
-                            }
+
                         }
                     }
 
@@ -3586,11 +3331,7 @@ class MainActivity : AppCompatActivity() {
                             }
                             requestStreamingTranscriptUiUpdate()
 
-                            // 同步到悬浮窗
-                            if (FloatingChatService.isRunning()) {
-                                FloatingChatService.getInstance()
-                                    ?.appendExternalContentDelta(delta)
-                            }
+
                         }
                     }
 
@@ -3644,10 +3385,7 @@ class MainActivity : AppCompatActivity() {
                             formatChatRequestFailure(lastError)
                         }
 
-                if (floatingStreamStarted && FloatingChatService.isRunning()) {
-                    FloatingChatService.getInstance()
-                            ?.finishExternalStreamAiReply(timeCost.toInt(), finalContent)
-                }
+
 
                 val parsedPersisted = parseStoredAiContent(finalContent)
                 val thinkingContent =
@@ -3670,7 +3408,7 @@ class MainActivity : AppCompatActivity() {
                             finalContent
                         }
 
-                val cc = requireActiveConversation()
+                val cc = conversations.firstOrNull { it.id == c.id } ?: return@launch
                 cc.messages.add(
                     UiMessage(
                         author = "Aries AI",
@@ -3680,7 +3418,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 )
                 cc.updatedAt = System.currentTimeMillis()
-                replaceStreamingTranscriptWithConversation(cc)
+                if (activeConversation?.id == cc.id) replaceStreamingTranscriptWithConversation(cc)
                 persistConversations()
 
                 if (!automationInstruction.isNullOrBlank()) {
@@ -3711,11 +3449,14 @@ class MainActivity : AppCompatActivity() {
                         )
                     )
                     cc.updatedAt = System.currentTimeMillis()
-                    syncMessageTranscript(cc)
+                    if (activeConversation?.id == cc.id) syncMessageTranscript(cc)
                     persistConversations()
                 }
             } finally {
-                isRequestInFlight = false
+                clearStreamingTranscript()
+            }
+          } finally {
+                chatRequestOwner.finish(c.id)
                 inputBarState.value = InputState.Idle
                 clearStreamingTranscript()
             }
@@ -3767,9 +3508,15 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        val runId = java.util.UUID.randomUUID().toString()
+        val conversation = conversations.firstOrNull { it.id == messageRef.conversationId }
+        conversation?.messages?.getOrNull(messageRef.messageIndex)?.let { message ->
+            conversation.messages[messageRef.messageIndex] = message.copy(runId = runId)
+        }
         dropAutomationAutoConfirmState(syncUi = false)
         markAutomationCommandConfirmed(instruction, messageRef)
         AutomationViewModel.pendingLaunchArgs = AutomationViewModel.LaunchArgs(
+            runId = runId,
             automationTask = instruction,
             automationSource = AutomationInstructionRequest.Source.ADVANCED_AI.wireValue,
             automationAutoStart = true,
@@ -4380,9 +4127,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun attachAnimatedRing(target: View, strokeDp: Float) {
         val strokePx = strokeDp * target.resources.displayMetrics.density
-        val blue = ContextCompat.getColor(this, R.color.m3t_primary)
-        val cyan = ContextCompat.getColor(this, R.color.m3t_primary_container)
-        val pink = ContextCompat.getColor(this, R.color.m3t_tertiary)
+        val blue = ContextCompat.getColor(this, com.ai.phoneagent.core.designsystem.R.color.m3t_primary)
+        val cyan = ContextCompat.getColor(this, com.ai.phoneagent.core.designsystem.R.color.m3t_primary_container)
+        val pink = ContextCompat.getColor(this, com.ai.phoneagent.core.designsystem.R.color.m3t_tertiary)
         val maxHalf = (maxOf(strokePx * 1.6f, strokePx)) / 2f
 
         val glowPaint =
@@ -4516,9 +4263,9 @@ class MainActivity : AppCompatActivity() {
         val cornerPx = cornerDp * density
         val overlayHostView = (target.parent as? View) ?: target
         val overlayHostGroup = target.parent as? ViewGroup
-        val blue = ContextCompat.getColor(this, R.color.m3t_primary)
-        val cyan = ContextCompat.getColor(this, R.color.m3t_primary_container)
-        val pink = ContextCompat.getColor(this, R.color.m3t_tertiary)
+        val blue = ContextCompat.getColor(this, com.ai.phoneagent.core.designsystem.R.color.m3t_primary)
+        val cyan = ContextCompat.getColor(this, com.ai.phoneagent.core.designsystem.R.color.m3t_primary_container)
+        val pink = ContextCompat.getColor(this, com.ai.phoneagent.core.designsystem.R.color.m3t_tertiary)
         val maxHalf = (maxOf(strokePx * 1.6f, strokePx)) / 2f
 
         val glowPaint =
@@ -4689,7 +4436,6 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         
         // 清除消息同步监听器，防止内存泄漏
-        FloatingChatService.setMessageSyncListener(null)
         unregisterAutomationLogReceiverIfNeeded()
         unregisterQwenDownloadReceiverIfNeeded()
 

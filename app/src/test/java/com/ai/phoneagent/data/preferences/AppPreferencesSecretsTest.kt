@@ -105,6 +105,53 @@ class AppPreferencesSecretsTest {
         )
     }
 
+    @Test
+    fun `preference and secret writes do not use the UI caller thread`() = runBlocking {
+        val caller = Thread.currentThread()
+        val threads = java.util.concurrent.CopyOnWriteArrayList<Thread>()
+        fun recording(store: DataStore<Preferences>) = object : DataStore<Preferences> {
+            override val data = store.data
+            override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+                threads.add(Thread.currentThread())
+                return store.updateData(transform)
+            }
+        }
+        val isolated = AppPreferencesRepository(
+            context = ApplicationProvider.getApplicationContext<Context>(),
+            secretStore = secretStore,
+            prefsStoreOverride = recording(prefsStore),
+            secretsStoreOverride = recording(secretsStore),
+            legacyStoreOverride = legacyStore,
+            backgroundMigrationEnabled = false,
+        )
+        isolated.restorePencilAppearanceOnce()
+        isolated.writeApiConfig(clearCheckResults = true)
+        isolated.setUserAgreementAccepted(true)
+        assertEquals(4, threads.size)
+        assertTrue(threads.all { it !== caller })
+        assertTrue(isolated.getUserAgreementAccepted())
+    }
+
+    @Test
+    fun `Pencil restore resets appearance once and preserves later choices and other settings`() = runBlocking {
+        repo.setThemeColorStyle(ThemeColorStyle.FOREST.storageKey)
+        repo.setChatFontFamily("serif")
+        repo.setChatFontScale(1.4f)
+        repo.setThemeMode("dark")
+        repo.setAmoledDarkEnabled(true)
+        repo.restorePencilAppearanceOnce()
+        assertEquals(ThemeColorStyle.DEFAULT.storageKey, repo.getThemeColorStyle())
+        assertEquals("default", repo.getChatFontFamily())
+        assertEquals(1f, repo.getChatFontScale())
+        assertEquals("dark", repo.themeModeFlow.first())
+        assertTrue(repo.getAmoledDarkEnabled())
+        repo.setThemeColorStyle(ThemeColorStyle.OCEAN.storageKey)
+        repo.setChatFontFamily("monospace")
+        repo.restorePencilAppearanceOnce()
+        assertEquals(ThemeColorStyle.OCEAN.storageKey, newRepo(secretStore).getThemeColorStyle())
+        assertEquals("monospace", newRepo(secretStore).getChatFontFamily())
+    }
+
     // ─── #1 批量配置加密 ─────────────────────────────────────────────
 
     @Test

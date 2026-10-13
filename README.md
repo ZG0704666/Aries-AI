@@ -6,6 +6,8 @@
 
 **开源 Android AI 自动化引擎**
 
+当前开发版本：**2.0.0 Alpha**（versionCode 21）。
+
 让普通 Android 手机也能实现 AI 自动化功能
 
 [![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)

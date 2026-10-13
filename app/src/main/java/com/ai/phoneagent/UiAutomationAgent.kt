@@ -99,6 +99,8 @@ class UiAutomationAgent(
     }
 
     interface Control {
+        fun onPauseAcknowledged(paused: Boolean) {}
+        fun onStepStarted(step: Int) {}
         fun isPaused(): Boolean
         suspend fun confirm(message: String): Boolean
     }
@@ -234,6 +236,7 @@ class UiAutomationAgent(
             kotlinx.coroutines.currentCoroutineContext().ensureActive()
             awaitIfPaused(control)
             step++
+            control.onStepStarted(step)
 
             // 虚拟屏模式下刷新当前内容尺寸，适配动态分辨率变化
             if (config.useBackgroundVirtualDisplay &&
@@ -1207,9 +1210,12 @@ class UiAutomationAgent(
 
     /** 等待暂停状态恢复 */
     private suspend fun awaitIfPaused(control: Control) {
+        if (!control.isPaused()) return
+        control.onPauseAcknowledged(true)
         while (control.isPaused()) {
             delay(config.pauseCheckIntervalMs)
         }
+        control.onPauseAcknowledged(false)
     }
 
     /** 修剪历史消息，保持上下文在限制内 */

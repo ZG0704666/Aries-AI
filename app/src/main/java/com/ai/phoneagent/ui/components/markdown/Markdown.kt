@@ -507,7 +507,7 @@ private fun PipeTableFallback(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
+            .keepHorizontalGestures().horizontalScroll(rememberScrollState())
             .clip(tableShape)
             .border(1.dp, borderColor, tableShape),
     ) {
@@ -565,7 +565,7 @@ fun MarkdownNode(
     when (node.type) {
         // ── Document root ─────────────────────────────────────────────────────
         MarkdownElementTypes.MARKDOWN_FILE -> {
-    Column(verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs))) {
+    Column(verticalArrangement = Arrangement.spacedBy(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs))) {
                 node.children.forEach { MarkdownNode(it, source, depth) }
             }
         }
@@ -954,7 +954,7 @@ private fun LatexDocBlock(lang: String, payload: String) {
         CodeBlock(language = lang, code = payload)
         return
     }
-    Column(verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_xs))) {
+    Column(verticalArrangement = Arrangement.spacedBy(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs))) {
         segments.forEach { seg ->
             if (seg.isMath) {
                 MathBlock(formula = seg.content)
@@ -1005,10 +1005,10 @@ private fun ListNode(
     val markerColor = MaterialTheme.colorScheme.onSurface
     val itemCount = countOrderedListItems(node)
     val markerWidth = dimensionResource(
-        if (ordered && itemCount >= 10) R.dimen.m3t_spacing_xxl else R.dimen.m3t_spacing_lg
+        if (ordered && itemCount >= 10) com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xxl else com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg
     )
-    val markerGap = dimensionResource(R.dimen.m3t_spacing_xs)
-    val listIndent = dimensionResource(R.dimen.m3t_spacing_lg)
+    val markerGap = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val listIndent = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
     var counter = startNumber ?: orderedListStart(node, source) ?: 1
 
     Column(

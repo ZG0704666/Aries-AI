@@ -171,7 +171,7 @@
     <string name="about_copyright">© 2025-2026 Aries AI. 保留所有权利。</string>
     <string name="about_back">返回</string>
     <string name="about_title">关于</string>
-    <string name="about_version_format">v%1$s</string>
+    <string name="about_version_format">%1$s</string>
     <string name="about_prompt_version_format">Prompt 版本：%1$s</string>
     <string name="about_check_updates">检查更新</string>
     <string name="about_checking_updates">检查中...</string>
@@ -331,7 +331,7 @@
     <string name="settings_model_api_aries_mode">Aries 托管 API</string>
     <string name="settings_model_api_aries_mode_description">先登录 Aries 通行证，再自动登录 Aries API 并获取调用令牌。</string>
     <string name="settings_model_api_aries_membership">升级会员</string>
-    <string name="settings_model_api_aries_membership_subtitle">解锁更多额度与高级功能</string>
+    <string name="settings_model_api_aries_membership_subtitle">查看账号与服务状态</string>
     <string name="settings_model_api_aries_login">使用 Aries SSO 登录</string>
     <string name="settings_model_api_aries_logged_in">已登录：%1$s</string>
     <string name="settings_model_api_aries_logout">退出 Aries 账号</string>
@@ -455,4 +455,9 @@
     <string name="settings_appearance_code_auto_wrap">自动换行</string>
     <string name="settings_appearance_code_line_numbers">显示行号</string>
     <string name="settings_appearance_code_auto_collapse">自动折叠</string>
+    <string name="membership_account_title">Aries 账号</string>
+    <string name="membership_account_unavailable">尚未登录 Aries 账号</string>
+    <string name="membership_model_title">下一次文本请求使用的模型</string>
+    <string name="membership_status_title">会员与额度</string>
+    <string name="membership_status_unavailable">当前服务未提供会员方案和剩余额度数据，暂不支持在应用内订阅。模型是否可用以服务实际响应为准。</string>
 </resources>

@@ -17,8 +17,14 @@ class MainUiPreferencesRepository(
     private val context: Context,
 ) {
     private object Keys {
+        val plainMessages = booleanPreferencesKey("plain_messages")
         val activeConversationId = longPreferencesKey("active_conversation_id")
         val thinkingExpandedByDefault = booleanPreferencesKey("thinking_expanded_by_default")
+    }
+
+    val plainMessagesFlow: Flow<Boolean> = context.mainUiPreferencesDataStore.data.map { it[Keys.plainMessages] ?: false }
+    suspend fun setPlainMessages(value: Boolean) {
+        context.mainUiPreferencesDataStore.edit { it[Keys.plainMessages] = value }
     }
 
     val thinkingExpandedByDefaultFlow: Flow<Boolean> =

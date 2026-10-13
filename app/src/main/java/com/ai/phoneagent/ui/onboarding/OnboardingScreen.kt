@@ -1,5 +1,24 @@
 package com.ai.phoneagent.ui.onboarding
 
+import com.ai.phoneagent.ui.components.AriesPageTopBar
+import com.ai.phoneagent.core.designsystem.theme.AriesGlassCard
+import com.ai.phoneagent.core.designsystem.theme.AriesGlassButton
+import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import com.ai.phoneagent.core.designsystem.R as DesignR
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import com.composables.icons.lucide.MessageCircle
+import com.composables.icons.lucide.ScanLine
+import com.composables.icons.lucide.AlarmClock
+import com.composables.icons.lucide.LockKeyhole
+
 import android.content.Context
 import android.content.ContextWrapper
 import android.os.Build
@@ -77,6 +96,7 @@ import androidx.navigation.NavController
 import com.ai.phoneagent.PermissionSetupSupport
 import com.ai.phoneagent.R
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
+import com.composables.icons.lucide.Sparkles
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.ExternalLink
 import com.composables.icons.lucide.Lucide
@@ -145,8 +165,8 @@ fun OnboardingScreen(
     val activity = remember(context) { context.findAppCompatActivity() }
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingLg = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
 
     var currentStep by
         rememberSaveable(flowMode) {
@@ -220,34 +240,22 @@ fun OnboardingScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text =
-                            stringResource(
-                                when (currentStep) {
-                                    OnboardingStep.WELCOME -> R.string.onboarding_welcome_title
-                                    OnboardingStep.AGREEMENT -> R.string.user_agreement_title
-                                    OnboardingStep.PERMISSION -> R.string.perm_sheet_title
-                                },
-                            ),
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Lucide.ArrowLeft,
-                            contentDescription = stringResource(R.string.about_back),
-                        )
+            AriesPageTopBar(
+                title = stringResource(when (currentStep) {
+                    OnboardingStep.WELCOME -> R.string.onboarding_welcome_title
+                    OnboardingStep.AGREEMENT -> R.string.user_agreement_title
+                    OnboardingStep.PERMISSION -> R.string.perm_sheet_title
+                }),
+                onBack = if (flowMode == OnboardingFlowMode.ONBOARDING && currentStep == OnboardingStep.WELCOME) {
+                    null
+                } else {
+                    {
+                        if (flowMode != OnboardingFlowMode.ONBOARDING) onBack()
+                        else currentStep = OnboardingStep.entries[currentStep.ordinal - 1]
                     }
                 },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                    ),
-                modifier = Modifier.statusBarsPadding(),
             )
         },
     ) { innerPadding ->
@@ -283,6 +291,7 @@ fun OnboardingScreen(
 
                         OnboardingStep.AGREEMENT -> {
                             AgreementPanel(
+                                requireAcceptance = flowMode != OnboardingFlowMode.VIEW_ONLY,
                                 onAccept = {
                                     if (flowMode == OnboardingFlowMode.VIEW_ONLY) {
                                         onDone()
@@ -342,380 +351,148 @@ fun OnboardingScreen(
                 }
             }
 
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = spacingLg),
-                verticalArrangement = Arrangement.spacedBy(spacingSm),
-            ) {
-                Text(
-                    text = "${currentStep.ordinal + 1}/${OnboardingStep.entries.size}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                LinearProgressIndicator(
-                    progress = { animatedProgress },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            Spacer(modifier = Modifier.navigationBarsPadding())
-            Spacer(modifier = Modifier.height(dimensionResource(R.dimen.m3t_spacing_xxl)))
         }
     }
 }
 
 @Composable
-private fun WelcomePanel(
-    onNext: () -> Unit,
-) {
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
-    val buttonHeight = dimensionResource(R.dimen.m3t_button_height)
+private fun OnboardingStepCaption(step: Int) {
+    Text(stringResource(R.string.ui_v2_step_caption, step), style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
 
-    Card(
-        modifier = Modifier.fillMaxSize().padding(horizontal = spacingXl, vertical = spacingLg),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = MaterialTheme.shapes.extraLarge,
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(spacingLg),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                verticalArrangement = Arrangement.spacedBy(spacingMd, alignment = Alignment.CenterVertically),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = stringResource(R.string.onboarding_welcome_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = stringResource(R.string.onboarding_welcome_desc),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            Button(
-                onClick = onNext,
-                modifier = Modifier.fillMaxWidth().height(buttonHeight),
-            ) {
-                Text(stringResource(R.string.onboarding_welcome_action))
+@Composable
+private fun WelcomePanel(onNext: () -> Unit) {
+    val padding = dimensionResource(DesignR.dimen.aries_page_padding)
+    val gap = dimensionResource(DesignR.dimen.m3t_spacing_sm)
+    val density = LocalDensity.current
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(padding), verticalArrangement = Arrangement.spacedBy(padding)) {
+        item {
+            val shape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_card_radius))
+            Box(Modifier.padding(top = padding).size(dimensionResource(DesignR.dimen.aries_onboarding_brand))
+                .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)), shape), contentAlignment = Alignment.Center) {
+                Icon(Lucide.Sparkles, null, Modifier.size(dimensionResource(DesignR.dimen.aries_brand_icon)), tint = MaterialTheme.colorScheme.onPrimary)
             }
         }
+        item { Text(stringResource(R.string.ui_v2_welcome_heading), style = MaterialTheme.typography.headlineMedium.copy(
+            fontSize = with(density) { dimensionResource(DesignR.dimen.aries_type_headline).toSp() }, fontWeight = FontWeight.Bold)) }
+        item { Text(stringResource(R.string.ui_v2_welcome_description), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        item {
+            AriesGlassCard(Modifier.fillMaxWidth()) {
+                listOf(Lucide.MessageCircle to R.string.ui_v2_welcome_chat, Lucide.ScanLine to R.string.ui_v2_welcome_automation,
+                    Lucide.AlarmClock to R.string.ui_v2_welcome_control).forEach { (icon, label) ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        Icon(icon, null, Modifier.size(dimensionResource(DesignR.dimen.aries_suggestion_icon)), tint = MaterialTheme.colorScheme.primary)
+                        Text(stringResource(label), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+        }
+        item { AriesGlassCard(Modifier.fillMaxWidth()) { Text(stringResource(R.string.ui_v2_welcome_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        item { Button(onClick = onNext, modifier = Modifier.fillMaxWidth().height(dimensionResource(DesignR.dimen.m3t_button_height)),
+            shape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_action_radius))) { Text(stringResource(R.string.onboarding_welcome_action)) } }
+        item { OnboardingStepCaption(1) }
     }
 }
 
 @Composable
-private fun AgreementPanel(
-    onAccept: () -> Unit,
-    actionLabelRes: Int,
-) {
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
-    val buttonHeight = dimensionResource(R.dimen.m3t_button_height)
+internal fun AgreementPanel(onAccept: () -> Unit, actionLabelRes: Int, requireAcceptance: Boolean = true) {
+    val padding = dimensionResource(DesignR.dimen.aries_page_padding)
+    val gap = dimensionResource(DesignR.dimen.m3t_spacing_sm)
+    var accepted by rememberSaveable { mutableStateOf(false) }
+    var showFull by rememberSaveable { mutableStateOf(false) }
     val agreementHtml = stringResource(R.string.user_agreement_content)
-    val agreementTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
-    val agreementContainerColor = MaterialTheme.colorScheme.surfaceVariant.toArgb()
-
-    Card(
-        modifier = Modifier.fillMaxSize().padding(horizontal = spacingXl, vertical = spacingLg),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = MaterialTheme.shapes.extraLarge,
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(spacingLg),
-            verticalArrangement = Arrangement.spacedBy(spacingMd),
-        ) {
-            Text(
-                text = stringResource(R.string.user_agreement_title),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = stringResource(R.string.user_agreement_desc),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Surface(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = MaterialTheme.shapes.large,
-            ) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { ctx ->
-                        val horizontalPadding = ctx.resources.getDimensionPixelSize(R.dimen.m3t_spacing_xl)
-                        val verticalPadding = ctx.resources.getDimensionPixelSize(R.dimen.m3t_spacing_lg)
-                        ScrollView(ctx).apply {
-                            isFillViewport = true
-                            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
-                            setBackgroundColor(agreementContainerColor)
-                            addView(
-                                TextView(ctx).apply {
-                                    setTextColor(agreementTextColor)
-                                    textSize = 15f
-                                    setLineSpacing(0f, 1.35f)
-                                    gravity = Gravity.START
-                                    setBackgroundColor(agreementContainerColor)
-                                    setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
-                                },
-                            )
-                        }
-                    },
-                    update = { scrollView ->
-                        val textView = scrollView.getChildAt(0) as? TextView ?: return@AndroidView
-                        textView.text =
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                                Html.fromHtml(agreementHtml, Html.FROM_HTML_MODE_COMPACT)
-                            } else {
-                                @Suppress("DEPRECATION")
-                                Html.fromHtml(agreementHtml)
-                            }
-                    },
-                )
-            }
-            Button(
-                onClick = onAccept,
-                modifier = Modifier.fillMaxWidth().height(buttonHeight),
-            ) {
-                Text(stringResource(actionLabelRes))
+    val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    if (showFull) {
+        AlertDialog(onDismissRequest = { showFull = false }, title = { Text(stringResource(R.string.user_agreement_title)) },
+            text = {
+                AndroidView(modifier = Modifier.fillMaxWidth(), factory = { ctx ->
+                    ScrollView(ctx).apply {
+                        addView(TextView(ctx).apply {
+                            textSize = ctx.resources.getDimension(DesignR.dimen.aries_type_body) / ctx.resources.displayMetrics.scaledDensity
+                            setLineSpacing(0f, 1.35f)
+                            gravity = Gravity.START
+                        })
+                    }
+                }, update = { scroll ->
+                    (scroll.getChildAt(0) as TextView).apply {
+                        setTextColor(textColor)
+                        text = Html.fromHtml(agreementHtml, Html.FROM_HTML_MODE_COMPACT)
+                    }
+                })
+            }, confirmButton = { TextButton(onClick = { showFull = false }) { Text(stringResource(R.string.action_close)) } })
+    }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(padding), verticalArrangement = Arrangement.spacedBy(padding)) {
+        item { Text(stringResource(R.string.ui_v2_agreement_heading), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+        item { Text(stringResource(R.string.ui_v2_agreement_description), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        listOf(Triple(Lucide.Shield, R.string.user_agreement_title, R.string.ui_v2_agreement_rules),
+            Triple(Lucide.LockKeyhole, R.string.ui_v2_privacy_title, R.string.ui_v2_privacy_description),
+            Triple(Lucide.Sparkles, R.string.ui_v2_ai_content, R.string.ui_v2_ai_content_description)).forEach { (icon, title, desc) ->
+            item {
+                AriesGlassCard(Modifier.fillMaxWidth().clickable { showFull = true }) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        Icon(icon, null, Modifier.size(dimensionResource(DesignR.dimen.aries_suggestion_icon)), tint = MaterialTheme.colorScheme.primary)
+                        Text(stringResource(title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    }
+                    Text(stringResource(desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
+        item { TextButton(onClick = { showFull = true }) { Text(stringResource(R.string.ui_v2_agreement_full)) } }
+        if (requireAcceptance) item {
+            AriesGlassCard(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().clickable { accepted = !accepted }, verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = accepted, onCheckedChange = { accepted = it })
+                    Text(stringResource(R.string.ui_v2_agreement_checked), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+        item { Button(onClick = onAccept, enabled = !requireAcceptance || accepted,
+            shape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_action_radius))) { Text(stringResource(actionLabelRes)) } }
+        if (requireAcceptance) item { OnboardingStepCaption(2) }
     }
 }
 
 @Composable
-private fun PermissionPanel(
-    flowMode: OnboardingFlowMode,
-    permissionUiState: PermissionUiState,
-    onOpenAccessibility: () -> Unit,
-    onOpenOverlay: () -> Unit,
-    onOpenMic: () -> Unit,
-    onGuideAll: () -> Unit,
-    onDone: () -> Unit,
-) {
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
-    val buttonHeight = dimensionResource(R.dimen.m3t_button_height)
-    val compactButtonHeight = dimensionResource(R.dimen.m3t_compact_button_height)
-
-    Card(
-        modifier = Modifier.fillMaxSize().padding(horizontal = spacingXl, vertical = spacingLg),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = MaterialTheme.shapes.extraLarge,
-    ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(spacingLg),
-            verticalArrangement = Arrangement.spacedBy(spacingMd),
-        ) {
-            item {
-                Text(
-                    text = stringResource(R.string.perm_sheet_desc),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            item {
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
-                    shape = MaterialTheme.shapes.large,
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(spacingLg),
-                        horizontalArrangement = Arrangement.spacedBy(spacingMd),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                            shape = MaterialTheme.shapes.large,
-                        ) {
-                            Box(
-                                modifier = Modifier.padding(dimensionResource(R.dimen.m3t_spacing_sm)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = Lucide.Shield,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.secondary,
-                                )
-                            }
-                        }
-                        Column(verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_sm))) {
-                            Text(
-                                text = stringResource(R.string.perm_sheet_shizuku_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                fontWeight = FontWeight.Medium,
-                            )
-                            Text(
-                                text = stringResource(R.string.perm_sheet_shizuku_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            )
-                        }
-                    }
+private fun PermissionPanel(flowMode: OnboardingFlowMode, permissionUiState: PermissionUiState,
+    onOpenAccessibility: () -> Unit, onOpenOverlay: () -> Unit, onOpenMic: () -> Unit, onGuideAll: () -> Unit, onDone: () -> Unit) {
+    val padding = dimensionResource(DesignR.dimen.aries_page_padding)
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(padding), verticalArrangement = Arrangement.spacedBy(dimensionResource(DesignR.dimen.aries_setting_gap))) {
+        item { Text(stringResource(R.string.ui_v2_permission_heading), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+        item { Text(stringResource(R.string.ui_v2_permission_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        item { PermissionRow(Lucide.Smartphone, stringResource(R.string.perm_sheet_accessibility_title), stringResource(R.string.perm_sheet_accessibility_desc), permissionUiState.accessibilityReady, stringResource(R.string.perm_sheet_action_enable), onOpenAccessibility) }
+        item { PermissionRow(Lucide.ExternalLink, stringResource(R.string.perm_sheet_overlay_title), stringResource(R.string.perm_sheet_overlay_desc), permissionUiState.overlayReady, stringResource(R.string.perm_sheet_action_settings), onOpenOverlay) }
+        item { PermissionRow(Lucide.Mic, stringResource(R.string.perm_sheet_microphone_title), stringResource(R.string.perm_sheet_microphone_desc), permissionUiState.microphoneReady, stringResource(R.string.perm_sheet_action_grant), onOpenMic) }
+        item { AriesGlassCard(Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.perm_sheet_shizuku_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.perm_sheet_shizuku_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(dimensionResource(DesignR.dimen.m3t_spacing_sm))) {
+                Button(onClick = onGuideAll, shape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_action_radius))) {
+                    Text(stringResource(if (permissionUiState.allReady) R.string.perm_sheet_primary_action_ready else R.string.perm_sheet_primary_action))
                 }
-            }
-
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f),
-                        ),
-                    shape = MaterialTheme.shapes.large,
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        PermissionRow(
-                            icon = Lucide.Smartphone,
-                            title = stringResource(R.string.perm_sheet_accessibility_title),
-                            description = stringResource(R.string.perm_sheet_accessibility_desc),
-                            ready = permissionUiState.accessibilityReady,
-                            pendingAction = stringResource(R.string.perm_sheet_action_enable),
-                            onAction = onOpenAccessibility,
-                            buttonHeight = compactButtonHeight,
-                        )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        PermissionRow(
-                            icon = Lucide.ExternalLink,
-                            title = stringResource(R.string.perm_sheet_overlay_title),
-                            description = stringResource(R.string.perm_sheet_overlay_desc),
-                            ready = permissionUiState.overlayReady,
-                            pendingAction = stringResource(R.string.perm_sheet_action_settings),
-                            onAction = onOpenOverlay,
-                            buttonHeight = compactButtonHeight,
-                        )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        PermissionRow(
-                            icon = Lucide.Mic,
-                            title = stringResource(R.string.perm_sheet_microphone_title),
-                            description = stringResource(R.string.perm_sheet_microphone_desc),
-                            ready = permissionUiState.microphoneReady,
-                            pendingAction = stringResource(R.string.perm_sheet_action_grant),
-                            onAction = onOpenMic,
-                            buttonHeight = compactButtonHeight,
-                        )
-                    }
-                }
-            }
-
-            item {
-                Button(
-                    onClick = onGuideAll,
-                    modifier = Modifier.fillMaxWidth().height(buttonHeight),
-                ) {
-                    Text(
-                        stringResource(
-                            if (permissionUiState.allReady) {
-                                R.string.perm_sheet_primary_action_ready
-                            } else {
-                                R.string.perm_sheet_primary_action
-                            },
-                        ),
-                    )
-                }
-            }
-
-            if (!permissionUiState.allReady || flowMode == OnboardingFlowMode.PERMISSION_ONLY) {
-                item {
-                    FilledTonalButton(
-                        onClick = onDone,
-                        modifier = Modifier.fillMaxWidth().height(buttonHeight),
-                    ) {
-                        Text(stringResource(R.string.perm_sheet_secondary_action))
-                    }
-                }
+                if (!permissionUiState.allReady || flowMode == OnboardingFlowMode.PERMISSION_ONLY) AriesGlassButton(onClick = onDone) { Text(stringResource(R.string.perm_sheet_secondary_action)) }
             }
         }
+        item { OnboardingStepCaption(3) }
     }
 }
 
 @Composable
-private fun PermissionRow(
-    icon: ImageVector,
-    title: String,
-    description: String,
-    ready: Boolean,
-    pendingAction: String,
-    onAction: () -> Unit,
-    buttonHeight: Dp,
-) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(spacingLg),
-        verticalArrangement = Arrangement.spacedBy(spacingMd),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(spacingMd),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
-                shape = MaterialTheme.shapes.large,
-            ) {
-                Box(
-                    modifier = Modifier.padding(spacingSm),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                }
+private fun PermissionRow(icon: ImageVector, title: String, description: String, ready: Boolean, pendingAction: String, onAction: () -> Unit) {
+    val gap = dimensionResource(DesignR.dimen.m3t_spacing_sm)
+    AriesGlassCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(gap)) {
+            Icon(icon, null, Modifier.size(dimensionResource(DesignR.dimen.aries_suggestion_icon)), tint = MaterialTheme.colorScheme.primary)
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(spacingSm),
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Medium,
-                )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text =
-                        stringResource(
-                            if (ready) {
-                                R.string.perm_sheet_status_ready
-                            } else {
-                                R.string.perm_sheet_status_pending
-                            },
-                        ),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(stringResource(if (ready) R.string.perm_sheet_status_ready else R.string.perm_sheet_status_pending), style = MaterialTheme.typography.labelSmall,
+                color = if (ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        FilledTonalButton(
-            onClick = onAction,
-            enabled = !ready,
-            modifier = Modifier.fillMaxWidth().height(buttonHeight),
-        ) {
-            Text(
-                if (ready) {
-                    stringResource(R.string.perm_sheet_action_ready)
-                } else {
-                    pendingAction
-                },
-            )
-        }
+        TextButton(onClick = onAction, enabled = !ready) { Text(if (ready) stringResource(R.string.perm_sheet_action_ready) else pendingAction) }
     }
 }
 

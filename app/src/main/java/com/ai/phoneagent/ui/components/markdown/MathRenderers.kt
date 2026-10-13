@@ -295,7 +295,7 @@ fun MathBlock(formula: String, modifier: Modifier = Modifier) {
     val heightDp = with(density) { heightPx.toDp() }
 
     Box(
-        modifier          = modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        modifier          = modifier.fillMaxWidth().keepHorizontalGestures().horizontalScroll(rememberScrollState()),
         contentAlignment  = Alignment.Center,
     ) {
         Box(
@@ -477,7 +477,7 @@ fun MathInlineText(text: String, modifier: Modifier = Modifier) {
     }
 
     Box(
-        modifier = modifier.horizontalScroll(rememberScrollState()),
+        modifier = modifier.keepHorizontalGestures().horizontalScroll(rememberScrollState()),
     ) {
         BasicText(
             text = annotated,

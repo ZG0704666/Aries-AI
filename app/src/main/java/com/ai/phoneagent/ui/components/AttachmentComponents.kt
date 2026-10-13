@@ -41,6 +41,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.dimensionResource
+import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import com.ai.phoneagent.R
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,8 +58,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 /**
- * 附件选择器面板 - 千问风格底部弹出
- * 支持拖动关闭，不额外覆盖背景内容
+ * 附件选择器面板，统一玻璃外框并支持拖动关闭。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -129,7 +132,7 @@ fun AttachmentSelectorPanel(
                 method.invoke(act)
                 onDismiss()
             } catch (e: Exception) {
-                android.widget.Toast.makeText(context, "启动相机失败", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, context.getString(R.string.ui_v2_camera_failed), android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -138,64 +141,57 @@ fun AttachmentSelectorPanel(
     val attachmentOptions = listOf(
         AttachmentOption(
             icon = Lucide.Camera,
-            label = "拍照",
+            label = stringResource(R.string.ui_v2_attachment_camera),
             onClick = onCameraClick
         ),
         AttachmentOption(
             icon = Lucide.Image,
-            label = "相册",
+            label = stringResource(R.string.ui_v2_attachment_gallery),
             onClick = launchImagePicker
         ),
         AttachmentOption(
             icon = Lucide.FileText,
-            label = "文件",
+            label = stringResource(R.string.ui_v2_attachment_file),
             onClick = { filePickerLauncher.launch("*/*") }
         )
     )
     
-    // 使用 ModalBottomSheet 实现可拖动关闭，不再叠加整屏遮罩
+    // 玻璃绘制放在随面板一起移动的内容中，避免外层偏移造成背景遮挡。
     if (visible) {
+        val sheetRadius = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_nav_radius)
+        val sheetShape = RoundedCornerShape(topStart = sheetRadius, topEnd = sheetRadius)
         ModalBottomSheet(
             onDismissRequest = onDismiss,
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            dragHandle = {
-                // 千问风格拖动手柄
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 14.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .width(36.dp)
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
-                    )
-                }
-            },
-            scrimColor = Color.Transparent
+            tonalElevation = 0.dp,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = sheetShape,
+            dragHandle = null,
+            scrimColor = BottomSheetDefaults.ScrimColor
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 40.dp)
+                    .ariesGlass(sheetShape)
+                    .padding(bottom = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding))
             ) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    BottomSheetDefaults.DragHandle()
+                }
                 // 附件选项 - 千问风格布局
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 40.dp, vertical = 20.dp),
+                        .padding(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding)),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     attachmentOptions.forEach { option ->
                         AttachmentOptionItem(
                             icon = option.icon,
                             label = option.label,
-                            onClick = option.onClick
+                            onClick = option.onClick,
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
@@ -216,11 +212,11 @@ fun AttachmentPreviewList(
     modifier: Modifier = Modifier
 ) {
     if (attachments.isEmpty()) return
-    val titleColor = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_preview_title)
+    val titleColor = colorResource(id = com.ai.phoneagent.core.designsystem.R.color.m3t_attachment_preview_title)
     
     Column(modifier = modifier) {
         Text(
-            text = "附件 (${attachments.size})",
+            text = stringResource(R.string.ui_v2_attachment_count, attachments.size),
             style = MaterialTheme.typography.labelMedium,
             color = titleColor,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -254,11 +250,10 @@ private fun AttachmentPreviewItem(
     onRemove: () -> Unit,
     onInsert: () -> Unit
 ) {
-    val previewCardBg = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_preview_card_bg)
-    val previewCardStroke = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_preview_card_stroke)
-    val previewIconColor = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_preview_icon)
-    val previewNameColor = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_preview_name)
-    val previewSizeColor = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_preview_size)
+    val previewShape = RoundedCornerShape(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_action_radius))
+    val previewIconColor = colorResource(id = com.ai.phoneagent.core.designsystem.R.color.m3t_attachment_preview_icon)
+    val previewNameColor = colorResource(id = com.ai.phoneagent.core.designsystem.R.color.m3t_attachment_preview_name)
+    val previewSizeColor = colorResource(id = com.ai.phoneagent.core.designsystem.R.color.m3t_attachment_preview_size)
     val icon = when {
         attachment.fileName.startsWith("camera_") -> Lucide.Camera
         attachment.mimeType.startsWith("image/") -> Lucide.Image
@@ -270,13 +265,8 @@ private fun AttachmentPreviewItem(
     
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .border(
-                width = 1.dp,
-                color = previewCardStroke,
-                shape = RoundedCornerShape(8.dp)
-            )
-            .background(previewCardBg)
+            .ariesGlass(previewShape)
+            .clip(previewShape)
             .clickable(onClick = onInsert)
     ) {
         Row(
@@ -321,7 +311,7 @@ private fun AttachmentPreviewItem(
             ) {
                 Icon(
                     imageVector = Lucide.X,
-                    contentDescription = "移除附件",
+                    contentDescription = stringResource(R.string.ui_v2_attachment_remove),
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(16.dp)
                 )
@@ -337,41 +327,39 @@ private fun AttachmentPreviewItem(
 private fun AttachmentOptionItem(
     icon: ImageVector,
     label: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val optionBgColor = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_option_bg)
-    val optionIconColor = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_option_icon)
-    val optionTextColor = colorResource(id = com.ai.phoneagent.R.color.m3t_attachment_option_text)
-    
+    val optionIconColor = MaterialTheme.colorScheme.primary
+    val optionTextColor = MaterialTheme.colorScheme.onSurface
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
+        modifier = modifier
             .clickable(onClick = {
                 // 点击时触发80ms震动反馈
                 performVibration(context, 80)
                 onClick()
             })
-            .width(90.dp)
-            .padding(vertical = 8.dp)
+            .padding(vertical = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm))
     ) {
         // 图标背景 - 千问风格圆角
         Box(
             modifier = Modifier
-                .size(68.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(optionBgColor),
+                .size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_attachment_tile))
+                .ariesGlass(RoundedCornerShape(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_card_radius))),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
                 tint = optionIconColor,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_attachment_icon))
             )
         }
         
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_home_icon_gap)))
         
         // 标签 - 千问风格字体
         Text(
@@ -380,7 +368,6 @@ private fun AttachmentOptionItem(
             color = optionTextColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            fontSize = 14.sp
         )
     }
 }
