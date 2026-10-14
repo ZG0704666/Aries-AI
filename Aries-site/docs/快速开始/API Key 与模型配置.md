@@ -1,5 +1,8 @@
 ﻿# API Key 与模型配置
 
+> 当前实现说明：`FloatingChatService` 已不在当前源码中；本文涉及它的示例与悬浮聊天链路属于历史实现。当前主界面入口为 `MainActivity`，悬浮聊天偏好类仍保留，不能据此推断悬浮聊天服务仍可用。
+
+
 Aries AI 提供灵活的 API Key 与模型配置系统，支持官方 API（智谱 AutoGLM）、第三方 OpenAI 兼容 API、Aries 自有 API 以及本地离线模型四种运行模式。
 
 ## 概述
@@ -106,7 +109,7 @@ fun onApiModeChange(mode: ApiMode, onToast: (String) -> Unit) {
 
 在运行时，`FloatingChatService.resolveApiConfig()` 根据当前模式动态决定使用的 API Key、Base URL 和 Model：
 
-> Source: [FloatingChatService.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/FloatingChatService.kt#L340-L377)
+> Source: `FloatingChatService`（历史实现，当前源码已移除）
 
 ```kotlin
 private fun resolveApiConfig(): Triple<String, String, String> {
@@ -567,7 +570,7 @@ suspend fun signIn(activity: Activity): AuthResult {
 - [LocalMnnInferenceEngine 源码](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/net/LocalMnnInferenceEngine.kt) — 本地推理引擎
 - [ModelScopeModelDownloader 源码](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/net/ModelScopeModelDownloader.kt) — 本地模型下载
 - [AgentConfiguration 源码](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/config/AgentConfiguration.kt) — Agent 模型参数配置
-- [FloatingChatService 源码](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/FloatingChatService.kt) — 运行时的 API 配置消费
+- `FloatingChatService`（历史实现，当前源码已移除） — 运行时的 API 配置消费
 - [AriesOidcAuthManager 源码](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/net/AriesOidcAuthManager.kt) — Aries OAuth 认证管理
 - [AIProvider 接口](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/net/AIProvider.kt) — AI Provider 统一接口
 - [智谱 AI 开放平台](https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys) — 官方 API Key 获取页面

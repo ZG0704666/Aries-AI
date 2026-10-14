@@ -1,5 +1,8 @@
 ﻿# 偏好设置仓储 (Preferences)
 
+> 当前实现说明：`FloatingChatService` 已不在当前源码中；本文涉及它的示例与悬浮聊天链路属于历史实现。当前主界面入口为 `MainActivity`，悬浮聊天偏好类仍保留，不能据此推断悬浮聊天服务仍可用。
+
+
 偏好设置仓储是 Aries AI 的数据持久化层核心组件，基于 Android Jetpack DataStore 实现，为应用提供响应式、类型安全的键值对偏好设置存储能力。
 
 ## 概述
@@ -538,7 +541,7 @@ class AppearanceViewModel(
 
 ### 在 Composable 中实时响应偏好变更
 
-> Source: [MainActivity.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/MainActivity.kt#L686-L732) 和 [FloatingChatService.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/FloatingChatService.kt#L901-L922)
+> Source: [MainActivity.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/MainActivity.kt#L686-L732) 和 `FloatingChatService`（历史实现，当前源码已移除）
 
 ```kotlin
 // 在 setContent 中通过 collectAsState 收集 Flow
@@ -788,7 +791,7 @@ FloatingChatService.cacheMessagesForNextStart(context, messages)
 
 - [AppearanceViewModel.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/viewmodel/AppearanceViewModel.kt) — 外观设置 ViewModel
 - [SettingsViewModel.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/viewmodel/SettingsViewModel.kt) — 通用设置 ViewModel
-- [FloatingChatService.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/FloatingChatService.kt) — 悬浮窗聊天服务
+- `FloatingChatService`（历史实现，当前源码已移除） — 悬浮窗聊天服务
 - [MainActivity.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/MainActivity.kt) — 主 Activity
 - [UiAutomationAgent.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/UiAutomationAgent.kt) — UI 自动化代理
 

@@ -486,7 +486,7 @@ data class ParsedAgentAction(
 ### 执行通道
 
 - [VirtualDisplayController](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/VirtualDisplayController.kt) — 虚拟屏事件注入
-- [ShizukuBridge](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ShizukuBridge.kt) — Shizuku 系统级命令执行
+- [ShizukuBridge](https://github.com/ZG0704666/Aries-AI/blob/main/core/shizuku/src/main/java/com/ai/phoneagent/ShizukuBridge.kt) — Shizuku 系统级命令执行
 - [PhoneAgentAccessibilityService](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/PhoneAgentAccessibilityService.kt) — 无障碍服务
 
 ### 系统架构
