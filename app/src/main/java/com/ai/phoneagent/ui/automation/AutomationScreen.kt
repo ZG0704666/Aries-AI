@@ -11,6 +11,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
@@ -32,6 +35,9 @@ fun AutomationScreen(
     val viewModel: AutomationViewModel = koinViewModel(
         viewModelStoreOwner = activityOwner ?: LocalViewModelStoreOwner.current!!,
     )
+    val task by viewModel.taskSnapshot.collectAsState()
+    // Capture the existing run before launch arguments can start a new one.
+    var lastObservedRunId by rememberSaveable { mutableStateOf(task?.runId) }
 
     // Consume pending launch args from MainActivity intent dispatch
     LaunchedEffect(Unit) {
@@ -58,9 +64,13 @@ fun AutomationScreen(
         }
     }
 
-    val task by viewModel.taskSnapshot.collectAsState()
     LaunchedEffect(task?.runId) {
-        task?.takeIf { !it.status.isTerminal && navController.currentDestination?.route == "automation" }?.let { navController.navigate("task/${it.runId}") { launchSingleTop = true } }
+        val currentTask = task
+        val openDetails = com.ai.phoneagent.navigation.shouldOpenNewTask(lastObservedRunId, currentTask)
+        lastObservedRunId = currentTask?.runId
+        if (openDetails && currentTask != null && navController.currentDestination?.route == "automation") {
+            navController.navigate("task/${currentTask.runId}") { launchSingleTop = true }
+        }
     }
     AutomationControlScreen(
         statusSummary = viewModel.statusSummary,

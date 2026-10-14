@@ -792,6 +792,10 @@ class MainActivity : AppCompatActivity() {
 
                 AriesNavGraph(
                     navController = navController,
+                    onStartNextTask = {
+                        selectedMainPage = 1
+                        navController.popBackStack(Routes.Home.route, false)
+                    },
                     homeContent = {
                         HomeRoute(
                             codeBlockPrefs = codeBlockPrefs,
@@ -856,14 +860,11 @@ class MainActivity : AppCompatActivity() {
         val currentStreamingConvId by remember { streamingTranscriptConversationIdState }
         val currentStreamingItem by remember { streamingTranscriptItemState }
         val currentTranscriptAnimKey by remember { transcriptAnimationKeyState }
-        val currentStatusText by remember { statusTextState }
-        val currentStatusVisible by remember { statusVisibleState }
         val currentDrawerSearchQuery by remember { drawerSearchQueryState }
         val currentDrawerItems by remember { drawerConversationItemsState }
         val currentDrawerEmptyMessage by remember { drawerEmptyMessageState }
         val currentContentAlpha by remember { homeContentAlphaState }
         val currentContentScale by remember { homeContentScaleState }
-        val modelDisplayName = getDisplayNameForModel(resolveApiModel())
         val aiNoticeText = remember { getString(R.string.ai_generated_notice) }
 
         DisposableEffect(drawerState, composeScope) {
@@ -888,9 +889,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        val onToggleStatus = remember {
-            { statusVisibleState.value = !statusVisibleState.value }
-        }
         val onOpenDrawer = remember(drawerState, composeScope) {
             {
                 if (!onboardingOverlay.isShowing()) {
@@ -994,11 +992,7 @@ class MainActivity : AppCompatActivity() {
         HomeScreen(
             drawerState = drawerState,
             drawerGesturesEnabled = !onboardingOverlay.isShowing() && inputBarState.value !is InputState.VoiceRecording && inputBarState.value !is InputState.VoiceRecognizing,
-            statusText = currentStatusText,
-            statusVisible = currentStatusVisible,
-            onToggleStatus = onToggleStatus,
             onOpenDrawer = onOpenDrawer,
-            modelName = modelDisplayName,
             drawerSearchQuery = currentDrawerSearchQuery,
             drawerItems = currentDrawerItems,
             drawerEmptyMessage = currentDrawerEmptyMessage,
@@ -2631,15 +2625,6 @@ class MainActivity : AppCompatActivity() {
             is Map<*, *> -> content["type"] == "image_url"
             else -> false
         }
-
-    /** 获取用于显示的模型名称（简化版） */
-    private fun getDisplayNameForModel(model: String): String {
-        return when {
-            model.contains("autoglm-phone", ignoreCase = true) -> "AutoGLM"
-            model.length > 20 -> model.take(20) + "…"
-            else -> model
-        }
-    }
 
     private fun apiConfigSignature(
             apiKey: String,

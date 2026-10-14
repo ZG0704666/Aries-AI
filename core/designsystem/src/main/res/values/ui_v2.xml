@@ -46,6 +46,7 @@
  <dimen name="aries_composer_expanded_height">96dp</dimen>
  <dimen name="aries_composer_inset_x">10dp</dimen>
  <dimen name="aries_composer_inset_y">9dp</dimen>
+ <dimen name="aries_composer_bottom_gap">12dp</dimen>
  <dimen name="aries_setting_radius">15dp</dimen>
  <dimen name="aries_setting_padding">14dp</dimen>
  <dimen name="aries_setting_gap">14dp</dimen>

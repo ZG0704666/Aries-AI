@@ -38,7 +38,7 @@ import com.composables.icons.lucide.ArrowLeft
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun TaskScreen(navController: NavHostController, runId: String, resultPage: Boolean = false) {
+fun TaskScreen(navController: NavHostController, runId: String, resultPage: Boolean = false, onStartNextTask: () -> Unit) {
     val context = LocalContext.current
     val owner = remember(context) {
         var current: Context = context
@@ -128,7 +128,7 @@ fun TaskScreen(navController: NavHostController, runId: String, resultPage: Bool
                 if (resultPage) {
                     item {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(gap), verticalArrangement = Arrangement.spacedBy(gap)) {
-                            Button(onClick = { navController.navigate("automation") { popUpTo("home"); launchSingleTop = true } },
+                            Button(onClick = onStartNextTask,
                                 shape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_action_radius))) { Text(stringResource(R.string.ui_v2_new_task)) }
                             AriesGlassButton(onClick = { showLogs = !showLogs }) { Text(stringResource(R.string.ui_v2_details)) }
                         }

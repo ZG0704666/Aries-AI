@@ -97,11 +97,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 fun HomeScreen(
     drawerState: DrawerState,
     drawerGesturesEnabled: Boolean,
-    statusText: String,
-    statusVisible: Boolean,
-    onToggleStatus: () -> Unit,
     onOpenDrawer: () -> Unit,
-    modelName: String = "",
     drawerSearchQuery: String,
     drawerItems: List<DrawerConversationUiItem>,
     drawerEmptyMessage: String,
@@ -147,6 +143,9 @@ fun HomeScreen(
         if (lastReportedPage != selectedPage) navigate(selectedPage)
     }
     LaunchedEffect(pager) {
+        // An outer route may request a different tab while this pager is saved.
+        // Apply that selection before reporting the restored page to the Activity.
+        if (pager.currentPage != selectedPage) pager.scrollToPage(selectedPage)
         snapshotFlow { pager.currentPage }.distinctUntilChanged().collect { lastReportedPage = it; onPageSelected(it) }
     }
     // Compatibility for existing callbacks which used to wait for the drawer to close.
@@ -218,9 +217,6 @@ fun HomeScreen(
                     }
                     1 -> Column(Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
                         Column(Modifier.weight(1f).clipToBounds()) {
-                            Text(modelName + if (statusVisible && statusText.isNotBlank()) " · " + statusText else "",
-                                Modifier.padding(start = spacingMd, end = spacingMd, top = dimensionResource(DesignR.dimen.aries_home_top_gap)).clickable { onToggleStatus() },
-                                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                             Box(Modifier.weight(1f)) { transcriptPaneContent(0.dp, spacingMd, spacingXxxs) }
                         }
                         HomeBottomOverlay(aiNoticeText, inputBarContent, spacingXxxs)
@@ -411,7 +407,7 @@ private fun HomeBottomOverlay(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = spacingXxxs),
+            .padding(bottom = dimensionResource(DesignR.dimen.aries_composer_bottom_gap)),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         inputBarContent()
