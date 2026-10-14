@@ -108,6 +108,8 @@ flowchart TD
 
 > 执行通道选择遵循固定优先级：**虚拟屏 > Shizuku > 无障碍服务**。当高优先级通道不可用或执行失败时，会尝试回退到下一优先级的通道。
 
+补充一点底层细节：虚拟屏通道与 Shizuku 通道的触摸/按键注入最终都会落到系统 `IInputManager.injectInputEvent()` 的 binder 调用上，由 `input` 包中的两个注入器完成——虚拟屏模式使用 `VirtualAsyncInputInjector`（反射适配不同 ROM 的 `injectInputEvent` 签名，并通过 `InputEvent.setDisplayId()` 把事件定向到虚拟屏），Shizuku 模式下另有 `InputHelper`（`AriesInputInjectionThread` HandlerThread 串行处理 + MOVE 事件去抖）。详细链路见 [虚拟屏隔离系统 / 焦点管理与输入注入链路](../虚拟屏隔离系统/焦点管理与输入注入链路.md)。
+
 ## 核心设计
 
 ### 设计原则

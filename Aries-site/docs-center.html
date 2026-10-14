@@ -1498,6 +1498,7 @@
           items: [
             { id: 'overview-intro', title: { CN: '简介与核心特性', EN: '简介与核心特性' }, docPath: '项目概览/简介与核心特性' },
             { id: 'overview-license', title: { CN: '许可证与社区', EN: '许可证与社区' }, docPath: '项目概览/许可证与社区' },
+            { id: 'overview-glossary', title: { CN: '术语表', EN: '术语表' }, docPath: '项目概览/术语表' },
           ],
         },
         {
@@ -1515,6 +1516,7 @@
             { id: 'architecture-dataflow', title: { CN: '数据流与核心链路', EN: '数据流与核心链路' }, docPath: '技术架构/数据流与核心链路' },
             { id: 'architecture-di', title: { CN: 'DI 依赖注入 (Koin)', EN: 'DI 依赖注入 (Koin)' }, docPath: '技术架构/DI 依赖注入 (Koin)' },
             { id: 'architecture-navigation', title: { CN: '导航与路由系统', EN: '导航与路由系统' }, docPath: '技术架构/导航与路由系统' },
+            { id: 'architecture-lifecycle', title: { CN: '应用入口与生命周期', EN: '应用入口与生命周期' }, docPath: '技术架构/应用入口与生命周期' },
           ],
         },
         {
@@ -1525,6 +1527,7 @@
             { id: 'chat-transcript-cards', title: { CN: '消息转录与卡片系统', EN: '消息转录与卡片系统' }, docPath: '对话系统/消息转录与卡片系统' },
             { id: 'chat-markdown-components', title: { CN: 'Markdown 组件体系', EN: 'Markdown 组件体系' }, docPath: '对话系统/Markdown 组件体系' },
             { id: 'chat-input-waveform', title: { CN: '输入栏与语音波形', EN: '输入栏与语音波形' }, docPath: '对话系统/输入栏与语音波形' },
+            { id: 'chat-offline-speech', title: { CN: '离线语音识别 (Sherpa-ncnn)', EN: '离线语音识别 (Sherpa-ncnn)' }, docPath: '对话系统/离线语音识别 (Sherpa-ncnn)' },
             { id: 'chat-history-sessions', title: { CN: '对话历史与会话管理', EN: '对话历史与会话管理' }, docPath: '对话系统/对话历史与会话管理' },
           ],
         },
@@ -1536,12 +1539,14 @@
             { id: 'automation-action-parser', title: { CN: '动作解析器 (ActionParser)', EN: '动作解析器 (ActionParser)' }, docPath: '自动化引擎/动作解析器 (ActionParser)' },
             { id: 'automation-action-executor', title: { CN: '动作执行器 (ActionExecutor)', EN: '动作执行器 (ActionExecutor)' }, docPath: '自动化引擎/动作执行器 (ActionExecutor)' },
             { id: 'automation-agent-config', title: { CN: '配置管理 (AgentConfiguration)', EN: '配置管理 (AgentConfiguration)' }, docPath: '自动化引擎/配置管理 (AgentConfiguration)' },
+            { id: 'automation-capture', title: { CN: '屏幕采集与 UI 树提取', EN: '屏幕采集与 UI 树提取' }, docPath: '自动化引擎/屏幕采集与 UI 树提取' },
           ],
         },
         {
           title: { CN: '系统服务与权限', EN: 'System Services & Permissions' },
           items: [
             { id: 'system-device-controller', title: { CN: '设备控制器 (DeviceController)', EN: '设备控制器 (DeviceController)' }, docPath: '系统服务与权限/设备控制器 (DeviceController)' },
+            { id: 'system-accessibility', title: { CN: '无障碍服务与悬浮层', EN: '无障碍服务与悬浮层' }, docPath: '系统服务与权限/无障碍服务与悬浮层' },
           ],
         },
         {
@@ -1549,6 +1554,7 @@
           items: [
             { id: 'models-overview', title: { CN: '多模型接入总览', EN: '多模型接入总览' }, docPath: '多模型接入/多模型接入总览' },
             { id: 'models-switching', title: { CN: '模型模式切换与配置链路', EN: '模型模式切换与配置链路' }, docPath: '多模型接入/模型模式切换与配置链路' },
+            { id: 'models-local-mnn', title: { CN: '本地推理 (MNN)', EN: '本地推理 (MNN)' }, docPath: '多模型接入/本地推理 (MNN)' },
           ],
         },
         {
@@ -1577,6 +1583,7 @@
             { id: 'ui-drawer', title: { CN: '侧边栏与抽屉导航', EN: '侧边栏与抽屉导航' }, docPath: 'UI 组件与设计系统/侧边栏与抽屉导航' },
             { id: 'ui-attachments', title: { CN: '附件组件与文件展示', EN: '附件组件与文件展示' }, docPath: 'UI 组件与设计系统/附件组件与文件展示' },
             { id: 'ui-icons', title: { CN: '图标系统', EN: '图标系统' }, docPath: 'UI 组件与设计系统/图标系统' },
+            { id: 'ui-feedback-export', title: { CN: '反馈日志与导出', EN: '反馈日志与导出' }, docPath: 'UI 组件与设计系统/反馈日志与导出' },
           ],
         },
         {
@@ -1595,6 +1602,7 @@
             { id: 'release-github-release', title: { CN: 'GitHub Release 集成', EN: 'GitHub Release 集成' }, docPath: '更新与分发/GitHub Release 集成' },
             { id: 'release-apk-download', title: { CN: 'APK 下载与安装', EN: 'APK 下载与安装' }, docPath: '更新与分发/APK 下载与安装' },
             { id: 'release-version-notes', title: { CN: '版本发布说明', EN: '版本发布说明' }, docPath: '更新与分发/版本发布说明' },
+            { id: 'release-telemetry', title: { CN: '遥测心跳与 Cloudflare Worker', EN: '遥测心跳与 Cloudflare Worker' }, docPath: '更新与分发/遥测心跳与 Cloudflare Worker' },
           ],
         },
         {
@@ -1605,6 +1613,9 @@
             { id: 'dev-ai-pr-review', title: { CN: 'AI PR Review 流程', EN: 'AI PR Review 流程' }, docPath: '开发规范与工具/AI PR Review 流程' },
             { id: 'dev-feedback-debugging', title: { CN: '反馈日志与问题排查', EN: '反馈日志与问题排查' }, docPath: '开发规范与工具/反馈日志与问题排查' },
             { id: 'dev-build-toolchain', title: { CN: '构建脚本与工具链', EN: '构建脚本与工具链' }, docPath: '开发规范与工具/构建脚本与工具链' },
+            { id: 'dev-deepwiki-sync', title: { CN: 'DeepWiki 同步说明', EN: 'DeepWiki 同步说明' }, docPath: '开发规范与工具/DeepWiki 同步说明' },
+            { id: 'dev-site-docs', title: { CN: '官网与文档中心维护', EN: '官网与文档中心维护' }, docPath: '开发规范与工具/官网与文档中心维护' },
+            { id: 'dev-ci-testing', title: { CN: 'CI 流水线与测试', EN: 'CI 流水线与测试' }, docPath: '开发规范与工具/CI 流水线与测试' },
           ],
         },
         {

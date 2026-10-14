@@ -99,7 +99,7 @@ flowchart TD
 ### 架构说明
 
 1. **输入层**：AI 模型通过 `AutoGlmClient` 发送 SSE 流，增量文本到达流式解析层
-2. **流式解析层**：`AriesStreamParser` 负责从增量输出中分离思考内容和回答正文，支持 `<think>`、`<思考>`、`【思考开始】` 等多种标记格式
+2. **流式解析层**：`AriesStreamParser` 负责从增量输出中分离思考内容和回答正文，支持 `<think>`、`<思考>`、`【思考开始】` 等多种标记格式。网络层（`AutoGlmClient` 的 `SseDelta`）会同时识别 SSE 增量中的 `reasoning_content` 与 `reasoning` 两个字段名；思考标签常量集中在 `ThinkingTags`，并为流式截断场景维护「潜在标签前缀」缓冲判断
 3. **状态管理层**：`StreamingTranscriptMessageState` 持有流式消息的完整状态，`StreamingTranscriptBodyPreview` 封装渲染预览数据，`StreamingMarkdownSnapshot` 记录已提交的 Markdown 块和尾部未完成文本
 4. **Safe Markdown 预处理**：在将文本交给 Compose `Markdown` 组件之前，对未闭合的代码块（fence）和数学公式（`$$`）进行临时补全，同时抑制悬空的加粗、斜体、行内代码等标记
 5. **Compose 渲染层**：`ConversationTranscript` 是消息列表的主要 UI 容器，根据消息是流式还是最终状态选择不同的渲染路径
@@ -162,7 +162,7 @@ flowchart TD
     Check -->|否| Plain[纯文本路径: safe Markdown]
     Check -->|是| Extract[extractStableStreamingMarkdownPrefix]
     Extract --> Scan[扫描文本, 跟踪 fence/inline code/block math/inline math 开闭状态]
-    Scan --> FindEnd[找到"安全的"断点位置 safeEnd]
+    Scan --> FindEnd["找到安全的断点位置 safeEnd"]
     FindEnd --> Partition[partitionCommittedStreamingMarkdown]
     Partition --> BlockStart[从 blockStart 开始扫描]
     BlockStart --> Track{跟踪 fence/math 状态}

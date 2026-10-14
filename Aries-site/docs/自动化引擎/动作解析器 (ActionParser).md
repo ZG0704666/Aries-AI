@@ -269,22 +269,22 @@ fun parseEstimatedSteps(thinking: String): Int {
 
 ```mermaid
 flowchart TD
-    Input[思考文本] --> Strategy1[策略1: 显式数字匹配<br/>"需要约5步完成" → 5]
+    Input[思考文本] --> Strategy1["策略1: 显式数字匹配<br/>需要约5步完成 → 5"]
     Strategy1 --> Found1{命中?}
     Found1 -->|是| Return1[返回数值]
     Found1 -->|否| Strategy2
 
-    Strategy2[策略2: "我需要"模式<br/>解析编号列表最大数字]
+    Strategy2["策略2: 我需要模式<br/>解析编号列表最大数字"]
     Strategy2 --> Found2{命中且2≤n≤20?}
     Found2 -->|是| Return2[返回数值]
     Found2 -->|否| Strategy3
 
-    Strategy3[策略3: 编号步骤匹配<br/>"1.xxx 2.xxx 3.xxx" → 3]
+    Strategy3["策略3: 编号步骤匹配<br/>1.xxx 2.xxx 3.xxx → 3"]
     Strategy3 --> Found3{命中且2≤n≤20?}
     Found3 -->|是| Return3[返回数值]
     Found3 -->|否| Strategy4
 
-    Strategy4[策略4: 动作关键词计数<br/>统计"点击""输入"等词频]
+    Strategy4["策略4: 动作关键词计数<br/>统计点击、输入等词频"]
     Strategy4 --> Found4{计数≥2?}
     Found4 -->|是| Return4[返回限制在2-15]
     Found4 -->|否| Return0[返回 0 = 无法预估]

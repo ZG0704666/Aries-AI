@@ -167,8 +167,8 @@ flowchart TD
     
     DirectDL --> BuildReq[构建 DownloadManager.Request]
     BuildReq --> SetHeaders[设置请求头:<br/>User-Agent, Authorization,<br/>Accept: octet-stream]
-    SetHeaders --> SetDest[设置目标路径:<br/>DIRECTORY_DOWNLOADS/<br/>Aries-AI-{version}.apk]
-    SetDest --> Enqueue[dm.enqueue() 入队下载]
+    SetHeaders --> SetDest["设置目标路径:<br/>DIRECTORY_DOWNLOADS/<br/>Aries-AI-{version}.apk"]
+    SetDest --> Enqueue["dm.enqueue() 入队下载"]
     
     Enqueue --> RegisterReceiver[注册 BroadcastReceiver<br/>监听下载完成]
     RegisterReceiver --> ToastStart[Toast: 开始下载]
