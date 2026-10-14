@@ -46,9 +46,9 @@ flowchart TD
 
 | 模块 | 文件 | 职责 | 典型绑定 |
 |------|------|------|----------|
-| `appModule` | [di/AppModule.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/di/AppModule.kt) | 应用级全局单例 | `AppState`、`AriesOidcAuthManager` |
-| `dataModule` | [di/DataModule.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/di/DataModule.kt) | 数据持久层 | `AriesDatabase`、`ConversationDao`、6 个 DataStore Preferences Repository |
-| `networkModule` | [di/NetworkModule.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/di/NetworkModule.kt) | 网络通信层 | `OkHttpClient`、`AutoGlmClient`、Coil `ImageLoader` |
+| `appModule` | [di/AppModule.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/di/AppModule.kt) | 应用级全局单例（Task 19 DI 迁移后承载大量核心组件） | `AppState`、`AriesOidcAuthManager`、`TelemetryHeartbeatManager`、`ReleaseRepository`、`AIToolHandler`、`ToolRegistration`、`ToolPermissionSystem`、`ShizukuVirtualDisplayEngine`、`InputHelper`、`LocalMnnInferenceEngine`、`ModelScopeModelDownloader`、`AutomationInstructionGateway` 等 |
+| `dataModule` | [di/DataModule.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/di/DataModule.kt) | 数据持久层 | `AriesDatabase`、`ConversationDao`、`SecretStore`、7 个 DataStore Preferences Repository |
+| `networkModule` | [di/NetworkModule.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/di/NetworkModule.kt) | 网络通信层 | `OkHttpClient`（共享 + `named("tool")` 工具专用）、`AutoGlmClient`、`AriesApiClient`、`NetworkToolExecutor`、Coil `ImageLoader` |
 | `uiModule` | [di/UiModule.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/di/UiModule.kt) | ViewModel 绑定 | `ChatViewModel`、`AutomationViewModel`、`SettingsViewModel` 等 6 个 ViewModel |
 
 ## 架构
@@ -141,7 +141,23 @@ val appModule = module {
 
     // AppState is a Kotlin object (singleton); bind it so Koin-injected code can resolve it.
     single { AppState }
-    single { AriesOidcAuthManager(androidApplication()) }
+    single { AriesOidcAuthManager(androidApplication(), get()) }
+    single { TelemetryHeartbeatManager(androidApplication(), get(), get(), get()) }
+    single { ReleaseRepository() }
+
+    // Task 19：object → class DI 迁移后的核心组件注册
+    single { ExtendedAppMapping() }
+    single { PromptTemplates() }
+    single { FileToolExecutor(androidContext()) }
+    single { AIToolHandler(androidContext()) }
+    single { ToolPermissionSystem(androidContext(), get(), get()) }
+    single { ShizukuVirtualDisplayEngine() }
+    single { InputHelper() }
+    single { AppPackageManager(get()) }
+    single { LocalMnnInferenceEngine(get()) }
+    single { ModelScopeModelDownloader() }
+    single<AutomationInstructionGateway> { get<ActivityAutomationInstructionGateway>() }
+    single { ToolRegistration(/* ... */) }
 
     // TODO(T3): Uncomment once ConversationManager is extracted from object/singleton:
     // single { ConversationManager(get()) }
@@ -151,10 +167,13 @@ val appModule = module {
 }
 ```
 
+> Source: [di/AppModule.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/di/AppModule.kt#L58-L118)（节选，完整清单以源码为准）
+
 **关键设计点：**
 
 - `AppState` 是 Kotlin `object`（语言级单例），通过 `single { AppState }` 绑定后，其他组件即可通过 `get<AppState>()` 或 `by inject()` 获取，无需硬编码 `AppState` 引用
-- `AriesOidcAuthManager` 需要 `Application` 实例，通过 `androidApplication()` Koin 扩展自动注入
+- `AriesOidcAuthManager` 现通过 `androidApplication()` 与 `SecretStore`（`get()`）两个参数构造
+- Task 19 迁移后，`AIToolHandler`、`ToolRegistration`、`ToolPermissionSystem`、`ShizukuVirtualDisplayEngine`、`InputHelper`、`LocalMnnInferenceEngine`、`ModelScopeModelDownloader`、自动化指令网关等原先的 object 单例均已改为 class 并纳入 Koin 管理
 - 模块注释中标注了 `TODO(T3)`，表明 `ConversationManager` 和 `ConversationTranscriptState` 将在后续迁移中加入到 Koin 管理
 
 ### dataModule — 数据层模块
@@ -176,11 +195,13 @@ val dataModule = module {
 
     // DataStore preferences repositories — all require application context.
     single { MainUiPreferencesRepository(androidContext()) }
-    single { AppPreferencesRepository(androidContext()) }
+    single<SecretStore> { AndroidKeyStoreSecretStore() }
+    single { AppPreferencesRepository(androidContext(), get()) }
     single { FloatingChatPreferencesRepository(androidContext()) }
     single { VirtualDisplayConfigRepository(androidContext()) }
     single { ToolPermissionsRepository(androidContext()) }
     single { AutomationResultsRepository(androidContext()) }
+    single { TelemetryPreferencesRepository(androidContext()) }
 }
 ```
 
@@ -188,7 +209,8 @@ val dataModule = module {
 
 - Room 数据库复用现有的 `getInstance()` 线程安全单例方法，Koin 仅做委托包装，避免双重初始化
 - `ConversationDao` 通过 `get<AriesDatabase>().conversationDao()` 解析，体现了"通过 Koin 级联解析"的模式
-- 全部 6 个 DataStore Preferences Repository 均需要 `androidContext()` 作为构造参数
+- `AppPreferencesRepository` 现在额外接收 `SecretStore`（默认实现为 `AndroidKeyStoreSecretStore`）用于敏感信息加密存储
+- 全部 7 个 DataStore Preferences Repository 均需要 `androidContext()` 作为构造参数（含遥测偏好的 `TelemetryPreferencesRepository`）
 
 ### networkModule — 网络层模块
 
@@ -226,6 +248,21 @@ val networkModule = module {
     // AutoGlmClient is a Kotlin object (singleton); bind it so it can be injected or mocked in tests.
     single { AutoGlmClient }
 
+    // Task 19 Phase 4: AriesApiClient migrated from object to class (companion facade DI).
+    single { AriesApiClient() }
+
+    // Task 19 Phase 2: 工具专用 OkHttpClient（30s 超时，与共享 client 60s/300s 区分）
+    single(named("tool")) {
+        OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    // Task 19 Phase 2: NetworkToolExecutor 迁移
+    single { NetworkToolExecutor(androidContext(), get(named("tool"))) }
+
     /**
      * Coil ImageLoader singleton for Compose image loading.
      * Configured with memory and disk caching for efficient attachment thumbnail loading.
@@ -259,6 +296,7 @@ val networkModule = module {
 - `OkHttpClient` 使用延迟配置：Debug 模式下启用 `BASIC` 级别日志，Release 模式完全关闭
 - AI 服务超时配置体现业务特点：读超时 300s（AI 生成响应可能较慢），调用超时 360s
 - **设计决策**：`OpenAICompatibleProvider` 需要运行时参数（apiKey、baseUrl、modelName），**故意未注册为静态单例**。当前使用方直接构造或通过 Koin parameters 传递，将在 T7 迁移任务中加入 `factory` 绑定
+- Task 19 迁移后，`AriesApiClient` 已改为 class 并以 `single { AriesApiClient() }` 注册；同时新增了 `named("tool")` 限定的工具专用 OkHttpClient（30s 超时）供 `NetworkToolExecutor` 使用
 - Coil `ImageLoader` 配置了内存缓存（25%）和磁盘缓存（2%），专门为附件缩略图加载优化
 
 ### uiModule — UI 层模块
@@ -273,21 +311,34 @@ val uiModule = module {
     // ChatViewModel is an AndroidViewModel; Koin's viewModel {} block handles
     // the Application parameter automatically.
     viewModel { ChatViewModel(get()) }
-    viewModel { AutomationViewModel(get(), get(), get()) }
-    viewModel { SettingsViewModel(get(), get(), get()) }
+    viewModel {
+        AutomationViewModel(
+            application = get(),
+            appPrefsRepository = get(),
+            automationResultsRepository = get(),
+            toolRegistration = get<ToolRegistration>(),
+            liveNotification = get(),
+            automationOverlay = get(),
+            appPackageManager = get(),
+            screenshotOverlayGuard = get(),
+            promptTemplates = get(),
+            localMnnInferenceEngine = get(),
+            modelScopeModelDownloader = get(),
+            virtualScreenPreviewOverlay = get(),
+        )
+    }
+    viewModel { SettingsViewModel(get(), get(), get(), get(), get()) }
     viewModel { AppearanceViewModel(get(), get()) }
-    viewModel { com.ai.phoneagent.viewmodel.AboutViewModel(get(),
-        com.ai.phoneagent.updates.ReleaseRepository(), get()) }
-    viewModel { com.ai.phoneagent.viewmodel.UpdateHistoryViewModel(get(),
-        com.ai.phoneagent.updates.ReleaseRepository()) }
+    viewModel { AboutViewModel(get(), get(), get()) }
+    viewModel { UpdateHistoryViewModel(get(), get()) }
 }
 ```
 
 **关键设计点：**
 
 - `viewModel {}` 是 Koin AndroidX 扩展提供的 DSL，自动处理 `AndroidViewModel` 的 `Application` 参数
-- `get()` 调用由 Koin 自动解析：例如 `AutomationViewModel(get(), get(), get())` 中的三个 `get()` 分别解析其构造参数所需的依赖
-- `ReleaseRepository()` 直接实例化（非 Koin 管理），因为它是轻量级的无依赖工厂类
+- `get()` 调用由 Koin 自动解析：`AutomationViewModel` 在 Task 19 迁移后依赖已扩展为 12 个构造参数（工具注册、本地推理引擎、模型下载器、预览浮层等），全部通过 `get()` 级联解析
+- `ReleaseRepository` 现在由 `appModule` 以 `single { ReleaseRepository() }` 注册，`AboutViewModel` / `UpdateHistoryViewModel` 通过 `get()` 解析，而非直接实例化
 
 ## 注入方式
 
@@ -402,7 +453,6 @@ sequenceDiagram
 
     App->>App: AppCompatDelegate.setDefaultNightMode()
     App->>App: AppState.init(this)
-    App->>App: AutomationLiveNotification.initialize(this)
 
     Note over App,Koin: 🔧 Koin 容器初始化
     App->>Koin: startKoin { ... }
@@ -414,8 +464,13 @@ sequenceDiagram
     Koin-->>App: DI 容器就绪
     deactivate Koin
 
+    App->>Koin: koin.get<ShizukuVirtualDisplayEngine>()
+    App->>App: VirtualDisplayController.initialize(engine)
+    App->>Koin: koin.get<AutomationLiveNotification>().initialize()
+    App->>Koin: koin.get<TelemetryHeartbeatManager>().start()
+
     Note over App,Coil: 🖼️ Coil 初始化（用 Koin 管理的 ImageLoader）
-    App->>Koin: GlobalContext.get().get<ImageLoader>()
+    App->>Koin: koin.get<ImageLoader>()
     Koin-->>App: ImageLoader 实例
     App->>Coil: Coil.setImageLoader { imageLoader }
 
@@ -423,7 +478,7 @@ sequenceDiagram
     deactivate App
 ```
 
-> Source: [AriesAgentApp.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/AriesAgentApp.kt#L65-L100)
+> Source: [AriesAgentApp.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/AriesAgentApp.kt#L67-L124)
 
 ```kotlin
 override fun onCreate() {
@@ -434,42 +489,47 @@ override fun onCreate() {
 
     // 初始化全局上下文
     AppState.init(this)
-    AutomationLiveNotification.initialize(this)
 
     // 初始化 Koin 依赖注入框架
-    startKoin {
+    val koin = startKoin {
         androidLogger(if (android.util.Log.isLoggable("Koin", android.util.Log.DEBUG))
             Level.DEBUG else Level.ERROR)
         androidContext(this@AriesAgentApp)
         modules(appModule, dataModule, networkModule, uiModule)
-    }
+    }.koin
+
+    // 虚拟屏引擎、自动化前台通知、遥测心跳均从 Koin 容器解析后初始化
+    try {
+        val engine = koin.get<ShizukuVirtualDisplayEngine>()
+        VirtualDisplayController.initialize(engine)
+    } catch (t: Throwable) { /* best effort */ }
+    try {
+        koin.get<AutomationLiveNotification>().initialize()
+    } catch (t: Throwable) { /* best effort */ }
+    try {
+        koin.get<TelemetryHeartbeatManager>().start()
+    } catch (t: Throwable) { /* best effort */ }
 
     // 配置 Coil ImageLoader（使用 Koin 管理的实例）
     try {
-        val imageLoader = org.koin.core.context.GlobalContext.get().get<ImageLoader>()
+        val imageLoader = koin.get<ImageLoader>()
         Coil.setImageLoader { imageLoader }
-        logi("Coil ImageLoader initialized from Koin")
-    } catch (t: Throwable) {
-        logw("Coil ImageLoader initialization failed", t)
-    }
+    } catch (t: Throwable) { /* best effort */ }
 
     // 初始化 HiddenApiBypass（虚拟屏创建必需）
     try {
         if (Build.VERSION.SDK_INT >= 28) {
             HiddenApiBypass.addHiddenApiExemptions("L")
-            logi("HiddenApiBypass initialized successfully")
         }
-    } catch (t: Throwable) {
-        logw("HiddenApiBypass initialization failed", t)
-    }
+    } catch (t: Throwable) { /* best effort */ }
 }
 ```
 
 **关键设计点：**
 
 1. **日志级别自适应**：通过 `android.util.Log.isLoggable("Koin", ...)` 检测系统日志配置，DEBUG 可日志时才启用 Koin 详细日志，避免生产环境日志污染
-2. **Coil 后置初始化**：Koin 启动后立即通过 `GlobalContext.get().get<ImageLoader>()` 获取 ImageLoader 并设置到 Coil（全局图片加载框架），体现 Koin 作为"依赖源"的角色
-3. **尽力而为策略**：Coil 和 HiddenApiBypass 的初始化均使用 `try-catch`，任何失败都不会阻塞应用启动
+2. **容器后置初始化**：`ShizukuVirtualDisplayEngine`（`VirtualDisplayController.initialize`）、`AutomationLiveNotification`、`TelemetryHeartbeatManager` 和 Coil `ImageLoader` 都在 `startKoin` 之后从容器解析并初始化，体现 Koin 作为"依赖源"的角色
+3. **尽力而为策略**：虚拟屏引擎、前台通知、遥测、Coil 和 HiddenApiBypass 的初始化均使用 `try-catch`，任何失败都不会阻塞应用启动
 
 ## 构建配置
 
@@ -620,16 +680,27 @@ class KoinScopeTest : KoinTest {
 |----------|----------|----------|----------|
 | `AppState` | appModule | `single { AppState }` | 全局单例 |
 | `AriesOidcAuthManager` | appModule | `single { ... }` | 全局单例 |
+| `TelemetryHeartbeatManager` | appModule | `single { ... }` | 全局单例 |
+| `ReleaseRepository` | appModule | `single { ReleaseRepository() }` | 全局单例 |
+| `AIToolHandler` / `ToolPermissionSystem` / `FileToolExecutor` / `NetworkToolExecutor` | appModule / networkModule | `single { ... }` | 全局单例 |
+| `ToolRegistration` / `AppPackageManager` / `ExtendedAppMapping` / `PromptTemplates` | appModule | `single { ... }` | 全局单例 |
+| `ShizukuVirtualDisplayEngine` / `InputHelper` | appModule | `single { ... }` | 全局单例 |
+| `LocalMnnInferenceEngine` / `ModelScopeModelDownloader` | appModule | `single { ... }` | 全局单例 |
+| `AutomationInstructionGateway`（→ `ActivityAutomationInstructionGateway`） | appModule | `single<AutomationInstructionGateway> { get<...>() }` | 全局单例 |
 | `AriesDatabase` | dataModule | `single<AriesDatabase> { ... }` | 全局单例 |
 | `ConversationDao` | dataModule | `single { get<...>().conversationDao() }` | 全局单例 |
+| `SecretStore`（→ `AndroidKeyStoreSecretStore`） | dataModule | `single<SecretStore> { ... }` | 全局单例 |
 | `MainUiPreferencesRepository` | dataModule | `single { ... }` | 全局单例 |
-| `AppPreferencesRepository` | dataModule | `single { ... }` | 全局单例 |
+| `AppPreferencesRepository`（含 `SecretStore`） | dataModule | `single { ... }` | 全局单例 |
 | `FloatingChatPreferencesRepository` | dataModule | `single { ... }` | 全局单例 |
 | `VirtualDisplayConfigRepository` | dataModule | `single { ... }` | 全局单例 |
 | `ToolPermissionsRepository` | dataModule | `single { ... }` | 全局单例 |
 | `AutomationResultsRepository` | dataModule | `single { ... }` | 全局单例 |
-| `OkHttpClient` | networkModule | `single<OkHttpClient> { ... }` | 全局单例 |
+| `TelemetryPreferencesRepository` | dataModule | `single { ... }` | 全局单例 |
+| `OkHttpClient`（共享） | networkModule | `single<OkHttpClient> { ... }` | 全局单例 |
+| `OkHttpClient`（`named("tool")` 工具专用） | networkModule | `single(named("tool")) { ... }` | 全局单例 |
 | `AutoGlmClient` | networkModule | `single { AutoGlmClient }` | 全局单例 |
+| `AriesApiClient` | networkModule | `single { AriesApiClient() }` | 全局单例 |
 | `ImageLoader` (Coil) | networkModule | `single<ImageLoader> { ... }` | 全局单例 |
 | `ChatViewModel` | uiModule | `viewModel { ... }` | ViewModelStoreOwner 作用域 |
 | `AutomationViewModel` | uiModule | `viewModel { ... }` | ViewModelStoreOwner 作用域 |

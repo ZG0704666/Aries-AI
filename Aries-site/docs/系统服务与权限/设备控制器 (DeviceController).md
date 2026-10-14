@@ -569,3 +569,7 @@ app/src/main/java/com/ai/phoneagent/
 ---
 
 *本文档基于 [ZG0704666/Aries-AI](https://github.com/ZG0704666/Aries-AI) 仓库 `main` 分支的实际源代码生成。*
+
+## 专题补充
+
+[无障碍服务与悬浮层](./无障碍服务与悬浮层.md)。

@@ -299,6 +299,11 @@ Agent 根据当前配置选择数据采集方式：
 
 截图通过 `ScreenshotManager.getOptimizedScreenshot()` 获取，内部集成了缓存、节流和压缩优化。
 
+两点补充说明（与当前代码核对）：
+
+- Shizuku UI 树采集受编译期常量 `ENABLE_SHIZUKU_UI_TREE` 门控（当前源码中为 `false`，即 Shizuku 模式实际以截图驱动），且仅在「非虚拟屏 + `useShizukuInteraction=true`」时才会尝试启用（`UiAutomationAgent.kt` 感知阶段）
+- 仓库中另有独立的 `ShizukuUiTreeSummarizer`（`core.utils`），负责把 `uiautomator` 原始 XML 精简为结构化摘要（`XmlPullParser` 流式解析 → 按 `shouldKeep` 评分筛选节点 → 限制 `maxNodes` → 输出摘要 XML），用于控制 Shizuku UI 树的噪声与 token 成本；它是独立工具类，不直接挂接在主循环采集路径上
+
 #### 2. 推理阶段 —— 构建请求并调用模型
 
 ```kotlin
