@@ -1,5 +1,6 @@
 package com.ai.phoneagent.ui.settings
 
+import com.ai.phoneagent.ui.components.AriesPageTopBar
 import android.os.Build
 import android.text.Html
 import android.view.Gravity
@@ -31,68 +32,25 @@ import com.composables.icons.lucide.Lucide
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserAgreementScreen(navController: NavController) {
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
+    val spacingLg = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
+    val spacingXl = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xl)
     val agreementHtml = stringResource(R.string.user_agreement_content)
     val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
     val containerColor = MaterialTheme.colorScheme.surface.toArgb()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { Text(text = stringResource(SettingsR.string.user_agreement_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Lucide.ArrowLeft,
-                            contentDescription = stringResource(SettingsR.string.about_back),
-                        )
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                    ),
-            )
+            AriesPageTopBar(stringResource(SettingsR.string.user_agreement_title), { navController.popBackStack() })
         },
     ) { innerPadding ->
-        AndroidView(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = spacingXl, vertical = spacingLg),
-            factory = { context ->
-                val horizontalPadding = context.resources.getDimensionPixelSize(R.dimen.m3t_spacing_xl)
-                val verticalPadding = context.resources.getDimensionPixelSize(R.dimen.m3t_spacing_lg)
-                ScrollView(context).apply {
-                    isFillViewport = true
-                    overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
-                    setBackgroundColor(containerColor)
-                    addView(
-                        TextView(context).apply {
-                            setTextColor(textColor)
-                            textSize = 15f
-                            setLineSpacing(0f, 1.35f)
-                            gravity = Gravity.START
-                            setBackgroundColor(containerColor)
-                            setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
-                        },
-                    )
-                }
-            },
-            update = { scrollView ->
-                val textView = scrollView.getChildAt(0) as? TextView ?: return@AndroidView
-                textView.text =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        Html.fromHtml(agreementHtml, Html.FROM_HTML_MODE_COMPACT)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        Html.fromHtml(agreementHtml)
-                    }
-            },
-        )
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().padding(innerPadding)) {
+            com.ai.phoneagent.ui.onboarding.AgreementPanel(
+                onAccept = { navController.popBackStack() },
+                actionLabelRes = com.ai.phoneagent.R.string.action_close,
+                requireAcceptance = false,
+            )
+        }
     }
 }

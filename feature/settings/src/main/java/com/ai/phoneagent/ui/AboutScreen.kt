@@ -1,6 +1,12 @@
 package com.ai.phoneagent.ui
 
 import android.content.res.Configuration
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import com.ai.phoneagent.core.designsystem.theme.ariesGlass
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -74,23 +79,27 @@ fun AboutScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(text = stringResource(R.string.about_title)) },
+                title = { Text(text = stringResource(R.string.about_title), modifier = Modifier.padding(start = dimensionResource(DesignSystemR.dimen.aries_toolbar_title_gap)), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+                expandedHeight = dimensionResource(DesignSystemR.dimen.aries_toolbar_height),
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Lucide.ArrowLeft,
-                            contentDescription = stringResource(R.string.about_back),
-                        )
+                    IconButton(onClick = onBack, modifier = Modifier.padding(start = dimensionResource(DesignSystemR.dimen.aries_composer_inset_x))
+                        .size(dimensionResource(DesignSystemR.dimen.aries_touch_target))) {
+                        Box(Modifier.size(dimensionResource(DesignSystemR.dimen.aries_back_button)).ariesGlass(CircleShape), contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Lucide.ArrowLeft,
+                                contentDescription = stringResource(R.string.about_back),
+                                modifier = Modifier.size(dimensionResource(DesignSystemR.dimen.aries_back_icon)),
+                            )
+                        }
                     }
                 },
                 colors =
                     TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
+                        containerColor = androidx.compose.ui.graphics.Color.Transparent,
                     ),
-                modifier = Modifier.statusBarsPadding(),
             )
         },
     ) { innerPadding ->
@@ -100,7 +109,8 @@ fun AboutScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
                     .navigationBarsPadding(),
-            contentPadding = PaddingValues(bottom = spacingXl),
+            contentPadding = PaddingValues(horizontal = spacingXl, vertical = spacingXl),
+            verticalArrangement = Arrangement.spacedBy(spacingXl),
         ) {
             item {
                 AboutHeroSection(
@@ -110,63 +120,67 @@ fun AboutScreen(
             }
 
             item {
-                AriesSettingsSectionHeader(title = stringResource(R.string.about_runtime_info_title))
-                AriesSettingsValueItem(
-                    headlineText = stringResource(R.string.about_runtime_info_title), // Or a specific string for prompt version
-                    value = promptVersionText,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(dimensionResource(DesignSystemR.dimen.m3t_spacing_sm))) {
+                    AriesSettingsSectionHeader(title = stringResource(R.string.about_runtime_info_title))
+                    AriesSettingsValueItem(
+                        headlineText = stringResource(R.string.about_runtime_info_title),
+                        value = promptVersionText,
+                    )
+                }
             }
 
             item {
-                AriesSettingsSectionHeader(title = stringResource(R.string.about_title)) // Or "Actions"
-                AriesSettingsNavigationItem(
-                    headlineText = checkUpdateButtonText,
-                    supportingText = stringResource(R.string.about_action_check_updates_desc),
-                    leadingIcon = { Icon(Lucide.RefreshCw, contentDescription = null) },
-                    onClick = onCheckUpdate,
-                )
-                AriesSettingsNavigationItem(
-                    headlineText = stringResource(R.string.about_changelog),
-                    supportingText = stringResource(R.string.about_action_changelog_desc),
-                    leadingIcon = { Icon(Lucide.History, contentDescription = null) },
-                    onClick = onOpenChangelog,
-                )
-                AriesSettingsNavigationItem(
-                    headlineText = stringResource(R.string.about_source_code),
-                    supportingText = stringResource(R.string.about_source_code_short),
-                    leadingIcon = { Icon(Lucide.Code, contentDescription = null) },
-                    onClick = onOpenSourceCode,
-                )
-                AriesSettingsNavigationItem(
-                    headlineText = stringResource(R.string.about_feedback),
-                    supportingText = stringResource(R.string.about_feedback_desc),
-                    leadingIcon = { Icon(Lucide.Bug, contentDescription = null) },
-                    onClick = onTaskFeedback,
-                )
-                AriesSettingsNavigationItem(
-                    headlineText = stringResource(R.string.user_agreement_title),
-                    supportingText = stringResource(R.string.about_action_policy_desc),
-                    leadingIcon = { Icon(Lucide.Shield, contentDescription = null) },
-                    onClick = onOpenUserAgreement,
-                )
-                AriesSettingsNavigationItem(
-                    headlineText = stringResource(R.string.about_open_source_licenses),
-                    supportingText = stringResource(R.string.about_action_licenses_desc),
-                    leadingIcon = { Icon(Lucide.ScrollText, contentDescription = null) },
-                    onClick = onOpenLicenses,
-                )
-                AriesSettingsNavigationItem(
-                    headlineText = stringResource(R.string.about_website),
-                    supportingText = stringResource(R.string.about_website_short),
-                    leadingIcon = { Icon(Lucide.Globe, contentDescription = null) },
-                    onClick = onOpenWebsite,
-                )
-                AriesSettingsNavigationItem(
-                    headlineText = stringResource(R.string.about_contact_title),
-                    supportingText = stringResource(R.string.about_contact_short),
-                    leadingIcon = { Icon(Lucide.Mail, contentDescription = null) },
-                    onClick = onCopyContact,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(dimensionResource(DesignSystemR.dimen.m3t_spacing_md))) {
+                    AriesSettingsSectionHeader(title = stringResource(R.string.about_title))
+                    AriesSettingsNavigationItem(
+                        headlineText = checkUpdateButtonText,
+                        supportingText = stringResource(R.string.about_action_check_updates_desc),
+                        leadingIcon = { Icon(Lucide.RefreshCw, contentDescription = null) },
+                        onClick = onCheckUpdate,
+                    )
+                    AriesSettingsNavigationItem(
+                        headlineText = stringResource(R.string.about_changelog),
+                        supportingText = stringResource(R.string.about_action_changelog_desc),
+                        leadingIcon = { Icon(Lucide.History, contentDescription = null) },
+                        onClick = onOpenChangelog,
+                    )
+                    AriesSettingsNavigationItem(
+                        headlineText = stringResource(R.string.about_source_code),
+                        supportingText = stringResource(R.string.about_source_code_short),
+                        leadingIcon = { Icon(Lucide.Code, contentDescription = null) },
+                        onClick = onOpenSourceCode,
+                    )
+                    AriesSettingsNavigationItem(
+                        headlineText = stringResource(R.string.about_feedback),
+                        supportingText = stringResource(R.string.about_feedback_desc),
+                        leadingIcon = { Icon(Lucide.Bug, contentDescription = null) },
+                        onClick = onTaskFeedback,
+                    )
+                    AriesSettingsNavigationItem(
+                        headlineText = stringResource(R.string.user_agreement_title),
+                        supportingText = stringResource(R.string.about_action_policy_desc),
+                        leadingIcon = { Icon(Lucide.Shield, contentDescription = null) },
+                        onClick = onOpenUserAgreement,
+                    )
+                    AriesSettingsNavigationItem(
+                        headlineText = stringResource(R.string.about_open_source_licenses),
+                        supportingText = stringResource(R.string.about_action_licenses_desc),
+                        leadingIcon = { Icon(Lucide.ScrollText, contentDescription = null) },
+                        onClick = onOpenLicenses,
+                    )
+                    AriesSettingsNavigationItem(
+                        headlineText = stringResource(R.string.about_website),
+                        supportingText = stringResource(R.string.about_website_short),
+                        leadingIcon = { Icon(Lucide.Globe, contentDescription = null) },
+                        onClick = onOpenWebsite,
+                    )
+                    AriesSettingsNavigationItem(
+                        headlineText = stringResource(R.string.about_contact_title),
+                        supportingText = stringResource(R.string.about_contact_short),
+                        leadingIcon = { Icon(Lucide.Mail, contentDescription = null) },
+                        onClick = onCopyContact,
+                    )
+                }
             }
 
             item {
@@ -174,7 +188,7 @@ fun AboutScreen(
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(dimensionResource(DesignSystemR.dimen.m3t_spacing_xxxs)),
+                    verticalArrangement = Arrangement.spacedBy(dimensionResource(DesignSystemR.dimen.m3t_spacing_sm)),
                 ) {
                     Text(
                         text = stringResource(R.string.about_copyright),
@@ -211,11 +225,10 @@ private fun AboutHeroSection(
     onDeveloperTap: () -> Unit,
 ) {
     val spacingXs = dimensionResource(DesignSystemR.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(DesignSystemR.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(DesignSystemR.dimen.m3t_spacing_md)
     val spacingXxl = dimensionResource(DesignSystemR.dimen.m3t_spacing_xxl)
-    val appIconSize = dimensionResource(DesignSystemR.dimen.m3t_about_icon_card_size)
-    val appIconVisualSize = appIconSize - spacingXs
+    val appIconSize = dimensionResource(DesignSystemR.dimen.aries_brand_size)
+    val appIconVisualSize = dimensionResource(DesignSystemR.dimen.aries_brand_icon)
 
     Column(
         modifier =
@@ -224,14 +237,16 @@ private fun AboutHeroSection(
                 .clickable(onClick = onDeveloperTap)
                 .padding(vertical = spacingXxl, horizontal = spacingMd),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(spacingSm),
+        verticalArrangement = Arrangement.spacedBy(spacingMd),
     ) {
-        Image(
-            painter = painterResource(R.drawable.ic_launcher_foreground),
-            contentDescription = stringResource(R.string.app_name),
-            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
-            modifier = Modifier.size(appIconVisualSize),
-        )
+        Box(Modifier.size(appIconSize).background(
+            Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)),
+            RoundedCornerShape(dimensionResource(DesignSystemR.dimen.m3t_spacing_xl))),
+            contentAlignment = Alignment.Center) {
+            Image(painter = painterResource(R.drawable.ic_launcher_foreground),
+                contentDescription = stringResource(R.string.app_name),
+                colorFilter = ColorFilter.tint(Color.White), modifier = Modifier.size(appIconVisualSize))
+        }
 
         Text(
             text = stringResource(R.string.app_name),

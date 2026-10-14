@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 
 typealias ThemeMode = com.ai.phoneagent.core.designsystem.theme.ThemeMode
 typealias ThemeAccent = com.ai.phoneagent.core.designsystem.theme.ThemeAccent
@@ -80,12 +81,14 @@ class AppPreferencesRepository(
 
     private suspend fun editPrefs(transform: suspend (MutablePreferences) -> Unit) {
         migrationReady.await()
-        prefsStore.edit(transform)
+        // DataStore executes transforms in the caller context. A UI caller must not
+        // leave a pending transform on Main while legacy synchronous readers wait.
+        withContext(Dispatchers.IO) { prefsStore.edit(transform) }
     }
 
     private suspend fun editSecrets(transform: suspend (MutablePreferences) -> Unit) {
         migrationReady.await()
-        secretsStore.edit(transform)
+        withContext(Dispatchers.IO) { secretsStore.edit(transform) }
     }
 
     private object Keys {
@@ -120,6 +123,7 @@ class AppPreferencesRepository(
         val dynamicColorEnabled = booleanPreferencesKey("dynamic_color_enabled")
         val chatFontScale = floatPreferencesKey("chat_font_scale")
         val chatFontFamily = stringPreferencesKey("chat_font_family")
+        val pencilDefaultsRestored = booleanPreferencesKey("pencil_v2_defaults_restored")
         val codeAutoWrap = booleanPreferencesKey("code_auto_wrap")
         val codeLineNumbers = booleanPreferencesKey("code_line_numbers")
         val codeAutoCollapse = booleanPreferencesKey("code_auto_collapse")
@@ -535,6 +539,20 @@ class AppPreferencesRepository(
     suspend fun getThemeColorStyle(): String {
         val prefs = readyPrefsFlow.first()
         return resolveThemeColorStyleStorage(prefs)
+    }
+
+    /** One-time restore requested for the Pencil v2 rollout; later choices remain editable. */
+    suspend fun restorePencilAppearanceOnce() {
+        editPrefs { prefs ->
+            if (prefs[Keys.pencilDefaultsRestored] != true) {
+                prefs[Keys.themeColorStyle] = ThemeColorStyle.DEFAULT.storageKey
+                prefs[Keys.themeAccent] = ThemeColorStyle.DEFAULT.storageKey
+                prefs[Keys.dynamicColorEnabled] = false
+                prefs[Keys.chatFontFamily] = "default"
+                prefs[Keys.chatFontScale] = 1f
+                prefs[Keys.pencilDefaultsRestored] = true
+            }
+        }
     }
 
     suspend fun setThemeColorStyle(value: String) {

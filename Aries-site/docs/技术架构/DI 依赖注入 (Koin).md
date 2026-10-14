@@ -1,5 +1,8 @@
 ﻿# DI 依赖注入 (Koin)
 
+> 当前实现说明：`FloatingChatService` 已不在当前源码中；本文涉及它的示例与悬浮聊天链路属于历史实现。当前主界面入口为 `MainActivity`，悬浮聊天偏好类仍保留，不能据此推断悬浮聊天服务仍可用。
+
+
 Aries-AI 使用 **Koin 3.5.6** 作为依赖注入框架，通过分层模块化设计管理应用中的所有核心组件、数据层、网络层和 UI 层依赖关系。
 
 ## 概述
@@ -306,7 +309,7 @@ class MainActivity : AppCompatActivity() {
 }
 ```
 
-> Source: [FloatingChatService.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/FloatingChatService.kt#L133-L134)
+> Source: `FloatingChatService`（历史实现，当前源码已移除）
 
 ```kotlin
 import org.koin.android.ext.android.inject

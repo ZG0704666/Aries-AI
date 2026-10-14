@@ -24,8 +24,8 @@ if(ANDROID)
     if(NOT ARIES_ENABLE_SHERPA_NCNN)
         message(STATUS "ARIES_ENABLE_SHERPA_NCNN=OFF，跳过 sherpa-ncnn native 构建。")
     elseif(NOT EXISTS "${SHERPA_NCNN_CMAKELISTS}" OR NOT EXISTS "${NCNN_CMAKELISTS}")
-        message(WARNING
-                "缺少 native submodule 源码，已跳过 sherpa-ncnn native 构建。\n"
+        message(FATAL_ERROR
+                "缺少 native submodule 源码，无法构建离线语音功能。\n"
                 "期望存在: ${SHERPA_NCNN_CMAKELISTS}\n"
                 "期望存在: ${NCNN_CMAKELISTS}\n"
                 "请执行: git submodule update --init --recursive")

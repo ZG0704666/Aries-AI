@@ -118,11 +118,11 @@ class AutomationLiveNotification(context: Context) {
         notifyCurrent(completed = false)
     }
 
-    fun complete(message: String) {
+    fun complete(message: String, success: Boolean = true) {
         if (!active) return
-        title = "已完成"
+        title = appContext.getString(if (success) R.string.ui_v2_success else R.string.ui_v2_failed)
         subtitle = message.ifBlank { "任务完成" }.take(64)
-        detail = "任务完成"
+        detail = title
         progress = MAX_PROGRESS
         notifyCurrent(completed = true, immediate = true)
         active = false
@@ -249,7 +249,7 @@ class AutomationLiveNotification(context: Context) {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(0)
             .setVibrate(LongArray(0))
-            .setProgress(MAX_PROGRESS, progress, false)
+            .setProgress(MAX_PROGRESS, if (completed) MAX_PROGRESS else 0, !completed)
             .setRequestPromotedOngoing(!completed)
             .setAutoCancel(completed)
             .setTimeoutAfter(if (completed) 3_000L else 0L)

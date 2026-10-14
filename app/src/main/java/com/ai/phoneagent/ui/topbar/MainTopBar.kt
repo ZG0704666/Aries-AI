@@ -39,16 +39,14 @@ fun MainTopBar(
     statusVisible: Boolean,
     onToggleStatus: () -> Unit,
     onOpenDrawer: () -> Unit,
-    onNewChat: () -> Unit,
-    onOpenFloatingWindow: () -> Unit,
     modelName: String = "",
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingXxxs = dimensionResource(R.dimen.m3t_spacing_xxxs)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
+    val spacingXxxs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xxxs)
     val titleGap = dimensionResource(R.dimen.m3t_top_bar_title_gap)
-    val compactToolbarHeight = dimensionResource(R.dimen.m3t_toolbar_height) - spacingXs
+    val compactToolbarHeight = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_toolbar_height) - spacingXs
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -102,20 +100,6 @@ fun MainTopBar(
                         Icon(
                             painter = painterResource(R.drawable.ic_menu_24),
                             contentDescription = stringResource(R.string.drawer_open_navigation),
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onNewChat) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_new_chat_24),
-                            contentDescription = stringResource(R.string.top_bar_new_chat),
-                        )
-                    }
-                    IconButton(onClick = onOpenFloatingWindow) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_floating_window_24),
-                            contentDescription = stringResource(R.string.top_bar_floating_window),
                         )
                     }
                 },

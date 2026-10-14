@@ -49,11 +49,11 @@ fun ConversationHistoryDialog(
     modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val dialogPadding = dimensionResource(R.dimen.m3t_dialog_padding)
-    val cardMargin = dimensionResource(R.dimen.m3t_dialog_card_margin_h)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val listMaxHeight = dimensionResource(R.dimen.m3t_license_list_height)
+    val dialogPadding = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_dialog_padding)
+    val cardMargin = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_dialog_card_margin_h)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingLg = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
+    val listMaxHeight = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_license_list_height)
 
     Box(
         modifier =
@@ -79,8 +79,8 @@ fun ConversationHistoryDialog(
                     ),
             shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = dimensionResource(R.dimen.m3t_spacing_xxxs),
-            shadowElevation = dimensionResource(R.dimen.m3t_spacing_sm),
+            tonalElevation = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xxxs),
+            shadowElevation = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm),
         ) {
             Column(modifier = Modifier.padding(dialogPadding)) {
                 Row(
@@ -136,15 +136,15 @@ private fun ConversationHistoryRow(
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingLg = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
-        tonalElevation = dimensionResource(R.dimen.m3t_size_zero),
+        tonalElevation = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_size_zero),
         onClick = onClick,
     ) {
         Row(
@@ -155,7 +155,7 @@ private fun ConversationHistoryRow(
                 imageVector = Lucide.MessageCircle,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(dimensionResource(R.dimen.m3t_about_row_icon_size)),
+                modifier = Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_about_row_icon_size)),
             )
 
             Column(

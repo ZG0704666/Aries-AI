@@ -1,6 +1,18 @@
 package com.ai.phoneagent.ui.settings
 
 import android.content.res.Configuration
+import com.ai.phoneagent.ui.components.AriesPageTopBar
+import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import com.composables.icons.lucide.Moon
+import com.composables.icons.lucide.Palette
+import com.composables.icons.lucide.Type
+import com.composables.icons.lucide.MessageSquare
+import com.composables.icons.lucide.Brain
+import com.composables.icons.lucide.Code
+import com.composables.icons.lucide.ChevronRight
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,6 +46,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +74,8 @@ fun AppearanceScreen(
     onNavigateBack: () -> Unit,
     viewModel: AppearanceViewModel = koinViewModel(),
 ) {
+    val plainMessages by viewModel.plainMessages.collectAsState()
+    val thinkingExpanded by viewModel.thinkingExpanded.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val themeColorStyle by viewModel.themeColorStyle.collectAsState()
     val amoledDarkEnabled by viewModel.amoledDarkEnabled.collectAsState()
@@ -72,6 +87,10 @@ fun AppearanceScreen(
 
     AppearanceScreenContent(
         onNavigateBack = onNavigateBack,
+        thinkingExpanded = thinkingExpanded,
+        onThinkingExpandedChange = viewModel::setThinkingExpanded,
+        plainMessages = plainMessages,
+        onPlainMessagesChange = viewModel::setPlainMessages,
         themeMode = themeMode,
         onThemeModeChange = viewModel::setThemeMode,
         themeColorStyle = themeColorStyle,
@@ -111,213 +130,76 @@ fun AppearanceScreenContent(
     onCodeLineNumbersChange: (Boolean) -> Unit,
     codeAutoCollapse: Boolean,
     onCodeAutoCollapseChange: (Boolean) -> Unit,
+    thinkingExpanded: Boolean = false,
+    onThinkingExpandedChange: (Boolean) -> Unit = {},
+    plainMessages: Boolean = false,
+    onPlainMessagesChange: (Boolean) -> Unit = {},
 ) {
-    val isDarkThemeActive = themeMode == ThemeMode.DARK ||
-        (themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
-
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = { Text(text = stringResource(R.string.settings_appearance_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Lucide.ArrowLeft,
-                            contentDescription = stringResource(R.string.about_back),
-                        )
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                    ),
-                modifier = Modifier.statusBarsPadding(),
-            )
-        },
-    ) { innerPadding ->
-        LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .navigationBarsPadding(),
-        ) {
-            item {
-                AriesSettingsSectionHeader(title = stringResource(R.string.settings_appearance_theme_mode))
-            }
-            
-            item {
-                AriesSettingsCustomItem(
-                    headlineText = stringResource(R.string.settings_appearance_theme_mode),
-                    belowContent = {
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            val options = listOf(
-                                ThemeMode.SYSTEM to stringResource(R.string.settings_appearance_theme_system),
-                                ThemeMode.LIGHT to stringResource(R.string.settings_appearance_theme_light),
-                                ThemeMode.DARK to stringResource(R.string.settings_appearance_theme_dark)
-                            )
-                            options.forEachIndexed { index, (mode, label) ->
-                                SegmentedButton(
-                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                                    onClick = { onThemeModeChange(mode) },
-                                    selected = themeMode == mode,
-                                ) {
-                                    Text(label)
-                                }
-                            }
-                        }
-                    }
-                )
-            }
-
-            item {
-                AriesSettingsSwitchItem(
-                    headlineText = stringResource(R.string.settings_appearance_amoled),
-                    checked = amoledDarkEnabled,
-                    onCheckedChange = onAmoledDarkEnabledChange,
-                    enabled = isDarkThemeActive,
-                )
-            }
-
-            item {
-                AriesSettingsSectionHeader(title = stringResource(R.string.settings_appearance_theme_palette))
-            }
-
-            item {
-                AriesSettingsCustomItem(
-                    headlineText = stringResource(R.string.settings_appearance_theme_palette),
-                    supportingText = stringResource(R.string.settings_appearance_theme_palette_summary),
-                    belowContent = {
-                        val options = buildList {
-                            add(ThemeColorStyle.DEFAULT to stringResource(R.string.settings_appearance_theme_palette_default))
-                            add(ThemeColorStyle.OCEAN to stringResource(R.string.settings_appearance_theme_palette_ocean))
-                            add(ThemeColorStyle.FOREST to stringResource(R.string.settings_appearance_theme_palette_forest))
-                            add(ThemeColorStyle.SUNSET to stringResource(R.string.settings_appearance_theme_palette_sunset))
-                            add(ThemeColorStyle.ROSE to stringResource(R.string.settings_appearance_theme_palette_rose))
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                add(ThemeColorStyle.DYNAMIC to stringResource(R.string.settings_appearance_theme_palette_dynamic))
-                            }
-                        }
-
-                        Column {
-                            options.forEach { (colorStyle, label) ->
-                                ThemeColorStyleOptionRow(
-                                    colorStyle = colorStyle,
-                                    label = label,
-                                    supportingText =
-                                        if (colorStyle == ThemeColorStyle.DYNAMIC) {
-                                            stringResource(R.string.settings_appearance_theme_palette_dynamic_description)
-                                        } else {
-                                            null
-                                        },
-                                    selected = themeColorStyle == colorStyle,
-                                    darkPreview = isDarkThemeActive,
-                                    onClick = { onThemeColorStyleChange(colorStyle) },
-                                )
-                            }
-                        }
-                    },
-                )
-            }
-
-            item {
-                AriesSettingsSectionHeader(title = stringResource(R.string.settings_appearance_font_size))
-            }
-
-            item {
-                AriesSettingsCustomItem(
-                    headlineText = stringResource(R.string.settings_appearance_font_size),
-                    supportingText = "${chatFontScale}×",
-                    belowContent = {
-                        Column {
-                            Slider(
-                                value = chatFontScale,
-                                onValueChange = onChatFontScaleChange,
-                                valueRange = 0.8f..1.4f,
-                                steps = 2, // 3 intervals: 0.8, 1.0, 1.2, 1.4
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(stringResource(R.string.settings_appearance_font_size_small), style = MaterialTheme.typography.bodySmall)
-                                Text(stringResource(R.string.settings_appearance_font_size_default), style = MaterialTheme.typography.bodySmall)
-                                Text(stringResource(R.string.settings_appearance_font_size_large), style = MaterialTheme.typography.bodySmall)
-                                Text(stringResource(R.string.settings_appearance_font_size_xlarge), style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
-                )
-            }
-
-            item {
-                AriesSettingsCustomItem(
-                    headlineText = stringResource(R.string.settings_appearance_font_family),
-                    belowContent = {
-                        val fontOptions = listOf(
-                            "default" to stringResource(R.string.settings_appearance_font_default),
-                            "sans_serif" to stringResource(R.string.settings_appearance_font_sans_serif),
-                            "serif" to stringResource(R.string.settings_appearance_font_serif),
-                            "monospace" to stringResource(R.string.settings_appearance_font_monospace)
-                        )
-                        
-                        Column {
-                            fontOptions.forEach { (id, label) ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { onChatFontFamilyChange(id) }
-                                        .padding(vertical = dimensionResource(R.dimen.m3t_spacing_sm)),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    RadioButton(
-                                        selected = chatFontFamily == id,
-                                        onClick = { onChatFontFamilyChange(id) }
-                                    )
-                                    Spacer(modifier = Modifier.width(dimensionResource(R.dimen.m3t_spacing_md)))
-                                    Text(
-                                        text = label,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-                        }
-                    }
-                )
-            }
-
-            item {
-                AriesSettingsSectionHeader(title = stringResource(R.string.settings_appearance_code_section))
-            }
-
-            item {
-                AriesSettingsSwitchItem(
-                    headlineText = stringResource(R.string.settings_appearance_code_auto_wrap),
-                    checked = codeAutoWrap,
-                    onCheckedChange = onCodeAutoWrapChange,
-                )
-            }
-            
-            item {
-                AriesSettingsSwitchItem(
-                    headlineText = stringResource(R.string.settings_appearance_code_line_numbers),
-                    checked = codeLineNumbers,
-                    onCheckedChange = onCodeLineNumbersChange,
-                )
-            }
-            
-            item {
-                AriesSettingsSwitchItem(
-                    headlineText = stringResource(R.string.settings_appearance_code_auto_collapse),
-                    checked = codeAutoCollapse,
-                    onCheckedChange = onCodeAutoCollapseChange,
-                )
+    val dark = themeMode == ThemeMode.DARK || (themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
+    var dialog by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    val padding = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding)
+    val modes = listOf(ThemeMode.SYSTEM to R.string.settings_appearance_theme_system, ThemeMode.LIGHT to R.string.settings_appearance_theme_light, ThemeMode.DARK to R.string.settings_appearance_theme_dark)
+    val fonts = listOf("default" to R.string.settings_appearance_font_default, "sans_serif" to R.string.settings_appearance_font_sans_serif, "serif" to R.string.settings_appearance_font_serif, "monospace" to R.string.settings_appearance_font_monospace)
+    val palettes = listOf(ThemeColorStyle.DEFAULT to R.string.settings_appearance_theme_palette_default, ThemeColorStyle.OCEAN to R.string.settings_appearance_theme_palette_ocean, ThemeColorStyle.FOREST to R.string.settings_appearance_theme_palette_forest, ThemeColorStyle.SUNSET to R.string.settings_appearance_theme_palette_sunset, ThemeColorStyle.ROSE to R.string.settings_appearance_theme_palette_rose) + if (Build.VERSION.SDK_INT >= 31) listOf(ThemeColorStyle.DYNAMIC to R.string.settings_appearance_theme_palette_dynamic) else emptyList()
+    Scaffold(containerColor = Color.Transparent, topBar = {
+        AriesPageTopBar(stringResource(R.string.settings_appearance_title), onNavigateBack)
+    }) { inner ->
+        LazyColumn(Modifier.fillMaxSize().padding(inner).navigationBarsPadding(), contentPadding = androidx.compose.foundation.layout.PaddingValues(padding),
+            verticalArrangement = Arrangement.spacedBy(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_setting_gap))) {
+            item { AppearanceEntry(Lucide.Moon, stringResource(R.string.settings_appearance_theme_mode), stringResource(modes.first { it.first == themeMode }.second)) { dialog = "mode" } }
+            item { AppearanceEntry(Lucide.Palette, stringResource(R.string.settings_appearance_theme_palette), stringResource(palettes.firstOrNull { it.first == themeColorStyle }?.second ?: R.string.settings_appearance_theme_palette_default)) { dialog = "palette" } }
+            item { AppearanceEntry(Lucide.Type, stringResource(R.string.ui_v2_font_and_size), stringResource(fonts.firstOrNull { it.first == chatFontFamily }?.second ?: R.string.settings_appearance_font_default) + " · ${chatFontScale}×") { dialog = "fontSize" } }
+            item { AppearanceEntry(Lucide.MessageSquare, stringResource(R.string.ui_v2_message_style), stringResource(if (plainMessages) R.string.ui_v2_plain else R.string.ui_v2_bubble)) { dialog = "style" } }
+            item { AppearanceEntry(Lucide.Brain, stringResource(R.string.ui_v2_thinking_process), stringResource(if (thinkingExpanded) R.string.ui_v2_expanded else R.string.ui_v2_collapsed)) { dialog = "thinking" } }
+            item { AppearanceEntry(Lucide.Code, stringResource(R.string.settings_appearance_code_section), stringResource(R.string.ui_v2_code_options)) { dialog = "code" } }
+            item { AriesSettingsSwitchItem(headlineText = stringResource(R.string.settings_appearance_amoled), checked = amoledDarkEnabled, onCheckedChange = onAmoledDarkEnabledChange, enabled = dark) }
+        }
+    }
+    if (dialog != null) androidx.compose.material3.AlertDialog(onDismissRequest = { dialog = null }, confirmButton = {
+        androidx.compose.material3.TextButton(onClick = { dialog = null }) { Text(stringResource(R.string.action_close)) }
+    }, text = {
+        LazyColumn {
+            when (dialog) {
+                "mode" -> modes.forEach { (value, label) -> item { AppearanceChoice(stringResource(label), themeMode == value) { onThemeModeChange(value); dialog = null } } }
+                "palette" -> palettes.forEach { (value, label) -> item { ThemeColorStyleOptionRow(value, stringResource(label), null, themeColorStyle == value, dark) { onThemeColorStyleChange(value); dialog = null } } }
+                "fontSize" -> {
+                    item { Text(stringResource(R.string.settings_appearance_font_size)); Slider(value = chatFontScale, onValueChange = onChatFontScaleChange, valueRange = .8f..1.4f, steps = 2) }
+                    fonts.forEach { (value, label) -> item { AppearanceChoice(stringResource(label), chatFontFamily == value) { onChatFontFamilyChange(value) } } }
+                }
+                "style" -> listOf(false to R.string.ui_v2_bubble, true to R.string.ui_v2_plain).forEach { (value, label) -> item { AppearanceChoice(stringResource(label), plainMessages == value) { onPlainMessagesChange(value); dialog = null } } }
+                "thinking" -> listOf(false to R.string.ui_v2_collapsed, true to R.string.ui_v2_expanded).forEach { (value, label) -> item { AppearanceChoice(stringResource(label), thinkingExpanded == value) { onThinkingExpandedChange(value); dialog = null } } }
+                "code" -> {
+                    item { AriesSettingsSwitchItem(headlineText = stringResource(R.string.settings_appearance_code_auto_wrap), checked = codeAutoWrap, onCheckedChange = onCodeAutoWrapChange) }
+                    item { AriesSettingsSwitchItem(headlineText = stringResource(R.string.settings_appearance_code_line_numbers), checked = codeLineNumbers, onCheckedChange = onCodeLineNumbersChange) }
+                    item { AriesSettingsSwitchItem(headlineText = stringResource(R.string.settings_appearance_code_auto_collapse), checked = codeAutoCollapse, onCheckedChange = onCodeAutoCollapseChange) }
+                }
             }
         }
+    })
+}
+
+@Composable
+private fun AppearanceEntry(icon: ImageVector, title: String, value: String, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_setting_radius))
+    androidx.compose.material3.Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().ariesGlass(shape),
+        shape = shape, color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface) {
+        Row(Modifier.fillMaxWidth().padding(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_setting_padding)),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_home_icon_gap))) {
+            Icon(icon, null, Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_suggestion_icon)), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Lucide.ChevronRight, null, Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_nav_icon)))
+        }
+    }
+}
+
+@Composable
+private fun AppearanceChoice(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick), verticalAlignment = Alignment.CenterVertically) {
+        RadioButton(selected, onClick)
+        Text(label)
     }
 }
 
@@ -330,10 +212,10 @@ private fun ThemeColorStyleOptionRow(
     darkPreview: Boolean,
     onClick: () -> Unit,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val swatchSize = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
+    val swatchSize = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
     val preview = colorStyle.previewColors(isDarkTheme = darkPreview)
 
     Row(

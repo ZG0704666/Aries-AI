@@ -1,26 +1,21 @@
 package com.ai.phoneagent.ui.automation
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import com.ai.phoneagent.core.designsystem.theme.AriesGlassCard
+import com.ai.phoneagent.core.designsystem.theme.AriesGlassButton
+import com.composables.icons.lucide.Layers
+
+import com.ai.phoneagent.ui.components.AriesPageTopBar
+import com.ai.phoneagent.core.designsystem.theme.ariesGlass
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -28,30 +23,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.selection.SelectionContainer
 import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.ArrowLeft
-import com.composables.icons.lucide.WandSparkles
-import com.composables.icons.lucide.Mic
 import com.composables.icons.lucide.RefreshCw
-import com.composables.icons.lucide.Shield
-import com.composables.icons.lucide.CircleStop
-import com.composables.icons.lucide.SlidersHorizontal
 import com.composables.icons.lucide.Smartphone
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,19 +40,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -102,238 +76,123 @@ fun AutomationControlScreen(
     isBackgroundMode: Boolean,
     virtualDisplayStatus: String,
     useShizukuInteraction: Boolean,
-    autoApprove: Boolean,
-    isListening: Boolean,
-    taskText: String,
-    taskHint: String,
-    recommendText: String,
     logText: String,
     showShizukuAuthorize: Boolean,
-    startButtonText: String,
-    startButtonEnabled: Boolean,
-    startButtonTerminateStyle: Boolean,
-    pauseButtonText: String,
-    pauseButtonEnabled: Boolean,
-    stopButtonEnabled: Boolean,
     onBack: () -> Unit,
     onOpenAccessibility: () -> Unit,
     onAuthorizeShizuku: () -> Unit,
     onRefreshStatus: () -> Unit,
     onExecutionModeChange: (Boolean) -> Unit,
     onShizukuModeChange: (Boolean) -> Unit,
-    onAutoApproveChange: (Boolean) -> Unit,
-    onTaskChange: (String) -> Unit,
-    onVoiceTask: () -> Unit,
-    onUseRecommendTask: () -> Unit,
-    onStart: () -> Unit,
-    onPause: () -> Unit,
-    onStop: () -> Unit,
     onCopyLog: () -> Unit,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
     val statusPalette = statusPalette(statusTone)
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.automation_toolbar_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                         Icon(
-                             imageVector = Lucide.ArrowLeft,
-                             contentDescription = stringResource(R.string.about_back),
-                         )
-                     }
-                },
-                actions = {
-                    IconButton(onClick = onRefreshStatus) {
-                         Icon(Lucide.RefreshCw, contentDescription = stringResource(R.string.automation_refresh_status))
-                     }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                    ),
-                modifier = Modifier.statusBarsPadding(),
-            )
+            AriesPageTopBar(stringResource(R.string.automation_toolbar_title), onBack) {
+                IconButton(onClick = onRefreshStatus) { Icon(Lucide.RefreshCw, stringResource(R.string.automation_refresh_status)) }
+            }
         },
     ) { innerPadding ->
-        LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .navigationBarsPadding(),
-            contentPadding = PaddingValues(start = spacingLg, top = spacingSm, end = spacingLg, bottom = spacingXl),
-            verticalArrangement = Arrangement.spacedBy(spacingMd),
+        BoxWithConstraints(
+            Modifier.fillMaxSize().padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
+                .padding(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding)),
         ) {
-            item {
-                AutomationSectionCard(containerColor = statusPalette.container.copy(alpha = 0.52f)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(spacingXs),
-                        ) {
-                            Text(
-                                text = stringResource(R.string.automation_console_runtime_title),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = statusPalette.content.copy(alpha = 0.8f),
-                            )
-                            Text(
-                                text = stringResource(R.string.automation_console_runtime_subtitle),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = statusPalette.content.copy(alpha = 0.72f),
-                            )
+            // Reserve readable log space when settings wrap on narrow screens or large fonts.
+            val reservedLogHeight = minOf(
+                dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_log_panel_min_height),
+                maxHeight * .45f,
+            )
+            val configurationMaxHeight = (maxHeight - reservedLogHeight - spacingMd)
+                .coerceAtLeast(maxHeight * .2f)
+            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(spacingMd)) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = configurationMaxHeight),
+                    contentPadding = PaddingValues(spacingXs),
+                    verticalArrangement = Arrangement.spacedBy(spacingMd),
+                ) {
+                    item {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacingSm)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacingXs)) {
+                                Text(statusSummary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                Text(interactionModeText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            AutomationStatusBadge(text = statusTone.badgeText(), containerColor = Color.Transparent, contentColor = statusPalette.accent)
                         }
-                        Spacer(modifier = Modifier.width(spacingSm))
-                        AutomationStatusBadge(
-                            text = statusTone.badgeText(),
-                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
-                            contentColor = statusPalette.accent,
-                        )
                     }
-
-                    Spacer(modifier = Modifier.height(spacingMd))
-
-                    Text(
-                        text = statusSummary,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = statusPalette.content,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(modifier = Modifier.height(spacingXs))
-                    Text(
-                        text = interactionModeText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = statusPalette.content.copy(alpha = 0.82f),
-                    )
-
-                    Spacer(modifier = Modifier.height(spacingMd))
-
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(spacingSm),
-                        verticalArrangement = Arrangement.spacedBy(spacingSm),
-                    ) {
-                        AutomationConnectionBadge(
-                            value = accessibilityStatusText,
-                            modifier = if (showShizukuControls) Modifier else Modifier.fillMaxWidth(),
-                            accentColor = statusPalette.accent,
-                        )
+                    item {
+                        Text(stringResource(R.string.automation_console_runtime_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(spacingSm))
+                        AriesGlassCard(Modifier.fillMaxWidth()) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacingSm)) {
+                                Icon(Lucide.Smartphone, null, Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_suggestion_icon)), tint = statusPalette.accent)
+                                Text(accessibilityStatusText, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            }
+                            Text(stringResource(R.string.automation_console_runtime_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(spacingSm)) {
+                                AriesGlassButton(onClick = onOpenAccessibility) { Text(stringResource(R.string.automation_open_accessibility)) }
+                                if (showShizukuAuthorize) AriesGlassButton(onClick = onAuthorizeShizuku) { Text(stringResource(R.string.automation_one_tap_shizuku_authorize)) }
+                            }
+                        }
                         if (showShizukuControls) {
-                            AutomationConnectionBadge(
-                                value = shizukuStatusText,
-                                accentColor = statusPalette.accent,
-                            )
+                            Spacer(Modifier.height(spacingSm))
+                            AutomationConnectionBadge(value = shizukuStatusText, accentColor = statusPalette.accent)
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(spacingMd))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(spacingSm),
-                    ) {
-                        FilledTonalButton(
-                             onClick = onOpenAccessibility,
-                             modifier = Modifier.weight(1f),
-                         ) {
-                             Icon(Lucide.Smartphone, contentDescription = null)
-                             Spacer(modifier = Modifier.width(spacingXs))
-                             Text(stringResource(R.string.automation_open_accessibility))
-                         }
-                        AnimatedVisibility(visible = showShizukuAuthorize, modifier = Modifier.weight(1f)) {
-                            FilledTonalButton(
-                                 onClick = onAuthorizeShizuku,
-                                 modifier = Modifier.fillMaxWidth(),
-                             ) {
-                                 Icon(Lucide.Shield, contentDescription = null)
-                                 Spacer(modifier = Modifier.width(spacingXs))
-                                 Text(stringResource(R.string.automation_one_tap_shizuku_authorize))
-                             }
-                        }
-                    }
-                }
-            }
-
-            item {
-                AutomationSectionCard {
-                    SectionHeading(
-                        title = stringResource(R.string.automation_execution_mode_label),
-                    )
-                    Spacer(modifier = Modifier.height(spacingMd))
-
-                    AutomationSwitchRow(
-                        title = stringResource(R.string.automation_execution_background_experimental),
-                        summary = stringResource(R.string.automation_execution_background_experimental_summary),
-                        checked = isBackgroundMode,
-                        onCheckedChange = onExecutionModeChange,
-                    )
-
-                    AnimatedVisibility(
-                        visible = isBackgroundMode,
-                        enter =
-                            fadeIn(animationSpec = tween(durationMillis = 160, easing = LinearOutSlowInEasing)) +
-                                expandVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
-                        exit =
-                            fadeOut(animationSpec = tween(durationMillis = 100, easing = FastOutLinearInEasing)) +
-                                shrinkVertically(animationSpec = tween(durationMillis = 140, easing = FastOutLinearInEasing)),
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(spacingLg)) {
-                            Spacer(modifier = Modifier.height(spacingSm))
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                                shape = MaterialTheme.shapes.large,
-                            ) {
-                                Column(
-                                    modifier = Modifier.fillMaxWidth().padding(spacingMd),
-                                    verticalArrangement = Arrangement.spacedBy(spacingXs),
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.automation_virtual_display_status_label),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Text(
-                                        text = virtualDisplayStatus,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    )
+                    item {
+                        Text(stringResource(R.string.automation_execution_mode_label), style = MaterialTheme.typography.titleMedium)
+                        Row(Modifier.fillMaxWidth().padding(top = spacingSm), horizontalArrangement = Arrangement.spacedBy(spacingMd)) {
+                            listOf(false, true).forEach { background ->
+                                Surface(onClick = { onExecutionModeChange(background) }, modifier = Modifier.weight(1f).ariesGlass(MaterialTheme.shapes.large, selected = isBackgroundMode == background), shape = MaterialTheme.shapes.large,
+                                    color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface) {
+                                    Column(Modifier.padding(spacingMd), verticalArrangement = Arrangement.spacedBy(spacingSm)) {
+                                        Icon(if (background) Lucide.Layers else Lucide.Smartphone, null, tint = if (isBackgroundMode == background) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(stringResource(if (background) R.string.ui_v2_background else R.string.ui_v2_foreground), style = MaterialTheme.typography.titleMedium)
+                                        Text(stringResource(if (background) R.string.ui_v2_background_hint else R.string.ui_v2_foreground_hint), style = MaterialTheme.typography.bodySmall)
+                                    }
                                 }
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(spacingMd))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(modifier = Modifier.height(spacingMd))
-
-                    if (showShizukuControls) {
-                        AutomationSwitchRow(
-                            title = stringResource(R.string.automation_shizuku_mode_label),
-                            tooltipText = stringResource(R.string.automation_console_shizuku_subtitle),
-                            checked = useShizukuInteraction,
-                            onCheckedChange = onShizukuModeChange,
-                        )
-                        Spacer(modifier = Modifier.height(spacingSm))
+                    if (isBackgroundMode) item { Text(virtualDisplayStatus, style = MaterialTheme.typography.bodySmall) }
+                    if (showShizukuControls) item {
+                        AriesGlassCard(Modifier.fillMaxWidth()) {
+                            AutomationSwitchRow(title = stringResource(R.string.automation_shizuku_mode_label), checked = useShizukuInteraction, onCheckedChange = onShizukuModeChange)
+                        }
                     }
-                    AutomationSwitchRow(
-                        title = stringResource(R.string.automation_auto_approve_label),
-                        tooltipText = stringResource(R.string.automation_console_auto_approve_subtitle),
-                        checked = autoApprove,
-                        onCheckedChange = onAutoApproveChange,
-                    )
+                }
+                AutomationLogPanel(logText, onCopyLog, Modifier.fillMaxWidth().weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AutomationLogPanel(logText: String, onCopyLog: () -> Unit, modifier: Modifier = Modifier) {
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val shape = RoundedCornerShape(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_card_radius))
+    Surface(modifier = modifier.ariesGlass(shape), shape = shape, color = Color.Transparent) {
+        Column(Modifier.fillMaxSize().padding(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_setting_padding))) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacingSm)) {
+                Text(stringResource(R.string.ui_v2_logs), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = onCopyLog, enabled = logText.isNotBlank()) {
+                    Text(stringResource(R.string.ui_v2_copy_logs))
+                }
+            }
+            Box(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())) {
+                if (logText.isBlank()) {
+                    Text(stringResource(R.string.ui_v2_no_logs), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = spacingSm))
+                } else {
+                    SelectionContainer { Text(logText, style = MaterialTheme.typography.bodySmall) }
                 }
             }
         }
@@ -346,13 +205,13 @@ private fun AutomationConnectionBadge(
     modifier: Modifier = Modifier,
     accentColor: Color = MaterialTheme.colorScheme.primary,
 ) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
 
     Surface(
-        modifier = modifier,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
-        shape = RoundedCornerShape(dimensionResource(R.dimen.m3t_radius_lg)),
+        modifier = modifier.ariesGlass(MaterialTheme.shapes.large),
+        color = Color.Transparent,
+        shape = RoundedCornerShape(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_radius_lg)),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingSm),
@@ -360,7 +219,7 @@ private fun AutomationConnectionBadge(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier.size(dimensionResource(R.dimen.m3t_automation_status_dot)).background(
+                modifier = Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_automation_status_dot)).background(
                     color = accentColor,
                     shape = MaterialTheme.shapes.small,
                 ),
@@ -380,75 +239,24 @@ private fun statusPalette(statusTone: AutomationStatusTone): AutomationStatusPal
         AutomationStatusTone.Ready ->
             AutomationStatusPalette(
                 container = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f),
-                content = MaterialTheme.colorScheme.onPrimaryContainer,
+                content = MaterialTheme.colorScheme.onSurface,
                 accent = MaterialTheme.colorScheme.primary,
             )
 
         AutomationStatusTone.Partial ->
             AutomationStatusPalette(
                 container = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.72f),
-                content = MaterialTheme.colorScheme.onTertiaryContainer,
+                content = MaterialTheme.colorScheme.onSurface,
                 accent = MaterialTheme.colorScheme.tertiary,
             )
 
         AutomationStatusTone.Inactive ->
             AutomationStatusPalette(
                 container = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f),
-                content = MaterialTheme.colorScheme.onErrorContainer,
+                content = MaterialTheme.colorScheme.onSurface,
                 accent = MaterialTheme.colorScheme.error,
             )
     }
-
-@Composable
-private fun AutomationSectionCard(
-    modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surface,
-    contentPadding: PaddingValues = PaddingValues(dimensionResource(R.dimen.m3t_spacing_lg)),
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        shape = MaterialTheme.shapes.extraLarge,
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .animateContentSize(tween(durationMillis = 180, easing = FastOutSlowInEasing))
-                    .padding(contentPadding),
-            verticalArrangement = Arrangement.Top,
-            content = content,
-        )
-    }
-}
-
-@Composable
-private fun SectionHeading(
-    title: String,
-    subtitle: String? = null,
-    tooltipText: String? = null,
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Medium,
-        )
-        if (tooltipText != null) {
-            Spacer(modifier = Modifier.width(dimensionResource(R.dimen.m3t_spacing_xs)))
-            InfoTooltip(tooltipText = tooltipText)
-        }
-    }
-    if (subtitle != null) {
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
 
 @Composable
 private fun AutomationStatusBadge(
@@ -456,8 +264,8 @@ private fun AutomationStatusBadge(
     containerColor: Color,
     contentColor: Color,
 ) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
+    val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
 
     Surface(
         color = containerColor,
@@ -471,7 +279,7 @@ private fun AutomationStatusBadge(
             Box(
                 modifier =
                     Modifier
-                        .size(dimensionResource(R.dimen.m3t_automation_status_dot))
+                        .size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_automation_status_dot))
                         .background(contentColor, MaterialTheme.shapes.small),
             )
             Text(
@@ -485,111 +293,13 @@ private fun AutomationStatusBadge(
     }
 }
 
+@Composable
 private fun AutomationStatusTone.badgeText(): String =
     when (this) {
-        AutomationStatusTone.Ready -> "已就绪"
-        AutomationStatusTone.Partial -> "待补齐"
-        AutomationStatusTone.Inactive -> "未连接"
+        AutomationStatusTone.Ready -> stringResource(R.string.perm_sheet_status_ready)
+        AutomationStatusTone.Partial -> stringResource(R.string.ui_v2_setup_incomplete)
+        AutomationStatusTone.Inactive -> stringResource(R.string.ui_v2_not_connected)
     }
-
-@Composable
-private fun AutomationModeOption(
-    selected: Boolean,
-    title: String,
-    summary: String? = null,
-    tooltipText: String? = null,
-    onClick: () -> Unit,
-) {
-    val spacingXs = dimensionResource(R.dimen.m3t_spacing_xs)
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val containerColor =
-        if (selected) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.36f)
-        }
-    val titleColor =
-        if (selected) {
-            MaterialTheme.colorScheme.onPrimaryContainer
-        } else {
-            MaterialTheme.colorScheme.onSurface
-        }
-    val summaryColor =
-        if (selected) {
-            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f)
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        }
-    val animatedContainerColor by
-        animateColorAsState(
-            targetValue = containerColor,
-            animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
-            label = "modeContainerColor",
-        )
-    val animatedTitleColor by
-        animateColorAsState(
-            targetValue = titleColor,
-            animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
-            label = "modeTitleColor",
-        )
-    val animatedSummaryColor by
-        animateColorAsState(
-            targetValue = summaryColor,
-            animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
-            label = "modeSummaryColor",
-        )
-
-    Surface(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        color = animatedContainerColor,
-        shape = MaterialTheme.shapes.large,
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .animateContentSize(tween(durationMillis = 160, easing = FastOutSlowInEasing))
-                    .padding(spacingMd),
-            verticalArrangement = Arrangement.spacedBy(spacingXs),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = animatedTitleColor,
-                    fontWeight = FontWeight.Medium,
-                )
-                if (tooltipText != null) {
-                    Spacer(modifier = Modifier.width(spacingXs))
-                    InfoTooltip(tooltipText = tooltipText)
-                }
-            }
-            if (summary != null) {
-                Text(
-                    text = summary,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = animatedSummaryColor,
-                )
-            }
-            AnimatedVisibility(
-                visible = selected,
-                enter =
-                    fadeIn(animationSpec = tween(durationMillis = 140, easing = LinearOutSlowInEasing)) +
-                        expandVertically(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)),
-                exit =
-                    fadeOut(animationSpec = tween(durationMillis = 90, easing = FastOutLinearInEasing)) +
-                        shrinkVertically(animationSpec = tween(durationMillis = 120, easing = FastOutLinearInEasing)),
-            ) {
-                Text(
-                    text = stringResource(R.string.automation_console_mode_selected),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun AutomationSwitchRow(
@@ -601,7 +311,7 @@ private fun AutomationSwitchRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.m3t_spacing_sm)),
+        horizontalArrangement = Arrangement.spacedBy(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -613,7 +323,7 @@ private fun AutomationSwitchRow(
                     fontWeight = FontWeight.Medium,
                 )
                 if (tooltipText != null) {
-                    Spacer(modifier = Modifier.width(dimensionResource(R.dimen.m3t_spacing_xs)))
+                    Spacer(modifier = Modifier.width(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)))
                     InfoTooltip(tooltipText = tooltipText)
                 }
             }

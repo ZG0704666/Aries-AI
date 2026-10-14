@@ -44,7 +44,7 @@ fun DataTable(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
+            .keepHorizontalGestures().horizontalScroll(rememberScrollState())
             .clip(tableShape)
             .border(1.dp, borderColor, tableShape),
     ) {

@@ -1,5 +1,10 @@
 package com.ai.phoneagent.viewmodel
 
+import com.ai.phoneagent.core.automation.TaskSnapshot
+import com.ai.phoneagent.core.automation.TaskStatus
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import android.Manifest
 import android.app.Activity
 import android.app.Application
@@ -121,13 +126,18 @@ class AutomationViewModel(
         val automationAutoStart: Boolean = false,
         val keepMainOnTop: Boolean = false,
         val popBackImmediately: Boolean = false,
+        val runId: String? = null,
     )
 
     private val appContext: Context = application.applicationContext
     private var hostActivityRef: WeakReference<Activity>? = null
 
+    private val mutableTask = MutableStateFlow<TaskSnapshot?>(null)
+    val taskSnapshot = mutableTask.asStateFlow()
+    val latestResult = automationResultsRepository.resultFlow
     private var agentJob: Job? = null
-    private var paused: Boolean = false
+    @Volatile private var paused: Boolean = false
+    private var requestedRunId: String? = null
 
     var isBackgroundMode by mutableStateOf(false)
         private set
@@ -354,6 +364,7 @@ class AutomationViewModel(
         overlayClickReturnToMain = mirrorLogsToMain
         lastDispatchedTask = task
 
+        requestedRunId = args.runId
         taskText = task
 
         if (source.isNotBlank()) {
@@ -612,7 +623,10 @@ class AutomationViewModel(
             }
     }
 
-    private fun saveRunResult(success: Boolean, message: String, steps: Int, logText: String) {
+    private fun saveRunResult(success: Boolean, message: String, steps: Int, logText: String, cancelled: Boolean = false) {
+        val status = if (cancelled) TaskStatus.CANCELLED else if (success) TaskStatus.SUCCEEDED else TaskStatus.FAILED
+        mutableTask.update { it?.copy(status = status, message = message, steps = steps, log = logText) }
+        val snapshot = mutableTask.value
         viewModelScope.launch {
             runCatching {
                 automationResultsRepository.saveResult(
@@ -621,6 +635,10 @@ class AutomationViewModel(
                     steps = steps,
                     time = System.currentTimeMillis(),
                     log = logText,
+                    runId = snapshot?.runId.orEmpty(),
+                    goal = snapshot?.goal.orEmpty(),
+                    startedAt = snapshot?.startedAt ?: 0L,
+                    status = status.name,
                 )
             }.onFailure { e ->
                 Log.e("AutomationViewModel", "保存运行结果失败: ${e.message}", e)
@@ -844,6 +862,8 @@ class AutomationViewModel(
             appendLog("Shizuku 未就绪，已自动回退到无障碍执行")
         }
 
+        mutableTask.value = TaskSnapshot(requestedRunId ?: java.util.UUID.randomUUID().toString(), task, System.currentTimeMillis())
+        requestedRunId = null
         logText = ""
         val modeText = if (isBackgroundMode) "后台虚拟屏模式" else "前端执行模式"
         appendLog("执行模式：$modeText")
@@ -890,12 +910,14 @@ class AutomationViewModel(
                         }
                     if (!effectiveUseShizuku && svc == null) {
                         appendLog("无障碍服务连接失败：未获取到服务实例")
-                        automationOverlay.complete("无障碍服务未连接")
+                        automationOverlay.complete("无障碍服务未连接", false)
+                        saveRunResult(false, "无障碍服务未连接", 0, logText)
                         return@launch
                     }
                     if (effectiveUseShizuku && svc == null) {
                         appendLog("Shizuku 模式：无障碍服务未连接，已停止执行")
-                        automationOverlay.complete("Shizuku 模式需无障碍连接")
+                        automationOverlay.complete("Shizuku 模式需无障碍连接", false)
+                        saveRunResult(false, "Shizuku 模式需无障碍连接", 0, logText)
                         return@launch
                     }
 
@@ -935,6 +957,15 @@ class AutomationViewModel(
                             control =
                                 object : UiAutomationAgent.Control {
                                     override fun isPaused(): Boolean = paused
+                                    override fun onStepStarted(step: Int) {
+                                        mutableTask.update { it?.copy(steps = step) }
+                                    }
+                                    override fun onPauseAcknowledged(paused: Boolean) {
+                                        if (paused == this@AutomationViewModel.paused) {
+                                            mutableTask.update { it?.acknowledgePause(paused) }
+                                            virtualScreenPreviewOverlay.setPausedState(paused)
+                                        }
+                                    }
 
                                     override suspend fun confirm(message: String): Boolean {
                                         if (autoApprove) return true
@@ -982,19 +1013,20 @@ class AutomationViewModel(
                             },
                         )
                     appendLog("结束：${result.message}（steps=${result.steps}）")
-                    automationOverlay.complete(result.message)
+                    automationOverlay.complete(result.message, result.success)
 
                     val finalLog = withContext(Dispatchers.Main) { logText }
                     saveRunResult(result.success, result.message, result.steps, finalLog)
                 } catch (e: Exception) {
                     if (e is CancellationException) {
                         appendLog("已停止")
+                        saveRunResult(false, appContext.getString(R.string.ui_v2_cancelled), mutableTask.value?.steps ?: 0, logText, cancelled = true)
                         automationOverlay.hide()
                     } else {
                         appendLog("异常：${e.message}")
-                        automationOverlay.complete(e.message.orEmpty().ifBlank { "执行异常" })
+                        automationOverlay.complete(e.message.orEmpty().ifBlank { "执行异常" }, false)
                         val finalLog = withContext(Dispatchers.Main) { logText }
-                        saveRunResult(false, e.message ?: "执行异常", 0, finalLog)
+                        saveRunResult(false, e.message ?: "执行异常", mutableTask.value?.steps ?: 0, finalLog)
                     }
                 } finally {
                     agentJob = null
@@ -1049,7 +1081,6 @@ class AutomationViewModel(
         if (job != null) {
             job.cancel()
         }
-        agentJob = null
         paused = false
         updateComposeControlState(canStart = composeCanStart)
         appendLog("已请求停止")
@@ -1077,9 +1108,9 @@ class AutomationViewModel(
     fun togglePause() {
         if (agentJob == null) return
         paused = !paused
+        mutableTask.update { it?.requestPause(paused) }
         updateComposeControlState(canStart = composeCanStart)
-        appendLog(if (paused) "已暂停（等待继续）" else "已继续")
-        virtualScreenPreviewOverlay.setPausedState(paused)
+        appendLog(if (paused) appContext.getString(R.string.ui_v2_pause_requested) else appContext.getString(R.string.ui_v2_running))
     }
 
     private fun initSherpaModel() {
@@ -1257,7 +1288,11 @@ class AutomationViewModel(
     }
 
     fun appendLog(message: String) {
+        val originatingRunId = mutableTask.value?.runId
         viewModelScope.launch(Dispatchers.Main) {
+            // A queued log from an older run must not overwrite the current run.
+            if (mutableTask.value?.runId != originatingRunId) return@launch
+
             logText =
                 buildString {
                     val existing = logText.trimEnd()
@@ -1267,6 +1302,7 @@ class AutomationViewModel(
                     }
                     append(message)
                 }
+            mutableTask.update { it?.copy(log = logText) }
             automationOverlay.updateFromLogLine(message)
             if (mirrorLogsToMain) {
                 AutomationLogBridge.publish(appContext, message)

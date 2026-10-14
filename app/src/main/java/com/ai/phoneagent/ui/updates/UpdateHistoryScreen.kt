@@ -1,5 +1,6 @@
 package com.ai.phoneagent.ui.updates
 
+import com.ai.phoneagent.ui.components.AriesPageTopBar
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -71,23 +72,9 @@ fun UpdateHistoryScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { Text(text = stringResource(R.string.m3t_updates_title)) },
-                navigationIcon = {
-                     IconButton(onClick = { navController.popBackStack() }) {
-                         Icon(
-                             imageVector = Lucide.ArrowLeft,
-                             contentDescription = stringResource(com.ai.phoneagent.feature.settings.R.string.about_back),
-                         )
-                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-                modifier = Modifier.statusBarsPadding(),
-            )
+            AriesPageTopBar(stringResource(R.string.m3t_updates_title), { navController.popBackStack() })
         },
     ) { innerPadding ->
         Column(

@@ -75,14 +75,7 @@
             android:resizeableActivity="true"
             android:theme="@style/Theme.PhoneAgent" />
 
-        <!-- 悬浮聊天窗口服务 -->
-        <service
-            android:name=".FloatingChatService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-        </service>
-
-        <activity
+<activity
             android:name=".MainActivity"
             android:exported="true"
             android:configChanges="orientation|screenLayout|screenSize|smallestScreenSize|keyboardHidden"

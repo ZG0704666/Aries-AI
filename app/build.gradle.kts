@@ -53,6 +53,7 @@ android {
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 
@@ -60,8 +61,8 @@ android {
         applicationId = "com.ai.phoneagent"
         minSdk = 30
         targetSdk = 36
-        versionCode = 20
-        versionName = "v1.5.1"
+        versionCode = 21
+        versionName = "2.0.0 Alpha"
 
         buildConfigField("String", "GITHUB_TOKEN", "\"\"")
         buildConfigField(
@@ -78,7 +79,8 @@ android {
 
         externalNativeBuild {
             cmake {
-                arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
+                arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON", "-DARIES_ENABLE_SHERPA_NCNN=ON")
+                targets += listOf("sherpa-ncnn-jni")
                 cppFlags += listOf("-std=c++17")
             }
         }

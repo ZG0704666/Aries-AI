@@ -182,9 +182,9 @@ class AriesApiOAuthActivity : Activity() {
         }
 
         val webView = WebView(this)
-        val spacingLg = resources.getDimensionPixelSize(R.dimen.m3t_spacing_lg)
-        val spacingMd = resources.getDimensionPixelSize(R.dimen.m3t_spacing_md)
-        val lineSpacing = resources.getDimension(R.dimen.m3t_automation_log_line_spacing)
+        val spacingLg = resources.getDimensionPixelSize(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
+        val spacingMd = resources.getDimensionPixelSize(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
+        val lineSpacing = resources.getDimension(com.ai.phoneagent.core.designsystem.R.dimen.m3t_automation_log_line_spacing)
         val statusBarHeight =
             resources.getIdentifier("status_bar_height", "dimen", "android")
                 .takeIf { it > 0 }
@@ -217,7 +217,7 @@ class AriesApiOAuthActivity : Activity() {
 
         progressLogView =
             TextView(this).apply {
-                setTextColor(resources.getColor(R.color.m3t_on_surface_variant, theme))
+                setTextColor(resources.getColor(com.ai.phoneagent.core.designsystem.R.color.m3t_on_surface_variant, theme))
                 typeface = Typeface.MONOSPACE
                 setLineSpacing(lineSpacing, 1f)
                 layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
@@ -233,12 +233,12 @@ class AriesApiOAuthActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 visibility = View.GONE
                 isClickable = true
-                setBackgroundColor(resources.getColor(R.color.m3t_surface, theme))
+                setBackgroundColor(resources.getColor(com.ai.phoneagent.core.designsystem.R.color.m3t_surface, theme))
                 setPadding(spacingLg, spacingLg + statusBarHeight, spacingLg, spacingLg)
                 addView(
                     TextView(this@AriesApiOAuthActivity).apply {
                         text = "正在完成 Aries 登录"
-                        setTextColor(resources.getColor(R.color.m3t_primary, theme))
+                        setTextColor(resources.getColor(com.ai.phoneagent.core.designsystem.R.color.m3t_primary, theme))
                         setTypeface(typeface, Typeface.BOLD)
                         layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
                     },
@@ -246,7 +246,7 @@ class AriesApiOAuthActivity : Activity() {
                 addView(
                     TextView(this@AriesApiOAuthActivity).apply {
                         text = ""
-                        setTextColor(resources.getColor(R.color.m3t_on_surface_variant, theme))
+                        setTextColor(resources.getColor(com.ai.phoneagent.core.designsystem.R.color.m3t_on_surface_variant, theme))
                         layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
                     },
                 )

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<string name="ui_v2_background">后台执行</string>
+<string name="ui_v2_foreground">前台执行</string>
+<string name="ui_v2_background_hint">通过虚拟屏完成任务</string>
+<string name="ui_v2_foreground_hint">在当前屏幕操作</string>
+
+<string name="ui_v2_agent_on">任务模式 · 开启</string>
+<string name="ui_v2_agent_off">任务模式</string>
+<string name="ui_v2_welcome">你好，我是 Aries</string>
+<string name="ui_v2_welcome_subtitle">你的 AI 助手，让每一个想法都能行动。</string>
+<string name="ui_v2_welcome_chat">自然对话，随时解答</string>
+<string name="ui_v2_welcome_automation">跨应用完成日常任务</string>
+<string name="ui_v2_welcome_control">执行状态清晰，随时暂停或停止</string>
+
+<string name="ui_v2_back">返回</string>
+<string name="ui_v2_history">历史对话</string>
+<string name="ui_v2_home">主页</string>
+<string name="ui_v2_more">更多操作</string>
+<string name="ui_v2_hero">把任务交给 Aries</string>
+<string name="ui_v2_subtitle">告诉我你想做什么，我来帮你操作手机。</string>
+<string name="ui_v2_try">试着说：</string>
+<string name="ui_v2_message_style">消息显示样式</string>
+<string name="ui_v2_bubble">气泡模式</string>
+<string name="ui_v2_plain">简洁模式</string>
+<string name="ui_v2_account">Aries 账户</string>
+<string name="ui_v2_account_hint">账户与模型服务</string>
+<string name="ui_v2_task_details">任务详情</string>
+<string name="ui_v2_task_result">任务结果</string>
+<string name="ui_v2_unavailable">此任务的完整记录已不可用</string>
+<string name="ui_v2_running">正在执行</string>
+<string name="ui_v2_pause_requested">正在等待当前步骤结束</string>
+<string name="ui_v2_paused">已暂停</string>
+<string name="ui_v2_success">任务已完成</string>
+<string name="ui_v2_failed">任务未完成</string>
+<string name="ui_v2_cancelled">任务已取消</string>
+<string name="ui_v2_step">第 %1$d 步</string>
+<string name="ui_v2_pause">暂停</string>
+<string name="ui_v2_resume">继续</string>
+<string name="ui_v2_stop">终止任务</string>
+<string name="ui_v2_logs">执行日志</string>
+<string name="ui_v2_copy_logs">复制日志</string>
+<string name="ui_v2_details">查看详情</string>
+<string name="ui_v2_no_logs">暂无执行日志</string>
+<string name="ui_v2_auto_confirm_note">普通任务可倒计时执行；敏感操作需人工处理</string>
+<string-array name="ui_v2_suggestions">
+<item>打开大众点评搜附近好吃的餐馆</item>
+<item>截图并总结当前页面</item>
+<item>设置明天早上 8 点的闹钟</item>
+<item>帮我订明天去上海的高铁票</item>
+</string-array>
+<string name="ui_v2_started_at">开始时间：%1$s</string>
+<string name="ui_v2_actual_steps">已执行 %1$d 步</string>
+<string name="ui_v2_new_task">新建任务</string>
+<string name="ui_v2_background_execution">后台虚拟屏执行</string>
+<string name="ui_v2_shizuku_execution">优先使用 Shizuku</string>
+<string name="ui_v2_auto_confirmation">自动确认普通任务</string>
+<string name="ui_v2_avatar">A</string>
+<string name="ui_v2_model_title">模型与 API</string>
+<string name="ui_v2_about_title">关于与帮助</string>
+<string name="ui_v2_about_hint">隐私、安全与使用说明</string>
+<string name="ui_v2_quick_settings">自动化快速设置</string>
+<string name="ui_v2_quick_settings_hint">常用控制集中在这里，详细日志仍在自动化控制中心查看。</string>
+<string name="ui_v2_open_control">打开自动化控制中心</string>
+<string name="ui_v2_confirm_enabled">已开启 · 敏感操作仍需确认</string>
+<string name="ui_v2_confirm_disabled">已关闭 · 每次执行前确认</string>
+ <string name="ui_v2_font_and_size">字体及字号</string>
+ <string name="ui_v2_thinking_process">思考过程</string>
+ <string name="ui_v2_expanded">默认展开</string>
+ <string name="ui_v2_collapsed">默认收起</string>
+ <string name="ui_v2_code_options">代码块相关显示</string>
+ <string name="ui_v2_goal">用户目标</string>
+ <string name="ui_v2_execution_steps">执行进度</string>
+ <string name="ui_v2_next_task_hint">你可以继续描述下一个任务</string>
+ <string name="ui_v2_welcome_note">每一步都有状态反馈，涉及真实影响的操作会先向你确认。</string>
+ <string name="ui_v2_agreement_checked">我已阅读并理解以上内容</string>
+ <string name="ui_v2_agreement_full">阅读完整用户协议</string>
+ <string name="ui_v2_welcome_heading">把复杂任务，交给 Aries</string>
+ <string name="ui_v2_welcome_description">你说目标，我来理解、确认并操作手机。全过程清晰可见。</string>
+ <string name="ui_v2_step_caption">第 %1$d 步 / 共 3 步</string>
+ <string name="ui_v2_agreement_heading">在开始之前，了解 Aries 如何工作</string>
+ <string name="ui_v2_agreement_description">Aries 会根据你的指令理解目标，并可能打开其他 App、读取页面内容或执行操作。</string>
+ <string name="ui_v2_agreement_rules">了解服务使用规则与自动化边界</string>
+ <string name="ui_v2_privacy_title">隐私说明</string>
+ <string name="ui_v2_privacy_description">请阅读完整协议中的权限与数据处理说明</string>
+ <string name="ui_v2_ai_content">AI 生成内容</string>
+ <string name="ui_v2_ai_content_description">AI 结果可能需要你复核，重要操作会请求确认</string>
+ <string name="ui_v2_permission_heading">让 Aries 真正帮你操作手机</string>
+ <string name="ui_v2_permission_description">开启必要权限，之后也可以在设置中修改。</string>
+ <string name="ui_v2_camera_failed">启动相机失败</string>
+ <string name="ui_v2_attachment_camera">拍照</string>
+ <string name="ui_v2_attachment_gallery">相册</string>
+ <string name="ui_v2_attachment_file">文件</string>
+ <string name="ui_v2_attachment_count">附件 (%1$d)</string>
+ <string name="ui_v2_attachment_remove">移除附件</string>
+ <string name="ui_v2_setup_incomplete">待补齐</string>
+ <string name="ui_v2_not_connected">未连接</string>
+</resources>

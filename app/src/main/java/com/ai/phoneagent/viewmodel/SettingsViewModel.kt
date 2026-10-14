@@ -36,6 +36,7 @@ class SettingsViewModel(
         ModelApi,
         Membership,
         Appearance,
+        Automation,
         About,
     }
 
@@ -372,7 +373,7 @@ class SettingsViewModel(
             startApiCheck(
                 key = key,
                 baseUrl = AriesApiClient.ARIES_API_V1_BASE_URL,
-                model = ariesSelectedModel.ifBlank { AutoGlmClient.DEFAULT_MODEL },
+                model = resolveApiModel(),
                 force = true,
                 onToast = onToast,
             )
@@ -560,11 +561,10 @@ class SettingsViewModel(
         return resolveRemoteApiBaseUrl()
     }
 
-    fun resolveApiModel(): String {
-        if (useAriesApi) return AriesApiClient.ARIES_CHAT_MODEL
-        if (useLocalModel) return ModelScopeModelDownloader.QWEN35_MODEL_NAME
-        return resolveRemoteApiModel()
-    }
+    fun resolveApiModel(): String = com.ai.phoneagent.net.ChatModelResolver.resolve(
+        local = useLocalModel, aries = useAriesApi, thirdParty = useThirdPartyApi,
+        selected = ariesSelectedModel, custom = apiModelText,
+    )
 
     private fun resolveRemoteApiBaseUrl(): String {
         if (!useThirdPartyApi) return AutoGlmClient.DEFAULT_BASE_URL

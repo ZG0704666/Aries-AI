@@ -55,12 +55,12 @@ fun PermissionBottomSheetContent(
     onGuideAll: () -> Unit,
     onDone: () -> Unit,
 ) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
-    val spacingXl = dimensionResource(R.dimen.m3t_spacing_xl)
-    val buttonHeight = dimensionResource(R.dimen.m3t_button_height)
-    val compactButtonHeight = dimensionResource(R.dimen.m3t_compact_button_height)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
+    val spacingXl = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xl)
+    val buttonHeight = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_button_height)
+    val compactButtonHeight = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_compact_button_height)
 
     Column(
         modifier = Modifier
@@ -155,9 +155,9 @@ private fun PermissionRow(
     onAction: () -> Unit,
     buttonHeight: Dp,
 ) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
 
     Row(
         modifier = Modifier

@@ -160,7 +160,7 @@ fun HighlightText(
                         text  = buildHighlightedString(lineTokens, palette, defaultColor),
                         style = codeStyle,
                         softWrap = softWrap,
-                        modifier = if (!softWrap) Modifier.horizontalScroll(rememberScrollState()) else Modifier,
+                        modifier = if (!softWrap) Modifier.keepHorizontalGestures().horizontalScroll(rememberScrollState()) else Modifier,
                     )
                 }
             }
@@ -174,7 +174,7 @@ fun HighlightText(
             text     = allTokens,
             style    = codeStyle,
             softWrap = softWrap,
-            modifier = if (!softWrap) modifier.horizontalScroll(rememberScrollState()) else modifier.fillMaxWidth(),
+            modifier = if (!softWrap) modifier.keepHorizontalGestures().horizontalScroll(rememberScrollState()) else modifier.fillMaxWidth(),
         )
     }
 }

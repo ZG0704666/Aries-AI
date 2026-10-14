@@ -407,10 +407,11 @@ class AutomationOverlay(
             if (maxSteps != null && !hasEstimatedSteps) {
                 this.maxSteps = maxSteps.coerceAtLeast(1)
             }
-            val frac = calculateProgressFraction(step = step, phaseInStep = phaseInStep)
+            // Model estimates are not a known total; retain the moving indeterminate edge.
+            val frac = 0f
             v.setProgress(frac)
             val sub = subtitle?.trim().orEmpty()
-            val title = "执行中"
+            val title = v.context.getString(R.string.ui_v2_step, step)
             if (sub.isNotBlank()) {
                 v.setTexts(title, sub.take(34), v.detailText())
             } else {
@@ -429,12 +430,13 @@ class AutomationOverlay(
         }
     }
 
-    fun complete(message: String) {
-        liveNotification.complete(message)
+    fun complete(message: String, success: Boolean = true) {
+        liveNotification.complete(message, success)
         runOnMain {
             val v = container ?: return@runOnMain
             v.setProgress(1f)
-            v.setTexts("已完成", message.take(34), "任务完成")
+            val status = v.context.getString(if (success) R.string.ui_v2_success else R.string.ui_v2_failed)
+            v.setTexts(status, message.take(34), status)
             v.playCompleteEffect {
                 runOnMain {
                     // 仅在回调对应的仍是当前悬浮窗实例时才隐藏，避免上一次任务回调误关当前任务悬浮窗
@@ -493,11 +495,11 @@ class AutomationOverlay(
         private val title = TextView(context)
         private val subtitle = TextView(context)
         private val detail = TextView(context)
-        private val surfaceColor = ContextCompat.getColor(context, R.color.m3t_floating_surface)
-        private val outlineColor = ContextCompat.getColor(context, R.color.m3t_outline_variant)
-        private val titleColor = ContextCompat.getColor(context, R.color.m3t_on_surface)
-        private val subtitleColor = ContextCompat.getColor(context, R.color.m3t_primary)
-        private val detailColor = ContextCompat.getColor(context, R.color.m3t_on_surface_variant)
+        private val surfaceColor = ContextCompat.getColor(context, com.ai.phoneagent.core.designsystem.R.color.m3t_floating_surface)
+        private val outlineColor = ContextCompat.getColor(context, com.ai.phoneagent.core.designsystem.R.color.m3t_outline_variant)
+        private val titleColor = ContextCompat.getColor(context, com.ai.phoneagent.core.designsystem.R.color.m3t_on_surface)
+        private val subtitleColor = ContextCompat.getColor(context, com.ai.phoneagent.core.designsystem.R.color.m3t_primary)
+        private val detailColor = ContextCompat.getColor(context, com.ai.phoneagent.core.designsystem.R.color.m3t_on_surface_variant)
 
         private var lp: WindowManager.LayoutParams? = null
         private var wm: WindowManager? = null
@@ -677,13 +679,13 @@ class AutomationOverlay(
 
     private class EdgeFlowView(context: Context) : View(context) {
 
-        private val colorPrimary = ContextCompat.getColor(context, R.color.m3t_primary)
-        private val colorPrimaryContainer = ContextCompat.getColor(context, R.color.m3t_primary_container)
-        private val colorSecondaryContainer = ContextCompat.getColor(context, R.color.m3t_secondary_container)
-        private val colorSuccess = ContextCompat.getColor(context, R.color.m3t_success)
-        private val colorSuccessContainer = ContextCompat.getColor(context, R.color.m3t_dialog_surface_alt)
-        private val colorSurface = ContextCompat.getColor(context, R.color.m3t_surface)
-        private val colorOnSurface = ContextCompat.getColor(context, R.color.m3t_on_surface)
+        private val colorPrimary = ContextCompat.getColor(context, com.ai.phoneagent.core.designsystem.R.color.m3t_primary)
+        private val colorPrimaryContainer = ContextCompat.getColor(context, com.ai.phoneagent.core.designsystem.R.color.m3t_primary_container)
+        private val colorSecondaryContainer = ContextCompat.getColor(context, com.ai.phoneagent.core.designsystem.R.color.m3t_secondary_container)
+        private val colorSuccess = ContextCompat.getColor(context, com.ai.phoneagent.core.designsystem.R.color.m3t_success)
+        private val colorSuccessContainer = ContextCompat.getColor(context, com.ai.phoneagent.core.designsystem.R.color.m3t_dialog_surface_alt)
+        private val colorSurface = ContextCompat.getColor(context, com.ai.phoneagent.core.designsystem.R.color.m3t_surface)
+        private val colorOnSurface = ContextCompat.getColor(context, com.ai.phoneagent.core.designsystem.R.color.m3t_on_surface)
 
         private val trackPaint =
                 Paint(Paint.ANTI_ALIAS_FLAG).apply {

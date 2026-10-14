@@ -1,5 +1,6 @@
 package com.ai.phoneagent.ui.settings
 
+import com.ai.phoneagent.ui.components.AriesPageTopBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -55,30 +56,15 @@ private val licenses =
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LicensesScreen(navController: NavController) {
-    val spacingSm = dimensionResource(R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(R.dimen.m3t_spacing_md)
-    val spacingLg = dimensionResource(R.dimen.m3t_spacing_lg)
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
+    val spacingLg = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { Text(text = stringResource(SettingsR.string.about_open_source_licenses)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Lucide.ArrowLeft,
-                            contentDescription = stringResource(SettingsR.string.about_back),
-                        )
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                    ),
-                modifier = Modifier.statusBarsPadding(),
-            )
+            AriesPageTopBar(stringResource(SettingsR.string.about_open_source_licenses), { navController.popBackStack() })
         },
     ) { innerPadding ->
         LazyColumn(
@@ -90,7 +76,7 @@ fun LicensesScreen(navController: NavController) {
                  ListItem(
                      colors =
                          ListItemDefaults.colors(
-                             containerColor = MaterialTheme.colorScheme.background,
+                             containerColor = androidx.compose.ui.graphics.Color.Transparent,
                          ),
                      headlineContent = {
                          Text(

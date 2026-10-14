@@ -22,6 +22,10 @@ class AutomationResultsRepository(
         val lastResultMessage = stringPreferencesKey("last_result_message")
         val lastResultSteps = intPreferencesKey("last_result_steps")
         val lastResultTime = longPreferencesKey("last_result_time")
+        val runId = stringPreferencesKey("run_id")
+        val goal = stringPreferencesKey("goal")
+        val startedAt = longPreferencesKey("started_at")
+        val status = stringPreferencesKey("status")
         val lastLog = stringPreferencesKey("last_log")
     }
 
@@ -111,8 +115,16 @@ class AutomationResultsRepository(
         steps: Int,
         time: Long,
         log: String,
+        runId: String = "",
+        goal: String = "",
+        startedAt: Long = 0L,
+        status: String = if (success) "SUCCEEDED" else "FAILED",
     ) {
         context.automationResultsDataStore.edit { prefs ->
+            prefs[Keys.runId] = runId
+            prefs[Keys.goal] = goal
+            prefs[Keys.startedAt] = startedAt
+            prefs[Keys.status] = status
             prefs[Keys.lastResultSuccess] = success
             prefs[Keys.lastResultMessage] = message
             prefs[Keys.lastResultSteps] = steps
@@ -133,16 +145,26 @@ class AutomationResultsRepository(
         val steps: Int,
         val time: Long,
         val log: String,
+        val runId: String = "",
+        val goal: String = "",
+        val startedAt: Long = 0L,
+        val status: String = if (success) "SUCCEEDED" else "FAILED",
+    ) {
+        fun matchesRun(id: String): Boolean = id.isNotBlank() && runId == id
+    }
+
+    private fun decode(prefs: androidx.datastore.preferences.core.Preferences) = LastResult(
+        success = prefs[Keys.lastResultSuccess] ?: false,
+        message = prefs[Keys.lastResultMessage].orEmpty(),
+        steps = prefs[Keys.lastResultSteps] ?: 0,
+        time = prefs[Keys.lastResultTime] ?: 0L,
+        log = prefs[Keys.lastLog].orEmpty(),
+        runId = prefs[Keys.runId].orEmpty(),
+        goal = prefs[Keys.goal].orEmpty(),
+        startedAt = prefs[Keys.startedAt] ?: 0L,
+        status = prefs[Keys.status] ?: if (prefs[Keys.lastResultSuccess] == true) "SUCCEEDED" else "FAILED",
     )
 
-    fun getLastResultBlocking(): LastResult = runBlocking {
-        val prefs = context.automationResultsDataStore.data.first()
-        LastResult(
-            success = prefs[Keys.lastResultSuccess] ?: false,
-            message = prefs[Keys.lastResultMessage] ?: "",
-            steps = prefs[Keys.lastResultSteps] ?: 0,
-            time = prefs[Keys.lastResultTime] ?: 0L,
-            log = prefs[Keys.lastLog] ?: "",
-        )
-    }
+    val resultFlow: Flow<LastResult> = context.automationResultsDataStore.data.map(::decode)
+    fun getLastResultBlocking(): LastResult = runBlocking { resultFlow.first() }
 }
