@@ -394,6 +394,4 @@ A:
 
 文档统一保存在 `Aries-site/docs/`；现有中文分类和英文兼容入口继续保留。
 
-- [DeepWiki 同步说明与章节映射](./Aries-site/docs/开发规范与工具/DeepWiki%20同步说明.md)
-- [官网与文档中心维护](./Aries-site/docs/开发规范与工具/官网与文档中心维护.md)
 - [CI 流水线与测试](./Aries-site/docs/开发规范与工具/CI%20流水线与测试.md)
