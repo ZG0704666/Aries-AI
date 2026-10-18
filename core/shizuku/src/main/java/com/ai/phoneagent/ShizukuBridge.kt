@@ -12,21 +12,28 @@ import rikka.shizuku.Shizuku
 import java.io.ByteArrayOutputStream
 
 /**
- * ShizukuBridge
+ * 基于 Shizuku binder 的 Shell 执行桥接。
  *
- * - Executes shell command via Shizuku binder
- * - Provides unified process result wrapper
+ * 统一封装命令执行结果，供上层在获得授权后执行 uiautomator、文件读写等特权操作。
  */
 object ShizukuBridge {
 
     private const val TAG = "AriesShizuku"
     private const val DEFAULT_UI_DUMP_PATH = "/data/local/tmp/aries_ui_dump.xml"
 
+    /**
+     * 命令执行结果。
+     *
+     * @property exitCode 进程退出码，负数表示桥接自身的前置校验失败。
+     * @property stdout 标准输出原始字节。
+     * @property stderr 标准错误原始字节。
+     */
     data class ExecResult(
         val exitCode: Int,
         val stdout: ByteArray,
         val stderr: ByteArray,
     ) {
+        /** 以 UTF-8 解码标准输出，解码异常时返回空串。 */
         fun stdoutText(): String {
             return try {
                 stdout.toString(Charsets.UTF_8)
@@ -35,6 +42,7 @@ object ShizukuBridge {
             }
         }
 
+        /** 以 UTF-8 解码标准错误，解码异常时返回空串。 */
         fun stderrText(): String {
             return try {
                 stderr.toString(Charsets.UTF_8)
@@ -44,6 +52,7 @@ object ShizukuBridge {
         }
     }
 
+    /** 通过反射调用 Shizuku 的 newProcess 创建子进程句柄。 */
     private fun newProcess(command: Array<String>): Any {
         val method = Shizuku::class.java.getDeclaredMethod(
             "newProcess",
@@ -55,6 +64,7 @@ object ShizukuBridge {
         return method.invoke(null, command, null, null)
     }
 
+    /** 探测 Shizuku binder 是否存活。 */
     @JvmStatic
     fun pingBinder(): Boolean {
         return try {
@@ -64,6 +74,7 @@ object ShizukuBridge {
         }
     }
 
+    /** 判断本应用是否已被授予 Shizuku 权限。 */
     @JvmStatic
     fun hasPermission(): Boolean {
         return try {
@@ -73,6 +84,7 @@ object ShizukuBridge {
         }
     }
 
+    /** 发起 Shizuku 权限申请；调用成功仅代表请求已发出。 */
     @JvmStatic
     fun requestPermission(requestCode: Int): Boolean {
         return try {
@@ -83,18 +95,21 @@ object ShizukuBridge {
         }
     }
 
+    /** 执行 shell 命令，仅返回成功时的标准输出字节。 */
     @JvmStatic
     fun execBytes(command: String): ByteArray {
         val r = execResult(command)
         return if (r.exitCode == 0) r.stdout else ByteArray(0)
     }
 
+    /** 以参数列表方式执行命令，仅返回成功时的标准输出字节。 */
     @JvmStatic
     fun execBytesArgs(args: List<String>): ByteArray {
         val r = execResultArgs(args)
         return if (r.exitCode == 0) r.stdout else ByteArray(0)
     }
 
+    /** 执行 shell 命令并以 UTF-8 文本返回标准输出。 */
     @JvmStatic
     fun execText(command: String): String {
         val bytes = execBytes(command)
@@ -106,11 +121,13 @@ object ShizukuBridge {
         }
     }
 
+    /** 以 `sh -c` 执行命令并返回完整执行结果。 */
     @JvmStatic
     fun execResult(command: String): ExecResult {
         return execResultInternal(arrayOf("sh", "-c", command), command)
     }
 
+    /** 以参数列表方式执行命令并返回完整执行结果；空参数直接失败。 */
     @JvmStatic
     fun execResultArgs(args: List<String>): ExecResult {
         if (args.isEmpty()) return ExecResult(exitCode = -3, stdout = ByteArray(0), stderr = ByteArray(0))
@@ -120,6 +137,11 @@ object ShizukuBridge {
         return execResultInternal(args.toTypedArray(), printable)
     }
 
+    /**
+     * 执行命令的核心实现。
+     *
+     * 先校验 binder 与权限，再读取进程输出并等待退出；失败路径返回负数退出码便于上层区分原因。
+     */
     private fun execResultInternal(processArgs: Array<String>, commandLabel: String): ExecResult {
         return try {
             if (!pingBinder()) return ExecResult(exitCode = -1, stdout = ByteArray(0), stderr = ByteArray(0))
@@ -155,6 +177,7 @@ object ShizukuBridge {
         }
     }
 
+    /** 完整读取输入流字节，读取异常时返回空数组。 */
     private fun readAllBytes(input: java.io.InputStream): ByteArray {
         return try {
             input.use { ins ->
@@ -174,7 +197,12 @@ object ShizukuBridge {
     }
 
     /**
-     * Dump current window hierarchy xml by uiautomator.
+     * 通过 uiautomator 导出当前窗口层级 XML。
+     *
+     * 失败时会在同一次调用内重试（含 `--compressed` 兜底）；全部尝试失败返回 null。
+     *
+     * @param outputPath 设备侧的临时导出路径。
+     * @param retries 最大尝试次数。
      */
     @JvmStatic
     fun dumpUiHierarchyXml(
@@ -190,7 +218,7 @@ object ShizukuBridge {
                 return null
             }
 
-            // Ensure temp file is clean before dump.
+            // dump 前先清理旧临时文件，避免读到上次的残留结果。
             execResult("rm -f '$outputPath'")
 
             var dumpResult = execResult("uiautomator dump '$outputPath'")
@@ -218,7 +246,7 @@ object ShizukuBridge {
                 return xml
             }
 
-            // Some ROMs print path text but fail to return valid XML on first read.
+            // 个别 ROM 会先打印路径文本却读不到有效 XML，改为读取默认路径兜底。
             val fallbackRaw =
                     if (resolvedPath != outputPath) execResult("cat '$outputPath'").stdoutText() else ""
             val fallbackXml = fallbackRaw.replace("\u0000", "").trim()
@@ -233,11 +261,12 @@ object ShizukuBridge {
         return null
     }
 
+    /** 从 uiautomator 输出中解析实际导出路径，兼容多语言提示与路径正则。 */
     private fun parseDumpPath(output: String): String {
         val markers =
                 listOf(
                         "UI hierarchy dumped to:",
-                        "UI hierchary dumped to:", // Android built-in output uses this typo on many builds.
+                        "UI hierchary dumped to:", // Android 原生输出在多数构建上保留了该拼写错误。
                         "UI层次结构已转储到:",
                         "UI 层次结构已转储到:",
                 )
@@ -250,9 +279,7 @@ object ShizukuBridge {
         return pathRegex.find(output)?.groupValues?.get(1).orEmpty()
     }
 
-    /**
-     * Check if Shizuku binder and permission are available.
-     */
+    /** 同时满足 binder 存活与已授权时才视为可用。 */
     @JvmStatic
     fun isShizukuAvailable(): Boolean {
         return pingBinder() && hasPermission()

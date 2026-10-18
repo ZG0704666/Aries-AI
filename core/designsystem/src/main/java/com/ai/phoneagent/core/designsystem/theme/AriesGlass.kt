@@ -16,7 +16,7 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import com.ai.phoneagent.core.designsystem.R
 
-/** Transparent glass with edge reflections. No opaque highlight plate or shadow inside the lens. */
+/** 带边缘反光的透明玻璃效果：镜面内部不叠加不透明明亮层或阴影。 */
 @Composable
 fun Modifier.ariesGlass(shape: Shape, selected: Boolean = false): Modifier {
     val dark = LocalAriesBackdrop.current.dark
@@ -42,8 +42,8 @@ fun Modifier.ariesGlass(shape: Shape, selected: Boolean = false): Modifier {
             start = Offset.Zero, end = Offset(size.width, size.height),
         )
         onDrawBehind {
-            // Elevation shadows fill transparent outlines on some Android renderers.
-            // Draw feathered rings strictly OUTSIDE the actual lens instead.
+            // 部分 Android 渲染器会把 elevation 阴影填充进透明轮廓，
+            // 因此改为在镜面「外侧」绘制逐层递减的羽化环。
             clipPath(lens, ClipOp.Difference) {
                 for (layer in 8 downTo 1) {
                     drawPath(lens, shade.copy(alpha = shade.alpha * (9 - layer) / 36f),
@@ -52,7 +52,7 @@ fun Modifier.ariesGlass(shape: Shape, selected: Boolean = false): Modifier {
             }
             drawPath(lens, base)
             if (selected) drawPath(lens, selection)
-            // Clip the half-stroke to the lens so the border never changes layout size.
+            // 将半描边裁剪到镜面内，避免边框影响布局尺寸。
             clipPath(lens) { drawPath(lens, reflection, style = Stroke(width = rim.toPx() * 2)) }
         }
     }

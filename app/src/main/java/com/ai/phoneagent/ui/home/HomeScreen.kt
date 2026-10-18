@@ -155,12 +155,12 @@ fun HomeScreen(
         if (lastReportedPage != selectedPage) navigate(selectedPage)
     }
     LaunchedEffect(pager) {
-        // An outer route may request a different tab while this pager is saved.
-        // Apply that selection before reporting the restored page to the Activity.
+        // 本页签保存期间，外层路由可能请求切换到其他页签。
+        // 在把恢复的页码上报给 Activity 之前，先应用该选择。
         if (pager.currentPage != selectedPage) pager.scrollToPage(selectedPage)
         snapshotFlow { pager.currentPage }.distinctUntilChanged().collect { lastReportedPage = it; onPageSelected(it) }
     }
-    // Compatibility for existing callbacks which used to wait for the drawer to close.
+    // 兼容旧的回调逻辑：过去需要等待抽屉关闭。
     LaunchedEffect(drawerState.currentValue) {
         if (drawerState.currentValue == DrawerValue.Open) {
             navigate(0)

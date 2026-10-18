@@ -259,8 +259,8 @@ class SherpaSpeechRecognizer(private val context: Context) {
                         featConfig = featConfig,
                         modelConfig = modelConfig,
                         decoderConfig = decoderConfig,
-                        // Push-to-talk: keep recording while user is holding the button,
-                        // and finalize only on explicit stopListening().
+                        // 按住说话模式：用户按住按钮期间持续录音，
+                        // 仅在显式调用 stopListening() 时定稿。
                         enableEndpoint = false,
                         rule1MinTrailingSilence = 2.4f,
                         rule2MinTrailingSilence = 1.2f,
@@ -473,7 +473,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
         isListening = false
         recordingJob?.cancel()
 
-        // Finalize recognition
+        // 结束识别
         recognizer?.inputFinished()
         val text = recognizer?.text ?: ""
         if (finalResultEmitted.compareAndSet(false, true)) {

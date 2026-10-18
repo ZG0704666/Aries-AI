@@ -45,7 +45,7 @@ import org.scilab.forge.jlatexmath.TeXConstants
 import org.scilab.forge.jlatexmath.TeXFormula
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Delimiter normalisation
+// ─── 分隔符归一化 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 // 剥离定界符 → 提取文档体 → 去掉文档级命令 → 提取数学环境
@@ -114,7 +114,7 @@ fun isRenderableMath(formula: String): Boolean {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  LaTeX document segmentation
+// ─── LaTeX 文档分段 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 internal data class LatexSegment(val content: String, val isMath: Boolean)
@@ -161,7 +161,7 @@ internal fun splitLatexDocSegments(payload: String): List<LatexSegment> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Low-level rendering (call on Dispatchers.Default)
+// ─── 底层渲染（须在 Dispatchers.Default 上调用） ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 private data class LatexBitmapCacheEntry(
@@ -349,11 +349,10 @@ internal fun normalizeInlineLatexFormula(raw: String): String {
 }
 
 /**
- * Splits [text] into math / non-math segments based on `$…$` delimiters.
+ * 按 `$…$` 分隔符把 [text] 拆分为数学/非数学片段。
  *
- * Note: `$$…$$` block-math mixed with text is handled separately by
- * [MathMixedText] in Markdown.kt — this function only deals with single-dollar
- * inline math.
+ * 注意：与文本混排的 `$$…$$` 块级数学由 Markdown.kt 中的 [MathMixedText]
+ * 单独处理——本函数只处理单美元行内数学。
  */
 internal fun splitTextWithMath(text: String): List<MathSeg> {
     val result = mutableListOf<MathSeg>()
@@ -412,10 +411,9 @@ private fun Char.isWhitespaceOnlyNewline(): Boolean =
     this == '\n' || this == '\r'
 
 /**
- * Renders [text] which may contain `$formula$` inline math expressions.
+ * 渲染可能包含 `$公式$` 行内数学表达式的 [text]。
  *
- * Bitmaps are computed asynchronously on [Dispatchers.Default]; the composable
- * recomposes with actual rendered images once they are ready.
+ * 位图在 [Dispatchers.Default] 上异步计算；就绪后组件用实际渲染图片重组。
  */
 @Composable
 fun MathInlineText(text: String, modifier: Modifier = Modifier) {

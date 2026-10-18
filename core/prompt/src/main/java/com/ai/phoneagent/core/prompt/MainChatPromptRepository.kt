@@ -14,15 +14,21 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
+/**
+ * 主对话系统提示词仓库。
+ *
+ * 提示词以内置默认值兜底，并在本地 JSON 文件与远端配置间做版本比对：仅当远端版本更高时才覆盖本地缓存。
+ */
 object MainChatPromptRepository {
 
     private const val LOCAL_DIR_NAME = "xyla"
     private const val LOCAL_FILE_NAME = "prompt.json"
     private const val REMOTE_PROMPT_URL = "https://ariesapi.xuanyu.online/prompt.json"
 
-    // Baseline local prompt version required by product.
+    // 产品要求的内置提示词基线版本，本地缺失时用它兜底。
     private const val DEFAULT_PROMPT_VERSION = "1.0.0"
 
+    /** 内置的主对话系统提示词：约束回答格式，并约定自动化转交标记 [[AUTO_EXECUTE:...]]。 */
     private val DEFAULT_MAIN_CHAT_PROMPT =
         """
         你是 Aries AI。
@@ -42,22 +48,31 @@ object MainChatPromptRepository {
            [[AUTO_EXECUTE:打开手机浏览器并访问 https://www.jd.com]]
         """.trimIndent()
 
+    /** 提示词快照：版本号 + 提示词正文。 */
     private data class PromptSnapshot(
         val version: String,
         val prompt: String,
     )
 
+    /** 进程内缓存，避免每次读取都访问磁盘。 */
     @Volatile
     private var cachedSnapshot: PromptSnapshot? = null
 
+    /** 返回当前生效的主对话系统提示词正文。 */
     fun getMainChatSystemPrompt(context: Context): String {
         return loadLocalSnapshot(context).prompt
     }
 
+    /** 返回当前生效的提示词版本号。 */
     fun getMainChatSystemPromptVersion(context: Context): String {
         return loadLocalSnapshot(context).version
     }
 
+    /**
+     * 从远端拉取提示词，仅当远端版本高于本地时才落盘覆盖。
+     *
+     * @return 是否发生了覆盖更新。
+     */
     suspend fun refreshFromRemoteIfNewer(context: Context): Boolean =
         withContext(Dispatchers.IO) {
             val local = loadLocalSnapshot(context)
@@ -71,6 +86,11 @@ object MainChatPromptRepository {
             }
         }
 
+    /**
+     * 读取本地提示词快照（双重检查加锁）。
+     *
+     * 文件缺失或解析失败时回退到内置默认值并写回本地。
+     */
     private fun loadLocalSnapshot(context: Context): PromptSnapshot {
         cachedSnapshot?.let { return it }
         synchronized(this) {
@@ -91,6 +111,7 @@ object MainChatPromptRepository {
         }
     }
 
+    /** 获取本地提示词文件，必要时创建目录并用默认快照初始化文件。 */
     private fun getLocalPromptFile(context: Context): File {
         val dir = File(context.filesDir, LOCAL_DIR_NAME)
         if (!dir.exists()) {
@@ -104,6 +125,7 @@ object MainChatPromptRepository {
         return file
     }
 
+    /** 构造内置默认快照。 */
     private fun defaultSnapshot(): PromptSnapshot {
         return PromptSnapshot(
             version = DEFAULT_PROMPT_VERSION,
@@ -111,6 +133,7 @@ object MainChatPromptRepository {
         )
     }
 
+    /** 解析快照 JSON；版本或提示词任一为空则视为无效。 */
     private fun parseSnapshot(rawJson: String): PromptSnapshot? {
         val obj = runCatching { AppJson.parseToJsonElement(rawJson).jsonObject }.getOrNull() ?: return null
         val version = obj["version"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
@@ -119,6 +142,7 @@ object MainChatPromptRepository {
         return PromptSnapshot(version = version, prompt = prompt)
     }
 
+    /** 将快照序列化为 JSON 文本。 */
     private fun snapshotToJson(snapshot: PromptSnapshot): String {
         return buildJsonObject {
             put("version", snapshot.version)
@@ -126,12 +150,14 @@ object MainChatPromptRepository {
         }.toString()
     }
 
+    /** 将快照写入本地文件并刷新内存缓存。 */
     private fun saveSnapshot(context: Context, snapshot: PromptSnapshot) {
         val file = getLocalPromptFile(context)
         file.writeText(snapshotToJson(snapshot), Charsets.UTF_8)
         cachedSnapshot = snapshot
     }
 
+    /** 同步拉取远端快照；网络异常或非 2xx 响应时返回 null。 */
     private fun fetchRemoteSnapshot(): PromptSnapshot? {
         val connection =
             (URL(REMOTE_PROMPT_URL).openConnection() as? HttpURLConnection) ?: return null

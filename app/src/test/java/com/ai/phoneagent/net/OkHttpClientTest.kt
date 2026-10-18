@@ -10,17 +10,17 @@ import org.junit.Test
 import java.util.concurrent.TimeUnit
 
 /**
- * Unit tests verifying that the OkHttpClient built with the same configuration as
- * [com.ai.phoneagent.di.NetworkModule] has the expected timeouts, settings, and interceptors.
+ * 单元测试：验证以与 [com.ai.phoneagent.di.NetworkModule] 相同配置构建的
+ * OkHttpClient 具有预期的超时、设置与拦截器。
  *
- * No DI framework is used here — we construct the client directly to keep tests self-contained
- * and avoid Android instrumentation dependencies.
+ * 此处不使用 DI 框架——直接构造客户端，使测试自包含并避免依赖
+ * Android instrumentation。
  */
 class OkHttpClientTest {
 
     /**
-     * Builds an OkHttpClient using the exact same configuration as NetworkModule.kt.
-     * We always use BASIC logging level in tests (same effect as DEBUG=true).
+     * 以与 NetworkModule.kt 完全相同的配置构建 OkHttpClient。
+     * 测试中固定使用 BASIC 日志级别（与 DEBUG=true 效果一致）。
      */
     private fun buildNetworkClient(): OkHttpClient {
         val logger = HttpLoggingInterceptor().apply {
@@ -153,7 +153,7 @@ class OkHttpClientTest {
     @Test
     fun `interceptors list has exactly one interceptor`() {
         val client = buildNetworkClient()
-        // Only the HttpLoggingInterceptor should be in the interceptors list
+        // 拦截器列表中应只有 HttpLoggingInterceptor
         assertEquals(
             "Expected exactly 1 interceptor (HttpLoggingInterceptor)",
             1,

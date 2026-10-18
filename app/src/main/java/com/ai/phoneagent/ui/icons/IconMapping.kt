@@ -1,13 +1,12 @@
 package com.ai.phoneagent.ui.icons
 
 /**
- * Material Icons → Lucide Icon Mapping Table
+ * Material Icons → Lucide 图标映射表
  *
- * This document catalogs all Material Design Icons references in the codebase
- * and their proposed Lucide Icon equivalents. This mapping is used by T16
- * (icon replacement task) to perform the actual replacement.
+ * 本文档整理了代码库中所有 Material Design Icons 引用及其建议的 Lucide
+ * 图标等价项。该映射由 T16（图标替换任务）用于执行实际替换。
  *
- * File locations scanned:
+ * 扫描的文件位置：
  * - AutomationControlScreen.kt
  * - AttachmentComponents.kt
  * - ConversationDrawer.kt
@@ -16,216 +15,216 @@ package com.ai.phoneagent.ui.icons
  * - ConversationTranscript.kt
  * - DrawerSettingsScreen.kt
  *
- * MAPPING LEGEND:
- * Material Icon Path → Lucide Icon Name
+ * 映射图例：
+ * Material Icon 路径 → Lucide 图标名
  *
  * ============================================================================
- * ICONS.DEFAULT.* (Material Design Default Style)
+ * ICONS.DEFAULT.*（Material Design 默认风格）
  * ============================================================================
  *
  * Icons.Default.Add → Plus
- *   Usage: InputBar.kt - "Add attachment" button
- *   Lucide equivalent: Plus (commonly used for add/create actions)
+ *   用途：InputBar.kt — 「添加附件」按钮
+ *   Lucide 等价：Plus（常用于添加/创建操作）
  *
- * Icons.Default.AudioFile → Music2 (or AudioLines as alternative)
- *   Usage: AttachmentComponents.kt - Audio file attachment icon
- *   Lucide equivalent: Music2 (represents audio file)
- *   NO_EQUIVALENT_NOTE: Lucide has limited audio file icons; Music2 is closest
+ * Icons.Default.AudioFile → Music2（或备选 AudioLines）
+ *   用途：AttachmentComponents.kt — 音频文件附件图标
+ *   Lucide 等价：Music2（表示音频文件）
+ *   无等价说明：Lucide 音频文件类图标有限，Music2 最接近
  *
  * Icons.Default.Close → X
- *   Usage: AttachmentComponents.kt - Close/remove button
- *   Lucide equivalent: X (standard close icon)
+ *   用途：AttachmentComponents.kt — 关闭/移除按钮
+ *   Lucide 等价：X（标准关闭图标）
  *
  * Icons.Default.Description → FileText
- *   Usage: AttachmentComponents.kt - Document/file attachment icon
- *   Lucide equivalent: FileText (represents text document)
+ *   用途：AttachmentComponents.kt — 文档/文件附件图标
+ *   Lucide 等价：FileText（表示文本文档）
  *
  * Icons.Default.Image → Image
- *   Usage: AttachmentComponents.kt - Image attachment icon
- *   Lucide equivalent: Image (standard image icon)
+ *   用途：AttachmentComponents.kt — 图片附件图标
+ *   Lucide 等价：Image（标准图片图标）
  *
  * Icons.Default.Keyboard → Keyboard
- *   Usage: InputBar.kt - Switch to keyboard input button
- *   Lucide equivalent: Keyboard (exact match)
+ *   用途：InputBar.kt — 切换到键盘输入按钮
+ *   Lucide 等价：Keyboard（完全匹配）
  *
  * Icons.Default.Mic → Mic
- *   Usage: InputBar.kt - Voice input button
- *   Lucide equivalent: Mic (exact match)
+ *   用途：InputBar.kt — 语音输入按钮
+ *   Lucide 等价：Mic（完全匹配）
  *
  * Icons.Default.PhotoCamera → Camera
- *   Usage: AttachmentComponents.kt - Camera/photo attachment option
- *   Lucide equivalent: Camera (standard camera icon)
+ *   用途：AttachmentComponents.kt — 相机/拍照附件选项
+ *   Lucide 等价：Camera（标准相机图标）
  *
  * Icons.Default.ScreenshotMonitor → Monitor
- *   Usage: AttachmentComponents.kt - Screenshot file attachment icon
- *   Lucide equivalent: Monitor (represents screen/screenshot)
- *   NO_EQUIVALENT_NOTE: Lucide doesn't have ScreenshotMonitor; Monitor is closest alternative
+ *   用途：AttachmentComponents.kt — 截图文件附件图标
+ *   Lucide 等价：Monitor（表示屏幕/截图）
+ *   无等价说明：Lucide 没有 ScreenshotMonitor，Monitor 是最接近的替代
  *
  * Icons.Default.VideoLibrary → Video
- *   Usage: AttachmentComponents.kt - Video attachment icon
- *   Lucide equivalent: Video (standard video icon)
+ *   用途：AttachmentComponents.kt — 视频附件图标
+ *   Lucide 等价：Video（标准视频图标）
  *
  * ============================================================================
- * ICONS.OUTLINED.* (Material Design Outlined Style)
+ * ICONS.OUTLINED.*（Material Design 描边风格）
  * ============================================================================
  *
  * Icons.Outlined.AutoAwesome → Wand2
- *   Usage: AutomationControlScreen.kt - AI/automation feature indicator
- *   Lucide equivalent: Wand2 (magic wand for AI/automation)
- *   Alternative: Star, Sparkles
+ *   用途：AutomationControlScreen.kt — AI/自动化功能指示
+ *   Lucide 等价：Wand2（表示 AI/自动化的魔法棒）
+ *   备选：Star、Sparkles
  *
  * Icons.Outlined.Check → Check
- *   Usage: ConversationTranscript.kt - Confirmation/success indicator
- *   Lucide equivalent: Check (exact match)
+ *   用途：ConversationTranscript.kt — 确认/成功指示
+ *   Lucide 等价：Check（完全匹配）
  *
  * Icons.Outlined.CheckCircle → CheckCircle2
- *   Usage: DrawerSettingsScreen.kt - Verified/completed status
- *   Lucide equivalent: CheckCircle2 (Lucide naming convention)
+ *   用途：DrawerSettingsScreen.kt — 已验证/已完成状态
+ *   Lucide 等价：CheckCircle2（Lucide 命名规范）
  *
  * Icons.Outlined.Close → X
- *   Usage: ConversationHistoryDialog.kt, ConversationTranscript.kt - Close button
- *   Lucide equivalent: X (standard close icon)
+ *   用途：ConversationHistoryDialog.kt、ConversationTranscript.kt — 关闭按钮
+ *   Lucide 等价：X（标准关闭图标）
  *
  * Icons.Outlined.Cloud → Cloud
- *   Usage: DrawerSettingsScreen.kt - Remote/cloud model indicator
- *   Lucide equivalent: Cloud (exact match)
+ *   用途：DrawerSettingsScreen.kt — 远程/云端模型指示
+ *   Lucide 等价：Cloud（完全匹配）
  *
  * Icons.Outlined.ContentCopy → Copy
- *   Usage: ConversationTranscript.kt - Copy text button
- *   Lucide equivalent: Copy (exact match)
+ *   用途：ConversationTranscript.kt — 复制文本按钮
+ *   Lucide 等价：Copy（完全匹配）
  *
  * Icons.Outlined.ContentPaste → Clipboard
- *   Usage: DrawerSettingsScreen.kt - Paste/clipboard action
- *   Lucide equivalent: Clipboard (represents paste/clipboard)
+ *   用途：DrawerSettingsScreen.kt — 粘贴/剪贴板操作
+ *   Lucide 等价：Clipboard（表示粘贴/剪贴板）
  *
  * Icons.Outlined.DeleteOutline → Trash2
- *   Usage: ConversationDrawer.kt, ConversationHistoryDialog.kt - Delete button
- *   Lucide equivalent: Trash2 (delete/trash icon)
+ *   用途：ConversationDrawer.kt、ConversationHistoryDialog.kt — 删除按钮
+ *   Lucide 等价：Trash2（删除/垃圾桶图标）
  *
  * Icons.Outlined.Download → Download
- *   Usage: DrawerSettingsScreen.kt - Download/install action
- *   Lucide equivalent: Download (exact match)
+ *   用途：DrawerSettingsScreen.kt — 下载/安装操作
+ *   Lucide 等价：Download（完全匹配）
  *
  * Icons.Outlined.Edit → Pencil
- *   Usage: ConversationTranscript.kt - Edit text button
- *   Lucide equivalent: Pencil (standard edit icon)
+ *   用途：ConversationTranscript.kt — 编辑文本按钮
+ *   Lucide 等价：Pencil（标准编辑图标）
  *
  * Icons.Outlined.Info → Info
- *   Usage: DrawerSettingsScreen.kt - Information/help indicator
- *   Lucide equivalent: Info (exact match)
+ *   用途：DrawerSettingsScreen.kt — 信息/帮助指示
+ *   Lucide 等价：Info（完全匹配）
  *
  * Icons.Outlined.Key → Key
- *   Usage: DrawerSettingsScreen.kt - API key/credentials field
- *   Lucide equivalent: Key (exact match)
+ *   用途：DrawerSettingsScreen.kt — API 密钥/凭据字段
+ *   Lucide 等价：Key（完全匹配）
  *
  * Icons.Outlined.KeyboardArrowDown → ChevronDown
- *   Usage: ConversationTranscript.kt - Expand/collapse indicator
- *   Lucide equivalent: ChevronDown (standard chevron)
+ *   用途：ConversationTranscript.kt — 展开/收起指示
+ *   Lucide 等价：ChevronDown（标准山形箭头）
  *
- * Icons.Outlined.KeyboardVoice → Mic2 (or Microphone)
- *   Usage: AutomationControlScreen.kt - Voice input mode indicator
- *   Lucide equivalent: Mic2 (represents voice/microphone)
+ * Icons.Outlined.KeyboardVoice → Mic2（或 Microphone）
+ *   用途：AutomationControlScreen.kt — 语音输入模式指示
+ *   Lucide 等价：Mic2（表示语音/麦克风）
  *
  * Icons.Outlined.Lightbulb → Lightbulb
- *   Usage: ConversationTranscript.kt - Hint/suggestion indicator
- *   Lucide equivalent: Lightbulb (exact match)
+ *   用途：ConversationTranscript.kt — 提示/建议指示
+ *   Lucide 等价：Lightbulb（完全匹配）
  *
  * Icons.Outlined.Memory → Cpu
- *   Usage: DrawerSettingsScreen.kt - Local model/memory indicator
- *   Lucide equivalent: Cpu (represents local processing/memory)
+ *   用途：DrawerSettingsScreen.kt — 本地模型/内存指示
+ *   Lucide 等价：Cpu（表示本地处理/内存）
  *
  * Icons.Outlined.Refresh → RefreshCw
- *   Usage: AutomationControlScreen.kt, ConversationTranscript.kt - Refresh button
- *   Lucide equivalent: RefreshCw (standard refresh icon)
+ *   用途：AutomationControlScreen.kt、ConversationTranscript.kt — 刷新按钮
+ *   Lucide 等价：RefreshCw（标准刷新图标）
  *
  * Icons.Outlined.Settings → Settings
- *   Usage: ConversationDrawer.kt, DrawerSettingsScreen.kt - Settings button
- *   Lucide equivalent: Settings (exact match)
- *   Alternative: SettingsIcon, Gear
+ *   用途：ConversationDrawer.kt、DrawerSettingsScreen.kt — 设置按钮
+ *   Lucide 等价：Settings（完全匹配）
+ *   备选：SettingsIcon、Gear
  *
  * Icons.Outlined.SettingsAccessibility → Accessibility
- *   Usage: AutomationControlScreen.kt - Accessibility settings indicator
- *   Lucide equivalent: Accessibility (exact match)
+ *   用途：AutomationControlScreen.kt — 无障碍设置指示
+ *   Lucide 等价：Accessibility（完全匹配）
  *
  * Icons.Outlined.Shield → Shield
- *   Usage: AutomationControlScreen.kt - Security/permission indicator
- *   Lucide equivalent: Shield (exact match)
+ *   用途：AutomationControlScreen.kt — 安全/权限指示
+ *   Lucide 等价：Shield（完全匹配）
  *
- * Icons.Outlined.StopCircle → CircleStop (or StopCircle)
- *   Usage: AutomationControlScreen.kt - Stop/terminate automation button
- *   Lucide equivalent: CircleStop (Lucide naming: Stop + Circle variant)
- *   NO_EQUIVALENT_NOTE: Exact match if Lucide has CircleStop; otherwise use Circle + StopIcon combo
+ * Icons.Outlined.StopCircle → CircleStop（或 StopCircle）
+ *   用途：AutomationControlScreen.kt — 停止/终止自动化按钮
+ *   Lucide 等价：CircleStop（Lucide 命名：Stop + Circle 变体）
+ *   无等价说明：若 Lucide 有 CircleStop 则完全匹配，否则用 Circle + StopIcon 组合
  *
  * Icons.Outlined.Sync → RotateCw
- *   Usage: DrawerSettingsScreen.kt - Synchronization/refresh action
- *   Lucide equivalent: RotateCw (standard sync icon)
+ *   用途：DrawerSettingsScreen.kt — 同步/刷新操作
+ *   Lucide 等价：RotateCw（标准同步图标）
  *
  * Icons.Outlined.Tune → Sliders2
- *   Usage: AutomationControlScreen.kt - Settings/configuration button
- *   Lucide equivalent: Sliders2 (represents settings/tuning)
- *   Alternative: Settings, Sliders
+ *   用途：AutomationControlScreen.kt — 设置/配置按钮
+ *   Lucide 等价：Sliders2（表示设置/调校）
+ *   备选：Settings、Sliders
  *
  * ============================================================================
- * ICONS.ROUNDED.* (Material Design Rounded Style)
+ * ICONS.ROUNDED.*（Material Design 圆角风格）
  * ============================================================================
  *
  * Icons.Rounded.Search → Search
- *   Usage: ConversationDrawer.kt - Search conversation button
- *   Lucide equivalent: Search (exact match)
+ *   用途：ConversationDrawer.kt — 搜索会话按钮
+ *   Lucide 等价：Search（完全匹配）
  *
  * ============================================================================
- * ICONS.AUTOMIRRORED.* (Auto-Mirrored for RTL Languages)
+ * ICONS.AUTOMIRRORED.*（RTL 语言自动镜像）
  * ============================================================================
  *
  * Icons.AutoMirrored.Filled.ArrowBack → ArrowLeft
- *   Usage: AutomationControlScreen.kt, DrawerSettingsScreen.kt - Back navigation button
- *   Lucide equivalent: ArrowLeft (represents back/previous)
- *   RTL Note: Lucide uses language-aware rendering; ArrowLeft auto-mirrors in RTL contexts
+ *   用途：AutomationControlScreen.kt、DrawerSettingsScreen.kt — 返回导航按钮
+ *   Lucide 等价：ArrowLeft（表示返回/上一个）
+ *   RTL 说明：Lucide 按语言感知渲染；ArrowLeft 在 RTL 语境下自动镜像
  *
- * Icons.AutoMirrored.Outlined.Chat → MessageCircle (or MessageSquare)
- *   Usage: ConversationHistoryDialog.kt - Chat/conversation indicator
- *   Lucide equivalent: MessageCircle (represents chat/message)
- *   Alternative: MessageSquare, Chatbubble
+ * Icons.AutoMirrored.Outlined.Chat → MessageCircle（或 MessageSquare）
+ *   用途：ConversationHistoryDialog.kt — 聊天/会话指示
+ *   Lucide 等价：MessageCircle（表示聊天/消息）
+ *   备选：MessageSquare、Chatbubble
  *
  * Icons.AutoMirrored.Outlined.OpenInNew → ExternalLink
- *   Usage: DrawerSettingsScreen.kt - Open link in new window
- *   Lucide equivalent: ExternalLink (exact match for opening external links)
+ *   用途：DrawerSettingsScreen.kt — 在新窗口打开链接
+ *   Lucide 等价：ExternalLink（与打开外部链接完全匹配）
  *
  * ============================================================================
- * SUMMARY STATISTICS
+ * 汇总统计
  * ============================================================================
  *
- * Total Material Icons found: 37 unique references
- * - Icons.Default.*: 9 icons
- * - Icons.Outlined.*: 24 icons
- * - Icons.Rounded.*: 1 icon
- * - Icons.AutoMirrored.*: 3 icons
+ * 共找到 Material Icons：37 个唯一引用
+ * - Icons.Default.*：9 个
+ * - Icons.Outlined.*：24 个
+ * - Icons.Rounded.*：1 个
+ * - Icons.AutoMirrored.*：3 个
  *
- * Mapping Coverage: 37/37 (100%)
- * Icons with NO direct Lucide equivalent: 2
- *   - Icons.Default.AudioFile (using Music2 as closest)
- *   - Icons.Default.ScreenshotMonitor (using Monitor as closest)
- *   - Icons.Outlined.StopCircle (pending CircleStop verification)
+ * 映射覆盖率：37/37（100%）
+ * 无直接 Lucide 等价的图标：2 个
+ *   - Icons.Default.AudioFile（用 Music2 作最接近替代）
+ *   - Icons.Default.ScreenshotMonitor（用 Monitor 作最接近替代）
+ *   - Icons.Outlined.StopCircle（待验证 CircleStop）
  *
- * All icons have been mapped to viable Lucide alternatives.
+ * 所有图标均已映射到可用的 Lucide 替代项。
  *
  * ============================================================================
- * USAGE NOTES FOR T16 (Icon Replacement Task)
+ * T16 使用说明（图标替换任务）
  * ============================================================================
  *
- * 1. Replace all Icons.Default.X imports with Lucide equivalents
- * 2. Replace all Icons.Outlined.X imports with Lucide equivalents
- * 3. Replace all Icons.Rounded.X imports with Lucide equivalents
- * 4. Replace all Icons.AutoMirrored.X imports with Lucide equivalents
- * 5. Update imports: remove androidx.compose.material.icons.*
- * 6. Add import: com.composables.icons.lucide.*
- * 7. Test all UI screens for visual consistency
- * 8. Verify icon colors match Material 3 theme
- * 9. Test accessibility (contentDescription still applies)
- * 10. Test both light and dark themes
+ * 1. 将所有 Icons.Default.X 导入替换为 Lucide 等价项
+ * 2. 将所有 Icons.Outlined.X 导入替换为 Lucide 等价项
+ * 3. 将所有 Icons.Rounded.X 导入替换为 Lucide 等价项
+ * 4. 将所有 Icons.AutoMirrored.X 导入替换为 Lucide 等价项
+ * 5. 更新导入：移除 androidx.compose.material.icons.*
+ * 6. 添加导入：com.composables.icons.lucide.*
+ * 7. 测试所有 UI 界面的视觉一致性
+ * 8. 校验图标颜色与 Material 3 主题匹配
+ * 9. 测试无障碍（contentDescription 仍然生效）
+ * 10. 测试浅色与深色主题
  *
  */
 object IconMapping {
-    // Programmatic mapping for future tooling (reserved for automated replacement)
-    // TODO: Implement automated icon replacement using this object during T16
+    // 供后续工具使用的程序化映射（为自动替换预留）
+    // TODO：T16 期间使用此对象实现自动图标替换
 }

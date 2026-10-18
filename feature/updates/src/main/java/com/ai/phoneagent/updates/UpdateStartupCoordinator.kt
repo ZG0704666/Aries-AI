@@ -10,10 +10,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * 启动时的静默更新检查协调器。
+ *
+ * 先依据缓存提示，再按间隔限制发起后台检查，发现更高版本时落库并提醒。
+ */
 object UpdateStartupCoordinator {
 
+    /** 静默检查的最小间隔（6 小时）。 */
     private const val SILENT_CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L
 
+    /** 应用启动时执行一次静默检查（受间隔限制）。 */
     fun silentCheckOnLaunch(activity: AppCompatActivity) {
         val currentVersion =
             runCatching {
@@ -43,17 +50,19 @@ object UpdateStartupCoordinator {
                     notifyIfNeeded(activity, latest)
                 }
                 .onFailure {
-                    // Silent update checks should not interrupt the launch flow.
+                    // 静默更新检查失败不应打断启动流程。
                 }
         }
     }
 
+    /** 若缓存版本高于当前版本则直接提示，无需等待网络。 */
     private fun notifyFromCacheIfNeeded(context: Context, currentVersion: String) {
         val cached = UpdateStore.loadLatest(context) ?: return
         if (VersionComparator.compare(cached.version, currentVersion) <= 0) return
         notifyIfNeeded(context, cached)
     }
 
+    /** 对同一版本仅提醒一次；通知权限缺失时改用 Toast 提示。 */
     private fun notifyIfNeeded(context: Context, entry: ReleaseEntry) {
         if (!UpdateStore.shouldNotify(context, entry.versionTag)) return
 

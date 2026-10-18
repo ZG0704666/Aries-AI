@@ -62,7 +62,7 @@ class ExtendedAppMapping {
         "剪映" to "com.lemon.lv",
         "capcut" to "com.lemon.lv",
         
-        // 阿里系
+        // 电商办公类应用
         "钉钉" to "com.alibaba.android.rimet",
         "dingding" to "com.alibaba.android.rimet",
         "淘宝" to "com.taobao.taobao",
@@ -620,7 +620,7 @@ class ExtendedAppMapping {
         "SinaWeibo" to "com.sina.weibo",
         "sinaweibo" to "com.sina.weibo",
         
-        // 阿里系变体
+        // 电商办公类应用变体
         "Taobao" to "com.taobao.taobao",
         "taobao" to "com.taobao.taobao",
         "TMALL" to "com.tmall.wireless",

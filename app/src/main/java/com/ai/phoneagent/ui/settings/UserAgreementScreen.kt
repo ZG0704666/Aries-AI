@@ -29,6 +29,7 @@ import com.ai.phoneagent.feature.settings.R as SettingsR
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Lucide
 
+/** 用户协议页：展示协议内容并提供关闭操作。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserAgreementScreen(navController: NavController) {

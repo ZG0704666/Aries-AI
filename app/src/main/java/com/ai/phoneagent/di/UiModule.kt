@@ -28,18 +28,17 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 /**
- * UI-layer Koin DI module.
+ * UI 层 Koin DI 模块。
  *
- * Binds:
- * - [ChatViewModel] — AndroidViewModel for chat attachment management.
+ * 绑定：
+ * - [ChatViewModel] — 聊天附件管理的 AndroidViewModel。
  *
- * AboutViewModel / UpdateHistoryViewModel resolve [com.ai.phoneagent.updates.ReleaseRepository]
- * from [appModule] via `get()` instead of direct instantiation.
+ * AboutViewModel / UpdateHistoryViewModel 通过 `get()` 从 [appModule] 解析
+ * [com.ai.phoneagent.updates.ReleaseRepository]，而非直接实例化。
  */
 val uiModule = module {
 
-    // ChatViewModel is an AndroidViewModel; Koin's viewModel {} block handles
-    // the Application parameter automatically.
+    // ChatViewModel 是 AndroidViewModel；Koin 的 viewModel {} 块会自动处理 Application 参数。
     viewModel { ChatViewModel(get()) }
     viewModel {
         AutomationViewModel(

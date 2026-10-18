@@ -500,7 +500,7 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         appendAttr("bounds-norm", node.boundsNorm)
         appendAttr("center", node.centerNorm)
 
-        // summary/full detail flags
+        // summary/full 详情级别开关
         if (detailLevel != UiDetailLevel.MINIMAL) {
             appendAttr("clickable", node.clickable.toString())
             appendAttr("focused", node.focused.toString())

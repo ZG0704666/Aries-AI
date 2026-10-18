@@ -5,7 +5,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.unit.Velocity
 
-/** Keep a settling horizontal pager from consuming its children's vertical scroll. */
+/** 包裹嵌套滚动连接：剥离纵向分量，避免横向分页器惯性滑动时吞掉子项的纵向滚动。 */
 internal class HorizontalPagerScrollConnection(
     private val delegate: NestedScrollConnection,
 ) : NestedScrollConnection {

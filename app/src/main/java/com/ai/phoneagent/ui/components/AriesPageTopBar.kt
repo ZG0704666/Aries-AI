@@ -17,7 +17,7 @@ import com.ai.phoneagent.core.designsystem.theme.ariesGlass
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Lucide
 
-/** App-owned Pencil header; system status-bar space remains supplied by window insets. */
+/** Aries 自有顶部栏；系统状态栏空间由窗口 insets 提供。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AriesPageTopBar(title: String, onBack: (() -> Unit)?, actions: @Composable RowScope.() -> Unit = {}) {
@@ -26,6 +26,7 @@ fun AriesPageTopBar(title: String, onBack: (() -> Unit)?, actions: @Composable R
         title = { Text(title, modifier = Modifier.padding(start = dimensionResource(DesignR.dimen.aries_toolbar_title_gap)), style = MaterialTheme.typography.titleLarge.copy(fontSize = with(density) { dimensionResource(DesignR.dimen.aries_type_title).toSp() }), fontWeight = FontWeight.Bold) },
         expandedHeight = dimensionResource(DesignR.dimen.aries_toolbar_height),
         navigationIcon = {
+            // 仅当提供返回回调时显示返回按钮
             if (onBack != null) {
                 IconButton(onClick = onBack, modifier = Modifier.padding(start = dimensionResource(DesignR.dimen.aries_composer_inset_x))
                     .size(dimensionResource(DesignR.dimen.aries_touch_target))) {

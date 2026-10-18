@@ -45,28 +45,28 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
 /**
- * Application-level Koin DI module.
+ * 应用层 Koin DI 模块。
  *
- * Binds global application state singletons:
- * - [AppState] — global context holder (Kotlin object; bound so it can be injected or resolved via Koin)
+ * 绑定全局应用状态单例：
+ * - [AppState] — 全局上下文持有者（Kotlin object；绑定后可注入或经 Koin 解析）
  *
- * Note: ConversationManager and ConversationTranscriptState bindings are reserved here
- * and will be activated once those classes are introduced in subsequent migration tasks (T3+).
+ * 注意：ConversationManager 与 ConversationTranscriptState 的绑定已在此预留，
+ * 待后续迁移任务（T3+）引入对应类后启用。
  *
- * This module is DEFINITION ONLY — existing call sites are not changed until T7.
+ * 本模块仅为定义——在 T7 之前不改动既有调用点。
  */
 val appModule = module {
 
-    // AppState is a Kotlin object (singleton); bind it so Koin-injected code can resolve it.
+    // AppState 是 Kotlin object（单例）；绑定后 Koin 注入的代码即可解析它。
     single { AppState }
     single { AriesOidcAuthManager(androidApplication(), get()) }
     single { TelemetryHeartbeatManager(androidApplication(), get(), get(), get()) }
 
-    // ReleaseRepository — fetches GitHub release metadata for in-app updates.
-    // Constructor params (owner/repo) default to UpdateConfig.REPO_OWNER/REPO_NAME.
+    // ReleaseRepository — 拉取 GitHub 发布元数据用于应用内更新。
+    // 构造参数（owner/repo）默认取 UpdateConfig.REPO_OWNER/REPO_NAME。
     single { ReleaseRepository() }
 
-    // Task 19 Phase 1: object → class DI migration
+    // 任务 19 第一阶段：object → class DI 迁移
     single { ExtendedAppMapping() }
     single { PromptTemplates() }
     // Task 19 Phase 2: 工具执行器链迁移
@@ -88,7 +88,7 @@ val appModule = module {
     // Task 19 Phase 4: ModelScope 模型下载器迁移
     single { ModelScopeModelDownloader() }
 
-    // Guards the automation dispatch entrypoint with a per-process token.
+    // 用进程级 token 守护自动化分发入口。
     single { AutomationDispatchAuthenticator() }
 
     // Task 19 Phase 4: 自动化指令网关 object → class DI 迁移
@@ -111,9 +111,9 @@ val appModule = module {
         )
     }
 
-    // TODO(T3): Uncomment once ConversationManager is extracted from object/singleton:
+    // TODO(T3)：待 ConversationManager 从 object/单例中抽离后取消注释：
     // single { ConversationManager(get()) }
 
-    // TODO(T3): Uncomment once ConversationTranscriptState is introduced:
+    // TODO(T3)：待引入 ConversationTranscriptState 后取消注释：
     // single { ConversationTranscriptState() }
 }

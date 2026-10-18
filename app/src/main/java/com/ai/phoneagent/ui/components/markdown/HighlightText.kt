@@ -70,7 +70,7 @@ object AtomOneDarkPalette {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Atom One Light colour palette
+// ─── Atom One Light 配色 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 object AtomOneLightPalette {
@@ -118,14 +118,14 @@ object AtomOneLightPalette {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Composable renderer
+// ─── 组件渲染器 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Renders a list of [HighlightToken]s as a syntax-coloured [Text], with optional
- * line numbers and soft-wrap toggle.
+ * 把一组 [HighlightToken] 渲染为带语法着色的 [Text]，可选显示
+ * 行号与软换行开关。
  *
- * Wrap this inside a [SelectionContainer] externally if copy is needed.
+ * 如需复制功能，请在外部用 [SelectionContainer] 包裹。
  */
 @Composable
 fun HighlightText(
@@ -138,7 +138,7 @@ fun HighlightText(
     val palette = if (isDark) AtomOneDarkPalette.palette else AtomOneLightPalette.palette
     val defaultColor = if (isDark) AtomOneDarkPalette.foreground else AtomOneLightPalette.foreground
 
-    // Split tokens into per-line lists
+    // 将 token 拆分为按行分组
     val lines: List<List<HighlightToken>> = remember(tokens) { splitIntoLines(tokens) }
 
     val codeStyle = MaterialTheme.typography.bodySmall.copy(
@@ -166,7 +166,7 @@ fun HighlightText(
             }
         }
     } else {
-        // Render all lines together for better wrapping behaviour
+        // 整体渲染所有行，以获得更好的换行表现
         val allTokens = remember(tokens, palette, defaultColor) {
             buildHighlightedString(tokens, palette, defaultColor)
         }
@@ -187,7 +187,7 @@ fun HighlightText(
  * A [VisualTransformation] that applies Atom-One-style colouring to the text
  * already tokenised by [Highlighter].
  *
- * Usage: pre-tokenise in a coroutine, pass the resulting token list here.
+ * 用法：先在协程中预分词，再把得到的 token 列表传入此处。
  */
 class HighlightCodeVisualTransformation(
     private val tokens: List<HighlightToken>,
@@ -198,7 +198,7 @@ class HighlightCodeVisualTransformation(
         val palette = if (isDark) AtomOneDarkPalette.palette else AtomOneLightPalette.palette
         val default = if (isDark) AtomOneDarkPalette.foreground else AtomOneLightPalette.foreground
 
-        // If we have no tokens or the total text length differs (stale tokens), pass through.
+        // 若无 token 或文本总长不一致（token 已过期），原样输出。
         val tokenText = tokens.joinToString("") { t ->
             when (t) {
                 is HighlightToken.Plain -> t.text
@@ -215,7 +215,7 @@ class HighlightCodeVisualTransformation(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Helpers
+// ─── 辅助函数 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 private fun buildHighlightedString(

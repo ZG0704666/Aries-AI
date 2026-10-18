@@ -407,7 +407,7 @@ class AutomationOverlay(
             if (maxSteps != null && !hasEstimatedSteps) {
                 this.maxSteps = maxSteps.coerceAtLeast(1)
             }
-            // Model estimates are not a known total; retain the moving indeterminate edge.
+            // 模型只能估算，总量未知；保留流动的不确定进度条样式。
             val frac = 0f
             v.setProgress(frac)
             val sub = subtitle?.trim().orEmpty()

@@ -105,7 +105,7 @@ fun AutomationControlScreen(
                 .consumeWindowInsets(innerPadding)
                 .padding(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding)),
         ) {
-            // Reserve readable log space when settings wrap on narrow screens or large fonts.
+            // 设置项在窄屏或大字体下换行时，预留可读的日志空间。
             val reservedLogHeight = minOf(
                 dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_log_panel_min_height),
                 maxHeight * .45f,

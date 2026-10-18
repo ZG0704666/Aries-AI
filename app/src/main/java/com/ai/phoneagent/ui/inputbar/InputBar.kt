@@ -235,11 +235,11 @@ fun InputBar(
                         }
                     }
                 } else {
-                    // One persistent text field and one shell: focus never replaces the editor
+                    // 只有一个持久文本框和一个外壳：焦点切换不会替换编辑器
                     // or splits the attachment/send controls into independent surfaces.
                     Box(
                         modifier = Modifier.fillMaxWidth()
-                            // Paint at the animated bounds; do not clip a full-size lens as it grows.
+                            // 按动画边界绘制；放大镜生长过程中不要裁剪全尺寸镜头。
                             .ariesGlass(composerShape)
                             .animateContentSize(tween(composerMotionMs, easing = FastOutSlowInEasing), alignment = Alignment.BottomCenter),
                     ) {

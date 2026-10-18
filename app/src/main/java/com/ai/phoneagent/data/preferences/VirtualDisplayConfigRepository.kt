@@ -11,8 +11,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 
+/** 虚拟显示配置独立 DataStore，存储分辨率档位、宽高、DPI 及自动化交互开关。 */
 private val Context.virtualDisplayConfigDataStore by preferencesDataStore(name = "virtual_display_config")
 
+/** 虚拟显示配置仓库：管理虚拟显示器参数与自动化交互方式（是否启用 Shizuku、是否自动授权）。 */
 class VirtualDisplayConfigRepository(
     private val context: Context,
 ) {
@@ -137,6 +139,8 @@ class VirtualDisplayConfigRepository(
         val prefs = context.virtualDisplayConfigDataStore.data.first()
         return prefs[Keys.autoApproveAutomation] ?: true
     }
+
+    // 以下为 runBlocking 包装的阻塞式读写，供无法使用协程的场景调用。
 
     fun getResolutionPresetBlocking(): String = runBlocking { getResolutionPreset() }
     fun setResolutionPresetBlocking(value: String) = runBlocking { setResolutionPreset(value) }

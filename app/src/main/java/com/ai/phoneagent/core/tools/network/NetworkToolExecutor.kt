@@ -497,7 +497,7 @@ internal class SizeLimitExceededException(message: String) : IOException(message
  * 注册网络工具到 AIToolHandler
  */
 fun registerNetworkTools(handler: AIToolHandler, executor: NetworkToolExecutor) {
-    // HTTP GET
+    // ===== HTTP GET
     handler.registerTool(
         name = "http_get",
         dangerCheck = { true },
@@ -510,7 +510,7 @@ fun registerNetworkTools(handler: AIToolHandler, executor: NetworkToolExecutor) 
         }
     )
 
-    // HTTP POST
+    // ===== HTTP POST
     handler.registerTool(
         name = "http_post",
         dangerCheck = { true },
@@ -523,7 +523,7 @@ fun registerNetworkTools(handler: AIToolHandler, executor: NetworkToolExecutor) 
         }
     )
 
-    // Download
+    // ===== 下载
     handler.registerTool(
         name = "download",
         dangerCheck = { true },
@@ -536,7 +536,7 @@ fun registerNetworkTools(handler: AIToolHandler, executor: NetworkToolExecutor) 
         }
     )
 
-    // Ping
+    // ===== Ping
     handler.registerTool(
         name = "ping",
         dangerCheck = { false },
@@ -549,7 +549,7 @@ fun registerNetworkTools(handler: AIToolHandler, executor: NetworkToolExecutor) 
         }
     )
 
-    // Get IP
+    // ===== 获取 IP
     handler.registerTool(
         name = "get_ip",
         dangerCheck = { false },
@@ -559,7 +559,7 @@ fun registerNetworkTools(handler: AIToolHandler, executor: NetworkToolExecutor) 
         }
     )
 
-    // DNS Lookup
+    // ===== DNS 查询
     handler.registerTool(
         name = "dns_lookup",
         dangerCheck = { false },

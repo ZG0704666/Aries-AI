@@ -14,7 +14,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Token model
+// ─── Token 模型 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 sealed class HighlightToken {
@@ -28,8 +28,8 @@ sealed class HighlightToken {
 // ─────────────────────────────────────────────────────────────────────────────
 //  Highlighter  (quickjs-kt 1.x API — evaluate is now suspend)
 //
-//  Call Highlighter.init(context) once (e.g., in Application.onCreate).
-//  After that, call Highlighter.highlight(code, lang) from any coroutine.
+//  先调用一次 Highlighter.init(context)（如在 Application.onCreate 中）。
+//  之后可在任意协程中调用 Highlighter.highlight(code, lang)。
 //
 //  Asset required:  app/src/main/assets/highlight/prism.js
 //  Download from:   https://prismjs.com/download.html  (select all languages)
@@ -39,7 +39,7 @@ object Highlighter {
 
     private const val TAG = "Highlighter"
 
-    // IO scope for initialization; Mutex serialises all evaluate() calls.
+    // 初始化用 IO 作用域；Mutex 让所有 evaluate() 调用串行化。
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val mutex = Mutex()
     private val initDeferred = CompletableDeferred<Boolean>()
@@ -49,7 +49,7 @@ object Highlighter {
     // ── Initialisation ────────────────────────────────────────────────────────
 
     /**
-     * Load and evaluate Prism.js inside the QuickJs runtime.
+     * 在 QuickJs 运行时中加载并执行 Prism.js。
      * Must be called once before [highlight]; safe to call on any thread.
      */
     fun init(context: Context) {
@@ -76,7 +76,7 @@ object Highlighter {
      * Tokenise [code] using Prism.js for the given [language].
      *
      * Returns a list of [HighlightToken]s. Falls back to a single [HighlightToken.Plain]
-     * if Prism is not ready or the language is unknown.
+     * 当 Prism 未就绪或语言未知时返回原文本。
      */
     suspend fun highlight(code: String, language: String): List<HighlightToken> {
         if (code.isBlank()) return listOf(HighlightToken.Plain(code))

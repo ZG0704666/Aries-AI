@@ -7,8 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Unit tests verifying that [ChatContent] serializes/deserializes according to the
- * OpenAI API content field format:
+ * 单元测试：验证 [ChatContent] 按 OpenAI API content 字段格式序列化/反序列化：
  *  - [ChatContent.Text]       → bare JSON string (not a JSON object)
  *  - [ChatContent.Multimodal] → JSON array of content parts
  */
@@ -127,7 +126,7 @@ class ChatContentSerializationTest {
 
     @Test
     fun `ChatRequestMessage with Text content serializes content as bare string`() {
-        // Import net models
+        // 导入 net 包模型
         val message = com.ai.phoneagent.net.ChatRequestMessage(
             role = "user",
             content = ChatContent.Text("hello")

@@ -62,7 +62,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  ZoomableAsyncImage
+// ─── ZoomableAsyncImage ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -126,7 +126,7 @@ fun ImagePreviewDialog(url: String, onDismiss: () -> Unit) {
             color    = Color.Black.copy(alpha = 0.95f),
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // Zoomable image
+                // 可缩放图片
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(url)
@@ -160,7 +160,7 @@ fun ImagePreviewDialog(url: String, onDismiss: () -> Unit) {
                         },
                 )
 
-                // Toolbar
+                // 工具栏
                 Row(
                     modifier          = Modifier
                         .fillMaxWidth()
@@ -184,7 +184,7 @@ fun ImagePreviewDialog(url: String, onDismiss: () -> Unit) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Shimmer placeholder
+// ─── 微光占位动画 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -217,7 +217,7 @@ fun ShimmerBox(modifier: Modifier = Modifier) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Download helper
+// ─── 下载辅助 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 private fun downloadImage(context: android.content.Context, url: String) {

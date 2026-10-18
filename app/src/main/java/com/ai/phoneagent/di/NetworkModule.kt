@@ -34,24 +34,23 @@ import org.koin.dsl.module
 import java.util.concurrent.TimeUnit
 
 /**
- * Network-layer Koin DI module.
+ * 网络层 Koin DI 模块。
  *
- * Binds:
- * - [OkHttpClient] — shared HTTP client with connection pooling, timeouts, and optional logging.
- * - [AutoGlmClient] — Kotlin object client for GLM API; bound so it can be injected/mocked in tests.
+ * 绑定：
+ * - [OkHttpClient] — 共享 HTTP 客户端，带连接池、超时与可选日志。
+ * - [AutoGlmClient] — Kotlin object 客户端；绑定后可在测试中注入/替换。
  *
- * Note: [com.ai.phoneagent.net.OpenAICompatibleProvider] requires runtime parameters
- * (apiKey, baseUrl, modelName) that are user-provided, so it is intentionally NOT registered
- * as a static singleton here. Call sites construct it directly or pass params via Koin parameters.
- * A factory binding will be added in T7 when the full call-site migration happens.
+ * 注意：[com.ai.phoneagent.net.OpenAICompatibleProvider] 需要运行时参数
+ * （apiKey、baseUrl、modelName），均由用户提供，因此刻意不在静态单例中注册。
+ * 调用点直接构造，或通过 Koin 参数传入。T7 完成调用点整体迁移时会补充 factory 绑定。
  *
- * This module is DEFINITION ONLY — existing call sites are not changed until T7.
+ * 本模块仅为定义——在 T7 之前不改动既有调用点。
  */
 val networkModule = module {
 
     /**
-     * Shared OkHttpClient singleton — mirrors the configuration from [AutoGlmClient]'s
-     * internal SharedHttpClient. Using a Koin-managed instance allows tests to swap it out.
+     * 共享 OkHttpClient 单例 — 配置与 [AutoGlmClient] 内部的 SharedHttpClient 保持一致。
+     * 使用 Koin 托管实例后，测试可随时替换。
      */
     single<OkHttpClient> {
         val logger = HttpLoggingInterceptor().apply {
@@ -73,10 +72,10 @@ val networkModule = module {
             .build()
     }
 
-    // AutoGlmClient is a Kotlin object (singleton); bind it so it can be injected or mocked in tests.
+    // AutoGlmClient 是 Kotlin object（单例）；绑定后可在测试中注入或替换。
     single { AutoGlmClient }
 
-    // Task 19 Phase 4: AriesApiClient migrated from object to class (companion facade DI).
+    // 任务 19 第四阶段：AriesApiClient 由 object 迁移为 class（companion 外观 DI）。
     single { AriesApiClient() }
 
     // Task 19 Phase 2: 工具专用 OkHttpClient（30s 超时，与共享 client 60s/300s 区分）
@@ -92,8 +91,8 @@ val networkModule = module {
     single { NetworkToolExecutor(androidContext(), get(named("tool"))) }
 
     /**
-     * Coil ImageLoader singleton for Compose image loading.
-     * Configured with memory and disk caching for efficient attachment thumbnail loading.
+     * Coil ImageLoader 单例，用于 Compose 图片加载。
+     * 配置内存与磁盘缓存，保证附件缩略图加载高效。
      */
     single<ImageLoader> {
         ImageLoader.Builder(androidContext())
@@ -112,7 +111,7 @@ val networkModule = module {
             .build()
     }
 
-    // TODO(T7): Add factory for OpenAICompatibleProvider once runtime-param strategy is finalized:
+    // TODO(T7)：待运行时参数策略确定后为 OpenAICompatibleProvider 补充 factory 绑定：
     // factory { (apiKey: String, baseUrl: String, modelName: String) ->
     //     OpenAICompatibleProvider(apiKey = apiKey, baseUrl = baseUrl, modelName = modelName)
     // }

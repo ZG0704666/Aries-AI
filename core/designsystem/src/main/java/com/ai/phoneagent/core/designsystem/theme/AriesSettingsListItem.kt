@@ -31,16 +31,16 @@ import androidx.compose.ui.tooling.preview.UiMode
 import androidx.compose.ui.unit.dp
 
 // ---------------------------------------------------------------------------
-// AriesSettingsListItem — Material 3 flat-list settings components
+// AriesSettingsListItem — Material 3 扁平列表设置项组件
 //
-// Shared settings rows use Pencil glass with transparent ListItem content.
-// Colors are always driven by MaterialTheme tokens — never hardcoded.
+// 通用设置行使用玻璃效果 + 透明 ListItem 内容。
+// 颜色一律取自 MaterialTheme 令牌，禁止硬编码。
 // ---------------------------------------------------------------------------
 
 /**
- * A navigation-style settings row with a chevron trailing icon.
+ * 导航型设置行，尾部带箭头图标。
  *
- * Use for items that navigate to a sub-screen when tapped.
+ * 用于点击后跳转到子页面的条目。
  */
 @Composable
 fun AriesSettingsNavigationItem(
@@ -88,9 +88,9 @@ fun AriesSettingsNavigationItem(
 }
 
 /**
- * A toggle settings row with a [Switch] trailing widget.
+ * 开关型设置行，尾部为 [Switch]。
  *
- * Tapping anywhere on the row flips the switch.
+ * 点击行内任意位置即切换开关。
  */
 @Composable
 fun AriesSettingsSwitchItem(
@@ -140,9 +140,9 @@ fun AriesSettingsSwitchItem(
 }
 
 /**
- * A read-only or tappable settings row that displays a current value on the trailing side.
+ * 取值型设置行，尾部展示当前值（可点击或只读）。
  *
- * Use for items like "Font: Roboto" or "Language: English".
+ * 用于类似「字体：Roboto」或「语言：English」的条目。
  */
 @Composable
 fun AriesSettingsValueItem(
@@ -191,10 +191,9 @@ fun AriesSettingsValueItem(
 }
 
 /**
- * A flexible settings row that accepts arbitrary trailing and below-row content.
+ * 自定义设置行，可放置任意尾部内容与行下方内容。
  *
- * Use for complex controls like [Slider] or [SegmentedButton] that need more space.
- * Put inline controls in [trailingContent]; put full-width controls in [belowContent].
+ * 用于 [Slider] 等需要更多空间的复杂控件：行内控件放 [trailingContent]，整行控件放 [belowContent]。
  */
 @Composable
 fun AriesSettingsCustomItem(
@@ -248,9 +247,9 @@ fun AriesSettingsCustomItem(
 }
 
 /**
- * A section header label styled with [MaterialTheme.colorScheme.primary].
+ * 分组标题，使用 [MaterialTheme.colorScheme.primary] 着色。
  *
- * Use between groups of related settings rows, like Android's native Settings app.
+ * 用于在相关设置行之间分隔分组，类似 Android 原生设置。
  */
 @Composable
 fun AriesSettingsSectionHeader(
@@ -269,9 +268,10 @@ fun AriesSettingsSectionHeader(
 }
 
 // ---------------------------------------------------------------------------
-// Previews
+// 预览
 // ---------------------------------------------------------------------------
 
+/** 预览：浅色模式下的设置项。 */
 @Preview(name = "Settings Items — Light", showBackground = true)
 @Composable
 private fun AriesSettingsItemsLightPreview() {
@@ -306,6 +306,7 @@ private fun AriesSettingsItemsLightPreview() {
     }
 }
 
+/** 预览：深色模式下的设置项。 */
 @Preview(
     name = "Settings Items — Dark",
     showBackground = true,
