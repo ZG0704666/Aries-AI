@@ -1,5 +1,10 @@
 package com.ai.phoneagent.ui.home
 
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -14,11 +19,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.Surface
@@ -77,10 +86,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import com.ai.phoneagent.R
+import kotlin.math.roundToInt
 import com.ai.phoneagent.ui.debug.DebugRecomposeLogger
 import com.ai.phoneagent.ui.drawer.ConversationDrawer
 import com.ai.phoneagent.ui.drawer.DrawerConversationUiItem
@@ -125,6 +136,7 @@ fun HomeScreen(
     val navHeight = dimensionResource(DesignR.dimen.aries_nav_height)
     val motionMs = integerResource(DesignR.integer.aries_page_motion_ms)
     val density = LocalDensity.current
+    val hapticContext = LocalContext.current
     val pager = rememberPagerState(initialPage = selectedPage) { 3 }
     val defaultPageConnection = PagerDefaults.pageNestedScrollConnection(pager, Orientation.Horizontal)
     val horizontalPageConnection = remember(defaultPageConnection) {
@@ -169,10 +181,43 @@ fun HomeScreen(
                         color = Color.Transparent,
                         contentColor = colors.onSurface,
                     ) {
-                        Box(Modifier.padding(horizontal = dimensionResource(DesignR.dimen.aries_nav_inset_x), vertical = dimensionResource(DesignR.dimen.aries_nav_inset_y))) {
-                            val itemHeight = navHeight - dimensionResource(DesignR.dimen.aries_nav_inset_y) * 2
-                            val tabWidth = (effectiveNavWidth - dimensionResource(DesignR.dimen.aries_nav_inset_x) * 2) / 3
-                            Box(Modifier.offset(x = tabWidth * (pager.currentPage + pager.currentPageOffsetFraction))
+                        val itemHeight = navHeight - dimensionResource(DesignR.dimen.aries_nav_inset_y) * 2
+                        val tabWidth = (effectiveNavWidth - dimensionResource(DesignR.dimen.aries_nav_inset_x) * 2) / 3
+                        val tabWidthPx = with(density) { tabWidth.toPx() }
+                        val capsuleDragOffset = remember { Animatable(0f) }
+                        var capsuleEdgeHit by remember { mutableIntStateOf(0) }
+                        Box(Modifier.draggable(
+                            state = rememberDraggableState { delta ->
+                                val basePx = tabWidthPx * (pager.currentPage + pager.currentPageOffsetFraction)
+                                val maxPx = tabWidthPx * 2f
+                                val raw = basePx + capsuleDragOffset.value + delta
+                                val clamped = raw.coerceIn(0f, maxPx)
+                                val edge = when {
+                                    raw > clamped -> -1
+                                    raw < clamped -> 1
+                                    else -> 0
+                                }
+                                if (edge != 0 && edge != capsuleEdgeHit) hapticTick(hapticContext)
+                                capsuleEdgeHit = edge
+                                scope.launch { capsuleDragOffset.snapTo(clamped - basePx) }
+                            },
+                            orientation = Orientation.Horizontal,
+                            onDragStopped = {
+                                capsuleEdgeHit = 0
+                                val basePx = tabWidthPx * (pager.currentPage + pager.currentPageOffsetFraction)
+                                val settled = (basePx + capsuleDragOffset.value).coerceIn(0f, tabWidthPx * 2f)
+                                val targetPage = (settled / tabWidthPx).roundToInt().coerceIn(0, 2)
+                                if (targetPage != pager.currentPage) navigate(targetPage)
+                                capsuleDragOffset.animateTo(0f, tween(motionMs, easing = FastOutSlowInEasing))
+                            },
+                        ).padding(horizontal = dimensionResource(DesignR.dimen.aries_nav_inset_x), vertical = dimensionResource(DesignR.dimen.aries_nav_inset_y))) {
+                            Box(Modifier.offset {
+                                IntOffset(
+                                    (tabWidthPx * (pager.currentPage + pager.currentPageOffsetFraction) + capsuleDragOffset.value)
+                                        .coerceIn(0f, tabWidthPx * 2f).roundToInt(),
+                                    0,
+                                )
+                            }
                                 .width(tabWidth).height(itemHeight)
                                 .ariesGlass(RoundedCornerShape(dimensionResource(DesignR.dimen.aries_nav_item_radius)), selected = true))
                             Row(Modifier.fillMaxWidth()) {
@@ -181,7 +226,7 @@ fun HomeScreen(
                                 labels.forEachIndexed { index, label ->
                                     Row(Modifier.weight(1f).heightIn(min = itemHeight)
                                         .semantics { selected = pager.currentPage == index }
-                                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, role = Role.Tab) { navigate(index) },
+                                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, role = Role.Tab) { hapticTick(hapticContext); navigate(index) },
                                         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                                         Icon(icons[index], null, modifier = Modifier.height(dimensionResource(DesignR.dimen.aries_nav_icon)).width(dimensionResource(DesignR.dimen.aries_nav_icon)),
                                             tint = if (pager.currentPage == index) colors.primary else colors.onSurfaceVariant)
@@ -417,5 +462,22 @@ private fun HomeBottomOverlay(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = spacingXxxs),
         )
+    }
+}
+
+private fun hapticTick(context: Context) {
+    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
+    } else {
+        @Suppress("DEPRECATION")
+        context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+    } ?: return
+    runCatching {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(30)
+        }
     }
 }
