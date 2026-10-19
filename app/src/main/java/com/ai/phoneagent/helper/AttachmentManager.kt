@@ -406,7 +406,7 @@ class AttachmentManager(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            // Ignore
+            // 忽略
         }
         
         fileName
@@ -428,7 +428,7 @@ class AttachmentManager(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            // Ignore
+            // 忽略
         }
 
         if (fileSize > 0L) {

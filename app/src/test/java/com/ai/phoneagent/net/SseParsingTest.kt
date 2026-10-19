@@ -226,7 +226,7 @@ class SseParsingTest {
                     chunks += content
                 }
             } catch (_: Exception) {
-                // Capture exact current behavior: ignore parse errors
+                // 固化当前行为：忽略解析错误
             }
         }
 

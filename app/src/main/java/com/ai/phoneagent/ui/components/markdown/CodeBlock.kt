@@ -68,7 +68,7 @@ private const val COLLAPSE_THRESHOLD = 10
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Renders a fenced code block with:
+ * 渲染一个围栏代码块，包含：
  *  - Async syntax highlighting via [Highlighter] + Prism.js
  *  - Language label + toolbar (copy / save / line-numbers / wrap / collapse)
  *  - HTML/SVG preview via [HtmlPreviewDialog]
@@ -133,7 +133,7 @@ fun CodeBlock(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    // Language label
+                    // 语言标签
                     if (language.isNotBlank()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -153,7 +153,7 @@ fun CodeBlock(
                         Spacer(Modifier.width(1.dp))
                     }
 
-                    // Action buttons
+                    // 操作按钮
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (isHtmlSvg) {
                             IconButton(onClick = { showHtmlPreview = true }, modifier = Modifier.size(28.dp)) {
@@ -161,22 +161,22 @@ fun CodeBlock(
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
-                        // Line numbers toggle
+                        // 行号开关
                         IconButton(onClick = { lineNums = !lineNums }, modifier = Modifier.size(28.dp)) {
                             Icon(Lucide.Hash, contentDescription = "Line numbers", modifier = Modifier.size(16.dp),
                                 tint = if (lineNums) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        // Wrap toggle
+                        // 自动换行开关
                         IconButton(onClick = { softWrap = !softWrap }, modifier = Modifier.size(28.dp)) {
                             Icon(Lucide.WrapText, contentDescription = "Wrap", modifier = Modifier.size(16.dp),
                                 tint = if (softWrap) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        // Save to Downloads
+                        // 保存到下载目录
                         IconButton(onClick = { saveToDownloads(context, code, language) }, modifier = Modifier.size(28.dp)) {
                             Icon(Lucide.Save, contentDescription = "Save", modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        // Copy
+                        // 复制
                         IconButton(
                             onClick = { clipboard.setText(AnnotatedString(code)) },
                             modifier = Modifier.size(28.dp),
@@ -277,7 +277,7 @@ fun HtmlPreviewDialog(html: String, onDismiss: () -> Unit) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Helpers
+// ─── 辅助函数 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Saves [code] to the public Downloads folder. */
@@ -333,7 +333,7 @@ private fun trimTokensToLines(tokens: List<HighlightToken>, maxLines: Int): List
         }
         val newlines = text.count { it == '\n' }
         if (lineCount + newlines >= maxLines) {
-            // Include only up to maxLines
+            // 仅保留到最大行数为止
             val lines = text.split('\n')
             val keep = lines.take(maxLines - lineCount + 1).joinToString("\n")
             result += when (token) {

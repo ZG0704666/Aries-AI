@@ -23,13 +23,14 @@ import kotlin.coroutines.resume
 /**
  * Aries 通行证 -> Aries API 的两段式 OAuth 登录。
  *
- * Aries 通行证只负责 OIDC 身份；`api.aries.org.cn` 作为 New API 站点完成
+ * Aries 通行证只负责 OIDC 身份；`api.aries.org.cn` 作为网关站点完成
  * OIDC callback、创建站点用户 session，并返回站点用户 access token。
  */
 class AriesOidcAuthManager(
     @Suppress("UNUSED_PARAMETER") application: Application,
     private val ariesApiClient: AriesApiClient,
 ) {
+    /** 登录结果。 */
     data class AuthResult(
         val success: Boolean,
         val accessToken: String = "",
@@ -37,6 +38,7 @@ class AriesOidcAuthManager(
         val message: String = "",
     )
 
+    /** 站点 OAuth 配置（state、client_id、授权端点与回调地址）。 */
     private data class ApiOAuthConfig(
         val state: String,
         val clientId: String,
@@ -44,6 +46,7 @@ class AriesOidcAuthManager(
         val redirectUri: String,
     )
 
+    /** 仅存活于内存的 Cookie 存储，自动剔除过期项。 */
     private class InMemoryCookieJar : CookieJar {
         private val store = mutableListOf<Cookie>()
 
@@ -58,10 +61,14 @@ class AriesOidcAuthManager(
         override fun loadForRequest(url: HttpUrl): List<Cookie> =
             store.filter { it.expiresAt > System.currentTimeMillis() && it.matches(url) }
 
+        /** 按 URL 字符串读取匹配且未过期的 Cookie。 */
         fun loadForUrl(url: String): List<Cookie> =
             loadForRequest(url.toHttpUrl())
     }
 
+    /**
+     * 执行两段式登录：先获取站点 OAuth 配置，再打开授权页完成回调，最后换取 API Key。
+     */
     suspend fun signIn(activity: Activity): AuthResult {
         val cookieJar = InMemoryCookieJar()
         val client =
@@ -146,11 +153,14 @@ class AriesOidcAuthManager(
         }
     }
 
+    /** 退出登录（当前无本地状态需要清理，占位返回 null）。 */
     suspend fun signOut(): String? = null
 
+    /** 获取当前 API access token；本实现中 token 由外部持有，故始终返回需重新登录。 */
     suspend fun getApiAccessToken(): AuthResult =
         AuthResult(success = false, message = "Aries API 登录已过期，请重新登录")
 
+    /** 从站点读取 OIDC 开关、client_id、授权端点与 state，并组装回调地址。 */
     private fun fetchApiOAuthConfig(client: OkHttpClient): Result<ApiOAuthConfig> {
         val statusRequest = Request.Builder()
             .url("${AriesApiClient.BASE_URL}/api/status")
@@ -204,6 +214,7 @@ class AriesOidcAuthManager(
         )
     }
 
+    /** 拼接 OIDC 授权 URL（authorization code 模式）。 */
     private fun buildAuthorizationUrl(config: ApiOAuthConfig): String =
         Uri.parse(config.authorizationEndpoint)
             .buildUpon()

@@ -71,18 +71,17 @@ import org.intellij.markdown.parser.MarkdownParser
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Controls runtime behaviour of the Markdown rendering pipeline.
+ * 控制 Markdown 渲染管线的运行时行为。
  *
- * Provide this via [CompositionLocalProvider] to customise code-block and
- * LaTeX defaults for a subtree.
+ * 通过 [CompositionLocalProvider] 提供，可为某个子树自定义代码块与 LaTeX 默认值。
  */
 @Immutable
 data class MarkdownSettings(
-    /** Auto-wrap long code lines. */
+    /** 自动换行长代码行。 */
     val autoWrap: Boolean     = true,
-    /** Show line numbers in code blocks. */
+    /** 在代码块中显示行号。 */
     val lineNumbers: Boolean  = true,
-    /** Auto-collapse code blocks with more than 10 lines. */
+    /** 超过 10 行的代码块自动折叠。 */
     val autoCollapse: Boolean = false,
     /** Syntax-highlight code blocks. Disable during streaming to avoid layout churn. */
     val enableCodeHighlight: Boolean = true,
@@ -108,16 +107,16 @@ private sealed class MarkdownParseResult {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Regexes that locate code ranges so LaTeX replacement skips them.
+ * 定位代码区间的正则，供 LaTeX 替换跳过这些区间。
  *
- * Fenced blocks  (``` … ```) may span multiple lines.
- * Inline code    (`…`) must NOT cross newlines — the original `[\s\S]*?` caused
- *                cross-row matches inside tables, corrupting the GFM parse.
+ * 围栏代码块（``` … ```）可跨多行。
+ * 行内代码（`…`）不得跨行——原先的 `[\s\S]*?` 会在表格内产生跨行匹配，
+ * 破坏 GFM 解析。
  */
 private val FENCED_CODE_RE = Regex("""`{3,}[\s\S]*?`{3,}""")
 private val INLINE_CODE_RE = Regex("""`[^\n`]+`""")
 
-// Applied to extracted payload (not raw source) so backtick fences don't interfere.
+// 应用于提取出的内容（而非原始文本），避免反引号围栏产生干扰。
 // Patterns: pure $$…$$, pure single-line $…$, complete \begin{env}…\end{env}.
 private val PAYLOAD_IS_LATEX_RE = Regex(
     """^\s*\$\$[\s\S]*?\$\$\s*$""" +
@@ -138,10 +137,10 @@ private val BARE_LATEX_ASSIGNMENT_MATH_RE = Regex(
 )
 
 /**
- * Before passing text to the GFM parser:
- *  1. Locate all code ranges (fenced blocks + inline code) so they are skipped.
- *  2. Outside those ranges, replace `\[…\]` with `$$…$$` and `\(…\)` with `$…$`
- *     so the rendered text contains recognisable block/inline math markers.
+ * 在把文本交给 GFM 解析器之前：
+ *  1. 定位所有代码区间（围栏块 + 行内代码），替换时跳过它们。
+ *  2. 在这些区间之外，把 `\[…\]` 替换为 `$$…$$`、`\(…\)` 替换为 `$…$`，
+ *     使渲染文本中出现可识别的块级/行内数学标记。
  */
 fun preProcess(text: String): String {
     val codeRanges = buildList {
@@ -268,10 +267,10 @@ private fun isLikelyBareAssignmentMath(expression: String): Boolean {
 }
 
 /**
- * Strips leading whitespace from lines inside `$$…$$` blocks so the GFM parser
- * does not treat indented math as an indented-code-block (4-space rule).
- * Also ensures `$$` markers sit on their own lines with surrounding blank lines
- * so the parser sees them as plain PARAGRAPH nodes.
+ * 去除 `$$…$$` 块内各行行首缩进，避免 GFM 解析器把带缩进的数学内容
+ * 当成缩进代码块（4 空格规则）。
+ * 同时确保 `$$` 标记独占一行且前后有空行，
+ * 使解析器把它们视为普通 PARAGRAPH 节点。
  */
 private val BLOCK_MATH_DEINDENT_RE = Regex("""\$\$[\s\S]*?\$\$""")
 
@@ -291,7 +290,7 @@ private fun deindentMathBlocks(text: String): String {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  LaTeX detection patterns (used by PARAGRAPH handler)
+//  LaTeX 检测模式（供 PARAGRAPH 处理器使用）
 // ─────────────────────────────────────────────────────────────────────────────
 
 // 匹配任意 \begin{env}…\end{env}（含 document 级别的完整文档）
@@ -307,19 +306,18 @@ private val PURE_BLOCK_MATH_RE = Regex("""^\s*\$\$[\s\S]*?\$\$\s*$""")
 private val BLOCK_MATH_INLINE_RE = Regex("""\$\$[\s\S]*?\$\$""")
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Public entry composable
+// ─── 公开入口组件 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * The main Markdown rendering composable.
+ * 主 Markdown 渲染组件。
  *
- * Parses [text] on [Dispatchers.Default] using the JetBrains GFM parser and
- * builds a Compose component tree from the resulting AST.  While parsing is
- * in-progress (e.g. during streaming), the raw text is shown as a plain-text
- * fallback to avoid visible layout jumps.
+ * 在 [Dispatchers.Default] 上用 JetBrains GFM 解析器解析 [text]，
+ * 并基于生成的 AST 构建 Compose 组件树。解析进行中（如流式输出时）
+ * 先以纯文本形式展示原始内容作为回退，避免明显的布局跳动。
  *
- * Wrap with [CompositionLocalProvider]([LocalMarkdownSettings]) to customise
- * code-block and LaTeX options.
+ * 用 [CompositionLocalProvider]([LocalMarkdownSettings]) 包裹可自定义
+ * 代码块与 LaTeX 选项。
  */
 @Composable
 fun Markdown(
@@ -359,9 +357,8 @@ private fun MarkdownContent(text: String, modifier: Modifier) {
                 modifier            = modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                // Group consecutive pipe-table-like paragraphs so they render as a single
-                // table even when the GFM parser fails to recognise them (e.g. missing
-                // separator line).
+                // 把连续的形似管道表格的段落合并为一组，使 GFM 解析器
+                // 未能识别的表格（如缺少分隔行）仍渲染为单一表格。
                 val groups = groupPipeTableParagraphs(result.root.children, result.source)
                 groups.forEach { group ->
                     when (group) {
@@ -425,11 +422,10 @@ private sealed class ContentGroup {
 }
 
 /**
- * Scans top-level children and groups consecutive PARAGRAPH nodes whose raw
- * text looks like pipe-table rows (contains `|` and at least one row has `-|`).
+ * 扫描顶层子节点，把原始文本形似管道表格行（含 `|` 且至少一行含 `-|`）
+ * 的连续 PARAGRAPH 节点分组。
  *
- * This catches tables that the GFM parser failed to recognise because the
- * separator line was missing or malformed.
+ * 用于兜底 GFM 解析器因分隔行缺失或格式错误而未能识别的表格。
  */
 private fun groupPipeTableParagraphs(
     children: List<ASTNode>,
@@ -440,7 +436,7 @@ private fun groupPipeTableParagraphs(
 
     fun flushBuffer() {
         if (buffer.isEmpty()) return
-        // Check if all buffered paragraphs look like pipe-table rows
+        // 检查缓冲中的段落是否都形似管道表格行
         val lines = buffer.map { n ->
             source.substring(n.startOffset, n.endOffset).trim()
         }
@@ -473,10 +469,10 @@ private fun groupPipeTableParagraphs(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Parses raw pipe-table lines and renders them as a visual table.
+ * 解析原始管道表格行并渲染为可视表格。
  *
- * Unlike [DataTable] which consumes a GFM AST node, this works directly on
- * text lines — making it a fallback for malformed tables.
+ * 与消费 GFM AST 节点的 [DataTable] 不同，这里直接作用于文本行——
+ * 因此可作为格式错误表格的兜底方案。
  */
 @Composable
 private fun PipeTableFallback(
@@ -785,7 +781,7 @@ private fun RenderInlineText(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Paragraph renderer (handles inline math, formatting, links, images)
+//  段落渲染器（处理行内数学、格式化、链接、图片）
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -794,17 +790,17 @@ private fun ParagraphNode(node: ASTNode, source: String, isBold: Boolean) {
     val onSurface   = MaterialTheme.colorScheme.onSurface
     val primary     = MaterialTheme.colorScheme.primary
 
-    // Collect IMAGE nodes that live as block-level items inside the paragraph
+    // 收集作为段落内块级项存在的 IMAGE 节点
     val imageNodes = remember(node) {
         node.children.filter { it.type == MarkdownElementTypes.IMAGE }
     }
 
-    // Collect non-image inline nodes for text rendering
+    // 收集用于文本渲染的非图片行内节点
     val inlineNodes = remember(node) {
         node.children.filter { it.type != MarkdownElementTypes.IMAGE }
     }
 
-    // Check whether the entire paragraph is just a single image reference
+    // 检查整个段落是否只是单个图片引用
     if (imageNodes.size == 1 && inlineNodes.all { isEmptyTextNode(it, source) }) {
         val imgNode = imageNodes.first()
         val imgUrl  = extractImageUrl(imgNode, source)
@@ -815,7 +811,7 @@ private fun ParagraphNode(node: ASTNode, source: String, isBold: Boolean) {
         }
     }
 
-    // Build an AnnotatedString for the entire paragraph
+    // 为整个段落构建 AnnotatedString
     val annotated = buildInlineAnnotatedString(
         nodes     = inlineNodes,
         source    = source,
@@ -834,7 +830,7 @@ private fun ParagraphNode(node: ASTNode, source: String, isBold: Boolean) {
         return
     }
 
-    // Render images within the paragraph inline
+    // 将段落内图片以行内方式渲染
     if (imageNodes.isNotEmpty()) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (annotated.text.isNotBlank()) {
@@ -966,7 +962,7 @@ private fun LatexDocBlock(lang: String, payload: String) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Heading renderer
+//  标题渲染器
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -974,7 +970,7 @@ private fun HeadingNode(node: ASTNode, source: String, style: TextStyle) {
     val onSurface = MaterialTheme.colorScheme.onSurface
     val primary   = MaterialTheme.colorScheme.primary
 
-    // Content is in ATX_CONTENT token or directly inside the node
+    // 内容位于 ATX_CONTENT token 中，或直接位于节点内
     val contentNodes = node.children.filter { it.type == MarkdownTokenTypes.ATX_CONTENT }
         .flatMap { it.children }
         .ifEmpty { node.children }
@@ -991,7 +987,7 @@ private fun HeadingNode(node: ASTNode, source: String, style: TextStyle) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  List renderer
+//  列表渲染器
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -1105,12 +1101,12 @@ private fun isInlineRenderableNode(node: ASTNode): Boolean = when (node.type) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Inline AnnotatedString builder
+//  行内 AnnotatedString 构建器
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Recursively builds an [AnnotatedString] from a list of inline AST [nodes].
- * Handles: plain text, EMPH, STRONG, STRIKETHROUGH, CODE_SPAN, INLINE_LINK, AUTOLINK.
+ * 从一组行内 AST [nodes] 递归构建 [AnnotatedString]。
+ * 处理：纯文本、EMPH、STRONG、STRIKETHROUGH、CODE_SPAN、INLINE_LINK、AUTOLINK。
  */
 private fun buildInlineAnnotatedString(
     nodes: List<ASTNode>,
@@ -1189,14 +1185,14 @@ private fun buildInlineAnnotatedString(
             }
 
             MarkdownElementTypes.IMAGE -> {
-                // Images in inline context: show alt text as fallback in the string
+                // 行内语境中的图片：在字符串中以 alt 文本作为回退显示
                 val alt = extractImageAlt(node, source)
                 withStyle(SpanStyle(color = baseColor.copy(alpha = 0.6f))) {
                     append("[image: $alt]")
                 }
             }
 
-            // Recurse for wrapper nodes
+            // 包装类节点递归处理
             else -> node.children.forEach(::process)
         }
     }
@@ -1212,7 +1208,7 @@ private fun buildAnnotatedStringWithMathFallback(
 ): AnnotatedString = buildInlineAnnotatedString(nodes, source, baseColor, linkColor)
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  AST extraction helpers
+//  AST 提取辅助
 // ─────────────────────────────────────────────────────────────────────────────
 
 private fun extractFenceLang(node: ASTNode, source: String): String =
@@ -1258,7 +1254,7 @@ private fun isEmptyTextNode(node: ASTNode, source: String): Boolean {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Modifier helpers
+//  Modifier 辅助
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable

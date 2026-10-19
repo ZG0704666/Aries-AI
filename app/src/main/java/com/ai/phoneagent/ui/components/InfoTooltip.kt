@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 /**
  * 信息提示气泡组件 - Material 3 PlainTooltip
  *
- * 点击 ℹ️ 图标弹出轻量级气泡提示，点击外部区域自动消失
+ * 点击信息图标弹出轻量级气泡提示，点击外部区域自动消失
  *
  * @param tooltipText 气泡内显示的文本
  * @param modifier 自定义样式修饰符

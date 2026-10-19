@@ -14,10 +14,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import com.ai.phoneagent.core.designsystem.R
 
+/**
+ * 背景光晕样式。
+ *
+ * @property dark 是否为深色模式。
+ * @property amoled 是否为 AMOLED 纯黑模式（此时不绘制光晕）。
+ * @property defaultAccent 是否使用默认强调色（决定光晕取绿色/紫色还是主题主色）。
+ */
 data class AriesBackdropStyle(val dark: Boolean, val amoled: Boolean, val defaultAccent: Boolean)
+
+/** 当前背景样式，由 [AriesMaterialTheme] 向下提供。 */
 val LocalAriesBackdrop = staticCompositionLocalOf { AriesBackdropStyle(false, false, true) }
 
-/** Soft source gradients, without blurring foreground text or capturing the window. */
+/** 柔和的背景光晕：仅绘制径向渐变，不对前景文字做模糊，也不截取窗口画面。 */
 @Composable
 fun AriesBackdrop(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     val style = LocalAriesBackdrop.current

@@ -27,9 +27,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /**
- * OpenAI 兼容的 Provider 实现
- * 
- * 支持 OpenAI API 以及所有兼容的第三方 API（如 DeepSeek、Moonshot 等）
+ * OpenAI 兼容的 Provider 实现。
+ *
+ * 支持 OpenAI 接口规范以及所有兼容的第三方 API。
  */
 class OpenAICompatibleProvider(
     private val apiKey: String,
@@ -41,6 +41,7 @@ class OpenAICompatibleProvider(
     override val enableToolCall: Boolean = false
 ) : AIProvider {
 
+    /** 对话补全请求体。 */
     @Serializable
     private data class OpenAiChatRequest(
         val model: String,
@@ -48,33 +49,39 @@ class OpenAICompatibleProvider(
         val messages: List<OpenAiChatMessage>,
     )
 
+    /** 请求中的单条消息，content 可为字符串或内容数组。 */
     @Serializable
     private data class OpenAiChatMessage(
         val role: String,
         val content: JsonElement,
     )
 
+    /** 流式响应中的单个数据块。 */
     @Serializable
     private data class OpenAiSseChunk(
         val choices: List<OpenAiSseChoice>? = null,
     )
 
+    /** 流式响应中的单个候选结果。 */
     @Serializable
     private data class OpenAiSseChoice(
         val delta: OpenAiDelta? = null,
     )
 
+    /** 增量内容，包含正文与工具调用。 */
     @Serializable
     private data class OpenAiDelta(
         val content: String? = null,
         @SerialName("tool_calls") val toolCalls: List<OpenAiToolCall>? = null,
     )
 
+    /** 工具调用。 */
     @Serializable
     private data class OpenAiToolCall(
         val function: OpenAiToolFunction? = null,
     )
 
+    /** 工具调用的函数名与参数。 */
     @Serializable
     private data class OpenAiToolFunction(
         val name: String? = null,
@@ -90,6 +97,7 @@ class OpenAICompatibleProvider(
     
     private val JSON = "application/json".toMediaType()
     
+    /** 发送流式对话请求，逐片段回调内容，结束或出错时分别回调。 */
     override suspend fun sendMessageStream(
         messages: List<ChatMessage>,
         onChunk: (String) -> Unit,
@@ -240,6 +248,11 @@ class OpenAICompatibleProvider(
         }
     }
     
+    /**
+     * 构建多模态内容。
+     *
+     * 纯文本附件会内联到文本中；图片/音频在能力支持时转为 Base64 内容分段。
+     */
     override fun buildContentWithAttachments(
         text: String,
         attachments: List<AttachmentInfo>
@@ -330,6 +343,7 @@ class OpenAICompatibleProvider(
         }
     }
     
+    /** 将文本中的 `<tool>` 标记解析为 OpenAI 格式的 tool_calls，并返回去除标记后的正文。 */
     override fun parseXmlToolCalls(content: String): Pair<String, Any?> {
         if (!enableToolCall) return Pair(content, null)
         
@@ -375,6 +389,7 @@ class OpenAICompatibleProvider(
         )
     }
     
+    /** 将文本中的工具结果标记解析为结果列表，并返回去除标记后的正文。 */
     override fun parseXmlToolResults(content: String): Pair<String, Any?> {
         if (!enableToolCall) return Pair(content, null)
         
@@ -402,6 +417,7 @@ class OpenAICompatibleProvider(
         return Pair(textContent, results)
     }
 
+    /** 将任意值转换为 [JsonElement]，非基本类型回退为字符串。 */
     private fun Any.toJsonElement(): JsonElement {
         return when (this) {
             is JsonElement -> this

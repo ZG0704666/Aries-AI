@@ -6,11 +6,11 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Unit tests for DataStore-backed preference repositories.
+ * 基于 DataStore 的偏好仓库单元测试。
  *
- * Strategy: These repositories use `preferencesDataStore` Context extension delegates that
- * cannot be instantiated without a real Android Context. Instead of mocking (which causes NPE),
- * we verify:
+ * 策略：这些仓库使用 `preferencesDataStore` 的 Context 扩展委托，
+ * 没有真实 Android Context 无法实例化。与其 mock（会导致 NPE），
+ * 不如验证：
  * 1. The repository classes and their public API surface exist and have correct signatures
  * 2. Default value constants are correct via reflection
  * 3. Key names follow expected patterns
@@ -23,7 +23,7 @@ class DataStoreRepositoryTest {
 
     @Test
     fun `AppPreferencesRepository class exists and is instantiable type`() {
-        // Verify the class is loadable
+        // 验证类可加载
         val clazz = AppPreferencesRepository::class
         assertNotNull(clazz)
         assertEquals("AppPreferencesRepository", clazz.simpleName)
@@ -33,7 +33,7 @@ class DataStoreRepositoryTest {
     fun `AppPreferencesRepository has expected suspend methods`() {
         val methods = AppPreferencesRepository::class.java.declaredMethods.map { it.name }.toSet()
 
-        // Key suspend methods (Kotlin suspend functions compile with a Continuation param)
+        // 关键挂起方法（Kotlin suspend 函数编译后带 Continuation 参数）
         assertTrue("getApiKey" in methods, "Missing getApiKey")
         assertTrue("setApiKey" in methods, "Missing setApiKey")
         assertTrue("getAutoglmApiKey" in methods, "Missing getAutoglmApiKey")

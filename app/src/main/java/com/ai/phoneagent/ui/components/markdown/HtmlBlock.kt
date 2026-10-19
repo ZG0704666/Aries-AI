@@ -49,7 +49,7 @@ import org.jsoup.nodes.TextNode
 /**
  * Parses and renders [html] using Jsoup, supporting a rich subset of HTML elements.
  *
- * Supported tags:
+ * 支持的标签：
  *  Block: `p`, `h1–h6`, `ul`/`ol`+`li`, `details`+`summary`, `blockquote`,
  *         `pre`+`code`, `div`, `table`+`thead`+`tbody`+`tr`+`th`+`td`
  *  Inline: `b`/`strong`, `i`/`em`, `u`, `s`/`del`, `a`, `code`, `br`, `img`,
@@ -66,7 +66,7 @@ fun HtmlBlock(html: String, modifier: Modifier = Modifier) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Recursive node renderer
+// ─── 递归节点渲染器 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -102,7 +102,7 @@ private fun HtmlElement(
     val onSurface = MaterialTheme.colorScheme.onSurface
     val primary   = MaterialTheme.colorScheme.primary
 
-    // Parse inline CSS colour
+    // 解析行内 CSS 颜色
     val styleColor = parseStyleColor(element.attr("style"))
     val textColor  = styleColor ?: inheritedColor ?: onSurface
     val isBold     = isStyleBold(element.attr("style"))
@@ -266,7 +266,7 @@ private fun HtmlElement(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Sub-composables
+// ─── 子组件 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -417,7 +417,7 @@ private fun HtmlTable(table: Element) {
     if (colCount == 0) return
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Header
+        // 表头
         if (headerCells.isNotEmpty()) {
             Row(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant)) {
                 headerCells.forEach { cell ->
@@ -425,14 +425,14 @@ private fun HtmlTable(table: Element) {
                         HtmlBlock(html = cell)
                     }
                 }
-                // fill missing columns
+                // 补齐缺失的列
                 repeat((colCount - headerCells.size).coerceAtLeast(0)) {
                     Spacer(Modifier.weight(1f))
                 }
             }
             HorizontalDivider()
         }
-        // Rows
+        // 数据行
         rows.forEach { cols ->
             Row(modifier = Modifier.fillMaxWidth()) {
                 cols.forEach { cell ->
@@ -448,7 +448,7 @@ private fun HtmlTable(table: Element) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  AnnotatedString builder for inline HTML trees
+// ─── 行内 HTML 树的 AnnotatedString 构建器 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 private fun buildHtmlAnnotatedString(
@@ -527,7 +527,7 @@ private fun Modifier.clickOnHtmlLinks(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  CSS helpers
+// ─── CSS 辅助 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 private val CSS_COLOR_RE = Regex("""color\s*:\s*([^;]+)""", RegexOption.IGNORE_CASE)

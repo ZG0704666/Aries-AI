@@ -60,11 +60,11 @@ import java.util.Base64
 private val mermaidHeightCache = HashMap<String, Int>()
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Mermaid composable
+// ─── Mermaid 组件 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Renders a Mermaid diagram using a WebView that loads Mermaid.js from CDN.
+ * 使用 WebView 加载 CDN 上的 Mermaid.js 来渲染 Mermaid 图表。
  *
  * The WebView calls back via [AndroidInterface]:
  *  - `updateHeight(px)` – adjusts the composable height
@@ -93,7 +93,7 @@ fun Mermaid(code: String, modifier: Modifier = Modifier) {
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Toolbar
+        // 工具栏
         Row(
             modifier          = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -119,7 +119,7 @@ fun Mermaid(code: String, modifier: Modifier = Modifier) {
             }
         }
 
-        // WebView
+        // WebView 渲染区
         val heightDp = with(density) { heightPx.toDp() }.coerceAtLeast(80.dp)
         Box(
             modifier          = Modifier.fillMaxWidth().height(heightDp),
@@ -141,7 +141,7 @@ fun Mermaid(code: String, modifier: Modifier = Modifier) {
         }
     }
 
-    // Preview bottom sheet
+    // 预览底部弹层
     if (showPreview) {
         ModalBottomSheet(
             onDismissRequest = { scope.launch { sheetState.hide(); showPreview = false } },
@@ -207,7 +207,7 @@ private fun MermaidWebView(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  JS Bridge
+// ─── JS 桥 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 private class AndroidInterface(
@@ -226,7 +226,7 @@ private class AndroidInterface(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  HTML template
+// ─── HTML 模板 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Suppress("LongMethod")
@@ -245,7 +245,7 @@ private fun buildMermaidHtml(
     val primary   = cs.primary.hex()
     val secondary = cs.secondary.hex()
 
-    // Escape backticks in diagram source
+    // 转义图表源码中的反引号
     val escaped = code.replace("\\", "\\\\").replace("`", "\\`")
 
     return """
@@ -311,7 +311,7 @@ render();
 
 private fun saveMermaidPng(context: Context, svgData: String) {
     try {
-        // Encode SVG as a data URI and save via MediaStore
+        // 将 SVG 编码为 data URI 并通过 MediaStore 保存
         val bytes    = svgData.toByteArray(Charsets.UTF_8)
         val b64      = Base64.getEncoder().encodeToString(bytes)
         val filename = "mermaid_${System.currentTimeMillis()}.svg"

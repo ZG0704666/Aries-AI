@@ -229,7 +229,7 @@ class ShizukuVirtualDisplayEngine {
         runCatching { dispatcher?.stop() }
 
         synchronized(frameLock) {
-            // reset timestamps/size hints
+            // 重置时间戳/尺寸提示
             latestContentWidth = 0
             latestContentHeight = 0
         }
@@ -558,7 +558,7 @@ class ShizukuVirtualDisplayEngine {
             flags = flags or trustedFlag
         }
 
-        // supports-touch (hidden in some versions)
+        // supports-touch（部分系统版本中隐藏）
         flags = flags or (1 shl 6)
         // destroy-content-on-removal
         flags = flags or (1 shl 8)
@@ -568,7 +568,7 @@ class ShizukuVirtualDisplayEngine {
         }
 
         if (Build.VERSION.SDK_INT >= 33) {
-            // own display group / always unlocked / touch feedback disabled
+            // 自有显示组 / 永不解锁 / 禁用触摸反馈
             flags = flags or (1 shl 11)
             flags = flags or (1 shl 12)
             flags = flags or (1 shl 13)

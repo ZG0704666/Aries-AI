@@ -20,10 +20,12 @@ import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Lucide
 import org.koin.androidx.compose.koinViewModel
 
+/** 自动化偏好设置页：展示任务状态、执行模式与自动确认开关。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AutomationPreferencesScreen(onBack: () -> Unit, onOpenControl: () -> Unit) {
     val context = LocalContext.current
+    // 向上查找承载的 Activity，作为共享的 ViewModelStoreOwner
     val owner = remember(context) {
         var current = context
         while (current is ContextWrapper && current !is Activity) current = current.baseContext
@@ -31,6 +33,7 @@ fun AutomationPreferencesScreen(onBack: () -> Unit, onOpenControl: () -> Unit) {
     }
     val vm: AutomationViewModel = koinViewModel(viewModelStoreOwner = owner)
     val task by vm.taskSnapshot.collectAsState()
+    // 无任务或任务已结束时才允许修改配置
     val editable = task == null || task?.status?.isTerminal == true
     val spacing = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding)
     LaunchedEffect(Unit) { vm.onRefreshStatus() }

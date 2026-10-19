@@ -26,6 +26,12 @@ import com.ai.phoneagent.ui.settings.PermissionGuideScreen
 import com.ai.phoneagent.ui.settings.UserAgreementScreen
 import com.ai.phoneagent.ui.updates.UpdateHistoryScreen
 
+/**
+ * 应用主导航图。
+ *
+ * @param homeContent 首页内容（由调用方注入，避免导航层依赖具体首页实现）。
+ * @param onStartNextTask 在任务详情页触发「开始下一个任务」的回调。
+ */
 @Composable
 fun AriesNavGraph(
     navController: NavHostController,
@@ -36,6 +42,7 @@ fun AriesNavGraph(
     val currentRoute = backStackEntry?.destination?.route
     var isRoutePopInFlight by remember(currentRoute) { mutableStateOf(false) }
 
+    // 非首页且无正在进行的出栈时才拦截返回键，防止重复出栈。
     BackHandler(enabled = currentRoute != null && currentRoute != Routes.Home.route && !isRoutePopInFlight) {
         isRoutePopInFlight = true
         if (!navController.popBackStack()) {
@@ -86,6 +93,7 @@ fun AriesNavGraph(
     }
 }
 
+/** 占位页面（预留路由使用）。 */
 @Composable
 private fun PlaceholderRouteScreen() {
     Box(

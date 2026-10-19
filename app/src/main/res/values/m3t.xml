@@ -375,7 +375,7 @@
         <item name="cornerSizeTopRight">@dimen/m3t_radius_xl</item>
     </style>
 
-    <!-- Compatibility aliases -->
+    <!-- 兼容性别名 -->
     <style name="Widget.Aries.Toolbar" parent="Widget.M3t.Toolbar" />
     <style name="Widget.Aries.Card" parent="Widget.M3t.Card" />
     <style name="Widget.Aries.Button" parent="Widget.M3t.Button.Filled" />

@@ -12,7 +12,7 @@ import com.ai.phoneagent.data.preferences.VirtualDisplayConfigRepository
 /**
  * 虚拟屏配置管理器 — 集中管理分辨率预设、DPI、16像素对齐等参数。
  *
- * 对齐参考：autoglm_KY-master ConfigManager 的虚拟屏配置部分。
+ * 对齐参考：上游参考实现 ConfigManager 的虚拟屏配置部分。
  *
  * **关键特性**
  * - 分辨率预设：480P / 720P / 1080P

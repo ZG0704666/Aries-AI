@@ -516,7 +516,7 @@ class FileToolExecutor(private val appContext: Context) {
  * 注册文件系统工具到 AIToolHandler
  */
 fun registerFileTools(handler: AIToolHandler, executor: FileToolExecutor) {
-    // Read File
+    // ===== 读取文件
     handler.registerTool(
         name = "read_file",
         dangerCheck = { false },
@@ -529,7 +529,7 @@ fun registerFileTools(handler: AIToolHandler, executor: FileToolExecutor) {
         }
     )
 
-    // Write File
+    // ===== 写入文件
     handler.registerTool(
         name = "write_file",
         dangerCheck = { true }, // 危险操作：写入文件系统
@@ -542,7 +542,7 @@ fun registerFileTools(handler: AIToolHandler, executor: FileToolExecutor) {
         }
     )
 
-    // Delete
+    // ===== 删除
     handler.registerTool(
         name = "delete",
         dangerCheck = { true }, // 危险操作
@@ -555,7 +555,7 @@ fun registerFileTools(handler: AIToolHandler, executor: FileToolExecutor) {
         }
     )
 
-    // List Dir
+    // ===== 列目录
     handler.registerTool(
         name = "list_dir",
         dangerCheck = { false },
@@ -568,7 +568,7 @@ fun registerFileTools(handler: AIToolHandler, executor: FileToolExecutor) {
         }
     )
 
-    // Create Dir
+    // ===== 创建目录
     handler.registerTool(
         name = "create_dir",
         dangerCheck = { false },
@@ -581,7 +581,7 @@ fun registerFileTools(handler: AIToolHandler, executor: FileToolExecutor) {
         }
     )
 
-    // Exists
+    // ===== 存在性检查
     handler.registerTool(
         name = "exists",
         dangerCheck = { false },
@@ -594,7 +594,7 @@ fun registerFileTools(handler: AIToolHandler, executor: FileToolExecutor) {
         }
     )
 
-    // Copy
+    // ===== 复制
     handler.registerTool(
         name = "copy",
         dangerCheck = { true }, // 危险操作：写入文件系统
@@ -607,7 +607,7 @@ fun registerFileTools(handler: AIToolHandler, executor: FileToolExecutor) {
         }
     )
 
-    // Move
+    // ===== 移动
     handler.registerTool(
         name = "move",
         dangerCheck = { true }, // 危险操作
@@ -620,7 +620,7 @@ fun registerFileTools(handler: AIToolHandler, executor: FileToolExecutor) {
         }
     )
 
-    // File Info
+    // ===== 文件信息
     handler.registerTool(
         name = "file_info",
         dangerCheck = { false },
@@ -633,7 +633,7 @@ fun registerFileTools(handler: AIToolHandler, executor: FileToolExecutor) {
         }
     )
 
-    // Compress
+    // ===== 压缩
     handler.registerTool(
         name = "compress",
         dangerCheck = { true }, // 危险操作：写入文件系统

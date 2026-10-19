@@ -19,13 +19,13 @@
 package com.ai.phoneagent.core.designsystem.theme
 
 /**
- * Controls the light/dark theme selection for [AriesMaterialTheme].
+ * [AriesMaterialTheme] 的明暗模式选择。
  */
 enum class ThemeMode {
-    /** Follow the system dark-mode setting. */
+    /** 跟随系统深色设置。 */
     SYSTEM,
-    /** Always use light theme. */
+    /** 始终使用浅色主题。 */
     LIGHT,
-    /** Always use dark theme. */
+    /** 始终使用深色主题。 */
     DARK,
 }

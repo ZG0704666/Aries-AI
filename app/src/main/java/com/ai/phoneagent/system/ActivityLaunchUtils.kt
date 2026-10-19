@@ -13,7 +13,7 @@ import java.util.regex.Pattern
 /**
  * Activity启动工具类 - 支持在指定display上启动应用
  * 
- * 对齐参考项目 autoglm_KY 的多候选命令降级策略
+ * 对齐上游参考项目的多候选命令降级策略
  */
 object ActivityLaunchUtils {
 

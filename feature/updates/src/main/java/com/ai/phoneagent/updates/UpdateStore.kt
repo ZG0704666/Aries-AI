@@ -2,6 +2,11 @@ package com.ai.phoneagent.updates
 
 import android.content.Context
 
+/**
+ * 更新状态的本地持久化（SharedPreferences）。
+ *
+ * 记录上次静默检查时间、已提醒版本号以及最近一次发现的新版本快照。
+ */
 object UpdateStore {
 
     private const val PREFS = "update_prefs"
@@ -17,28 +22,33 @@ object UpdateStore {
     private const val KEY_RELEASE_URL = "update_latest_release_url"
     private const val KEY_APK_URL = "update_latest_apk_url"
 
+    /** 距上次静默检查是否已达到间隔。 */
     fun shouldSilentCheck(context: Context, nowMs: Long, intervalMs: Long): Boolean {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val last = p.getLong(KEY_LAST_CHECK_AT, 0L)
         return nowMs - last >= intervalMs
     }
 
+    /** 记录本次静默检查时间。 */
     fun markSilentChecked(context: Context, nowMs: Long) {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         p.edit().putLong(KEY_LAST_CHECK_AT, nowMs).apply()
     }
 
+    /** 该版本标签是否尚未提醒过。 */
     fun shouldNotify(context: Context, versionTag: String): Boolean {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val last = p.getString(KEY_LAST_NOTIFIED_VERSION, null)
         return last != versionTag
     }
 
+    /** 记录已提醒的最新版本标签。 */
     fun markNotified(context: Context, versionTag: String) {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         p.edit().putString(KEY_LAST_NOTIFIED_VERSION, versionTag).apply()
     }
 
+    /** 缓存发现的最新发布快照。 */
     fun saveLatest(context: Context, entry: ReleaseEntry) {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         p.edit()
@@ -52,6 +62,7 @@ object UpdateStore {
             .apply()
     }
 
+    /** 读取缓存的最新发布快照；无缓存时返回 null。 */
     fun loadLatest(context: Context): ReleaseEntry? {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val versionTag = p.getString(KEY_VERSION_TAG, null) ?: return null

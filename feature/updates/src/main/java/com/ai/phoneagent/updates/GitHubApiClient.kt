@@ -12,9 +12,15 @@ import okhttp3.logging.HttpLoggingInterceptor
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+/** GitHub Releases API 客户端，用于拉取发布列表并支持可选鉴权。 */
 object GitHubApiClient {
     private const val BASE_URL = "https://api.github.com"
 
+    /**
+     * 根据令牌类型构造鉴权头。
+     *
+     * 细粒度令牌（`github_pat_` 前缀）使用 `Bearer`，经典令牌使用 `token`；空令牌返回 null。
+     */
     private fun buildAuthHeader(token: String): String? {
         val t = token.trim()
         if (t.isBlank()) return null
@@ -25,6 +31,7 @@ object GitHubApiClient {
         }
     }
 
+    /** 懒加载的 OkHttp 客户端：统一注入 UA/Accept/鉴权头，仅 Debug 打印基础日志。 */
     private val okHttpClient: OkHttpClient by lazy {
         val logger =
             HttpLoggingInterceptor().apply {
@@ -54,6 +61,11 @@ object GitHubApiClient {
             .build()
     }
 
+    /**
+     * 分页拉取发布记录。
+     *
+     * @throws IOException 响应非成功状态或响应体为空时抛出。
+     */
     suspend fun listReleases(owner: String, repo: String, page: Int, perPage: Int): List<GitHubRelease> =
         withContext(Dispatchers.IO) {
             val url = "$BASE_URL/repos/$owner/$repo/releases?page=$page&per_page=$perPage"

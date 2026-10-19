@@ -6,6 +6,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import com.ai.phoneagent.core.designsystem.R
 
+/**
+ * 主题强调色枚举。
+ *
+ * @property storageKey 持久化到本地配置时使用的键名。
+ */
 enum class ThemeAccent(
     val storageKey: String,
 ) {
@@ -17,17 +22,20 @@ enum class ThemeAccent(
     ;
 
     companion object {
+        /** 从持久化字符串还原强调色，无法识别时回退到 [DEFAULT]。 */
         fun fromStorage(value: String): ThemeAccent =
             entries.firstOrNull { it.storageKey == value.lowercase() } ?: DEFAULT
     }
 }
 
+/** 强调色预览所需的三种主色。 */
 data class ThemeAccentPreview(
     val primary: Color,
     val secondary: Color,
     val tertiary: Color,
 )
 
+/** 返回该强调色在当前明暗模式下的预览配色。 */
 @Composable
 fun ThemeAccent.previewColors(isDarkTheme: Boolean): ThemeAccentPreview =
     when (this) {
@@ -48,6 +56,7 @@ fun ThemeAccent.previewColors(isDarkTheme: Boolean): ThemeAccentPreview =
         }
     }
 
+/** 将强调色配色叠加到基础 [ColorScheme]；默认强调色保持原样返回。 */
 internal fun ColorScheme.applyThemeAccent(
     themeAccent: ThemeAccent,
     isDarkTheme: Boolean,
@@ -71,6 +80,7 @@ internal fun ColorScheme.applyThemeAccent(
     )
 }
 
+/** 单个强调色的完整 M3 色板。 */
 private data class ThemeAccentPalette(
     val primary: Color,
     val onPrimary: Color,
@@ -87,6 +97,7 @@ private data class ThemeAccentPalette(
     val onTertiaryContainer: Color,
 )
 
+/** 按明暗模式返回对应色板；[ThemeAccent.DEFAULT] 使用资源默认色，返回 null。 */
 private fun ThemeAccent.palette(isDarkTheme: Boolean): ThemeAccentPalette? =
     when (this) {
         ThemeAccent.DEFAULT -> null
@@ -96,6 +107,7 @@ private fun ThemeAccent.palette(isDarkTheme: Boolean): ThemeAccentPalette? =
         ThemeAccent.ROSE -> if (isDarkTheme) roseDarkPalette else roseLightPalette
     }
 
+// ---- 海洋 Ocean ----
 private val oceanLightPalette =
     ThemeAccentPalette(
         primary = Color(0xFF006495),
@@ -130,6 +142,7 @@ private val oceanDarkPalette =
         onTertiaryContainer = Color(0xFFEBDCFF),
     )
 
+// ---- 森林 Forest ----
 private val forestLightPalette =
     ThemeAccentPalette(
         primary = Color(0xFF2F6B3F),
@@ -164,6 +177,7 @@ private val forestDarkPalette =
         onTertiaryContainer = Color(0xFFC2E8FC),
     )
 
+// ---- 日落 Sunset ----
 private val sunsetLightPalette =
     ThemeAccentPalette(
         primary = Color(0xFF9A4A17),
@@ -198,6 +212,7 @@ private val sunsetDarkPalette =
         onTertiaryContainer = Color(0xFFF0E3A7),
     )
 
+// ---- 玫瑰 Rose ----
 private val roseLightPalette =
     ThemeAccentPalette(
         primary = Color(0xFF9C415D),

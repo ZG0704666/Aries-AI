@@ -32,26 +32,26 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
 /**
- * Data-layer Koin DI module.
+ * 数据层 Koin DI 模块。
  *
- * Binds:
- * - [AriesDatabase] — Room database singleton (delegates to existing [AriesDatabase.getInstance])
- * - [com.ai.phoneagent.data.local.ConversationDao] — resolved from the database
- * - [MainUiPreferencesRepository] — DataStore-backed preferences repository
+ * 绑定：
+ * - [AriesDatabase] — Room 数据库单例（委托给既有的 [AriesDatabase.getInstance]）
+ * - [com.ai.phoneagent.data.local.ConversationDao] — 从数据库解析
+ * - [MainUiPreferencesRepository] — 基于 DataStore 的偏好仓库
  *
- * This module is DEFINITION ONLY — existing call sites are not changed until T7.
+ * 本模块仅为定义——在 T7 之前不改动既有调用点。
  */
 val dataModule = module {
 
-    // Room database — delegates to the existing thread-safe getInstance() to avoid double-init.
+    // Room 数据库 — 委托给线程安全的 getInstance()，避免重复初始化。
     single<AriesDatabase> {
         AriesDatabase.getInstance(androidContext())
     }
 
-    // Conversation DAO resolved through the database singleton.
+    // 通过数据库单例解析会话 DAO。
     single { get<AriesDatabase>().conversationDao() }
 
-    // DataStore preferences repositories — all require application context.
+    // DataStore 偏好仓库 — 均需应用级 Context。
     single { MainUiPreferencesRepository(androidContext()) }
     single<SecretStore> { AndroidKeyStoreSecretStore() }
     single { AppPreferencesRepository(androidContext(), get()) }

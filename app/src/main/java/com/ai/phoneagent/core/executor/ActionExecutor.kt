@@ -1043,7 +1043,7 @@ class ActionExecutor(
             return true
         }
 
-        // Fallback to foreground direct input when display-targeted input fails.
+        // 定屏输入失败时回退到前台直接输入。
         if (hasDisplayId && runDirectInputText(-1, text)) {
             val via = if (isAsciiOnly) "direct_input_fallback" else "direct_input_foreground_fallback"
             logShizukuTypeStage(onLog, "final", "ok", "via=$via")
@@ -1079,7 +1079,7 @@ class ActionExecutor(
                 tx.run(temporaryText = text) { verifyState ->
                     logShizukuTypeStage(onLog, "clipboard_tx", "start", "module=AppClipboardTransaction")
 
-                    // Strict gate: clipboard must be verifiably matched before paste.
+                    // 严格闸门：剪贴板必须校验匹配后才允许粘贴。
                     if (verifyState != AppClipboardTransaction.VerifyState.MATCHED) {
                         logShizukuTypeStage(
                                 onLog,
@@ -1090,7 +1090,7 @@ class ActionExecutor(
                         return@run false
                     }
 
-                    // Wait clipboard propagation before paste key event.
+                    // 粘贴按键前等待剪贴板同步生效。
                     try {
                         Thread.sleep(100)
                     } catch (_: InterruptedException) {}
@@ -1101,7 +1101,7 @@ class ActionExecutor(
                     }
                     logShizukuTypeStage(onLog, "paste", "ok")
 
-                    // Wait paste commit before restoring user clipboard snapshot.
+                    // 恢复用户剪贴板快照前等待粘贴提交完成。
                     try {
                         Thread.sleep(200)
                     } catch (_: InterruptedException) {}
@@ -1194,7 +1194,7 @@ class ActionExecutor(
                 }
             }
 
-            // Wait clipboard propagation before paste key event.
+            // 粘贴按键前等待剪贴板同步生效。
             try {
                 Thread.sleep(100)
             } catch (_: InterruptedException) {}
@@ -1205,7 +1205,7 @@ class ActionExecutor(
             }
             logShizukuTypeStage(onLog, "paste", "ok", "via=shizuku")
 
-            // Wait paste commit before restoring user clipboard snapshot.
+            // 恢复用户剪贴板快照前等待粘贴提交完成。
             try {
                 Thread.sleep(200)
             } catch (_: InterruptedException) {}
@@ -1413,7 +1413,7 @@ class ActionExecutor(
                     logShizukuTypeStage(onLog, "verify", "skip", "no_accessibility_service")
                     true
                 } else {
-                    // Service exists but focused text is unreadable; treat as failure to trigger fallback path.
+                    // 服务存在但焦点文本不可读；按失败处理以触发回退路径。
                     logShizukuTypeStage(onLog, "verify", "fail", "focused_text_unreadable")
                     false
                 }

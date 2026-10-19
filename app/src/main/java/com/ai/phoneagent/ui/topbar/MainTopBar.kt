@@ -111,7 +111,7 @@ fun MainTopBar(
                         actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         titleContentColor = MaterialTheme.colorScheme.onSurface,
                     ),
-                // Use default TopAppBarDefaults.windowInsets (status bars)
+                // 使用默认的 TopAppBarDefaults.windowInsets（状态栏）
             )
 
             AnimatedVisibility(

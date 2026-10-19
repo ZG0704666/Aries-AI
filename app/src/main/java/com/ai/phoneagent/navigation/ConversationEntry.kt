@@ -2,7 +2,11 @@ package com.ai.phoneagent.navigation
 
 import com.ai.phoneagent.data.local.ConversationRecord
 
-/** A fresh launch opens an empty conversation; recreation preserves the user's selection. */
+/**
+ * 计算启动时应打开的会话 ID。
+ *
+ * 重建场景恢复上次选中的会话；全新启动则优先复用空会话，避免历史列表堆积。
+ */
 fun initialConversationId(
     conversations: List<ConversationRecord>,
     savedActiveId: Long,
@@ -10,6 +14,6 @@ fun initialConversationId(
 ): Long? = if (restoreActive) {
     conversations.firstOrNull { it.id == savedActiveId }?.id ?: conversations.firstOrNull()?.id
 } else {
-    // Reuse an empty conversation so repeated app launches do not clutter history.
+    // 复用空会话，避免反复启动产生大量空历史记录。
     conversations.firstOrNull { it.messages.isEmpty() }?.id
 }

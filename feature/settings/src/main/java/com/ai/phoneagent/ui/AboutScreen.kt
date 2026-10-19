@@ -57,6 +57,11 @@ import com.composables.icons.lucide.Shield
 import com.ai.phoneagent.core.designsystem.R as DesignSystemR
 import com.ai.phoneagent.feature.settings.R
 
+/**
+ * 关于页面：展示应用品牌信息、运行信息与各类入口（检查更新、源码、反馈、协议等）。
+ *
+ * 所有可点击项通过回调上抛，页面自身不持有业务逻辑。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
@@ -219,6 +224,7 @@ fun AboutScreen(
     }
 }
 
+/** 顶部品牌区：应用图标、名称、副标题与版本号，整体可点击进入开发者入口。 */
 @Composable
 private fun AboutHeroSection(
     appVersionText: String,
@@ -268,6 +274,7 @@ private fun AboutHeroSection(
     }
 }
 
+/** 预览：浅色模式。 */
 @Preview(name = "AboutScreen — Light", showBackground = true)
 @Composable
 private fun AboutScreenLightPreview() {
@@ -290,6 +297,7 @@ private fun AboutScreenLightPreview() {
     }
 }
 
+/** 预览：深色模式。 */
 @Preview(
     name = "AboutScreen — Dark",
     showBackground = true,

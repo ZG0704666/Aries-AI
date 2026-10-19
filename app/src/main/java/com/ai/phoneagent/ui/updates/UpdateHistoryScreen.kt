@@ -83,7 +83,7 @@ fun UpdateHistoryScreen(
                 .padding(innerPadding)
                 .navigationBarsPadding()
         ) {
-            // Pre-release switch
+            // 预发布版本开关
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

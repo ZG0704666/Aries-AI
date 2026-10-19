@@ -2,6 +2,7 @@ package com.ai.phoneagent.data.local
 
 import kotlinx.serialization.Serializable
 
+/** 消息附件的持久化记录。 */
 @Serializable
 data class StoredAttachmentRecord(
     val filePath: String,
@@ -11,6 +12,7 @@ data class StoredAttachmentRecord(
     val content: String = "",
 )
 
+/** 单条消息的持久化记录。 */
 @Serializable
 data class StoredMessageRecord(
     val author: String,
@@ -21,6 +23,7 @@ data class StoredMessageRecord(
     val attachments: List<StoredAttachmentRecord> = emptyList(),
 )
 
+/** 反序列化后的会话记录，供业务层直接使用。 */
 data class ConversationRecord(
     val id: Long,
     val title: String,

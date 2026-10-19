@@ -4,7 +4,7 @@
  *
  * Licensed under AGPL-3.0. See LICENSE for details.
  *
- * Adapted from autoglm_KY-master InputHelper.kt
+ * Adapted from upstream reference implementation InputHelper.kt
  */
 package com.ai.phoneagent.input
 

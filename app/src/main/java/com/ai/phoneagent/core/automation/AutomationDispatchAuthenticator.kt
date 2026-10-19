@@ -8,30 +8,26 @@ import java.security.SecureRandom
 import java.util.Base64
 
 /**
- * Process-local authenticator guarding the automation dispatch entrypoint.
+ * 进程级鉴权器，守护自动化分发入口。
  *
- * MainActivity is an exported LAUNCHER activity, so any installed app can send it an
- * explicit Intent carrying automation control extras (task / auto-start / source /
- * force-top / keep-on-top). Without a guard a malicious app could trigger unattended
- * UI automation. The trusted in-app dispatcher therefore stamps every automation
- * Intent with a random per-process token, and the receiver only honours automation
- * extras when that token matches.
+ * MainActivity 是导出的 LAUNCHER activity，任何已安装应用都可以向它发送携带自动化
+ * 控制字段（task / auto-start / source / force-top / keep-on-top）的显式 Intent。
+ * 若无防护，恶意应用可触发无人值守的 UI 自动化。因此可信的应用内分发方会给每个
+ * 自动化 Intent 附上一个随机进程级 token，接收方仅在该 token 匹配时才理会自动化字段。
  *
- * The token is generated once per process from [SecureRandom] (256-bit), is never
- * persisted, never written to saved-state, and becomes invalid on process death.
- * Verification uses a constant-time comparison.
+ * token 由 [SecureRandom]（256 位）在进程内生成一次，不持久化、不写入 saved-state，
+ * 进程死亡即失效。校验使用常量时间比较。
  */
 class AutomationDispatchAuthenticator {
 
     private val token: String = generateToken()
 
-    /** Returns the current process-local dispatch token. */
+    /** 返回当前进程级的分发 token。 */
     fun token(): String = token
 
     /**
-     * Returns true when [intent] carries no automation control extras (nothing to
-     * authorize), or when it carries a valid dispatch token. Returns false when the
-     * intent carries automation control extras but the token is missing or invalid.
+     * 当 [intent] 不含自动化控制字段（无需鉴权），或携带有效分发 token 时返回 true；
+     * 当 Intent 含自动化控制字段但 token 缺失或无效时返回 false。
      *
      * 鉴权范围仅覆盖真正会触发无人值守 UI 自动化的控制字段（task / autoStart / source）。
      * 纯展示字段（[AutomationViewModel.EXTRA_FORCE_TOP_ON_ENTRY] /
@@ -46,14 +42,14 @@ class AutomationDispatchAuthenticator {
         return constantTimeEquals(provided, token)
     }
 
-    /** True when the intent carries any automation control field that must be authorized. */
+    /** 判断 Intent 是否携带任何需要鉴权的自动化控制字段。 */
     fun hasAutomationControlExtras(intent: Intent): Boolean {
         return intent.hasExtra(AutomationViewModel.EXTRA_AUTOMATION_TASK) ||
             intent.hasExtra(AutomationViewModel.EXTRA_AUTOMATION_AUTO_START) ||
             intent.hasExtra(AutomationViewModel.EXTRA_AUTOMATION_SOURCE)
     }
 
-    /** Logs a sanitized rejection; never logs the task content or any token. */
+    /** 记录脱敏后的拒绝日志；不记录任务内容，也不记录任何 token。 */
     fun logRejected(intent: Intent?) {
         val present = mutableListOf<String>()
         if (intent?.hasExtra(AutomationViewModel.EXTRA_AUTOMATION_TASK) == true) present.add("task")

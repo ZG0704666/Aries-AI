@@ -17,38 +17,41 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /**
- * Represents a single part of a multimodal content message.
- * OpenAI API format:
+ * 多模态消息中的单个内容分段，采用 OpenAI 接口格式：
  *   - text:      {"type":"text","text":"..."}
  *   - image_url: {"type":"image_url","image_url":{"url":"..."}}
  */
 @Serializable(with = ContentPartSerializer::class)
 sealed class ContentPart {
 
+    /** 文本分段。 */
     @Serializable
     data class TextPart(
         @SerialName("text") val text: String,
     ) : ContentPart()
 
+    /** 图片分段。 */
     @Serializable
     data class ImageUrlPart(
         @SerialName("image_url") val imageUrl: ImageUrl,
     ) : ContentPart()
 }
 
+/** 图片地址。 */
 @Serializable
 data class ImageUrl(
     @SerialName("url") val url: String,
 )
 
 /**
- * Custom serializer for [ContentPart] that writes/reads the OpenAI "type" discriminator.
+ * [ContentPart] 的自定义序列化器，负责读写 OpenAI 的 `type` 判别字段。
  */
 object ContentPartSerializer : KSerializer<ContentPart> {
 
     override val descriptor: SerialDescriptor =
         buildClassSerialDescriptor("ContentPart")
 
+    /** 按分段类型输出对应的 JSON 对象。 */
     override fun serialize(encoder: Encoder, value: ContentPart) {
         val jsonEncoder = encoder as? JsonEncoder
             ?: error("ContentPartSerializer only supports JSON encoding")

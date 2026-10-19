@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
+/** 会话表实体，消息列表以 JSON 文本形式整体存储。 */
 @Serializable
 @Entity(tableName = "conversations")
 data class ConversationEntity(

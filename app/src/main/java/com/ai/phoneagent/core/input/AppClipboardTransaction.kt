@@ -24,11 +24,11 @@ import android.os.Build
 import com.ai.phoneagent.AutomationOverlay
 
 /**
- * Clipboard transaction for temporary text input:
- * 1) snapshot current clipboard
- * 2) write + verify temporary text
- * 3) run paste action
- * 4) restore original clipboard in finally
+ * 临时文本输入的剪贴板事务：
+ * 1) 快照当前剪贴板
+ * 2) 写入并校验临时文本
+ * 3) 执行粘贴动作
+ * 4) 在 finally 中恢复原剪贴板
  */
 class AppClipboardTransaction(
     private val context: Context,

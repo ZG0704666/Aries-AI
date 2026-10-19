@@ -31,10 +31,10 @@ import org.koin.test.get
 import kotlin.test.assertSame
 
 /**
- * Koin scope and singleton verification test.
+ * Koin 作用域与单例校验测试。
  *
- * Verifies that Koin singleton definitions are correctly enforced:
- * same instance is returned on multiple get() calls.
+ * 验证 Koin 单例定义被正确执行：
+ * 多次 get() 调用返回同一实例。
  */
 class KoinScopeTest : KoinTest {
 

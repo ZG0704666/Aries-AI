@@ -137,7 +137,7 @@ fun AttachmentSelectorPanel(
         }
     }
     
-    // 附件选项列表 - 千问风格（移除音频，保留相机/相册/文件）
+    // 附件选项列表（相机/相册/文件）
     val attachmentOptions = listOf(
         AttachmentOption(
             icon = Lucide.Camera,
@@ -179,7 +179,7 @@ fun AttachmentSelectorPanel(
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     BottomSheetDefaults.DragHandle()
                 }
-                // 附件选项 - 千问风格布局
+                // 附件选项
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -321,7 +321,7 @@ private fun AttachmentPreviewItem(
 }
 
 /**
- * 附件选项项 - 千问简约风格
+ * 附件选项项（图标 + 标签）
  */
 @Composable
 private fun AttachmentOptionItem(
@@ -338,13 +338,13 @@ private fun AttachmentOptionItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .clickable(onClick = {
-                // 点击时触发80ms震动反馈
-                performVibration(context, 80)
+                // 点击时触发30ms震动反馈
+                performVibration(context, 30)
                 onClick()
             })
             .padding(vertical = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm))
     ) {
-        // 图标背景 - 千问风格圆角
+        // 图标背景
         Box(
             modifier = Modifier
                 .size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_attachment_tile))
@@ -361,7 +361,7 @@ private fun AttachmentOptionItem(
         
         Spacer(modifier = Modifier.height(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_home_icon_gap)))
         
-        // 标签 - 千问风格字体
+        // 标签
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,

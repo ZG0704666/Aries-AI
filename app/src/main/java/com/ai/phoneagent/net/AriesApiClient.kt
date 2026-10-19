@@ -24,7 +24,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.TimeUnit
 
 /**
- * Aries API 管理接口客户端（基于 New API 协议）。
+ * Aries API 管理接口客户端。
  *
  * 鉴权流程：
  *   1. POST /api/user/login  → Session Cookie
@@ -38,12 +38,14 @@ class AriesApiClient {
 
     // ─── 数据模型 ────────────────────────────────────────────────────────────
 
+    /** 登录结果。 */
     data class LoginResult(
         val success: Boolean,
         val userId: Int = 0,
         val message: String = "",
     )
 
+    /** API Token 获取结果。 */
     data class TokenResult(
         val success: Boolean,
         val apiKey: String = "",
@@ -51,6 +53,7 @@ class AriesApiClient {
         val message: String = "",
     )
 
+    /** 登录并获取 API Key 的组合结果。 */
     data class LoginAndTokenResult(
         val success: Boolean,
         val apiKey: String = "",
@@ -58,11 +61,13 @@ class AriesApiClient {
         val message: String = "",
     )
 
+    /** 模型条目。 */
     data class ModelInfo(
         val id: String,
         val ownedBy: String = "",
     )
 
+    /** Token 列表项摘要。 */
     private data class TokenSummary(
         val id: Int,
         val name: String,
@@ -81,6 +86,7 @@ class AriesApiClient {
         override fun loadForRequest(url: HttpUrl): List<Cookie> = store.toList()
     }
 
+    /** 构建带内存 CookieJar 的客户端，保证同一次登录流程内 session 可传递。 */
     private fun buildClient(): OkHttpClient {
         val cookieJar = InMemoryCookieJar()
         return OkHttpClient.Builder()
@@ -91,6 +97,7 @@ class AriesApiClient {
             .build()
     }
 
+    /** 规范化 Cookie 头：去重、剔除属性字段，仅保留 name=value。 */
     internal fun normalizeCookieHeader(cookieHeader: String): String {
         if (cookieHeader.isBlank()) return ""
         val normalizedCookies = linkedMapOf<String, Pair<String, String>>()
@@ -109,6 +116,7 @@ class AriesApiClient {
         return normalizedCookies.values.joinToString("; ") { (name, value) -> "$name=$value" }
     }
 
+    /** 构建在请求缺少 Cookie 时自动附带指定 Cookie 头的客户端。 */
     private fun buildCookieHeaderClient(cookieHeader: String): OkHttpClient {
         val normalizedCookieHeader = normalizeCookieHeader(cookieHeader)
         return OkHttpClient.Builder()
@@ -165,6 +173,7 @@ class AriesApiClient {
             )
         }
 
+    /** 使用用户 access token 获取或创建 API Token；userId 无效时会先查询当前用户。 */
     suspend fun getOrCreateAriesTokenWithUserAccessToken(
         userAccessToken: String,
         userId: Int,
@@ -187,6 +196,7 @@ class AriesApiClient {
             )
         }
 
+    /** 使用已携带鉴权信息的客户端获取或创建 API Token。 */
     suspend fun getOrCreateAriesTokenWithAuthenticatedClient(
         client: OkHttpClient,
         userId: Int,
@@ -198,6 +208,7 @@ class AriesApiClient {
             )
         }
 
+    /** 使用站点登录会话 Cookie 获取或创建 API Token。 */
     suspend fun getOrCreateAriesTokenWithSessionCookie(
         cookieHeader: String,
         userId: Int,
@@ -233,6 +244,7 @@ class AriesApiClient {
 
     // ─── 私有步骤 ────────────────────────────────────────────────────────────
 
+    /** 提交账号密码登录，成功时在 CookieJar 中留下 session。 */
     private fun login(client: OkHttpClient, username: String, password: String): LoginResult {
         val body = buildJsonObject {
             put("username", username)
@@ -255,6 +267,7 @@ class AriesApiClient {
         }
     }
 
+    /** 解析登录响应，提取 success 与 data.id。 */
     private fun parseLoginResponse(raw: String, code: Int): LoginResult {
         return try {
             val obj = json.parseToJsonElement(raw).jsonObject
@@ -273,6 +286,7 @@ class AriesApiClient {
         }
     }
 
+    /** 查找已有 Token，存在则取回其 Key，否则新建。 */
     private fun getOrCreateAriesToken(
         client: OkHttpClient,
         userId: Int,
@@ -284,6 +298,7 @@ class AriesApiClient {
         return createToken(client, userId, userAccessToken)
     }
 
+    /** 通过 /api/user/self 查询当前登录用户 ID。 */
     private fun fetchCurrentUserId(client: OkHttpClient, userAccessToken: String = ""): Result<Int> {
         val request = Request.Builder()
             .url("$BASE_URL/api/user/self")
@@ -312,6 +327,7 @@ class AriesApiClient {
         }
     }
 
+    /** 在 Token 列表中按名称查找匹配项。 */
     private fun findTokenByName(
         client: OkHttpClient,
         userId: Int,
@@ -337,6 +353,7 @@ class AriesApiClient {
         }
     }
 
+    /** 创建一个无限额度、永不过期的 API Token。 */
     private fun createToken(
         client: OkHttpClient,
         userId: Int,
@@ -378,6 +395,7 @@ class AriesApiClient {
         }
     }
 
+    /** 创建响应未直接返回 Key 时，按名称回查并取回 Key。 */
     private fun fetchCreatedTokenKeyByName(
         client: OkHttpClient,
         userId: Int,
@@ -393,6 +411,7 @@ class AriesApiClient {
         }
     }
 
+    /** 按 Token ID 取回其 API Key。 */
     private fun fetchTokenKeyById(
         client: OkHttpClient,
         userId: Int,
@@ -417,6 +436,7 @@ class AriesApiClient {
         }
     }
 
+    /** 解析 Token 列表响应为摘要列表。 */
     private fun parseTokenListResponse(raw: String, code: Int): Result<List<TokenSummary>> {
         if (raw.isBlank()) return Result.failure(Exception("Token 列表响应为空 (HTTP $code)"))
         return try {
@@ -441,6 +461,7 @@ class AriesApiClient {
         }
     }
 
+    /** 解析 Token Key 响应，兼容 data.key 与顶层 key 两种结构。 */
     private fun parseTokenKeyResponse(raw: String, code: Int, tokenId: Int): TokenResult {
         if (raw.isBlank()) return TokenResult(success = false, message = "Token Key 响应为空 (HTTP $code)")
         return try {
@@ -464,6 +485,11 @@ class AriesApiClient {
         }
     }
 
+    /**
+     * 解析创建 Token 的响应。
+     *
+     * data 可能是含 key 的对象，也可能只是整数 ID（此时需上层回查 Key）。
+     */
     private fun parseTokenResponse(raw: String, code: Int): TokenResult {
         if (raw.isBlank()) return TokenResult(success = false, message = "响应为空 (HTTP $code)")
         return try {
@@ -496,9 +522,11 @@ class AriesApiClient {
         }
     }
 
+    /** 解析原始 JSON 判断是否为成功响应。 */
     private fun isSuccessResponse(raw: String): Boolean =
         runCatching { isSuccessResponse(json.parseToJsonElement(raw).jsonObject) }.getOrDefault(false)
 
+    /** 兼容布尔与字符串两种 success 字段形态。 */
     private fun isSuccessResponse(obj: JsonObject): Boolean {
         val successPrimitive = obj["success"]?.jsonPrimitive
         return successPrimitive?.booleanOrNull
@@ -534,6 +562,7 @@ class AriesApiClient {
             }
         }
 
+    /** 解析 /v1/models 响应为按 id 排序的模型列表。 */
     private fun parseModelsResponse(raw: String, code: Int): Result<List<ModelInfo>> {
         if (raw.isBlank()) return Result.failure(Exception("模型列表响应为空 (HTTP $code)"))
         return try {
@@ -553,11 +582,22 @@ class AriesApiClient {
     }
 
     companion object {
+        /** 站点根地址。 */
         const val BASE_URL = "https://api.aries.org.cn"
+
+        /** OpenAI 兼容接口前缀。 */
         const val ARIES_API_V1_BASE_URL = "https://api.aries.org.cn/v1"
+
+        /** 默认对话模型。 */
         const val ARIES_CHAT_MODEL = "星环"
+
+        /** 视觉/多模态模型。 */
         const val ARIES_VISION_MODEL = "星环 Pro"
+
+        /** 自动化场景模型。 */
         const val ARIES_AUTOMATION_MODEL = "GUI"
+
+        /** 自动创建的 Token 名称。 */
         private const val ARIES_TOKEN_NAME = "Ariesphone"
         private val COOKIE_ATTRIBUTE_NAMES =
             setOf(
