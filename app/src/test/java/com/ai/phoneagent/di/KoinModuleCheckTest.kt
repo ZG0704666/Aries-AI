@@ -44,13 +44,13 @@ import org.koin.test.get
 import kotlin.test.assertNotNull
 
 /**
- * Koin module verification test.
+ * Koin 模块校验测试。
  *
- * Verifies that the combined Koin DI graph (appModule + dataModule + networkModule + uiModule)
- * resolves correctly without missing dependencies.
+ * 验证组合后的 Koin DI 依赖图（appModule + dataModule + networkModule + uiModule）
+ * 能否在无缺失依赖的情况下正确解析。
  *
- * Strategy: Replace Android-dependent modules (dataModule, networkModule) with mock overrides,
- * then verify the full graph resolves. This tests the WIRING, not the implementations.
+ * 策略：用 mock 覆盖替换依赖 Android 的模块（dataModule、networkModule），
+ * 再验证整个依赖图可解析。这里测试的是「装配」，而非实现本身。
  */
 class KoinModuleCheckTest : KoinTest {
 
@@ -60,7 +60,7 @@ class KoinModuleCheckTest : KoinTest {
     }
 
     /**
-     * Verify appModule resolves AppState singleton correctly.
+     * 验证 appModule 能正确解析 AppState 单例。
      */
     @Test
     fun `appModule resolves AppState`() {
@@ -76,10 +76,10 @@ class KoinModuleCheckTest : KoinTest {
     }
 
     /**
-     * Verify the combined graph wires correctly when Android dependencies are pre-provided.
+     * 验证在 Android 依赖预先提供的情况下，组合依赖图能正确装配。
      *
-     * We supply mock overrides for everything that needs Android context (dataModule, networkModule)
-     * and test that uiModule ViewModels can resolve their dependencies.
+     * 对所有需要 Android Context 的绑定（dataModule、networkModule）提供 mock 覆盖，
+     * 并测试 uiModule 的各 ViewModel 能否解析其依赖。
      */
     @Test
     fun `full module graph resolves with mock overrides`() {
@@ -88,7 +88,7 @@ class KoinModuleCheckTest : KoinTest {
         val mockDao = mockk<ConversationDao>(relaxed = true)
         every { mockDb.conversationDao() } returns mockDao
 
-        // Pre-supply all Android-dependent bindings so the graph resolves
+        // 预先提供全部依赖 Android 的绑定，使依赖图可解析
         val testOverrides = module {
             single<AriesDatabase> { mockDb }
             single<ConversationDao> { mockDao }
@@ -108,12 +108,12 @@ class KoinModuleCheckTest : KoinTest {
             modules(
                 appModule,
                 testOverrides,
-                // Skip dataModule and networkModule since we override them fully
+                // dataModule 与 networkModule 已被完整覆盖，跳过
                 uiModule
             )
         }
 
-        // Verify key singletons resolve
+        // 验证关键单例可解析
         assertNotNull(get<AppState>())
         assertNotNull(get<AriesDatabase>())
         assertNotNull(get<OkHttpClient>())

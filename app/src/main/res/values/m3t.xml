@@ -47,6 +47,11 @@
     <dimen name="m3t_top_bar_title_gap">8dp</dimen>
     <dimen name="m3t_input_bar_shadow">10dp</dimen>
 
+    <!-- 输入栏：上浮时改用不透明遮罩，保证文字可读性 -->
+    <dimen name="m3t_input_bar_elevation">3dp</dimen>
+    <dimen name="m3t_input_bar_stroke">1dp</dimen>
+    <color name="m3t_input_bar_action_bg">#1F000000</color>
+
     <!-- M3T Typography -->
     <style name="TextAppearance.M3t.ToolbarTitle" parent="TextAppearance.MaterialComponents.Headline6">
         <item name="android:textSize">20sp</item>
@@ -375,7 +380,7 @@
         <item name="cornerSizeTopRight">@dimen/m3t_radius_xl</item>
     </style>
 
-    <!-- Compatibility aliases -->
+    <!-- 兼容性别名 -->
     <style name="Widget.Aries.Toolbar" parent="Widget.M3t.Toolbar" />
     <style name="Widget.Aries.Card" parent="Widget.M3t.Card" />
     <style name="Widget.Aries.Button" parent="Widget.M3t.Button.Filled" />

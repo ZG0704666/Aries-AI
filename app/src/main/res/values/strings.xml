@@ -354,7 +354,7 @@
     <string name="aries_model_change">更换模型</string>
     <string name="aries_current_model">模型：%1$s</string>
 
-    <!-- Membership -->
+    <!-- 会员 -->
     <string name="membership_title">Aries 会员</string>
     <string name="membership_tier_basic">基础版</string>
     <string name="membership_tier_basic_price">免费</string>
@@ -424,7 +424,7 @@
     <string name="message_thinking_duration_format">思考了 %1$.1f 秒</string>
     <string name="message_thinking_in_progress">思考中</string>
 
-    <!-- Appearance Settings -->
+    <!-- 外观设置 -->
     <string name="settings_appearance_title">外观</string>
     <string name="settings_appearance_theme_mode">主题模式</string>
     <string name="settings_appearance_theme_system">跟随系统</string>

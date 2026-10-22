@@ -13,16 +13,32 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+/**
+ * 本地推理引擎。
+ *
+ * 负责管理本地模型会话，并支持流式/非流式对话、思维链解析与循环输出保护。
+ */
 class LocalMnnInferenceEngine(
     private val modelScopeModelDownloader: ModelScopeModelDownloader,
 ) {
+    /** 保护会话初始化/切换。 */
     private val initMutex = Mutex()
+
+    /** 串行化推理请求，避免同一会话并发调用。 */
     private val requestMutex = Mutex()
+
+    /** 临时图片文件序号，避免同名冲突。 */
     private val tempImageSeq = AtomicLong(0L)
 
+    /** 当前会话使用的配置路径。 */
     @Volatile private var activeConfigPath: String? = null
+
+    /** 当前活跃的推理会话。 */
     @Volatile private var activeSession: LlmSession? = null
 
+    /**
+     * 流式推理：逐片段回调思维链与正文，支持外部停止与自动截断。
+     */
     suspend fun sendChatStreamResult(
         context: Context,
         messages: List<ChatRequestMessage>,
@@ -91,6 +107,9 @@ class LocalMnnInferenceEngine(
         }
     }
 
+    /**
+     * 非流式推理：等待完成后返回正文（去除思维链标签）。
+     */
     suspend fun sendChatResult(
         context: Context,
         messages: List<ChatRequestMessage>,
@@ -152,6 +171,7 @@ class LocalMnnInferenceEngine(
         }
     }
 
+    /** 释放当前会话与配置缓存。 */
     suspend fun releaseSession() {
         initMutex.withLock {
             activeSession?.release()
@@ -160,6 +180,7 @@ class LocalMnnInferenceEngine(
         }
     }
 
+    /** 获取当前配置对应的会话；配置变化时重建会话。 */
     private suspend fun ensureSession(context: Context): LlmSession {
         val configPath =
             modelScopeModelDownloader.getQwen35ConfigPath(context)
@@ -182,6 +203,7 @@ class LocalMnnInferenceEngine(
         }
     }
 
+    /** 将消息列表转换为推理运行时所需的 (角色, 文本) 历史；跳过空内容。 */
     private fun buildHistory(
         context: Context,
         messages: List<ChatRequestMessage>
@@ -196,6 +218,7 @@ class LocalMnnInferenceEngine(
         return result
     }
 
+    /** 将任意内容归一为本地推理提示文本。 */
     private fun toLocalPromptText(context: Context, content: Any): String {
         return when (content) {
             is String -> content
@@ -204,6 +227,7 @@ class LocalMnnInferenceEngine(
         }
     }
 
+    /** 将多模态内容拼接为提示文本：文本直连，图片转为 `<img>` 本地路径标记。 */
     private fun buildPromptFromMultimodalContent(context: Context, content: List<*>): String {
         val sb = StringBuilder()
         content.forEach { item ->
@@ -227,6 +251,7 @@ class LocalMnnInferenceEngine(
         return sb.toString()
     }
 
+    /** 从图片分段中提取 URL。 */
     private fun extractImageUrl(item: Map<*, *>): String? {
         val imageUrlValue = item["image_url"] ?: return null
         return when (imageUrlValue) {
@@ -236,6 +261,11 @@ class LocalMnnInferenceEngine(
         }
     }
 
+    /**
+     * 将图片 URL 解析为可用的本地文件路径。
+     *
+     * 支持 data URI、content:// 与 file:///绝对路径，并落到缓存目录的临时文件。
+     */
     private fun resolveImageUrlToPath(context: Context, url: String): String? {
         val trimmed = url.trim()
         if (trimmed.isBlank()) return null
@@ -254,6 +284,7 @@ class LocalMnnInferenceEngine(
         }
     }
 
+    /** 解码 base64 data URI 到临时文件，超出大小限制或非法时返回 null。 */
     private fun decodeDataUriToTempFile(context: Context, dataUri: String): File? {
         val commaIndex = dataUri.indexOf(',')
         if (commaIndex <= 0 || commaIndex >= dataUri.lastIndex) return null
@@ -281,6 +312,7 @@ class LocalMnnInferenceEngine(
             }
     }
 
+    /** 将 content URI 指向的图片复制到临时文件，超大或读取失败返回 null。 */
     private fun copyUriToTempFile(context: Context, uri: Uri): File? {
         val declaredSize =
             runCatching {
@@ -310,10 +342,12 @@ class LocalMnnInferenceEngine(
             }
     }
 
+    /** 判断本地图片文件是否存在、为普通文件且大小在允许范围内。 */
     private fun isLocalImageFileUsable(file: File): Boolean {
         return file.exists() && file.isFile && file.length() in 1..LOCAL_MAX_IMAGE_BYTES
     }
 
+    /** 估算 base64 解码后的字节数（用于解码前的体积校验）。 */
     private fun estimateDecodedBase64Bytes(base64Data: String): Long? {
         if (base64Data.isEmpty()) return 0L
         val padding =
@@ -326,6 +360,7 @@ class LocalMnnInferenceEngine(
         return decodedSize.takeIf { it >= 0L }
     }
 
+    /** 带字节上限的流复制；超限或为空时返回 false。 */
     private fun copyStreamToFileWithLimit(
         input: java.io.InputStream,
         target: File,
@@ -347,16 +382,19 @@ class LocalMnnInferenceEngine(
         return totalBytes > 0L
     }
 
+    /** 静默删除文件，忽略一切异常。 */
     private fun deleteQuietly(file: File?) {
         if (file == null) return
         runCatching { file.delete() }
     }
 
+    /** 根据 data URI 头部推断文件扩展名。 */
     private fun extensionFromDataUriHeader(header: String): String {
         val mime = header.substringAfter("data:", "").substringBefore(';').lowercase()
         return extensionFromMimeType(mime)
     }
 
+    /** 根据 URI 路径后缀推断图片扩展名，默认 jpg。 */
     private fun extensionFromUri(uri: Uri): String {
         val path = uri.path.orEmpty().lowercase()
         return when {
@@ -369,6 +407,7 @@ class LocalMnnInferenceEngine(
         }
     }
 
+    /** 根据 MIME 类型映射图片扩展名，默认 jpg。 */
     private fun extensionFromMimeType(mime: String): String {
         return when (mime) {
             "image/png" -> "png"
@@ -380,6 +419,7 @@ class LocalMnnInferenceEngine(
         }
     }
 
+    /** 在缓存目录创建唯一命名的临时图片文件，并顺带清理过期文件。 */
     private fun createTempImageFile(context: Context, extension: String): File {
         val dir = File(context.cacheDir, TEMP_IMAGE_DIR)
         if (!dir.exists()) {
@@ -390,6 +430,7 @@ class LocalMnnInferenceEngine(
         return File(dir, fileName)
     }
 
+    /** 删除超过 TTL 的临时图片文件。 */
     private fun cleanupExpiredTempFiles(dir: File) {
         val now = System.currentTimeMillis()
         dir.listFiles()?.forEach { file ->
@@ -399,10 +440,16 @@ class LocalMnnInferenceEngine(
         }
     }
 
+    /** 移除文本中的思维链标签内容。 */
     private fun stripThinkTags(text: String): String {
         return text.replace(Regex("<think>[\\s\\S]*?</think>"), "").trim()
     }
 
+    /**
+     * 流式解析思维链标签：将 ` thinking` 区间回调给 [onReasoning]，其余回调给 [onContent]。
+     *
+     * 使用缓冲区持有可能被截断的标签前缀，避免跨片段标签被误判。
+     */
     private class ThinkTagStreamParser(
         private val onReasoning: (String) -> Unit,
         private val onContent: (String) -> Unit,
@@ -410,12 +457,14 @@ class LocalMnnInferenceEngine(
         private val buffer = StringBuilder()
         private var inThink = false
 
+        /** 喂入一个新片段并尽可能解析出完整内容。 */
         fun feed(chunk: String) {
             if (chunk.isEmpty()) return
             buffer.append(chunk)
             parseAvailable()
         }
 
+        /** 结束解析，按当前所处区间清空剩余缓冲。 */
         fun finish() {
             if (buffer.isEmpty()) return
             val remaining = buffer.toString()
@@ -425,6 +474,7 @@ class LocalMnnInferenceEngine(
             buffer.clear()
         }
 
+        /** 在缓冲区中循环查找标签边界并分发内容。 */
         private fun parseAvailable() {
             while (buffer.isNotEmpty()) {
                 if (inThink) {
@@ -455,6 +505,7 @@ class LocalMnnInferenceEngine(
             }
         }
 
+        /** 发出安全内容，并在缓冲区尾部保留可能被截断的标签前缀。 */
         private fun emitKeepingPotentialTag(marker: String, emit: (String) -> Unit) {
             val keepTail = marker.length - 1
             val emitLen = (buffer.length - keepTail).coerceAtLeast(0)
@@ -469,6 +520,11 @@ class LocalMnnInferenceEngine(
         }
     }
 
+    /**
+     * 生成长度/时长/重复保护。
+     *
+     * 命中任一条件即置位 [hitGuard]，用于中断疑似循环或过长的输出。
+     */
     private class GenerationGuard {
         private val startedAt = System.currentTimeMillis()
         private val output = StringBuilder()
@@ -477,6 +533,7 @@ class LocalMnnInferenceEngine(
         var hitGuard: Boolean = false
             private set
 
+        /** 记录一个片段，用于重复检测。 */
         fun recordChunk(chunk: String) {
             if (chunk.isEmpty()) return
             output.append(chunk)
@@ -485,6 +542,7 @@ class LocalMnnInferenceEngine(
             lastChunk = chunk
         }
 
+        /** 判断是否应中断生成（超时、超长、重复片段或尾部循环）。 */
         fun shouldInterrupt(): Boolean {
             if (hitGuard) return true
 
@@ -512,6 +570,7 @@ class LocalMnnInferenceEngine(
             return false
         }
 
+        /** 检测输出尾部是否出现固定长度的重复循环。 */
         private fun hasTailLoop(sb: StringBuilder): Boolean {
             val text = sb.toString()
             if (text.length < 96) return false
@@ -529,12 +588,25 @@ class LocalMnnInferenceEngine(
     }
 
     companion object {
+        /** 临时图片目录名。 */
         private const val TEMP_IMAGE_DIR = "local_mnn_images"
+
+        /** 临时图片存活时长（24 小时）。 */
         private const val TEMP_IMAGE_TTL_MS = 24L * 60L * 60L * 1000L
+
+        /** 单次生成的最大新 token 数。 */
         private const val LOCAL_MAX_NEW_TOKENS = 640
+
+        /** 单次生成的最长时长（毫秒）。 */
         private const val LOCAL_MAX_DURATION_MS = 75_000L
+
+        /** 单次生成的最大字符数。 */
         private const val LOCAL_MAX_OUTPUT_CHARS = 3600
+
+        /** 连续相同片段达到该次数即视为循环。 */
         private const val LOCAL_MAX_REPEAT_CHUNK_STREAK = 22
+
+        /** 单张图片的最大字节数。 */
         private const val LOCAL_MAX_IMAGE_BYTES = 8L * 1024L * 1024L
 
     }

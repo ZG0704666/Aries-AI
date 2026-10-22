@@ -2,11 +2,13 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
 }
 
+// 从 local.properties 读取 GitHub Token；文件缺失或未配置时返回空串。
 val githubToken: String by lazy {
     val f = rootProject.file("local.properties")
     if (!f.exists()) return@lazy ""
@@ -23,6 +25,7 @@ val githubToken: String by lazy {
     line.substring(eqIdx + 1).trim()
 }
 
+// 通用本地属性读取：按 key 在 local.properties 中查找，未找到时返回空串。
 fun localProperty(name: String): String {
     val f = rootProject.file("local.properties")
     if (!f.exists()) return ""
@@ -39,15 +42,17 @@ fun localProperty(name: String): String {
     return line.substring(eqIdx + 1).trim()
 }
 
+// 读取本地属性，未配置时回落到默认值。
 fun localProperty(name: String, defaultValue: String): String =
     localProperty(name).ifBlank { defaultValue }
 
+// 转义反斜杠与双引号，确保写入 BuildConfig 字符串字面量时的安全性。
 fun escapedBuildConfigString(value: String): String =
     value.replace("\\", "\\\\").replace("\"", "\\\"")
 
 android {
     namespace = "com.ai.phoneagent"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = "28.2.13676358"
 
     externalNativeBuild {
@@ -64,6 +69,7 @@ android {
         versionCode = 21
         versionName = "2.0.0 Alpha"
 
+        // 默认 BuildConfig 占位：实际 Token 与遥测地址在 buildTypes 中按变体覆盖。
         buildConfigField("String", "GITHUB_TOKEN", "\"\"")
         buildConfigField(
             "String",
@@ -173,7 +179,7 @@ dependencies {
     // 协程
     implementation(libs.kotlinx.coroutines.android)
 
-    // Immutable Collections
+    // 不可变集合
     implementation(libs.kotlinx.collections.immutable)
 
     // 网络与序列化
@@ -199,30 +205,30 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     
-    // Koin - Dependency Injection
+    // Koin - 依赖注入
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
     testImplementation(libs.koin.test)
     testImplementation(libs.koin.test.junit4)
     
-    // Coil - Image Loading (Coil 2 for existing code, Coil 3 for new Markdown module)
+    // Coil - 图片加载（既有代码用 Coil 2，新 Markdown 模块用 Coil 3）
     implementation(libs.coil.compose)
     implementation(libs.coil3.compose)
     implementation(libs.coil3.network.okhttp)
     
-    // Lucide Icons
+    // Lucide 图标
     implementation(libs.compose.icons.lucide)
     
-    // Markdown Renderer (mikepenz - kept during transition)
+    // Markdown 渲染器（mikepenz - 过渡期保留）
     implementation(libs.multiplatform.markdown.renderer)
     
-    // Self-hosted Markdown rendering module deps
+    // 自托管 Markdown 渲染模块依赖
     implementation(libs.jetbrains.markdown)          // JetBrains AST parser
     implementation(libs.quickjs.kt)                  // QuickJS + Prism.js highlighting
     implementation(libs.jlatexmath.android)          // JLatexMath for Android
     implementation(libs.jsoup)                       // HTML parsing
     
-    // Test Dependencies
+    // 测试依赖
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)
     testImplementation(libs.robolectric)

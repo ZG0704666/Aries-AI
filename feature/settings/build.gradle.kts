@@ -2,12 +2,13 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
 android {
     namespace = "com.ai.phoneagent.feature.settings"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 30

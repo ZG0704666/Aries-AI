@@ -18,13 +18,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Download
 import com.composables.icons.lucide.ExternalLink
-import androidx.compose.material3.AlertDialog
+import com.ai.phoneagent.ui.components.AriesAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -83,7 +81,7 @@ fun UpdateHistoryScreen(
                 .padding(innerPadding)
                 .navigationBarsPadding()
         ) {
-            // Pre-release switch
+            // 预发布版本开关
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -169,16 +167,14 @@ fun UpdateHistoryScreen(
     }
 
     uiState.detailDialogState?.let { entry ->
-        AlertDialog(
+        AriesAlertDialog(
             onDismissRequest = { viewModel.dismissDetails() },
             title = { Text(entry.versionTag) },
             text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    Text(
-                        text = entry.body.ifBlank { stringResource(R.string.m3t_updates_no_changelog) },
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
+                Text(
+                    text = entry.body.ifBlank { stringResource(R.string.m3t_updates_no_changelog) },
+                    style = MaterialTheme.typography.bodyMedium
+                )
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -197,7 +193,7 @@ fun UpdateHistoryScreen(
     }
 
     uiState.downloadOptionsDialogState?.let { state ->
-        AlertDialog(
+        AriesAlertDialog(
             onDismissRequest = { viewModel.dismissDownloadOptionsDialog() },
             title = { Text(stringResource(R.string.m3t_updates_choose_source)) },
             text = {

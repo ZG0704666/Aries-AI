@@ -88,8 +88,8 @@ class AutomationViewModel(
         private const val SHIZUKU_PERMISSION_REQUEST_CODE = 2026
 
         /**
-         * Pending launch args set by MainActivity when receiving automation intents.
-         * AutomationScreen consumes these on composition.
+         * MainActivity 收到自动化 Intent 时暂存的待处理启动参数。
+         * AutomationScreen 组合时消费。
          */
         @Volatile
         var pendingLaunchArgs: LaunchArgs? = null
@@ -1290,7 +1290,7 @@ class AutomationViewModel(
     fun appendLog(message: String) {
         val originatingRunId = mutableTask.value?.runId
         viewModelScope.launch(Dispatchers.Main) {
-            // A queued log from an older run must not overwrite the current run.
+            // 旧一轮运行排队的日志不得覆盖当前运行。
             if (mutableTask.value?.runId != originatingRunId) return@launch
 
             logText =

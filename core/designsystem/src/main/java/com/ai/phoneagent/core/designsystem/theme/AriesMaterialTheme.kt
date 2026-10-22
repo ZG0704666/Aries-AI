@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.ai.phoneagent.core.designsystem.R
 
+/** 默认中文字体族：Noto Sans SC，按字重映射可变字体轴。 */
 @OptIn(ExperimentalTextApi::class)
 val AriesFontFamily = FontFamily(
     Font(R.font.noto_sans_sc, FontWeight.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(400))),
@@ -54,16 +55,16 @@ val AriesFontFamily = FontFamily(
 )
 
 /**
- * Aries Material Theme.
+ * Aries Material 主题。
  *
- * Priority: AMOLED > Selected color style > Surface ladder.
+ * 配色优先级：AMOLED 纯黑 > 所选配色风格 > 资源表面阶梯。
  *
- * @param themeMode    Controls light/dark selection. Defaults to system setting.
- * @param themeColorStyle Single source of truth for theme color generation.
- * @param amoledDark   When true and dark is active, forces pure-black backgrounds.
- * @param fontScale    Multiplier applied to all Material 3 type-scale font sizes.
- * @param fontFamily   Font family applied to all Material 3 text styles.
- * @param content      Composable content within this theme.
+ * @param themeMode 明暗模式，默认跟随系统。
+ * @param themeColorStyle 主题配色的唯一来源。
+ * @param amoledDark 深色模式下是否强制纯黑背景。
+ * @param fontScale 应用于全部 M3 字号的比例系数。
+ * @param fontFamily 应用于全部 M3 文本样式的字体族。
+ * @param content 主题内的可组合内容。
  */
 @Composable
 fun AriesMaterialTheme(
@@ -74,7 +75,7 @@ fun AriesMaterialTheme(
     fontFamily: FontFamily = FontFamily.Default,
     content: @Composable () -> Unit,
 ) {
-    // 1. Resolve dark/light from themeMode
+    // 1. 根据 themeMode 解析深/浅色
     val darkTheme: Boolean = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
@@ -98,7 +99,7 @@ fun AriesMaterialTheme(
             themeColorStyle
         }
 
-    // 2. Base color scheme: Dynamic style or token-backed preset style
+    // 2. 基础配色方案：动态取色或基于资源的预设风格
     val baseColorScheme: ColorScheme = when {
         effectiveThemeColorStyle.isDynamic && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -149,7 +150,7 @@ fun AriesMaterialTheme(
             extraLarge = RoundedCornerShape(dimensionResource(R.dimen.m3t_radius_xl)),
         )
 
-    // 4. Font scale + font family: update all M3 type-scale TextStyles
+    // 4. 字号缩放 + 字体族：更新全部 M3 字号文本样式
     val effectiveFontFamily = if (fontFamily == FontFamily.Default) AriesFontFamily else fontFamily
     val baseTypography = Typography(
         headlineLarge = TextStyle(fontSize = with(androidx.compose.ui.platform.LocalDensity.current) { dimensionResource(R.dimen.aries_type_hero).toSp() }, fontWeight = FontWeight.SemiBold),
@@ -193,12 +194,15 @@ fun AriesMaterialTheme(
     )
 }
 
+/** 按比例缩放文本字号。 */
 private fun TextStyle.scaledBy(factor: Float): TextStyle =
     copy(fontSize = fontSize * factor)
 
+/** 替换文本样式的字体族。 */
 private fun TextStyle.withFontFamily(fontFamily: FontFamily): TextStyle =
     copy(fontFamily = fontFamily)
 
+/** 基于资源令牌构建深色配色方案。 */
 private fun buildDarkTokenColorScheme(context: Context): ColorScheme =
     darkColorScheme(
         primary = context.themeColor(R.color.m3t_primary),
@@ -227,6 +231,7 @@ private fun buildDarkTokenColorScheme(context: Context): ColorScheme =
         inverseOnSurface = context.themeColor(R.color.m3t_inverse_on_surface),
     )
 
+/** 基于资源令牌构建浅色配色方案。 */
 private fun buildLightTokenColorScheme(context: Context): ColorScheme =
     lightColorScheme(
         primary = context.themeColor(R.color.m3t_primary),
@@ -255,6 +260,7 @@ private fun buildLightTokenColorScheme(context: Context): ColorScheme =
         inverseOnSurface = context.themeColor(R.color.m3t_inverse_on_surface),
     )
 
+/** 用资源令牌覆盖表面层级（surfaceContainer 系列）与描边色。 */
 private fun ColorScheme.applyTokenSurfaceLadder(context: Context): ColorScheme =
     copy(
         background = context.themeColor(R.color.m3t_background),
@@ -276,9 +282,11 @@ private fun ColorScheme.applyTokenSurfaceLadder(context: Context): ColorScheme =
         surfaceContainerHighest = context.themeColor(R.color.m3t_surface_variant),
     )
 
+/** 将颜色资源解析为 Compose [Color]。 */
 private fun Context.themeColor(colorResId: Int): Color =
     Color(ContextCompat.getColor(this, colorResId))
 
+/** 主题预览用的示例内容。 */
 @Composable
 private fun AriesThemePreviewContent() {
     Column(
@@ -313,6 +321,7 @@ private fun AriesThemePreviewContent() {
     }
 }
 
+/** 预览：AMOLED + 动态取色（深色）。 */
 @Preview(showBackground = true, name = "AMOLED + Dynamic (Dark)")
 @Composable
 private fun AriesMaterialThemeAmoledDynamicDarkPreview() {
@@ -327,6 +336,7 @@ private fun AriesMaterialThemeAmoledDynamicDarkPreview() {
     }
 }
 
+/** 预览：非 AMOLED + 动态取色（深色）。 */
 @Preview(showBackground = true, name = "Non-AMOLED + Dynamic (Dark)")
 @Composable
 private fun AriesMaterialThemeDynamicDarkPreview() {

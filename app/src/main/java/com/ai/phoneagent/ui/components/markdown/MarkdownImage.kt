@@ -15,6 +15,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.forEachGesture
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,7 +33,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -49,11 +49,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
+import com.ai.phoneagent.ui.components.AriesFullScreenOverlay
+import com.ai.phoneagent.ui.components.LocalAriesOverlayController
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Download
 import com.composables.icons.lucide.X
@@ -62,14 +62,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  ZoomableAsyncImage
+// ─── ZoomableAsyncImage ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * An [AsyncImage] (Coil 3) that:
  *  - Shows a shimmer placeholder while loading
  *  - Supports pinch-to-zoom + pan gestures after load
- *  - Opens a full-screen [ImagePreviewDialog] on tap
+ *  - Opens a full-screen [ImagePreviewOverlay] on tap
  */
 @Composable
 fun ZoomableAsyncImage(
@@ -77,7 +77,7 @@ fun ZoomableAsyncImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
 ) {
-    var showPreview by remember { mutableStateOf(false) }
+    val overlayController = LocalAriesOverlayController.current
     val context = LocalContext.current
 
     SubcomposeAsyncImage(
@@ -99,34 +99,41 @@ fun ZoomableAsyncImage(
         },
         modifier = modifier
             .fillMaxWidth()
-            .clickable { showPreview = true },
+            .clickable {
+                overlayController?.let { controller ->
+                    controller.show {
+                        ImagePreviewOverlay(
+                            url = url,
+                            onDismiss = { controller.dismiss() },
+                        )
+                    }
+                }
+            },
     )
-
-    if (showPreview) {
-        ImagePreviewDialog(url = url, onDismiss = { showPreview = false })
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  ImagePreviewDialog – full-screen with zoom + download
+//  ImagePreviewOverlay – full-screen with zoom + download
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-fun ImagePreviewDialog(url: String, onDismiss: () -> Unit) {
+fun ImagePreviewOverlay(url: String, onDismiss: () -> Unit) {
     var scale     by remember { mutableFloatStateOf(1f) }
     var offset    by remember { mutableStateOf(Offset.Zero) }
     val context   = LocalContext.current
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties       = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
+    AriesFullScreenOverlay(onDismissRequest = onDismiss) {
         Surface(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    indication        = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                ) {},
             color    = Color.Black.copy(alpha = 0.95f),
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // Zoomable image
+                // 可缩放图片
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(url)
@@ -160,7 +167,7 @@ fun ImagePreviewDialog(url: String, onDismiss: () -> Unit) {
                         },
                 )
 
-                // Toolbar
+                // 工具栏
                 Row(
                     modifier          = Modifier
                         .fillMaxWidth()
@@ -184,7 +191,7 @@ fun ImagePreviewDialog(url: String, onDismiss: () -> Unit) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Shimmer placeholder
+// ─── 微光占位动画 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -217,7 +224,7 @@ fun ShimmerBox(modifier: Modifier = Modifier) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Download helper
+// ─── 下载辅助 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 private fun downloadImage(context: android.content.Context, url: String) {

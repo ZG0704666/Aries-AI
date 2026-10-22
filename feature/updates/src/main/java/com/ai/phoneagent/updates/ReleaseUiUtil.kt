@@ -11,17 +11,21 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
+/** 发布相关 UI 辅助：打开链接、生成镜像下载选项并探测可用性。 */
 object ReleaseUiUtil {
+    /** 镜像站点定义。 */
     private data class MirrorSite(
         val name: String,
         val buildUrl: (String) -> String,
     )
 
+    /** 可选的 GitHub 下载镜像（官方直连 + 加速镜像）。 */
     private val githubMirrors = listOf(
         MirrorSite("官方直连") { it },
         MirrorSite("镜像加速") { "https://ghfast.top/$it" },
     )
 
+    /** 在外部浏览器打开链接，无可用应用时返回 false。 */
     fun openUrl(context: Context, url: String): Boolean {
         val target = url.trim()
         if (target.isBlank()) return false
@@ -38,6 +42,11 @@ object ReleaseUiUtil {
         }
     }
 
+    /**
+     * 基于原始下载地址生成「名称 → 地址」形式的镜像下载选项。
+     *
+     * 非 Release 资产地址只返回官方直连。
+     */
     fun mirroredDownloadOptions(originalUrl: String?): List<Pair<String, String>> {
         // 优先使用 release asset 的 browser_download_url，避免镜像站对 latest/download 的
         // 302 跳转兼容性差导致点击无反馈。
@@ -58,12 +67,16 @@ object ReleaseUiUtil {
         }
     }
 
+    /** 单个镜像地址的探测结果。 */
     data class ProbeResult(
         val ok: Boolean,
         val latencyMs: Long?,
         val error: String? = null,
     )
 
+    /**
+     * 探测各镜像地址可用性，仅保留可用项并按延迟升序排列；全部不可用时回退为原始选项。
+     */
     suspend fun mirroredDownloadOptionsChecked(
         originalUrl: String?,
         timeoutMs: Int = 2500,
@@ -87,6 +100,7 @@ object ReleaseUiUtil {
         return if (ok.isNotEmpty()) ok else options
     }
 
+    /** 并发探测多个镜像地址并汇总结果。 */
     private suspend fun probeMirrorUrls(
         urls: Map<String, String>,
         timeoutMs: Int,
@@ -103,6 +117,7 @@ object ReleaseUiUtil {
         }
     }
 
+    /** 探测单个镜像地址：优先 HEAD，失败再 GET，记录耗时与状态码。 */
     private fun probeOneUrl(url: String, timeoutMs: Int): ProbeResult {
         val startNs = System.nanoTime()
         return try {
@@ -118,6 +133,11 @@ object ReleaseUiUtil {
         }
     }
 
+    /**
+     * 发起一次探测请求并返回状态码。
+     *
+     * GET 仅请求首个字节（`Range: bytes=0-0`）；不支持该方法时返回 null。
+     */
     private fun requestOnce(url: String, timeoutMs: Int, method: String): Int? {
         var conn: HttpURLConnection? = null
         return try {
@@ -143,6 +163,7 @@ object ReleaseUiUtil {
         }
     }
 
+    /** 将异常转换为面向用户的可读错误文案。 */
     fun formatError(t: Throwable): String {
         val msg = t.message?.trim().orEmpty()
         val m = Regex("HTTP\\s+(\\d{3})").find(msg)

@@ -1,9 +1,13 @@
 package com.ai.phoneagent.updates
 
+/**
+ * 发布信息仓库：拉取并整理 GitHub Releases 为 UI 可用的 [ReleaseEntry]。
+ */
 class ReleaseRepository(
     private val owner: String = UpdateConfig.REPO_OWNER,
     private val repo: String = UpdateConfig.REPO_NAME,
 ) {
+    /** 拉取指定分页的发布列表，过滤草稿并挑选 APK 附件。 */
     suspend fun fetchReleasePage(page: Int, perPage: Int): Result<List<ReleaseEntry>> {
         return runCatching {
             val releases = GitHubApiClient.listReleases(owner = owner, repo = repo, page = page, perPage = perPage)
@@ -36,6 +40,7 @@ class ReleaseRepository(
         }
     }
 
+    /** 逐页查找最新发布，最多翻 3 页；[includePrerelease] 为 false 时跳过预发布。 */
     suspend fun fetchLatestRelease(includePrerelease: Boolean): Result<ReleaseEntry?> {
         return runCatching {
             var page = 1
@@ -49,6 +54,9 @@ class ReleaseRepository(
         }
     }
 
+    /**
+     * 带韧性的最新版本查询：指数退避重试 3 次，仍失败则回退到 Atom 订阅。
+     */
     suspend fun fetchLatestReleaseResilient(includePrerelease: Boolean): Result<ReleaseEntry?> {
         var lastErr: Throwable? = null
         var delayMs = 500L

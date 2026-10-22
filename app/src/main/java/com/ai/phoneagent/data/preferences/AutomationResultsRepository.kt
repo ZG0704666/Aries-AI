@@ -12,8 +12,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 
+/** 自动化结果独立 DataStore，存储最近一次自动化任务的运行状态与日志。 */
 private val Context.automationResultsDataStore by preferencesDataStore(name = "automation_results")
 
+/** 自动化结果仓库：持久化最近一次自动化执行的结果快照（成败、消息、步数、日志等）。 */
 class AutomationResultsRepository(
     private val context: Context,
 ) {
@@ -109,6 +111,7 @@ class AutomationResultsRepository(
         }
     }
 
+    /** 一次性写入完整结果快照；未显式传入状态时按成败推导为 SUCCEEDED/FAILED。 */
     suspend fun saveResult(
         success: Boolean,
         message: String,
@@ -137,8 +140,9 @@ class AutomationResultsRepository(
         context.automationResultsDataStore.edit { prefs -> prefs.clear() }
     }
 
-    // ─── Blocking snapshot helpers ────────────────────────────────────────────
+    // ─── 阻塞式快照读取 ────────────────────────────────────────────
 
+    /** 最近一次自动化结果的快照数据。 */
     data class LastResult(
         val success: Boolean,
         val message: String,
@@ -153,6 +157,7 @@ class AutomationResultsRepository(
         fun matchesRun(id: String): Boolean = id.isNotBlank() && runId == id
     }
 
+    /** 从偏好项解码为 [LastResult]，缺失字段按默认值回填。 */
     private fun decode(prefs: androidx.datastore.preferences.core.Preferences) = LastResult(
         success = prefs[Keys.lastResultSuccess] ?: false,
         message = prefs[Keys.lastResultMessage].orEmpty(),

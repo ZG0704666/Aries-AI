@@ -34,6 +34,12 @@ private val Context.appPreferencesDataStore by preferencesDataStore(name = "app_
 private val Context.appSecretsDataStore by preferencesDataStore(name = "app_secrets")
 private val Context.legacyAppPreferencesDataStore by preferencesDataStore(name = "app_prefs")
 
+/**
+ * 应用主偏好仓库：管理 API 配置（含敏感密钥加密存储）、用户协议、会话持久化、主题外观等设置。
+ *
+ * 数据分为三个 DataStore：非敏感偏好、敏感密钥（经 [SecretStore] 加密）以及仅作迁移源的旧版混合存储；
+ * 公开读写会在旧数据搬迁完成（[migrationReady]）后才开始，避免升级期间读到空值。
+ */
 class AppPreferencesRepository(
     private val context: Context,
     private val secretStore: SecretStore,
@@ -391,6 +397,7 @@ class AppPreferencesRepository(
         return prefs.readSecret(Keys.ariesApiKey)
     }
 
+    /** 获取当前生效的 Aries API 密钥：优先专属密钥，否则仅在已登录时回退通用 API 密钥。 */
     suspend fun getActiveAriesApiKey(): String {
         val prefs = readySecretsFlow.first()
         val ariesKey = prefs.readSecret(Keys.ariesApiKey)
@@ -541,7 +548,7 @@ class AppPreferencesRepository(
         return resolveThemeColorStyleStorage(prefs)
     }
 
-    /** One-time restore requested for the Pencil v2 rollout; later choices remain editable. */
+    /** Pencil v2 上线时的一次性外观恢复；用户之后的自定义选择不受影响。 */
     suspend fun restorePencilAppearanceOnce() {
         editPrefs { prefs ->
             if (prefs[Keys.pencilDefaultsRestored] != true) {
@@ -836,6 +843,7 @@ class AppPreferencesRepository(
     fun getCodeAutoCollapseBlocking(): Boolean = runBlocking { getCodeAutoCollapse() }
     fun setCodeAutoCollapseBlocking(value: Boolean) = runBlocking { setCodeAutoCollapse(value) }
 
+    /** 解析主题配色样式的存储值：优先显式设置，其次动态取色开关，最后回退旧 accent 或默认值。 */
     private fun resolveThemeColorStyleStorage(
         prefs: androidx.datastore.preferences.core.Preferences,
     ): String {

@@ -37,9 +37,15 @@ import okhttp3.Request
 import org.koin.android.ext.android.inject
 import kotlin.coroutines.resume
 
+/**
+ * Aries API 站点 OAuth 登录承载页。
+ *
+ * 使用 WebView 完成 OIDC 授权，回调后从后端回调、Web 会话或站点接口中提取用户 access token 并换取 API Key。
+ */
 class AriesApiOAuthActivity : Activity() {
     private val ariesApiClient by inject<AriesApiClient>()
 
+    /** 站点登录结果。 */
     data class ApiLoginResult(
         val success: Boolean,
         val apiKey: String = "",
@@ -50,6 +56,16 @@ class AriesApiOAuthActivity : Activity() {
         val message: String = "",
     )
 
+    /**
+     * 一次待完成的登录会话。
+     *
+     * @property client 共享 CookieJar 的客户端。
+     * @property callbackApiUrl 站点 OIDC 回调地址。
+     * @property expectedRedirectUri 预期回调 URL，用于识别授权完成。
+     * @property initialCookies 打开授权页前需注入的 Cookie。
+     * @property currentCookies 读取当前会话 Cookie 的提供者。
+     * @property completion 登录完成回调。
+     */
     data class PendingSession(
         val client: OkHttpClient,
         val callbackApiUrl: String,
@@ -172,6 +188,7 @@ class AriesApiOAuthActivity : Activity() {
     private lateinit var progressLogView: TextView
     private val progressMessages = mutableListOf<String>()
 
+    /** 初始化 WebView、注入 Cookie 并加载授权页。 */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val session = pendingSession
@@ -200,14 +217,17 @@ class AriesApiOAuthActivity : Activity() {
         webView.settings.domStorageEnabled = true
         webView.webViewClient =
             object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
+                /** 拦截导航：命中回调地址时完成登录，否则放行。 */
+    override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
                     handleUrl(request.url.toString(), session)
 
                 @Suppress("OVERRIDE_DEPRECATION")
-                override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
+                /** 旧版 WebView 的导航拦截实现。 */
+    override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
                     handleUrl(url, session)
 
-                override fun onPageFinished(view: WebView, url: String) {
+                /** 页面加载完成后判断是否为回调页，并尝试从 Web 会话提取 token。 */
+    override fun onPageFinished(view: WebView, url: String) {
                     val callbackUrl = pendingCallbackUrl ?: url.takeIf { isApiCallbackUrl(url, session) }
                     if (callbackUrl != null) {
                         completeLoginWithBackendCallback(view, callbackUrl, session)
@@ -263,6 +283,7 @@ class AriesApiOAuthActivity : Activity() {
         webView.loadUrl(authUrl)
     }
 
+    /** 页面销毁：未完成登录时通知调用方失败并清理 WebView。 */
     override fun onDestroy() {
         if (!completed && !finalizing) {
             finishWith(ApiLoginResult(success = false, message = "Aries API 登录已取消"))
@@ -270,6 +291,7 @@ class AriesApiOAuthActivity : Activity() {
         super.onDestroy()
     }
 
+    /** 处理一次导航；命中回调地址则触发登录完成并返回 true。 */
     private fun handleUrl(url: String, session: PendingSession): Boolean {
         if (!isApiCallbackUrl(url, session)) return false
         val callbackUri = Uri.parse(url)
@@ -285,9 +307,11 @@ class AriesApiOAuthActivity : Activity() {
         return false
     }
 
+    /** 判断 URL 是否为预期的回调地址。 */
     private fun isApiCallbackUrl(url: String, session: PendingSession): Boolean =
         url.startsWith(session.expectedRedirectUri)
 
+    /** 使用后端回调 URL 完成登录，失败时依次回退到 Cookie 会话与 Web 控制台方案。 */
     private fun completeLoginWithBackendCallback(webView: WebView?, callbackUrl: String, session: PendingSession) {
         if (completed || finalizing) return
         finalizing = true
@@ -347,6 +371,7 @@ class AriesApiOAuthActivity : Activity() {
         }
     }
 
+    /** 调用站点 OIDC 回调接口换取用户 access token 与用户信息。 */
     private fun fetchUserAccessTokenFromBackendCallback(callbackUrl: String, session: PendingSession): ApiLoginResult {
         return try {
             val callbackUri = Uri.parse(callbackUrl)
@@ -418,6 +443,7 @@ class AriesApiOAuthActivity : Activity() {
         }
     }
 
+    /** 从 WebView 的本地/会话存储中提取 token，并据此换取 API Key。 */
     private fun fetchUserAccessTokenFromWebSession(webView: WebView, session: PendingSession) {
         if (completed || finalizing) return
         finalizing = true
@@ -437,6 +463,7 @@ class AriesApiOAuthActivity : Activity() {
         }
     }
 
+    /** 在 WebView 中执行存储扫描脚本并解析出 token。 */
     private suspend fun fetchUserAccessTokenFromWebStorage(webView: WebView): ApiLoginResult {
         var storageFailure = "WebView 存储中未发现 access token"
         repeat(8) {
@@ -449,6 +476,7 @@ class AriesApiOAuthActivity : Activity() {
         return ApiLoginResult(success = false, message = storageFailure)
     }
 
+    /** 执行存储快照脚本并返回结果 JSON。 */
     private suspend fun evaluateStorageSnapshot(webView: WebView): String =
         suspendCancellableCoroutine { continuation ->
             webView.evaluateJavascript(STORAGE_TOKEN_SCRIPT) { value ->
@@ -456,6 +484,7 @@ class AriesApiOAuthActivity : Activity() {
             }
         }
 
+    /** 在 WebView 中执行脚本并返回其字符串结果。 */
     private suspend fun evaluateJavascriptValue(
         webView: WebView,
         script: String,
@@ -466,11 +495,13 @@ class AriesApiOAuthActivity : Activity() {
             }
         }
 
+    /** 去除 WebView 返回值外层引号并反转义。 */
     private fun decodeJavascriptString(raw: String): String =
         runCatching { Json.parseToJsonElement(raw).jsonPrimitive.contentOrNull.orEmpty() }
             .getOrDefault(raw)
 
-        private fun buildWebTokenFetchScript(userId: Int): String {
+        /** 构建在页面上下文中请求站点 Token 接口的脚本。 */
+    private fun buildWebTokenFetchScript(userId: Int): String {
                 val userHeader = if (userId > 0) "'New-Api-User': '$userId'," else ""
                 return """
                         (function() {
@@ -558,6 +589,7 @@ class AriesApiOAuthActivity : Activity() {
                 """.trimIndent()
         }
 
+    /** 在 WebView 中调用站点控制台接口获取 API Key。 */
     private suspend fun fetchApiKeyFromWebConsole(webView: WebView): ApiLoginResult {
         var lastFailure = "WebView 令牌页中未发现 Aries API Key"
         var waitingLogged = false
@@ -604,6 +636,7 @@ class AriesApiOAuthActivity : Activity() {
         return ApiLoginResult(success = false, message = lastFailure)
     }
 
+    /** 汇总当前会话 Cookie 为请求头字符串。 */
     private fun collectSessionCookieHeader(session: PendingSession): String =
         ariesApiClient.normalizeCookieHeader(
             buildString {
@@ -619,6 +652,7 @@ class AriesApiOAuthActivity : Activity() {
             },
         )
 
+    /** 解析 Web 控制台返回的 Token 结果。 */
     private fun parseWebConsoleTokenResult(raw: String): ApiLoginResult =
         runCatching {
             val obj = Json.parseToJsonElement(raw).jsonObject
@@ -643,6 +677,7 @@ class AriesApiOAuthActivity : Activity() {
             ApiLoginResult(success = false, message = "WebView 令牌页结果解析失败: ${error.message.orEmpty()} body=${raw.take(300)}")
         }
 
+    /** 使用 Cookie 会话通过站点客户端换取 API Key。 */
     private fun buildCookieSessionResult(
         session: PendingSession,
         storageResult: ApiLoginResult,
@@ -663,6 +698,7 @@ class AriesApiOAuthActivity : Activity() {
         )
     }
 
+    /** 使用会话 Cookie 从站点接口获取用户 access token。 */
     private fun fetchUserAccessTokenFromCookieSession(session: PendingSession): ApiLoginResult =
         runCatching {
             var lastFailure = ApiLoginResult(success = false, message = "Aries API 登录态尚未写入")
@@ -694,6 +730,7 @@ class AriesApiOAuthActivity : Activity() {
             )
         }
 
+    /** 解析站点登录响应，提取 API Key、用户 token 与显示名。 */
     private fun parseApiLoginResponse(raw: String, code: Int, requireToken: Boolean = true): ApiLoginResult {
         if (raw.isBlank()) return ApiLoginResult(success = false, message = "Aries API 登录响应为空 HTTP $code")
         val obj =
@@ -756,6 +793,7 @@ class AriesApiOAuthActivity : Activity() {
         }
     }
 
+    /** 解析 Web 存储扫描结果，得到 token、userId 与显示名。 */
     private fun parseStorageLoginSnapshot(snapshot: String): ApiLoginResult {
         val raw =
             runCatching { Json.parseToJsonElement(snapshot).jsonPrimitive.contentOrNull.orEmpty() }
@@ -788,12 +826,15 @@ class AriesApiOAuthActivity : Activity() {
         }
     }
 
+    /** 安全转换为 [JsonObject]。 */
     private fun JsonElement.asJsonObjectOrNull() =
         runCatching { jsonObject }.getOrNull()
 
+    /** 提取 JSON 基本类型的字符串内容，非基本类型返回空串。 */
     private fun JsonElement.jsonPrimitiveOrNullContent(): String =
         runCatching { jsonPrimitive.contentOrNull }.getOrNull().orEmpty()
 
+    /** 兼容布尔与字符串两种 success 字段形态。 */
     private fun isSuccessResponse(obj: JsonObject): Boolean {
         val success = obj["success"]?.jsonPrimitive
         val codeValue = obj["code"]?.jsonPrimitive
@@ -804,12 +845,15 @@ class AriesApiOAuthActivity : Activity() {
             ?: false
     }
 
+    /** 读取 JSON 对象指定键的字符串值。 */
     private fun textAt(obj: JsonObject, key: String): String =
         obj[key]?.jsonPrimitiveOrNullContent().orEmpty()
 
+    /** 返回第一个非空字符串。 */
     private fun firstText(vararg values: String?): String =
         values.firstOrNull { !it.isNullOrBlank() }.orEmpty()
 
+    /** 结束流程：防止重复完成，回调结果并关闭页面。 */
     private fun finishWith(result: ApiLoginResult) {
         if (completed) return
         completed = true
@@ -828,6 +872,7 @@ class AriesApiOAuthActivity : Activity() {
         finish()
     }
 
+    /** 展示进度浮层并写入首条进度信息。 */
     private fun showProgressOverlay(message: String) {
         runOnUiThread {
             if (!::progressOverlay.isInitialized) return@runOnUiThread
@@ -837,6 +882,7 @@ class AriesApiOAuthActivity : Activity() {
         }
     }
 
+    /** 追加一条进度信息（去重）。 */
     private fun appendProgress(message: String) {
         runOnUiThread {
             if (!::progressLogView.isInitialized) return@runOnUiThread
@@ -844,6 +890,7 @@ class AriesApiOAuthActivity : Activity() {
         }
     }
 
+    /** 追加一行进度文本并滚动到底部。 */
     private fun appendProgressLine(message: String) {
         if (progressMessages.lastOrNull()?.endsWith(message) == true) return
         val timestamp = DateFormat.format("HH:mm:ss", System.currentTimeMillis()).toString()

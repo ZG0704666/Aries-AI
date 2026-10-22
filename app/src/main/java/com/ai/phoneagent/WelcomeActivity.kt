@@ -4,7 +4,7 @@
  *
  * Licensed under AGPL-3.0. See LICENSE for details.
  *
- * Adapted from autoglm_KY-master WelcomeActivity.kt
+ * Adapted from upstream reference implementation WelcomeActivity.kt
  */
 package com.ai.phoneagent
 

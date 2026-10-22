@@ -25,7 +25,7 @@ class SerializationTest {
     fun `ChatRequestMessage text content serializes to bare string`() {
         val message = ChatRequestMessage(role = "user", content = ChatContent.Text("hello"))
         val encoded = json.encodeToString(message)
-        // content must be a bare JSON string, not an object
+        // content 必须是裸 JSON 字符串，而非对象
         assertEquals("""{"role":"user","content":"hello"}""", encoded)
     }
 
@@ -139,7 +139,7 @@ class SerializationTest {
 
     @Test
     fun `ChatResponse ignores unknown fields`() {
-        // Extra fields like "id", "object", "usage" should not cause failure
+        // "id"、"object"、"usage" 等额外字段不应导致失败
         val jsonStr = """
             {
               "id": "chatcmpl-abc123",
@@ -223,7 +223,7 @@ class SerializationTest {
             temperature = 0.5f
         )
         val encoded = json.encodeToString(req)
-        // Verify all critical fields are present
+        // 验证所有关键字段均存在
         assertTrue(encoded.contains(""""model":"gpt-4-vision-preview""""))
         assertTrue(encoded.contains(""""role":"system""""))
         assertTrue(encoded.contains(""""role":"user""""))

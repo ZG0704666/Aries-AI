@@ -1,9 +1,10 @@
 package com.ai.phoneagent.ui.inputbar
 
 import com.ai.phoneagent.R
-import com.ai.phoneagent.core.designsystem.theme.ariesGlass
 import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.ScanLine
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -24,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -34,6 +36,7 @@ import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.integerResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
@@ -92,14 +95,15 @@ fun InputBar(
     var imeWasVisible by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val expansion = ((renderedLineCount - 1) / 2f).coerceIn(0f, 1f)
-    val containerColor = Color.Transparent
-    val actionContainerColor = Color.Transparent
+    val actionContainerColor = colorResource(R.color.m3t_input_bar_action_bg)
+    val inputBarStroke = dimensionResource(R.dimen.m3t_input_bar_stroke)
+    val inputBarElevation = dimensionResource(R.dimen.m3t_input_bar_elevation)
     val sendContainerColor by animateColorAsState(
         targetValue =
             when {
                 isGenerating -> colorScheme.error
                 canSubmit -> colorScheme.primary
-                else -> Color.Transparent
+                else -> actionContainerColor
             },
         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
         label = "inputBarSendContainerColor",
@@ -188,13 +192,16 @@ fun InputBar(
                 verticalAlignment = Alignment.Bottom,
             ) {
                 if (isVoiceMode) {
+                    // 语音输入框上浮在消息之上：改用不透明底板 + 描边，
+                    // 去掉透明玻璃，避免背景消息透出来影响可读性。
                     Surface(
                         modifier = Modifier
                             .weight(1f)
-                            .height(containerHeight)
-                            .ariesGlass(inputShape),
+                            .height(containerHeight),
                         shape = inputShape,
-                        color = containerColor,
+                        color = colorScheme.surfaceContainer,
+                        border = BorderStroke(inputBarStroke, colorScheme.outlineVariant),
+                        shadowElevation = inputBarElevation,
                     ) {
                         Box(
                             modifier = Modifier
@@ -235,12 +242,16 @@ fun InputBar(
                         }
                     }
                 } else {
-                    // One persistent text field and one shell: focus never replaces the editor
+                    // 只有一个持久文本框和一个外壳：焦点切换不会替换编辑器
                     // or splits the attachment/send controls into independent surfaces.
                     Box(
                         modifier = Modifier.fillMaxWidth()
-                            // Paint at the animated bounds; do not clip a full-size lens as it grows.
-                            .ariesGlass(composerShape)
+                            // 按动画边界绘制；放大镜生长过程中不要裁剪全尺寸镜头。
+                            // 主页输入框上浮在消息之上：不透明底板 + 描边，去掉透明玻璃。
+                            .shadow(inputBarElevation, composerShape, clip = false)
+                            .clip(composerShape)
+                            .background(colorScheme.surfaceContainer)
+                            .border(BorderStroke(inputBarStroke, colorScheme.outlineVariant), composerShape)
                             .animateContentSize(tween(composerMotionMs, easing = FastOutSlowInEasing), alignment = Alignment.BottomCenter),
                     ) {
                         Row(
@@ -256,7 +267,7 @@ fun InputBar(
                                 onAttachmentClick()
                             },
                                 buttonSize = iconButtonSize, iconSize = iconSize,
-                                modifier = Modifier.ariesGlass(CircleShape)) {
+                                containerColor = actionContainerColor) {
                                 Icon(Lucide.Plus, stringResource(R.string.input_attachment), Modifier.size(iconSize), tint = colorScheme.onSurface)
                             }
                             BasicTextField(
@@ -281,8 +292,7 @@ fun InputBar(
                                     keyboardController?.hide()
                                     onModeChange(true)
                                 } } else onSend,
-                                modifier = Modifier.size(iconButtonSize).scale(sendButtonScale)
-                                    .then(if (showAssistantEntry) Modifier.ariesGlass(CircleShape) else Modifier),
+                                modifier = Modifier.size(iconButtonSize).scale(sendButtonScale),
                                 containerColor = sendContainerColor, contentColor = sendContentColor,
                             ) {
                                 if (showAssistantEntry) Icon(Lucide.Mic, stringResource(R.string.voice_input), Modifier.size(iconSize))
@@ -323,44 +333,60 @@ fun VoiceInputOverlayContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.Transparent)
             .padding(bottom = overlayBottomOffset),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        // 语音输入框上浮在消息之上：不透明底板保证波形与状态文字始终可读。
         Surface(
+            modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.large,
-            color = if (isCancelled) colorScheme.errorContainer else colorScheme.secondaryContainer,
+            color = colorScheme.surface,
+            border = BorderStroke(
+                dimensionResource(R.dimen.m3t_input_bar_stroke),
+                colorScheme.outlineVariant,
+            ),
+            shadowElevation = dimensionResource(R.dimen.m3t_input_bar_elevation),
         ) {
-            Text(
-                text = statusText,
-                style = MaterialTheme.typography.labelLarge,
-                color = if (isCancelled) colorScheme.onErrorContainer else colorScheme.onSecondaryContainer,
-                modifier = Modifier.padding(horizontal = statusPaddingH, vertical = statusPaddingV),
-            )
-        }
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(vertical = spacingMd),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Surface(
+                    shape = MaterialTheme.shapes.large,
+                    color = if (isCancelled) colorScheme.errorContainer else colorScheme.secondaryContainer,
+                ) {
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (isCancelled) colorScheme.onErrorContainer else colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = statusPaddingH, vertical = statusPaddingV),
+                    )
+                }
 
-        Spacer(modifier = Modifier.height(spacingSm))
+                Spacer(modifier = Modifier.height(spacingSm))
 
-        val waveColor = if (isCancelled) colorScheme.error else colorScheme.primary
+                val waveColor = if (isCancelled) colorScheme.error else colorScheme.primary
 
-        VoiceWaveformDots(amplitude = if (isRecording) amplitude else 0f, color = waveColor)
+                VoiceWaveformDots(amplitude = if (isRecording) amplitude else 0f, color = waveColor)
 
-        Spacer(modifier = Modifier.height(spacingMd))
+                Spacer(modifier = Modifier.height(spacingMd))
 
-        Surface(
-            shape = MaterialTheme.shapes.large,
-            color = colorScheme.surfaceContainer,
-        ) {
-            Text(
-                text = if (isCancelled) {
-                    stringResource(R.string.voice_release_to_cancel)
-                } else {
-                    stringResource(R.string.voice_release_to_send)
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = statusPaddingH, vertical = statusPaddingV),
-            )
+                Surface(
+                    shape = MaterialTheme.shapes.large,
+                    color = colorScheme.surfaceContainer,
+                ) {
+                    Text(
+                        text = if (isCancelled) {
+                            stringResource(R.string.voice_release_to_cancel)
+                        } else {
+                            stringResource(R.string.voice_release_to_send)
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = statusPaddingH, vertical = statusPaddingV),
+                    )
+                }
+            }
         }
     }
 }

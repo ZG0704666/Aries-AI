@@ -8,12 +8,20 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.ai.phoneagent.feature.updates.R
 
+/**
+ * 更新下载链接列表适配器，每项展示「名称 + 地址」并提供打开/复制操作。
+ *
+ * @property items 名称与 URL 的键值对列表。
+ * @property onOpen 打开链接的回调。
+ * @property onCopy 复制链接的回调。
+ */
 class UpdateLinkAdapter(
     private val items: List<Pair<String, String>>,
     private val onOpen: (String) -> Unit,
     private val onCopy: (String) -> Unit,
 ) : RecyclerView.Adapter<UpdateLinkAdapter.VH>() {
 
+    /** 单条链接的 ViewHolder。 */
     class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tvName: TextView = itemView.findViewById(R.id.tvName)
         val tvUrl: TextView = itemView.findViewById(R.id.tvUrl)

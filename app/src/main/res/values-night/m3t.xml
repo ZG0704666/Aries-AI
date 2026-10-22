@@ -6,5 +6,6 @@
     <color name="m3t_message_user_border">#5B81B2</color>
     <color name="m3t_message_meta_bg">#252528</color>
     <color name="m3t_message_meta_text">#F5F5F7</color>
+    <color name="m3t_input_bar_action_bg">#1FFFFFFF</color>
 
 </resources>

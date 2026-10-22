@@ -1,9 +1,23 @@
 package com.ai.phoneagent.ui.home
 
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import com.ai.phoneagent.core.designsystem.theme.LocalAriesLayerBackdrop
 import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.highlight.Highlight
+import com.kyant.backdrop.shadow.InnerShadow
+import com.kyant.backdrop.shadow.Shadow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.BorderStroke
@@ -14,11 +28,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.Surface
@@ -64,23 +82,29 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import com.ai.phoneagent.R
+import kotlin.math.roundToInt
 import com.ai.phoneagent.ui.debug.DebugRecomposeLogger
 import com.ai.phoneagent.ui.drawer.ConversationDrawer
 import com.ai.phoneagent.ui.drawer.DrawerConversationUiItem
@@ -125,6 +149,7 @@ fun HomeScreen(
     val navHeight = dimensionResource(DesignR.dimen.aries_nav_height)
     val motionMs = integerResource(DesignR.integer.aries_page_motion_ms)
     val density = LocalDensity.current
+    val hapticContext = LocalContext.current
     val pager = rememberPagerState(initialPage = selectedPage) { 3 }
     val defaultPageConnection = PagerDefaults.pageNestedScrollConnection(pager, Orientation.Horizontal)
     val horizontalPageConnection = remember(defaultPageConnection) {
@@ -143,12 +168,12 @@ fun HomeScreen(
         if (lastReportedPage != selectedPage) navigate(selectedPage)
     }
     LaunchedEffect(pager) {
-        // An outer route may request a different tab while this pager is saved.
-        // Apply that selection before reporting the restored page to the Activity.
+        // 本页签保存期间，外层路由可能请求切换到其他页签。
+        // 在把恢复的页码上报给 Activity 之前，先应用该选择。
         if (pager.currentPage != selectedPage) pager.scrollToPage(selectedPage)
         snapshotFlow { pager.currentPage }.distinctUntilChanged().collect { lastReportedPage = it; onPageSelected(it) }
     }
-    // Compatibility for existing callbacks which used to wait for the drawer to close.
+    // 兼容旧的回调逻辑：过去需要等待抽屉关闭。
     LaunchedEffect(drawerState.currentValue) {
         if (drawerState.currentValue == DrawerValue.Open) {
             navigate(0)
@@ -162,26 +187,84 @@ fun HomeScreen(
                 BoxWithConstraints(Modifier.fillMaxWidth().statusBarsPadding().padding(vertical = spacingSm), contentAlignment = Alignment.Center) {
                     val effectiveNavWidth = minOf(navWidth, maxWidth - dimensionResource(DesignR.dimen.aries_touch_target) * 2)
                     val colors = MaterialTheme.colorScheme
+                    val navInsetX = dimensionResource(DesignR.dimen.aries_nav_inset_x)
+                    val navInsetY = dimensionResource(DesignR.dimen.aries_nav_inset_y)
+                    val navShape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_nav_radius))
+                    val itemShape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_nav_item_radius))
+                    val lensShape = RoundedCornerShape(50)
+                    val pageBackdrop = LocalAriesLayerBackdrop.current
                     Surface(
                         modifier = Modifier.width(effectiveNavWidth).heightIn(min = navHeight)
-                            .ariesGlass(RoundedCornerShape(dimensionResource(DesignR.dimen.aries_nav_radius))),
-                        shape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_nav_radius)),
+                            .ariesGlass(navShape),
+                        shape = navShape,
                         color = Color.Transparent,
                         contentColor = colors.onSurface,
                     ) {
-                        Box(Modifier.padding(horizontal = dimensionResource(DesignR.dimen.aries_nav_inset_x), vertical = dimensionResource(DesignR.dimen.aries_nav_inset_y))) {
-                            val itemHeight = navHeight - dimensionResource(DesignR.dimen.aries_nav_inset_y) * 2
-                            val tabWidth = (effectiveNavWidth - dimensionResource(DesignR.dimen.aries_nav_inset_x) * 2) / 3
-                            Box(Modifier.offset(x = tabWidth * (pager.currentPage + pager.currentPageOffsetFraction))
-                                .width(tabWidth).height(itemHeight)
-                                .ariesGlass(RoundedCornerShape(dimensionResource(DesignR.dimen.aries_nav_item_radius)), selected = true))
-                            Row(Modifier.fillMaxWidth()) {
+                        val itemHeight = navHeight - navInsetY * 2
+                        // 指示器宽度直接取内容区的三分之一，与 weight(1f) 的标签宽度严格一致，
+                        // 避免用 Dp 反算带来的亚像素误差造成偏移。
+                        val tabWidthPx = with(density) { (effectiveNavWidth - navInsetX * 2).toPx() } / 3f
+                        // 拖拽偏移（像素）：拖拽过程中同步写入，保证指示器严格跟随手指。
+                        var capsuleDragOffset by remember { mutableFloatStateOf(0f) }
+                        val capsuleReleaseJob = remember { arrayOfNulls<Job>(1) }
+                        var capsuleEdgeHit by remember { mutableIntStateOf(0) }
+                        // 标签层：录制成 backdrop，供放大镜指示器取样放大。
+                        val tabsBackdrop = rememberLayerBackdrop()
+                        val lensBackdrop = if (pageBackdrop != null) {
+                            rememberCombinedBackdrop(pageBackdrop, tabsBackdrop)
+                        } else {
+                            null
+                        }
+                        Box(Modifier.draggable(
+                            state = rememberDraggableState { delta ->
+                                val basePx = tabWidthPx * (pager.currentPage + pager.currentPageOffsetFraction)
+                                val maxPx = tabWidthPx * 2f
+                                val raw = basePx + capsuleDragOffset + delta
+                                val clamped = raw.coerceIn(0f, maxPx)
+                                val edge = when {
+                                    raw > clamped -> -1
+                                    raw < clamped -> 1
+                                    else -> 0
+                                }
+                                if (edge != 0 && edge != capsuleEdgeHit) hapticTick(hapticContext)
+                                capsuleEdgeHit = edge
+                                // 取消进行中的回弹动画，避免它与本次拖拽互相覆盖。
+                                capsuleReleaseJob[0]?.cancel()
+                                capsuleDragOffset = clamped - basePx
+                            },
+                            orientation = Orientation.Horizontal,
+                            onDragStarted = {
+                                capsuleEdgeHit = 0
+                                capsuleReleaseJob[0]?.cancel()
+                            },
+                            onDragStopped = {
+                                capsuleEdgeHit = 0
+                                val basePx = tabWidthPx * (pager.currentPage + pager.currentPageOffsetFraction)
+                                val settled = (basePx + capsuleDragOffset).coerceIn(0f, tabWidthPx * 2f)
+                                val targetPage = (settled / tabWidthPx).roundToInt().coerceIn(0, 2)
+                                if (targetPage != pager.currentPage) navigate(targetPage)
+                                // 与 Pager 动画同步回弹：位移归零的同时 Pager 滑向目标页，
+                                // 两者相加后指示器从松手位置连续移动到目标页。
+                                val from = capsuleDragOffset
+                                capsuleReleaseJob[0]?.cancel()
+                                capsuleReleaseJob[0] = scope.launch {
+                                    val release = Animatable(from)
+                                    release.animateTo(0f, tween(motionMs, easing = FastOutSlowInEasing)) {
+                                        capsuleDragOffset = value
+                                    }
+                                }
+                            },
+                        ).padding(horizontal = navInsetX, vertical = navInsetY), contentAlignment = Alignment.CenterStart) {
+                            Row(
+                                Modifier.fillMaxWidth().align(Alignment.Center).layerBackdrop(tabsBackdrop),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 val labels = listOf(R.string.ui_v2_history, R.string.ui_v2_home, R.string.drawer_settings)
                                 val icons = listOf(Lucide.History, Lucide.House, Lucide.Settings)
                                 labels.forEachIndexed { index, label ->
                                     Row(Modifier.weight(1f).heightIn(min = itemHeight)
                                         .semantics { selected = pager.currentPage == index }
-                                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, role = Role.Tab) { navigate(index) },
+                                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, role = Role.Tab) { hapticTick(hapticContext); navigate(index) },
                                         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                                         Icon(icons[index], null, modifier = Modifier.height(dimensionResource(DesignR.dimen.aries_nav_icon)).width(dimensionResource(DesignR.dimen.aries_nav_icon)),
                                             tint = if (pager.currentPage == index) colors.primary else colors.onSurfaceVariant)
@@ -192,6 +275,54 @@ fun HomeScreen(
                                     }
                                 }
                             }
+                            // 放大镜指示器：折射 + 色散 + 放大取样，形成液态玻璃透镜。
+                            Box(Modifier.align(Alignment.CenterStart)
+                                .offset {
+                                    IntOffset(
+                                        (tabWidthPx * (pager.currentPage + pager.currentPageOffsetFraction) + capsuleDragOffset)
+                                            .coerceIn(0f, tabWidthPx * 2f).roundToInt(),
+                                        0,
+                                    )
+                                }
+                                .fillMaxWidth(1f / 3f)
+                                .height(itemHeight)
+                                .then(
+                                    if (lensBackdrop != null) {
+                                        Modifier.drawBackdrop(
+                                            backdrop = lensBackdrop,
+                                            shape = { lensShape },
+                                            effects = {
+                                                lens(
+                                                    refractionHeight = 12.dp.toPx(),
+                                                    refractionAmount = 18.dp.toPx(),
+                                                    depthEffect = true,
+                                                    chromaticAberration = true,
+                                                )
+                                            },
+                                            highlight = { Highlight.Default },
+                                            innerShadow = {
+                                                InnerShadow(
+                                                    radius = 8.dp,
+                                                    offset = DpOffset(0.dp, 8.dp),
+                                                    color = Color.Black.copy(alpha = 0.22f),
+                                                )
+                                            },
+                                            shadow = {
+                                                Shadow(
+                                                    radius = 18.dp,
+                                                    offset = DpOffset(0.dp, 4.dp),
+                                                    color = Color.Black.copy(alpha = 0.18f),
+                                                )
+                                            },
+                                            onDrawBackdrop = { drawBackdrop ->
+                                                // 以透镜中心为支点放大取样，得到放大镜效果。
+                                                withTransform({ scale(1.35f, 1.35f, pivot = center) }, drawBackdrop)
+                                            },
+                                        )
+                                    } else {
+                                        Modifier.ariesGlass(itemShape, selected = true)
+                                    }
+                                ))
                         }
                     }
                 }
@@ -215,11 +346,22 @@ fun HomeScreen(
                             onSettingsClick = { navigate(2) }, showSettingsEntry = false,
                         )
                     }
-                    1 -> Column(Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
-                        Column(Modifier.weight(1f).clipToBounds()) {
-                            Box(Modifier.weight(1f)) { transcriptPaneContent(0.dp, spacingMd, spacingXxxs) }
+                    1 -> {
+                        val pageBackdrop = rememberLayerBackdrop()
+                        var bottomOverlayHeight by remember { mutableStateOf(0.dp) }
+                        Box(Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
+                            Box(Modifier.matchParentSize().layerBackdrop(pageBackdrop).clipToBounds()) {
+                                transcriptPaneContent(bottomOverlayHeight, spacingMd, spacingXxxs)
+                            }
+                            Box(
+                                Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                                    .onSizeChanged { bottomOverlayHeight = with(density) { it.height.toDp() } },
+                            ) {
+                                CompositionLocalProvider(LocalAriesLayerBackdrop provides pageBackdrop) {
+                                    HomeBottomOverlay(aiNoticeText, inputBarContent, spacingXxxs)
+                                }
+                            }
                         }
-                        HomeBottomOverlay(aiNoticeText, inputBarContent, spacingXxxs)
                     }
                     2 -> settingsContent(pager.currentPage == 2)
                 }
@@ -404,9 +546,19 @@ private fun HomeBottomOverlay(
     spacingXxxs: Dp,
 ) {
     DebugRecomposeLogger(scope = "HomeBottomOverlay")
+    val background = MaterialTheme.colorScheme.background
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            // 输入区上浮在消息之上：不透明遮罩自上而下淡入，
+            // 让底部文字始终有稳定底色，避免消息内容透出影响可读性。
+            .background(
+                Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    0.4f to background.copy(alpha = 0.88f),
+                    1f to background,
+                )
+            )
             .padding(bottom = dimensionResource(DesignR.dimen.aries_composer_bottom_gap)),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -417,5 +569,22 @@ private fun HomeBottomOverlay(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = spacingXxxs),
         )
+    }
+}
+
+private fun hapticTick(context: Context) {
+    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
+    } else {
+        @Suppress("DEPRECATION")
+        context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+    } ?: return
+    runCatching {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(30)
+        }
     }
 }

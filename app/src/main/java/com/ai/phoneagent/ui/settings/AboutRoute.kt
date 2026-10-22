@@ -12,7 +12,6 @@ import android.os.VibratorManager
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,6 +30,7 @@ import com.ai.phoneagent.feature.settings.R
 import com.ai.phoneagent.helper.FeedbackLogExporter
 import com.ai.phoneagent.navigation.Routes
 import com.ai.phoneagent.ui.AboutScreen
+import com.ai.phoneagent.ui.components.AriesAlertDialog
 import com.ai.phoneagent.viewmodel.AboutViewModel
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -127,7 +127,7 @@ fun AboutRoute(
     )
 
     if (showFeedbackConfirmDialog) {
-        AlertDialog(
+        AriesAlertDialog(
             onDismissRequest = { showFeedbackConfirmDialog = false },
             title = { Text(stringResource(R.string.about_feedback_confirm_title)) },
             text = { Text(stringResource(R.string.about_feedback_confirm_message)) },
@@ -180,7 +180,7 @@ fun AboutRoute(
     }
 
     if (isExportingFeedbackBundle) {
-        AlertDialog(
+        AriesAlertDialog(
             onDismissRequest = {},
             title = { Text(stringResource(R.string.about_feedback_confirm_title)) },
             text = {
@@ -194,7 +194,7 @@ fun AboutRoute(
     }
 
     uiState.updateDialogState?.let { state ->
-        AlertDialog(
+        AriesAlertDialog(
             onDismissRequest = { viewModel.dismissUpdateDialog() },
             title = { Text(stringResource(R.string.m3t_updates_found) + " ${state.entry.versionTag}") },
             text = { Text(state.entry.body.ifBlank { stringResource(R.string.m3t_updates_no_changelog) }) },
@@ -218,7 +218,7 @@ fun AboutRoute(
     }
 
     uiState.errorDialogState?.let { state ->
-        AlertDialog(
+        AriesAlertDialog(
             onDismissRequest = { viewModel.dismissErrorDialog() },
             title = { Text(stringResource(R.string.about_check_failed)) },
             text = { Text(state.message) },
@@ -239,7 +239,7 @@ fun AboutRoute(
     }
 
     uiState.upToDateDialogState?.let { state ->
-        AlertDialog(
+        AriesAlertDialog(
             onDismissRequest = { viewModel.dismissUpToDateDialog() },
             title = { Text(stringResource(R.string.about_up_to_date)) },
             text = { Text(stringResource(R.string.about_current_version_format, state.currentVersion)) },
@@ -260,7 +260,7 @@ fun AboutRoute(
     }
 
     uiState.downloadOptionsDialogState?.let { state ->
-        AlertDialog(
+        AriesAlertDialog(
             onDismissRequest = { viewModel.dismissDownloadOptionsDialog() },
             title = { Text(stringResource(R.string.m3t_updates_choose_source)) },
             text = {

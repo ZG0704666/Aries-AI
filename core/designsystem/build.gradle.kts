@@ -1,13 +1,14 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+﻿import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
 android {
     namespace = "com.ai.phoneagent.core.designsystem"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 30
@@ -38,8 +39,10 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    api(libs.backdrop)
     
     // Koin - Dependency Injection
     implementation(libs.koin.android)

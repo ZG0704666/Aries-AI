@@ -35,14 +35,14 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * 虚拟屏预览悬浮窗 — 让用户实时观看虚拟屏执行过程
  *
- * 功能特性（对齐 autoglm_KY FloatingStatusService）：
+ * 功能特性（对齐上游参考实现 FloatingStatusService）：
  * - 实时渲染虚拟屏画面到悬浮窗 TextureView
  * - 底部控制栏：虚拟返回 / 虚拟Home / 暂停恢复 / 停止任务
  * - 右上角减号 = 最小化到后台，显示后台操作进度悬浮窗
  * - 支持拖拽移动
  * - 触摸注入层：支持用户在预览窗直接触摸操作虚拟屏
  *
- * 参考：autoglm_KY FloatingStatusService 工具箱按钮行
+ * 参考：上游参考实现 FloatingStatusService 工具箱按钮行
  */
 class VirtualScreenPreviewOverlay(
     private val virtualDisplayEngine: ShizukuVirtualDisplayEngine,

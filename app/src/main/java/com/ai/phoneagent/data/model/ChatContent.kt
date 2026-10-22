@@ -13,43 +13,44 @@ import kotlinx.serialization.json.JsonEncoder
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
- * Represents the `content` field of an OpenAI-compatible chat request message.
+ * OpenAI 兼容对话消息中 `content` 字段的类型化表示。
  *
- * Two formats are defined by the API:
- *  - **Text**: a bare JSON string  →  `"hello world"`
- *  - **Multimodal**: a JSON array of content parts  →  `[{"type":"text","text":"..."},...]`
+ * 接口定义了两种形态：
+ *  - **Text**：纯 JSON 字符串 → `"hello world"`
+ *  - **Multimodal**：内容分段组成的 JSON 数组 → `[{"type":"text","text":"..."},...]`
  *
- * The custom serializer [ChatContentSerializer] handles both read and write paths.
+ * 读写双向均由自定义序列化器 [ChatContentSerializer] 处理。
  */
 @Serializable(with = ChatContentSerializer::class)
 sealed class ChatContent {
 
-    /** Plain text message. Serializes to a bare JSON string. */
+    /** 纯文本消息，序列化为 JSON 字符串。 */
     @Serializable
     data class Text(val text: String) : ChatContent()
 
-    /** Multimodal message with one or more content parts. Serializes to a JSON array. */
+    /** 由一个或多个内容分段组成的多模态消息，序列化为 JSON 数组。 */
     @Serializable
     data class Multimodal(val parts: List<ContentPart>) : ChatContent()
 }
 
 /**
- * Custom [KSerializer] for [ChatContent].
+ * [ChatContent] 的自定义 [KSerializer]。
  *
- * Serialization contract:
- * - [ChatContent.Text]       → JSON primitive string (e.g. `"hello"`)
- * - [ChatContent.Multimodal] → JSON array of [ContentPart] objects
+ * 序列化约定：
+ * - [ChatContent.Text]       → JSON 字符串（如 `"hello"`）
+ * - [ChatContent.Multimodal] → [ContentPart] 对象组成的 JSON 数组
  *
- * Deserialization contract:
- * - JSON primitive string → [ChatContent.Text]
- * - JSON array            → [ChatContent.Multimodal]
+ * 反序列化约定：
+ * - JSON 字符串 → [ChatContent.Text]
+ * - JSON 数组   → [ChatContent.Multimodal]
  */
 object ChatContentSerializer : KSerializer<ChatContent> {
 
-    // buildClassSerialDescriptor is the public API (no @InternalSerializationApi needed)
+    // buildClassSerialDescriptor 为公开 API（无需 @InternalSerializationApi）
     override val descriptor: SerialDescriptor =
         buildClassSerialDescriptor("ChatContent")
 
+    /** 按内容形态编码为 JSON 字符串或数组。 */
     override fun serialize(encoder: Encoder, value: ChatContent) {
         val jsonEncoder = encoder as? JsonEncoder
             ?: error("ChatContentSerializer only supports JSON encoding")
@@ -65,6 +66,7 @@ object ChatContentSerializer : KSerializer<ChatContent> {
         }
     }
 
+    /** 按 JSON 元素类型解码为文本或多模态内容。 */
     override fun deserialize(decoder: Decoder): ChatContent {
         val jsonDecoder = decoder as? JsonDecoder
             ?: error("ChatContentSerializer only supports JSON decoding")

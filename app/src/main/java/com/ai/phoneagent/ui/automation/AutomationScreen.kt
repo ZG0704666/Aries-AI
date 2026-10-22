@@ -30,16 +30,16 @@ fun AutomationScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val hostActivity = remember(context) { context.findActivity() }
-    // Scope ViewModel to Activity so it survives nav pop (agent keeps running in background)
+    // ViewModel 作用域限定为 Activity，导航返回时仍存活（智能体在后台继续运行）
     val activityOwner = hostActivity as? androidx.lifecycle.ViewModelStoreOwner
     val viewModel: AutomationViewModel = koinViewModel(
         viewModelStoreOwner = activityOwner ?: LocalViewModelStoreOwner.current!!,
     )
     val task by viewModel.taskSnapshot.collectAsState()
-    // Capture the existing run before launch arguments can start a new one.
+    // 在启动参数可能触发新运行之前，先捕获既有运行。
     var lastObservedRunId by rememberSaveable { mutableStateOf(task?.runId) }
 
-    // Consume pending launch args from MainActivity intent dispatch
+    // 消费 MainActivity intent 分发带来的待处理启动参数
     LaunchedEffect(Unit) {
         AutomationViewModel.pendingLaunchArgs?.let { args ->
             AutomationViewModel.pendingLaunchArgs = null

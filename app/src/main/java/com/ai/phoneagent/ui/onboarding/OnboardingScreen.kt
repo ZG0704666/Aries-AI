@@ -1,5 +1,6 @@
 package com.ai.phoneagent.ui.onboarding
 
+import com.ai.phoneagent.ui.components.AriesAlertDialog
 import com.ai.phoneagent.ui.components.AriesPageTopBar
 import com.ai.phoneagent.core.designsystem.theme.AriesGlassCard
 import com.ai.phoneagent.core.designsystem.theme.AriesGlassButton
@@ -8,7 +9,6 @@ import com.ai.phoneagent.core.designsystem.R as DesignR
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.Brush
@@ -404,7 +404,7 @@ internal fun AgreementPanel(onAccept: () -> Unit, actionLabelRes: Int, requireAc
     val agreementHtml = stringResource(R.string.user_agreement_content)
     val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
     if (showFull) {
-        AlertDialog(onDismissRequest = { showFull = false }, title = { Text(stringResource(R.string.user_agreement_title)) },
+        AriesAlertDialog(onDismissRequest = { showFull = false }, title = { Text(stringResource(R.string.user_agreement_title)) },
             text = {
                 AndroidView(modifier = Modifier.fillMaxWidth(), factory = { ctx ->
                     ScrollView(ctx).apply {
@@ -420,7 +420,7 @@ internal fun AgreementPanel(onAccept: () -> Unit, actionLabelRes: Int, requireAc
                         text = Html.fromHtml(agreementHtml, Html.FROM_HTML_MODE_COMPACT)
                     }
                 })
-            }, confirmButton = { TextButton(onClick = { showFull = false }) { Text(stringResource(R.string.action_close)) } })
+            }, textScrollable = false, confirmButton = { TextButton(onClick = { showFull = false }) { Text(stringResource(R.string.action_close)) } })
     }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(padding), verticalArrangement = Arrangement.spacedBy(padding)) {
         item { Text(stringResource(R.string.ui_v2_agreement_heading), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }

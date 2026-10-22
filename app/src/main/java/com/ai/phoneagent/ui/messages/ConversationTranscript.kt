@@ -501,7 +501,7 @@ private fun UserMessageBubble(
         verticalArrangement = Arrangement.spacedBy(spacingSm),
     ) {
         Surface(
-            modifier = Modifier.widthIn(max = bubbleMaxWidth).then(if (plain) Modifier else Modifier.ariesGlass(MaterialTheme.shapes.large)),
+            modifier = Modifier.widthIn(max = bubbleMaxWidth).then(if (plain) Modifier else Modifier.ariesGlass(MaterialTheme.shapes.large, elevated = false)),
             shape = MaterialTheme.shapes.large,
             color = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onSurface,
@@ -633,7 +633,7 @@ private fun UserMessageBubble(
             ) {
                 item.attachments.forEach { attachmentName ->
                     Surface(
-                        modifier = Modifier.ariesGlass(CircleShape),
+                        modifier = Modifier.ariesGlass(CircleShape, elevated = false),
                         shape = CircleShape,
                         color = Color.Transparent,
                         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -810,7 +810,7 @@ private fun StreamingAssistantBodyPreview(
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.heightIn(min = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_toolbar_button))
-            .then(if (plain) Modifier else Modifier.ariesGlass(MaterialTheme.shapes.large)),
+            .then(if (plain) Modifier else Modifier.ariesGlass(MaterialTheme.shapes.large, elevated = false)),
     ) {
         if (showLoadingIndicator) {
             StreamingLoadingIndicator(
@@ -914,7 +914,7 @@ private fun AssistantMessageBody(
     val streamingElevation = dimensionResource(R.dimen.m3t_message_streaming_tonal_elevation)
     val plain = plainMessagesEnabled()
     Surface(
-        modifier = if (plain) Modifier else Modifier.ariesGlass(MaterialTheme.shapes.large),
+        modifier = if (plain) Modifier else Modifier.ariesGlass(MaterialTheme.shapes.large, elevated = false),
         shape = MaterialTheme.shapes.large,
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,

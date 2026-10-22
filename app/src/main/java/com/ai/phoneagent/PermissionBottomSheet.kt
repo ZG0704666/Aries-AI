@@ -15,8 +15,9 @@ import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Mic
 import com.composables.icons.lucide.Smartphone
 import com.composables.icons.lucide.Shield
+import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import com.ai.phoneagent.ui.components.AriesBottomSheetOverlay
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PermissionBottomSheet(
     onDismissRequest: () -> Unit,
@@ -27,22 +28,24 @@ fun PermissionBottomSheet(
     onGuideAll: () -> Unit,
     onDone: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
+    AriesBottomSheetOverlay(
+        visible = true,
         onDismissRequest = onDismissRequest,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.extraLarge,
     ) {
-        PermissionBottomSheetContent(
-            permissionUiState = permissionUiState,
-            onOpenAccessibility = onOpenAccessibility,
-            onOpenOverlay = onOpenOverlay,
-            onOpenMic = onOpenMic,
-            onGuideAll = onGuideAll,
-            onDone = onDone,
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .ariesGlass(MaterialTheme.shapes.extraLarge),
+        ) {
+            PermissionBottomSheetContent(
+                permissionUiState = permissionUiState,
+                onOpenAccessibility = onOpenAccessibility,
+                onOpenOverlay = onOpenOverlay,
+                onOpenMic = onOpenMic,
+                onGuideAll = onGuideAll,
+                onDone = onDone,
+            )
+        }
     }
 }
 

@@ -22,21 +22,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,10 +44,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.ai.phoneagent.ui.components.AriesBottomSheetOverlay
+import com.ai.phoneagent.ui.components.LocalAriesOverlayController
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Download
 import com.composables.icons.lucide.Expand
-import kotlinx.coroutines.launch
 import java.util.Base64
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -60,17 +58,16 @@ import java.util.Base64
 private val mermaidHeightCache = HashMap<String, Int>()
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Mermaid composable
+// ─── Mermaid 组件 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Renders a Mermaid diagram using a WebView that loads Mermaid.js from CDN.
+ * 使用 WebView 加载 CDN 上的 Mermaid.js 来渲染 Mermaid 图表。
  *
  * The WebView calls back via [AndroidInterface]:
  *  - `updateHeight(px)` – adjusts the composable height
  *  - `exportImage(svgData)` – saves diagram as PNG to Downloads
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun Mermaid(code: String, modifier: Modifier = Modifier) {
@@ -78,22 +75,19 @@ fun Mermaid(code: String, modifier: Modifier = Modifier) {
     val context  = LocalContext.current
     val density  = LocalDensity.current
     val cs       = MaterialTheme.colorScheme
-    val scope    = rememberCoroutineScope()
+    val overlayController = LocalAriesOverlayController.current
 
     val cachedHeightPx = mermaidHeightCache[code] ?: 300
     var heightPx by rememberSaveable(code) { mutableIntStateOf(cachedHeightPx) }
-    var showPreview by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
     var exportSvgData by remember { mutableStateOf<String?>(null) }
-
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val html = remember(code, isDark, cs.primary.toArgb()) {
         buildMermaidHtml(code, isDark, cs)
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Toolbar
+        // 工具栏
         Row(
             modifier          = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -104,7 +98,38 @@ fun Mermaid(code: String, modifier: Modifier = Modifier) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = { showPreview = true }, modifier = Modifier.size(28.dp)) {
+            IconButton(
+                onClick = {
+                    overlayController?.let { controller ->
+                        controller.show {
+                            var visible by remember { mutableStateOf(false) }
+                            LaunchedEffect(Unit) { visible = true }
+                            AriesBottomSheetOverlay(
+                                visible = visible,
+                                onDismissRequest = { controller.dismiss() },
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Diagram preview", style = MaterialTheme.typography.titleMedium)
+                                        Spacer(Modifier.weight(1f))
+                                        TextButton(onClick = { controller.dismiss() }) {
+                                            Text("Close")
+                                        }
+                                    }
+                                    Spacer(Modifier.height(8.dp))
+                                    MermaidWebView(
+                                        html            = html,
+                                        modifier        = Modifier.fillMaxWidth().height(480.dp),
+                                        onHeightChanged = {},
+                                        onSvgExport     = {},
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                modifier = Modifier.size(28.dp),
+            ) {
                 Icon(Lucide.Expand, "Preview diagram", modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -119,7 +144,7 @@ fun Mermaid(code: String, modifier: Modifier = Modifier) {
             }
         }
 
-        // WebView
+        // WebView 渲染区
         val heightDp = with(density) { heightPx.toDp() }.coerceAtLeast(80.dp)
         Box(
             modifier          = Modifier.fillMaxWidth().height(heightDp),
@@ -138,31 +163,6 @@ fun Mermaid(code: String, modifier: Modifier = Modifier) {
                 },
             )
             if (isLoading) CircularProgressIndicator(modifier = Modifier.size(32.dp))
-        }
-    }
-
-    // Preview bottom sheet
-    if (showPreview) {
-        ModalBottomSheet(
-            onDismissRequest = { scope.launch { sheetState.hide(); showPreview = false } },
-            sheetState       = sheetState,
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Diagram preview", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { scope.launch { sheetState.hide(); showPreview = false } }) {
-                        Text("Close")
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                MermaidWebView(
-                    html            = html,
-                    modifier        = Modifier.fillMaxWidth().height(480.dp),
-                    onHeightChanged = {},
-                    onSvgExport     = {},
-                )
-            }
         }
     }
 }
@@ -207,7 +207,7 @@ private fun MermaidWebView(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  JS Bridge
+// ─── JS 桥 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 private class AndroidInterface(
@@ -226,7 +226,7 @@ private class AndroidInterface(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  HTML template
+// ─── HTML 模板 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Suppress("LongMethod")
@@ -245,7 +245,7 @@ private fun buildMermaidHtml(
     val primary   = cs.primary.hex()
     val secondary = cs.secondary.hex()
 
-    // Escape backticks in diagram source
+    // 转义图表源码中的反引号
     val escaped = code.replace("\\", "\\\\").replace("`", "\\`")
 
     return """
@@ -311,7 +311,7 @@ render();
 
 private fun saveMermaidPng(context: Context, svgData: String) {
     try {
-        // Encode SVG as a data URI and save via MediaStore
+        // 将 SVG 编码为 data URI 并通过 MediaStore 保存
         val bytes    = svgData.toByteArray(Charsets.UTF_8)
         val b64      = Base64.getEncoder().encodeToString(bytes)
         val filename = "mermaid_${System.currentTimeMillis()}.svg"

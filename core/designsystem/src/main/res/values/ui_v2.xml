@@ -33,14 +33,39 @@
  <dimen name="aries_suggestion_icon">19dp</dimen>
  <dimen name="aries_composer_action">46dp</dimen>
  <dimen name="aries_composer_icon">22dp</dimen>
- <color name="aries_glass_light">#03A7BACB</color>
- <color name="aries_glass_dark">#D8292A30</color>
- <color name="aries_glass_highlight_light">#DCFFFFFF</color>
- <color name="aries_glass_highlight_dark">#11FFFFFF</color>
- <color name="aries_glass_edge_light">#709AAAB9</color>
- <color name="aries_glass_edge_dark">#26FFFFFF</color>
- <color name="aries_glass_shadow_light">#243E4A59</color>
- <color name="aries_glass_shadow_dark">#3B000000</color>
+  <!-- 液态玻璃 · 亮色：底色为淡冷灰，靠描边与投影与浅色背景分层 -->
+  <color name="aries_glass_light">#1F2B3644</color>
+  <color name="aries_glass_selected_light">#331F6FD1</color>
+  <color name="aries_glass_highlight_light">#E6FFFFFF</color>
+  <color name="aries_glass_edge_light">#B3FFFFFF</color>
+  <color name="aries_glass_edge_fade_light">#1FFFFFFF</color>
+  <color name="aries_glass_edge_shadow_light">#3D1B2430</color>
+  <color name="aries_glass_shadow_light">#33101A2B</color>
+  <color name="aries_glass_inner_shadow_light">#14000000</color>
+
+  <!-- 液态玻璃 · 暗色：底色大幅降低不透明度，让背景色彩透进来 -->
+  <color name="aries_glass_dark">#591A1E27</color>
+  <color name="aries_glass_selected_dark">#1FFFFFFF</color>
+  <color name="aries_glass_highlight_dark">#66FFFFFF</color>
+  <color name="aries_glass_edge_dark">#99FFFFFF</color>
+  <color name="aries_glass_edge_fade_dark">#1AFFFFFF</color>
+  <color name="aries_glass_edge_shadow_dark">#59000000</color>
+  <color name="aries_glass_shadow_dark">#8A000000</color>
+  <color name="aries_glass_inner_shadow_dark">#66000000</color>
+
+  <dimen name="aries_glass_edge_width">1dp</dimen>
+  <dimen name="aries_glass_blur_light">18dp</dimen>
+  <dimen name="aries_glass_blur_dark">10dp</dimen>
+  <dimen name="aries_glass_refraction_light">20dp</dimen>
+  <dimen name="aries_glass_refraction_amount_light">34dp</dimen>
+  <dimen name="aries_glass_refraction_dark">24dp</dimen>
+  <dimen name="aries_glass_refraction_amount_dark">46dp</dimen>
+  <dimen name="aries_glass_shadow_radius_light">16dp</dimen>
+  <dimen name="aries_glass_shadow_radius_dark">20dp</dimen>
+  <dimen name="aries_glass_shadow_offset_light">5dp</dimen>
+  <dimen name="aries_glass_shadow_offset_dark">6dp</dimen>
+  <dimen name="aries_glass_inner_shadow_radius_light">8dp</dimen>
+  <dimen name="aries_glass_inner_shadow_radius_dark">10dp</dimen>
  <dimen name="aries_avatar_size">42dp</dimen>
  <dimen name="aries_composer_expanded_radius">18dp</dimen>
  <dimen name="aries_composer_expanded_height">96dp</dimen>
@@ -63,9 +88,7 @@
  <dimen name="aries_row_caption">11sp</dimen>
  <dimen name="aries_action_radius">14dp</dimen>
  <dimen name="aries_onboarding_brand">68dp</dimen>
- <dimen name="aries_glass_shadow_spread">5dp</dimen>
- <color name="aries_glass_selected_light">#0690A5BB</color>
- <color name="aries_glass_selected_dark">#08FFFFFF</color>
- <dimen name="aries_attachment_tile">64dp</dimen>
+  <dimen name="aries_glass_shadow_spread">5dp</dimen>
+  <dimen name="aries_attachment_tile">64dp</dimen>
  <dimen name="aries_attachment_icon">28dp</dimen>
 </resources>

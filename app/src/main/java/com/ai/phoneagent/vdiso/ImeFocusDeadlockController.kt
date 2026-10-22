@@ -4,7 +4,7 @@
  *
  * Licensed under AGPL-3.0. See LICENSE for details.
  *
- * Adapted from autoglm_KY-master ImeFocusDeadlockController.kt
+ * Adapted from upstream reference implementation ImeFocusDeadlockController.kt
  */
 package com.ai.phoneagent.vdiso
 
@@ -126,7 +126,7 @@ class ImeFocusDeadlockController(
                 scope.launch {
                     var n = 0L
                     var lastLogAt = 0L
-                    // 持续锁定焦点直到 IME 消失（对齐 autoglm_KY：无上限）
+                    // 持续锁定焦点直到 IME 消失（对齐上游参考实现：无上限）
                     while (scope.isActive && running && locked) {
                         val cmd = "wm set-focused-display $displayId"
                         val r = ShizukuBridge.execResult(cmd)

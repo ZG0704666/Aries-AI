@@ -11,8 +11,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 
+/** 悬浮聊天独立 DataStore，存储悬浮窗消息内容、更新时间与窗口位置/尺寸。 */
 private val Context.floatingChatPreferencesDataStore by preferencesDataStore(name = "floating_chat_prefs")
 
+/** 悬浮聊天偏好仓库：持久化悬浮窗消息快照及窗口几何信息，供 UI 与服务读取。 */
 class FloatingChatPreferencesRepository(
     private val context: Context,
 ) {
@@ -131,6 +133,8 @@ class FloatingChatPreferencesRepository(
             prefs.remove(Keys.floatingMessagesUpdatedAt)
         }
     }
+
+    // 以下为 runBlocking 包装的阻塞式读写，供无法使用协程的场景（如服务初始化）调用。
 
     fun getFloatingMessagesBlocking(): String? = runBlocking { getFloatingMessages() }
     fun setFloatingMessagesBlocking(value: String?) = runBlocking { setFloatingMessages(value) }

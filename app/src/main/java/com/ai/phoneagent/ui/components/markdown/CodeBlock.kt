@@ -9,7 +9,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,8 +26,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,8 +49,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import com.ai.phoneagent.ui.components.AriesFullScreenOverlay
+import com.ai.phoneagent.ui.components.LocalAriesOverlayController
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.ChevronUp
@@ -68,10 +68,10 @@ private const val COLLAPSE_THRESHOLD = 10
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Renders a fenced code block with:
+ * 渲染一个围栏代码块，包含：
  *  - Async syntax highlighting via [Highlighter] + Prism.js
  *  - Language label + toolbar (copy / save / line-numbers / wrap / collapse)
- *  - HTML/SVG preview via [HtmlPreviewDialog]
+ *  - HTML/SVG preview via [HtmlPreviewOverlay]
  *  - Mermaid delegation to [Mermaid]
  */
 @Composable
@@ -111,7 +111,7 @@ fun CodeBlock(
     var expanded   by rememberSaveable(blockKey, settings.autoCollapse) { mutableStateOf(!canCollapse) }
     var lineNums   by rememberSaveable(blockKey) { mutableStateOf(settings.lineNumbers) }
     var softWrap   by rememberSaveable(blockKey) { mutableStateOf(settings.autoWrap) }
-    var showHtmlPreview by remember { mutableStateOf(false) }
+    val overlayController = LocalAriesOverlayController.current
 
     val bgColor = if (isDark) AtomOneDarkPalette.background else AtomOneLightPalette.background
     val isHtmlSvg = language.lowercase() in setOf("html", "svg", "xml")
@@ -133,7 +133,7 @@ fun CodeBlock(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    // Language label
+                    // 语言标签
                     if (language.isNotBlank()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -153,30 +153,42 @@ fun CodeBlock(
                         Spacer(Modifier.width(1.dp))
                     }
 
-                    // Action buttons
+                    // 操作按钮
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (isHtmlSvg) {
-                            IconButton(onClick = { showHtmlPreview = true }, modifier = Modifier.size(28.dp)) {
+                            IconButton(
+                                onClick = {
+                                    overlayController?.let { controller ->
+                                        controller.show {
+                                            HtmlPreviewOverlay(
+                                                html = code,
+                                                onDismiss = { controller.dismiss() },
+                                            )
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.size(28.dp),
+                            ) {
                                 Icon(Lucide.Eye, contentDescription = "Preview", modifier = Modifier.size(16.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
-                        // Line numbers toggle
+                        // 行号开关
                         IconButton(onClick = { lineNums = !lineNums }, modifier = Modifier.size(28.dp)) {
                             Icon(Lucide.Hash, contentDescription = "Line numbers", modifier = Modifier.size(16.dp),
                                 tint = if (lineNums) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        // Wrap toggle
+                        // 自动换行开关
                         IconButton(onClick = { softWrap = !softWrap }, modifier = Modifier.size(28.dp)) {
                             Icon(Lucide.WrapText, contentDescription = "Wrap", modifier = Modifier.size(16.dp),
                                 tint = if (softWrap) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        // Save to Downloads
+                        // 保存到下载目录
                         IconButton(onClick = { saveToDownloads(context, code, language) }, modifier = Modifier.size(28.dp)) {
                             Icon(Lucide.Save, contentDescription = "Save", modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        // Copy
+                        // 复制
                         IconButton(
                             onClick = { clipboard.setText(AnnotatedString(code)) },
                             modifier = Modifier.size(28.dp),
@@ -234,28 +246,23 @@ fun CodeBlock(
             }
         }
     }
-
-    // ── HTML / SVG preview dialog ─────────────────────────────────────────────
-    if (showHtmlPreview) {
-        HtmlPreviewDialog(html = code, onDismiss = { showHtmlPreview = false })
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  HtmlPreviewDialog – renders HTML/SVG in a WebView inside a Dialog
+//  HtmlPreviewOverlay – renders HTML/SVG in a WebView inside an in-tree overlay
 // ─────────────────────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HtmlPreviewDialog(html: String, onDismiss: () -> Unit) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
+fun HtmlPreviewOverlay(html: String, onDismiss: () -> Unit) {
+    AriesFullScreenOverlay(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(16.dp)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                ) {},
             shape = MaterialTheme.shapes.extraLarge,
             tonalElevation = 4.dp,
         ) {
@@ -277,7 +284,7 @@ fun HtmlPreviewDialog(html: String, onDismiss: () -> Unit) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Helpers
+// ─── 辅助函数 ───
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Saves [code] to the public Downloads folder. */
@@ -333,7 +340,7 @@ private fun trimTokensToLines(tokens: List<HighlightToken>, maxLines: Int): List
         }
         val newlines = text.count { it == '\n' }
         if (lineCount + newlines >= maxLines) {
-            // Include only up to maxLines
+            // 仅保留到最大行数为止
             val lines = text.split('\n')
             val keep = lines.take(maxLines - lineCount + 1).joinToString("\n")
             result += when (token) {

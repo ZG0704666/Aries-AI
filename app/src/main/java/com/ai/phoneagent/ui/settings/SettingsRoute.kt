@@ -32,7 +32,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -58,6 +57,7 @@ import com.ai.phoneagent.helper.FeedbackLogExporter
 import com.ai.phoneagent.navigation.Routes
 import com.ai.phoneagent.ui.AboutScreen
 import com.ai.phoneagent.ui.automation.AutomationControlScreen
+import com.ai.phoneagent.ui.components.AriesAlertDialog
 import com.ai.phoneagent.viewmodel.AboutViewModel
 import com.ai.phoneagent.viewmodel.AutomationViewModel
 import com.ai.phoneagent.viewmodel.SettingsViewModel
@@ -217,7 +217,7 @@ fun SettingsRoute(
                 )
                 // Aries 模型选择对话框
                 if (viewModel.showAriesModelDialog) {
-                    AlertDialog(
+                    AriesAlertDialog(
                         onDismissRequest = { viewModel.dismissAriesModelDialog() },
                         title = { Text(stringResource(com.ai.phoneagent.R.string.aries_model_select_title)) },
                         text = {
@@ -238,6 +238,7 @@ fun SettingsRoute(
                                 }
                             }
                         },
+                        textScrollable = false,
                         confirmButton = {},
                         dismissButton = {
                             TextButton(onClick = { viewModel.dismissAriesModelDialog() }) {
@@ -385,7 +386,7 @@ private fun SettingsAboutContent(
     )
 
     if (showFeedbackConfirmDialog) {
-        AlertDialog(
+        AriesAlertDialog(
             onDismissRequest = { showFeedbackConfirmDialog = false },
             title = { Text(stringResource(SettingsR.string.about_feedback_confirm_title)) },
             text = { Text(stringResource(SettingsR.string.about_feedback_confirm_message)) },
@@ -438,7 +439,7 @@ private fun SettingsAboutContent(
     }
 
     if (isExportingFeedbackBundle) {
-        AlertDialog(
+        AriesAlertDialog(
             onDismissRequest = {},
             title = { Text(stringResource(SettingsR.string.about_feedback_confirm_title)) },
             text = {
@@ -452,7 +453,7 @@ private fun SettingsAboutContent(
     }
 
     uiState.updateDialogState?.let { state ->
-        AlertDialog(
+        AriesAlertDialog(
             onDismissRequest = { viewModel.dismissUpdateDialog() },
             title = {
                 Text(
@@ -486,7 +487,7 @@ private fun SettingsAboutContent(
     }
 
     uiState.errorDialogState?.let { state ->
-        AlertDialog(
+        AriesAlertDialog(
             onDismissRequest = { viewModel.dismissErrorDialog() },
             title = { Text(stringResource(SettingsR.string.about_check_failed)) },
             text = { Text(state.message) },
@@ -509,7 +510,7 @@ private fun SettingsAboutContent(
     }
 
     uiState.upToDateDialogState?.let { state ->
-        AlertDialog(
+        AriesAlertDialog(
             onDismissRequest = { viewModel.dismissUpToDateDialog() },
             title = { Text(stringResource(SettingsR.string.about_up_to_date)) },
             text = {
@@ -536,7 +537,7 @@ private fun SettingsAboutContent(
     }
 
     uiState.downloadOptionsDialogState?.let { state ->
-        AlertDialog(
+        AriesAlertDialog(
             onDismissRequest = { viewModel.dismissDownloadOptionsDialog() },
             title = { Text(stringResource(SettingsR.string.m3t_updates_choose_source)) },
             text = {

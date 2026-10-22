@@ -222,8 +222,8 @@ class VdGlFrameDispatcher {
         if (ctx == null || ctx == EGL14.EGL_NO_CONTEXT)
                 throw IllegalStateException("eglCreateContext failed")
 
-        // Before any GLES* call, we must have a current EGL context.
-        // Create a tiny Pbuffer surface and make it current.
+        // 任何 GLES* 调用前必须持有 current 的 EGL 上下文。
+        // 创建一个极小的 Pbuffer surface 并设为 current。
         val pbufferAttrib =
                 intArrayOf(
                         EGL14.EGL_WIDTH,
@@ -276,9 +276,8 @@ class VdGlFrameDispatcher {
                         frameSync.notifyAll()
                     }
 
-                    // Never render directly inside the callback: it may arrive on a non-GL thread
-                    // and can be re-entrant.
-                    // Post at most one pending preview render to GL thread.
+                    // 绝不在回调内直接渲染：回调可能来自非 GL 线程且可重入。
+                    // 向 GL 线程最多投递一个待渲染的预览帧。
                     val now = SystemClock.uptimeMillis()
                     if (now - lastPreviewRenderTimeMs < PREVIEW_FRAME_INTERVAL_MS) {
                         return@setOnFrameAvailableListener
@@ -461,10 +460,9 @@ class VdGlFrameDispatcher {
         runCatching { st.updateTexImage() }
         lastFrameTimeMs = SystemClock.uptimeMillis()
 
-        // Query real EGL surface size (TextureView window surface may not be 1:1 with virtual
-        // content size).
-        // We always render full-surface (no letterbox): UI side must enforce the correct aspect
-        // ratio.
+        // 查询 EGL surface 的真实尺寸（TextureView 窗口 surface 未必与虚拟内容
+        // 尺寸 1:1 对应）。
+        // 始终全表面渲染（不加黑边）：由 UI 侧保证正确的宽高比。
         val surfaceW = queryEglSurfaceInt(d, eglSurface, EGL14.EGL_WIDTH).takeIf { it > 0 } ?: outW
         val surfaceH = queryEglSurfaceInt(d, eglSurface, EGL14.EGL_HEIGHT).takeIf { it > 0 } ?: outH
 
@@ -484,7 +482,7 @@ class VdGlFrameDispatcher {
                         1f,
                         1f,
                 )
-        // Base texture coords in normal (not manually flipped) orientation.
+        // 基础纹理坐标使用正常朝向（非手动翻转）。
         // SurfaceTexture's transform matrix will handle the actual sampling region + orientation.
         val tex =
                 floatArrayOf(
@@ -514,7 +512,7 @@ class VdGlFrameDispatcher {
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, oesTexId)
         GLES20.glUniform1i(uTex, 0)
 
-        // Apply SurfaceTexture transform matrix (crop padding / orientation) via fragment shader.
+        // 通过片元着色器应用 SurfaceTexture 变换矩阵（裁剪留边 / 朝向）。
         val m = FloatArray(16)
         runCatching { st.getTransformMatrix(m) }
         GLES20.glUniformMatrix4fv(uSTMatrix, 1, false, m, 0)
@@ -529,7 +527,7 @@ class VdGlFrameDispatcher {
         GLES20.glDisableVertexAttribArray(aPos)
         GLES20.glDisableVertexAttribArray(aTex)
 
-        // Presentation time must be set before swapping buffers on many drivers.
+        // 多数驱动要求在交换缓冲前先设置呈现时间。
         EGLExt.eglPresentationTimeANDROID(d, eglSurface, System.nanoTime())
         EGL14.eglSwapBuffers(d, eglSurface)
     }
@@ -580,7 +578,7 @@ class VdGlFrameDispatcher {
         val pixelStride = plane.pixelStride
         val rowStride = plane.rowStride
 
-        // Strictly use rowStride to create padded bitmap; do NOT assume width-based byte offsets.
+        // 严格按 rowStride 创建带填充的位图；不要假设按 width 计算字节偏移。
         val paddedWidth = if (pixelStride > 0) rowStride / pixelStride else image.width
         val bmp = Bitmap.createBitmap(paddedWidth, image.height, Bitmap.Config.ARGB_8888)
         buffer.rewind()

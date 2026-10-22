@@ -137,7 +137,7 @@ fun AttachmentSelectorPanel(
         }
     }
     
-    // 附件选项列表 - 千问风格（移除音频，保留相机/相册/文件）
+    // 附件选项列表（相机/相册/文件）
     val attachmentOptions = listOf(
         AttachmentOption(
             icon = Lucide.Camera,
@@ -157,43 +157,35 @@ fun AttachmentSelectorPanel(
     )
     
     // 玻璃绘制放在随面板一起移动的内容中，避免外层偏移造成背景遮挡。
-    if (visible) {
-        val sheetRadius = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_nav_radius)
-        val sheetShape = RoundedCornerShape(topStart = sheetRadius, topEnd = sheetRadius)
-        ModalBottomSheet(
-            onDismissRequest = onDismiss,
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            shape = sheetShape,
-            dragHandle = null,
-            scrimColor = BottomSheetDefaults.ScrimColor
+    val sheetRadius = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_nav_radius)
+    val sheetShape = RoundedCornerShape(topStart = sheetRadius, topEnd = sheetRadius)
+    AriesBottomSheetOverlay(
+        visible = visible,
+        onDismissRequest = onDismiss
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .ariesGlass(sheetShape)
+                .padding(bottom = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding))
         ) {
-            Column(
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                BottomSheetDefaults.DragHandle()
+            }
+            // 附件选项
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .ariesGlass(sheetShape)
-                    .padding(bottom = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding))
+                    .padding(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding)),
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    BottomSheetDefaults.DragHandle()
-                }
-                // 附件选项 - 千问风格布局
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding)),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    attachmentOptions.forEach { option ->
-                        AttachmentOptionItem(
-                            icon = option.icon,
-                            label = option.label,
-                            onClick = option.onClick,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
+                attachmentOptions.forEach { option ->
+                    AttachmentOptionItem(
+                        icon = option.icon,
+                        label = option.label,
+                        onClick = option.onClick,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
         }
@@ -321,7 +313,7 @@ private fun AttachmentPreviewItem(
 }
 
 /**
- * 附件选项项 - 千问简约风格
+ * 附件选项项（图标 + 标签）
  */
 @Composable
 private fun AttachmentOptionItem(
@@ -338,13 +330,13 @@ private fun AttachmentOptionItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .clickable(onClick = {
-                // 点击时触发80ms震动反馈
-                performVibration(context, 80)
+                // 点击时触发30ms震动反馈
+                performVibration(context, 30)
                 onClick()
             })
             .padding(vertical = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm))
     ) {
-        // 图标背景 - 千问风格圆角
+        // 图标背景
         Box(
             modifier = Modifier
                 .size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_attachment_tile))
@@ -361,7 +353,7 @@ private fun AttachmentOptionItem(
         
         Spacer(modifier = Modifier.height(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_home_icon_gap)))
         
-        // 标签 - 千问风格字体
+        // 标签
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,

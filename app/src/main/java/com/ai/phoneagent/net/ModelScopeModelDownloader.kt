@@ -15,24 +15,33 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * 本地推理模型下载器。
+ *
+ * 通过 ModelScope 仓库文件接口获取所需文件清单，并交由系统 DownloadManager 下载到应用外部目录。
+ */
 class ModelScopeModelDownloader {
 
+    /** 仓库文件列表接口响应。 */
     @Serializable
     private data class ModelScopeRepoFilesResponse(
         @SerialName("Data") val data: ModelScopeRepoData? = null,
     )
 
+    /** 响应中的 data 节点。 */
     @Serializable
     private data class ModelScopeRepoData(
         @SerialName("Files") val files: List<ModelScopeRepoFileEntry>? = null,
     )
 
+    /** 单个仓库文件条目。 */
     @Serializable
     private data class ModelScopeRepoFileEntry(
         @SerialName("Path") val path: String? = null,
         @SerialName("Size") val size: Long? = null,
     )
 
+    /** 所有模型都必须齐全的文件名集合。 */
     private val requiredExactNames =
         setOf(
             "config.json",
@@ -46,11 +55,13 @@ class ModelScopeModelDownloader {
             "visual.mnn.weight",
         )
 
+    /** 特定模型额外必需的文件名集合。 */
     private val extraRequiredExactNamesByModelId =
         mapOf(
             "MNN/Qwen3.5-9B-MNN" to setOf("embeddings_bf16.bin"),
         )
 
+    /** 下载入队结果。 */
     data class EnqueueResult(
         val enqueuedCount: Int,
         val skippedCount: Int,
@@ -59,12 +70,14 @@ class ModelScopeModelDownloader {
         val downloadIds: List<Long>,
     )
 
+    /** 归一化后的仓库文件信息。 */
     private data class RepoFile(
         val path: String,
         val fileName: String,
         val size: Long,
     )
 
+    /** 拉取所需文件清单并入队下载。 */
     suspend fun enqueueQwen35Downloads(context: Context): Result<EnqueueResult> {
         return withContext(Dispatchers.IO) {
             runCatching {
@@ -77,18 +90,21 @@ class ModelScopeModelDownloader {
         }
     }
 
+    /** 返回模型在外部下载目录下的存放目录。 */
     fun getQwen35ModelDir(context: Context): File? {
         val externalDownloadDir =
             context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: return null
         return File(externalDownloadDir, "$DOWNLOAD_ROOT_DIR/$QWEN35_MODEL_NAME")
     }
 
+    /** 返回模型 config.json 的绝对路径；不存在时返回 null。 */
     fun getQwen35ConfigPath(context: Context): String? {
         val modelDir = getQwen35ModelDir(context) ?: return null
         val configFile = File(modelDir, "config.json")
         return if (configFile.exists() && configFile.isFile) configFile.absolutePath else null
     }
 
+    /** 判断模型目录中所有必需文件是否齐全且非空。 */
     fun isQwen35ModelReady(context: Context): Boolean {
         val modelDir = getQwen35ModelDir(context) ?: return false
         if (!modelDir.exists() || !modelDir.isDirectory) return false
@@ -98,6 +114,7 @@ class ModelScopeModelDownloader {
         }
     }
 
+    /** 从仓库文件列表接口筛选并归一化所需文件。 */
     private fun fetchRequiredFiles(modelId: String): List<RepoFile> {
         val endpoint = "$MODELSCOPE_API_BASE/$modelId/repo/files?Revision=master"
         val body = httpGet(endpoint)
@@ -115,6 +132,7 @@ class ModelScopeModelDownloader {
         return selected.values.toList()
     }
 
+    /** 将仓库路径归一为所需文件；不在白名单或路径非法时返回 null。 */
     private fun normalizeRequiredRepoFile(path: String, size: Long): RepoFile? {
         val segments = safePathSegments(path) ?: return null
         val fileName = segments.lastOrNull() ?: return null
@@ -126,6 +144,7 @@ class ModelScopeModelDownloader {
         )
     }
 
+    /** 校验并拆分相对路径，拒绝绝对路径、协议前缀与目录穿越。 */
     private fun safePathSegments(path: String): List<String>? {
         val normalized = path.replace('\\', '/').trim()
         if (normalized.isBlank()) return null
@@ -137,11 +156,17 @@ class ModelScopeModelDownloader {
         return segments
     }
 
+    /** 当前模型所需文件名的全集（公共必需 + 该模型额外必需）。 */
     private fun requiredFileNamesForCurrentModel(): Set<String> {
         val extras = extraRequiredExactNamesByModelId[QWEN35_MODEL_ID].orEmpty()
         return requiredExactNames + extras
     }
 
+    /**
+     * 将文件逐个入队下载。
+     *
+     * 已存在且大小一致的文件会被跳过；目标路径经过越界校验防止写入目录之外。
+     */
     private fun enqueueDownloads(
         context: Context,
         modelId: String,
@@ -208,6 +233,7 @@ class ModelScopeModelDownloader {
         )
     }
 
+    /** 发起 GET 请求并返回响应文本；非 2xx 抛出异常。 */
     private fun httpGet(url: String): String {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
@@ -231,13 +257,17 @@ class ModelScopeModelDownloader {
     }
 
     companion object {
-        // MNN local-inference package (contains llm.mnn / llm.mnn.weight / llm_config.json).
+        /** 本地推理模型包标识（含 llm.mnn / llm.mnn.weight / llm_config.json）。 */
         const val QWEN35_MODEL_ID = "MNN/Qwen3.5-9B-MNN"
+
+        /** 本地推理模型显示名。 */
         const val QWEN35_MODEL_NAME = "Qwen3.5-9B"
 
         private const val MODELSCOPE_API_BASE = "https://www.modelscope.cn/api/v1/models"
         private const val MODELSCOPE_RESOLVE_BASE = "https://www.modelscope.cn/models"
         private const val USER_AGENT = "PhoneAgent"
+
+        /** 模型下载的根目录名。 */
         private const val DOWNLOAD_ROOT_DIR = "AriesModels"
 
     }

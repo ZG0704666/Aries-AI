@@ -102,15 +102,18 @@ private object SharedHttpClient {
         }
 }
 
-/** 简化版 AutoGLM 客户端：用于单轮对话与 API 健康检查。 */
+/** 简化版大模型客户端：用于单轮对话与 API 健康检查。 */
 object AutoGlmClient {
 
+        /** 当前正在进行的流式请求，用于支持外部取消。 */
         private val activeStreamCall = AtomicReference<Call?>(null)
 
+        /** 取消正在进行的流式请求（若有）。 */
         fun cancelActiveStream() {
                 activeStreamCall.getAndSet(null)?.cancel()
         }
 
+        /** 携带 HTTP 状态码与响应体的 API 异常。 */
         class ApiException(
                 val code: Int,
                 val errorBody: String?,
@@ -127,23 +130,27 @@ object AutoGlmClient {
                         cause
                 )
 
+        /** API 连通性检查结果。 */
         data class ApiCheckResult(
                 val ok: Boolean,
                 val statusCode: Int? = null,
                 val message: String? = null,
         )
 
+        /** 流式响应中的单个 SSE 数据块。 */
         @Serializable
         private data class SseChunk(
                 val choices: List<SseChoice>? = null,
         )
 
+        /** SSE 数据块中的单个候选结果。 */
         @Serializable
         private data class SseChoice(
                 val delta: SseDelta? = null,
                 val message: SseMessage? = null,
         )
 
+        /** 增量内容，区分思维链与正文。 */
         @Serializable
         private data class SseDelta(
                 @SerialName("reasoning_content") val reasoningContent: String? = null,
@@ -151,6 +158,7 @@ object AutoGlmClient {
                 val content: String? = null,
         )
 
+        /** 非流式响应中的完整消息。 */
         @Serializable
         private data class SseMessage(
                 val content: String? = null,
@@ -158,6 +166,8 @@ object AutoGlmClient {
 
         const val DEFAULT_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/"
         const val DEFAULT_MODEL = "glm-4.6v-flash"
+
+        /** 手机自动化场景使用的模型标识（保留上游标识以对接服务端协议）。 */
         const val PHONE_MODEL = "autoglm-phone"
 
         private const val DEFAULT_TEMPERATURE = 0.0f
@@ -165,6 +175,7 @@ object AutoGlmClient {
         private const val DEFAULT_FREQUENCY_PENALTY = 0.2f
         private const val DEFAULT_MAX_TOKENS = 4096
 
+        /** 规范化 baseUrl：补全协议、校验 scheme/host，并以 `/` 结尾。 */
         private fun normalizeBaseUrl(baseUrl: String): String {
                 val trimmed = baseUrl.trim().ifBlank { DEFAULT_BASE_URL }
                 val withScheme =
@@ -192,9 +203,11 @@ object AutoGlmClient {
                 return if (canonical.endsWith("/")) canonical else "$canonical/"
         }
 
+        /** 解析模型名，空白时回退到默认模型。 */
         private fun resolveModel(model: String?): String =
                 model?.trim()?.takeIf { it.isNotBlank() } ?: DEFAULT_MODEL
 
+        /** 去除 API Key 中可能存在的 `Bearer ` 前缀。 */
         private fun normalizeApiKey(apiKey: String): String {
                 val trimmed = apiKey.trim()
                 return if (trimmed.startsWith("Bearer ", ignoreCase = true)) {
@@ -204,6 +217,15 @@ object AutoGlmClient {
                 }
         }
 
+        /**
+         * 发送流式对话请求，逐片段回调思维链与正文内容。
+         *
+         * @param onReasoningDelta 思维链增量回调。
+         * @param onContentDelta 正文增量回调。
+         * @param shouldStop 返回 true 时主动中断流。
+         * @param useFastTimeouts 是否使用更短的超时客户端。
+         * @return 成功时返回 [Unit]；未收到任何增量或请求失败时返回失败。
+         */
         suspend fun sendChatStreamResult(
                 apiKey: String,
                 messages: List<ChatRequestMessage>,
@@ -344,6 +366,7 @@ object AutoGlmClient {
                 }
         }
 
+        /** 发送一次最小请求验证 API 是否可用。 */
         suspend fun checkApi(
                 apiKey: String,
                 baseUrl: String = DEFAULT_BASE_URL,
@@ -358,6 +381,7 @@ object AutoGlmClient {
                                 .ok
                 }
 
+        /** 发送最小请求验证 API 可用性，返回状态码与可读错误信息。 */
         suspend fun checkApiDetailed(
                 apiKey: String,
                 baseUrl: String = DEFAULT_BASE_URL,
@@ -450,6 +474,7 @@ object AutoGlmClient {
                                 }
                 }
 
+        /** 判断健康检查响应是否为合法的成功结构；无法识别时返回 null。 */
         private fun parseApiCheckSuccessResponse(body: String): ApiCheckResult? {
                 val obj = runCatching { AppJson.parseToJsonElement(body).jsonObject }.getOrNull() ?: return null
                 if (obj["error"] !is JsonNull && obj.containsKey("error")) {
@@ -463,12 +488,13 @@ object AutoGlmClient {
                 val messageObj = choice0["message"]?.asJsonObjectOrNull() ?: return ApiCheckResult(ok = true)
                 val contentEl = messageObj["content"] ?: return ApiCheckResult(ok = true)
 
-                // API health check only verifies connectivity and valid completion envelope.
+                // 健康检查只验证连通性与响应结构合法，不校验正文内容。
                 if (contentEl is JsonNull) return ApiCheckResult(ok = true)
                 extractMessageContentText(contentEl)
                 return ApiCheckResult(ok = true)
         }
 
+        /** 从响应体中提取错误信息，依次尝试 `error.message`、`message`，最后回退原文。 */
         private fun extractApiErrorMessage(body: String): String {
                 val fallback = body.replace('\n', ' ').replace('\r', ' ').trim().take(220)
                 val obj = runCatching { AppJson.parseToJsonElement(body).jsonObject }.getOrNull() ?: return fallback
@@ -488,6 +514,7 @@ object AutoGlmClient {
                 return if (fromMessage.isNotBlank()) fromMessage.take(220) else fallback
         }
 
+        /** 将消息 content 字段（字符串或分段数组）归一为纯文本。 */
         private fun extractMessageContentText(contentEl: JsonElement): String? {
                 if (contentEl is JsonNull) return null
                 if (contentEl is JsonPrimitive) {
@@ -510,15 +537,19 @@ object AutoGlmClient {
                 return null
         }
 
+        /** 安全转换为 [JsonObject]，类型不符时返回 null。 */
         private fun JsonElement.asJsonObjectOrNull(): JsonObject? =
                 this as? JsonObject
 
+        /** 安全转换为 [JsonArray]，类型不符时返回 null。 */
         private fun JsonElement.asJsonArrayOrNull(): JsonArray? =
                 this as? JsonArray
 
+        /** 安全提取字符串原始值，非字符串返回 null。 */
         private fun JsonElement.asStringOrNull(): String? =
                 (this as? JsonPrimitive)?.contentOrNull
 
+        /** 发送非流式对话，成功返回正文，失败返回 null。 */
         suspend fun sendChat(
                 apiKey: String,
                 messages: List<ChatRequestMessage>,
@@ -541,6 +572,7 @@ object AutoGlmClient {
                         )
                         .getOrNull()
 
+        /** 发送非流式对话并以 [Result] 返回正文或错误。 */
         suspend fun sendChatResult(
                 apiKey: String,
                 messages: List<ChatRequestMessage>,

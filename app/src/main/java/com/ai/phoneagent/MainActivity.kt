@@ -167,8 +167,11 @@ import com.ai.phoneagent.data.local.StoredMessageRecord
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.MainUiPreferencesRepository
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
+import com.ai.phoneagent.core.designsystem.theme.LocalAriesLayerBackdrop
 import com.ai.phoneagent.core.designsystem.theme.ThemeColorStyle
 import com.ai.phoneagent.core.designsystem.theme.ThemeMode
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import com.ai.phoneagent.ui.drawer.ConversationDrawer
@@ -333,7 +336,7 @@ class MainActivity : AppCompatActivity() {
         fun edit(): Editor = Editor()
     }
     
-    // ViewModel for managing chat and attachment state
+    // 管理聊天与附件状态的 ViewModel
     private val chatViewModel: ChatViewModel by viewModels()
 
     companion object {
@@ -703,8 +706,8 @@ class MainActivity : AppCompatActivity() {
             val codeLineNumbers by appPrefsRepository.codeLineNumbersFlow.collectAsState(initial = true)
             val codeAutoCollapse by appPrefsRepository.codeAutoCollapseFlow.collectAsState(initial = false)
 
-            // Reactively observe API config so settings changes take effect immediately
-            // (no need to wait for onResume which doesn't fire on in-graph navigation)
+            // 响应式观察 API 配置，使设置变更立即生效
+            //（无需等待 onResume——图内导航不会触发它）
             val currentApiKey by appPrefsRepository.apiKeyFlow.collectAsState(initial = "")
             val currentUseThirdParty by appPrefsRepository.apiUseThirdPartyFlow.collectAsState(initial = false)
             val currentUseLocalModel by appPrefsRepository.apiUseLocalModelFlow.collectAsState(initial = false)
@@ -790,18 +793,20 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                AriesNavGraph(
-                    navController = navController,
-                    onStartNextTask = {
-                        selectedMainPage = 1
-                        navController.popBackStack(Routes.Home.route, false)
-                    },
-                    homeContent = {
-                        HomeRoute(
-                            codeBlockPrefs = codeBlockPrefs,
-                        )
-                    },
-                )
+                AppOverlayHost {
+                    AriesNavGraph(
+                        navController = navController,
+                        onStartNextTask = {
+                            selectedMainPage = 1
+                            navController.popBackStack(Routes.Home.route, false)
+                        },
+                        homeContent = {
+                            HomeRoute(
+                                codeBlockPrefs = codeBlockPrefs,
+                            )
+                        },
+                    )
+                }
             }
         }
 
@@ -827,12 +832,12 @@ class MainActivity : AppCompatActivity() {
 
         elevateAiBar()
 
-        // A fresh app entry starts blank; recreation restores the selected conversation.
+        // 全新进入应用时从空白开始；重建时恢复选中的会话。
         tryRestoreConversations(restoreActive = savedInstanceState != null)
         if (activeConversation == null) {
             startNewChat(clearUi = true)
         } else if (savedInstanceState == null) {
-            // Persist the reused empty selection so recreation cannot reopen old history.
+            // 持久化复用的空会话选择，避免重建后重新打开旧历史。
             persistConversations()
         }
 
@@ -841,7 +846,7 @@ class MainActivity : AppCompatActivity() {
         silentCheckUpdatesOnLaunch()
         refreshMainChatPromptOnLaunch()
 
-        // Handle automation intent extras from cold-start launch
+        // 处理冷启动 Intent 携带的自动化启动参数
         handleAutomationLaunchIntent()
     }
 
@@ -1084,32 +1089,55 @@ class MainActivity : AppCompatActivity() {
     @Composable
     private fun HomeHistoryDialog() {
         val currentShowHistoryDialog by remember { showHistoryDialogState }
-        if (!currentShowHistoryDialog) return
+        val overlayController = com.ai.phoneagent.ui.components.LocalAriesOverlayController.current
+        var shownByHost by remember { mutableStateOf(false) }
+        var itemsRevision by remember { mutableStateOf(0) }
 
-        ConversationHistoryDialog(
-            items = buildHistoryDialogItems(),
-            onDismiss = {
-                vibrateLight()
-                showHistoryDialogState.value = false
-            },
-            onSelect = { conversationId ->
-                conversations.firstOrNull { it.id == conversationId }?.let { conversation ->
-                    activeConversation = conversation
-                    renderConversation(conversation, animateTransition = true)
-                    persistConversations()
+        LaunchedEffect(currentShowHistoryDialog, overlayController) {
+            val controller = overlayController ?: return@LaunchedEffect
+            if (currentShowHistoryDialog) {
+                controller.show {
+                    itemsRevision
+                    ConversationHistoryDialog(
+                        items = buildHistoryDialogItems(),
+                        onDismiss = {
+                            vibrateLight()
+                            showHistoryDialogState.value = false
+                        },
+                        onSelect = { conversationId ->
+                            conversations.firstOrNull { it.id == conversationId }?.let { conversation ->
+                                activeConversation = conversation
+                                renderConversation(conversation, animateTransition = true)
+                                persistConversations()
+                            }
+                            vibrateLight()
+                            showHistoryDialogState.value = false
+                        },
+                        onDelete = { conversationId ->
+                            if (deleteConversationById(conversationId, clearUiForActive = true)) {
+                                itemsRevision += 1
+                                if (buildHistoryDialogItems().isEmpty()) {
+                                    showHistoryDialogState.value = false
+                                }
+                            }
+                        },
+                    )
                 }
-                vibrateLight()
-                showHistoryDialogState.value = false
-            },
-            onDelete = { conversationId ->
-                if (!deleteConversationById(conversationId, clearUiForActive = true)) {
-                    return@ConversationHistoryDialog
+                shownByHost = true
+            } else if (shownByHost) {
+                controller.dismiss()
+                shownByHost = false
+            }
+        }
+
+        DisposableEffect(overlayController) {
+            onDispose {
+                if (shownByHost) {
+                    overlayController?.dismiss()
+                    shownByHost = false
                 }
-                if (buildHistoryDialogItems().isEmpty()) {
-                    showHistoryDialogState.value = false
-                }
-            },
-        )
+            }
+        }
     }
 
     private fun refreshMainChatPromptOnLaunch() {
@@ -1742,16 +1770,16 @@ class MainActivity : AppCompatActivity() {
     private fun handleAutomationLaunchIntent() {
         val currentIntent = intent ?: return
         if (!automationDispatchAuthenticator.isAuthorized(currentIntent)) {
-            // Unauthorized automation dispatch: strip every automation control extra,
-            // do not navigate, and never publish pending launch args.
+            // 未授权的自动化分发：剥离全部自动化控制字段，
+            // 不做导航，也不发布待处理的启动参数。
             automationDispatchAuthenticator.logRejected(currentIntent)
             stripAutomationControlExtras(currentIntent)
             return
         }
         val args = AutomationViewModel.extractLaunchArgsFromIntent(currentIntent) ?: return
-        // Clear consumed extras to avoid re-processing
+        // 清除已消费的字段，避免重复处理
         stripAutomationControlExtras(currentIntent)
-        // Stash args for AutomationScreen to consume when it composes
+        // 暂存参数，供 AutomationScreen 组合时消费
         AutomationViewModel.pendingLaunchArgs = args
         navigateToRoute(Routes.Automation.route)
     }
@@ -2306,7 +2334,7 @@ class MainActivity : AppCompatActivity() {
             if (scope != null) {
                 scope.launch { drawerState.close() }
             } else {
-                // Fallback: run action directly without animation
+                // 回退：不带动画直接执行操作
                 runPendingDrawerNavigationAction()
             }
         } else {
@@ -2474,7 +2502,7 @@ class MainActivity : AppCompatActivity() {
             remoteApiOk = null
             remoteApiChecking = false
             lastCheckedApiKey = ""
-            // DataStore edits suspend; never bridge them with runBlocking on the UI thread.
+            // DataStore 写入是挂起操作；绝不以 runBlocking 在 UI 线程桥接。
             lifecycleScope.launch(Dispatchers.IO) {
                 appPrefsRepository.writeApiConfig(clearCheckResults = true)
             }
@@ -2496,7 +2524,7 @@ class MainActivity : AppCompatActivity() {
             remoteApiOk = null
             remoteApiChecking = false
             lastCheckedApiKey = ""
-            // DataStore edits suspend; never bridge them with runBlocking on the UI thread.
+            // DataStore 写入是挂起操作；绝不以 runBlocking 在 UI 线程桥接。
             lifecycleScope.launch(Dispatchers.IO) {
                 appPrefsRepository.writeApiConfig(clearCheckResults = true)
             }
@@ -2720,8 +2748,8 @@ class MainActivity : AppCompatActivity() {
                 getSystemService(VIBRATOR_SERVICE) as? Vibrator
             } ?: return
 
-            // vibrate may throw SecurityException on some devices if permission/implementation differs;
-            // catch any throwable to avoid crashing the app when haptic feedback fails.
+            // 部分设备在权限或实现差异下 vibrate 可能抛 SecurityException；
+            // 捕获所有异常，避免触觉反馈失败导致应用崩溃。
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     vibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
@@ -2730,10 +2758,10 @@ class MainActivity : AppCompatActivity() {
                     vibrator.vibrate(30)
                 }
             } catch (_: Throwable) {
-                // ignore vibrate failures
+                // 忽略震动失败
             }
         } catch (_: Throwable) {
-            // defensively ignore any unexpected errors here to prevent UI crashes
+            // 防御性忽略任何意外错误，避免 UI 崩溃
         }
     }
 
@@ -2756,10 +2784,10 @@ class MainActivity : AppCompatActivity() {
                     vibrator.vibrate(30)
                 }
             } catch (_: Throwable) {
-                // ignore vibrate failures
+                // 忽略震动失败
             }
         } catch (_: Throwable) {
-            // defensively ignore any unexpected errors here to prevent UI crashes
+            // 防御性忽略任何意外错误，避免 UI 崩溃
         }
     }
 
@@ -2767,13 +2795,9 @@ class MainActivity : AppCompatActivity() {
     private fun HomeInputBar() {
         val attachmentManager = remember(chatViewModel) { chatViewModel.getAttachmentManager() }
 
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                HomeAttachmentPreviewSection(attachmentManager = attachmentManager)
-                HomeInputBarControls()
-            }
-
-            HomeAttachmentSelectorSheet(attachmentManager = attachmentManager)
+        Column(modifier = Modifier.fillMaxWidth()) {
+            HomeAttachmentPreviewSection(attachmentManager = attachmentManager)
+            HomeInputBarControls()
         }
     }
 
@@ -2801,16 +2825,36 @@ class MainActivity : AppCompatActivity() {
     }
 
     @Composable
-    private fun HomeAttachmentSelectorSheet(
-        attachmentManager: com.ai.phoneagent.helper.AttachmentManager,
-    ) {
-        DebugRecomposeLogger(scope = "HomeAttachmentSelector")
+    private fun AppOverlayHost(content: @Composable () -> Unit) {
         val attachmentSelectorVisible by chatViewModel.attachmentSelectorVisible.collectAsState()
-        com.ai.phoneagent.ui.components.AttachmentSelectorPanel(
-            visible = attachmentSelectorVisible,
-            attachmentManager = attachmentManager,
-            onDismiss = { chatViewModel.hideAttachmentSelector() },
-        )
+        val attachmentManager = remember(chatViewModel) { chatViewModel.getAttachmentManager() }
+        val backdrop = rememberLayerBackdrop()
+        val overlayController = remember { com.ai.phoneagent.ui.components.AriesOverlayController() }
+        val overlayContent = overlayController.content
+        val needsBackdrop = attachmentSelectorVisible || overlayContent != null
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (needsBackdrop) Modifier.layerBackdrop(backdrop) else Modifier),
+            ) {
+                CompositionLocalProvider(
+                    com.ai.phoneagent.ui.components.LocalAriesOverlayController provides overlayController,
+                ) {
+                    content()
+                }
+            }
+
+            CompositionLocalProvider(LocalAriesLayerBackdrop provides backdrop) {
+                com.ai.phoneagent.ui.components.AttachmentSelectorPanel(
+                    visible = attachmentSelectorVisible,
+                    attachmentManager = attachmentManager,
+                    onDismiss = { chatViewModel.hideAttachmentSelector() },
+                )
+                overlayContent?.invoke()
+            }
+        }
     }
 
     @Composable
@@ -3253,7 +3297,7 @@ class MainActivity : AppCompatActivity() {
                 if (resendUser) {
                     val latestUserIndex = chatHistory.indexOfLast { it.role == "user" }
                     if (latestUserIndex >= 0) {
-                        // Preserve multimodal payload (e.g. image_url list) for the current turn.
+                        // 保留当前轮次的多模态载荷（如 image_url 列表）。
                         chatHistory[latestUserIndex] =
                             ChatRequestMessage(role = "user", content = messageContent)
                     } else {
@@ -3297,7 +3341,7 @@ class MainActivity : AppCompatActivity() {
 
                     val reasoningDeltaHandler: (String) -> Unit = { delta ->
                         if (shouldStopGeneration) {
-                            // stop requested; ignore incoming delta
+                            // 已请求停止；忽略后续增量
                         } else if (delta.isNotBlank()) {
                             synchronized(streamBufferLock) {
                                 reasoningSb.append(delta)
@@ -3309,7 +3353,7 @@ class MainActivity : AppCompatActivity() {
 
                     val contentDeltaHandler: (String) -> Unit = { delta ->
                         if (shouldStopGeneration) {
-                            // stop requested; ignore incoming delta
+                            // 已请求停止；忽略后续增量
                         } else if (delta.isNotEmpty()) {
                             synchronized(streamBufferLock) {
                                 contentSb.append(delta)
@@ -4053,11 +4097,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startMicAnimation() {
-        // Compose UI handles its own animations via state
+        // 动画由 Compose UI 基于状态自行处理
     }
 
     private fun stopMicAnimation() {
-        // Compose UI handles its own animations via state
+        // 动画由 Compose UI 基于状态自行处理
     }
 
     private fun ensureAudioPermission(onGranted: () -> Unit) {

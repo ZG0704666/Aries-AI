@@ -1,10 +1,9 @@
 package com.ai.phoneagent.ui.history
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import com.composables.icons.lucide.Lucide
@@ -27,12 +27,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.ai.phoneagent.R
+import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import com.ai.phoneagent.ui.components.AriesFullScreenOverlay
 
 data class ConversationHistoryItemUi(
     val id: Long,
@@ -55,34 +57,26 @@ fun ConversationHistoryDialog(
     val spacingLg = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_lg)
     val listMaxHeight = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_license_list_height)
 
-    Box(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .background(Color.Transparent)
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onDismiss,
-                ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Surface(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = cardMargin)
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = {},
-                    ),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xxxs),
-            shadowElevation = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm),
+    AriesFullScreenOverlay(onDismissRequest = onDismiss, modifier = modifier) {
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
         ) {
-            Column(modifier = Modifier.padding(dialogPadding)) {
+            Column(
+                modifier =
+                    Modifier
+                        .padding(horizontal = cardMargin)
+                        .fillMaxWidth()
+                        .widthIn(max = 560.dp)
+                        .heightIn(max = maxHeight * 0.92f)
+                        .ariesGlass(MaterialTheme.shapes.large)
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = {},
+                        )
+                        .padding(dialogPadding),
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,

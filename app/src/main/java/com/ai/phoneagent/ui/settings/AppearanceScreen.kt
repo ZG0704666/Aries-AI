@@ -1,6 +1,7 @@
 package com.ai.phoneagent.ui.settings
 
 import android.content.res.Configuration
+import com.ai.phoneagent.ui.components.AriesAlertDialog
 import com.ai.phoneagent.ui.components.AriesPageTopBar
 import com.ai.phoneagent.core.designsystem.theme.ariesGlass
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -155,7 +156,7 @@ fun AppearanceScreenContent(
             item { AriesSettingsSwitchItem(headlineText = stringResource(R.string.settings_appearance_amoled), checked = amoledDarkEnabled, onCheckedChange = onAmoledDarkEnabledChange, enabled = dark) }
         }
     }
-    if (dialog != null) androidx.compose.material3.AlertDialog(onDismissRequest = { dialog = null }, confirmButton = {
+    if (dialog != null) AriesAlertDialog(onDismissRequest = { dialog = null }, confirmButton = {
         androidx.compose.material3.TextButton(onClick = { dialog = null }) { Text(stringResource(R.string.action_close)) }
     }, text = {
         LazyColumn {
@@ -175,7 +176,7 @@ fun AppearanceScreenContent(
                 }
             }
         }
-    })
+    }, textScrollable = false)
 }
 
 @Composable

@@ -156,6 +156,9 @@ class AutomationOverlay(
             lp.x = baseX
             lp.y = baseY
 
+            val blurEnabled = DisplayUtils.applyOverlayBlurBehind(appCtx, w, lp)
+            view.setWindowBlurEnabled(blurEnabled)
+
             view.attachWindowManager(w, lp)
             val ok =
                     runCatching {
@@ -407,7 +410,7 @@ class AutomationOverlay(
             if (maxSteps != null && !hasEstimatedSteps) {
                 this.maxSteps = maxSteps.coerceAtLeast(1)
             }
-            // Model estimates are not a known total; retain the moving indeterminate edge.
+            // 模型只能估算，总量未知；保留流动的不确定进度条样式。
             val frac = 0f
             v.setProgress(frac)
             val sub = subtitle?.trim().orEmpty()
@@ -576,6 +579,22 @@ class AutomationOverlay(
         fun attachWindowManager(wm: WindowManager, lp: WindowManager.LayoutParams) {
             this.wm = wm
             this.lp = lp
+        }
+
+        /** 窗口模糊生效时改用半透明表面，让下层内容透过模糊可见 */
+        fun setWindowBlurEnabled(enabled: Boolean) {
+            background =
+                    GradientDrawable().apply {
+                        shape = GradientDrawable.RECTANGLE
+                        cornerRadius = dp(14).toFloat()
+                        val fillAlpha =
+                                if (enabled) (surfaceColor ushr 24 and 0xFF).coerceAtMost(210)
+                                else 0xFF
+                        setColor(ColorUtils.setAlphaComponent(surfaceColor and 0x00FFFFFF, fillAlpha))
+                        setStroke(dp(1), ColorUtils.setAlphaComponent(outlineColor, if (enabled) 64 else 96))
+                    }
+            elevation = if (enabled) 0f else dp(8).toFloat()
+            invalidate()
         }
 
         fun titleText(): String = title.text?.toString().orEmpty()

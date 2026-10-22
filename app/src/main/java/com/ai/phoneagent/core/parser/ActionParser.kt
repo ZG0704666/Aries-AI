@@ -23,7 +23,7 @@ import com.ai.phoneagent.core.agent.ParsedAgentAction
  * 动作解析器 - 单一职责
  * 
  * 负责解析模型输出的文本，提取动作信息
- * 支持 Open-AutoGLM 格式：<think> 和 <answer> XML 标签
+ * 支持 Aries 格式：<think> 和 <answer> XML 标签
  */
 class ActionParser {
     
@@ -184,7 +184,7 @@ class ActionParser {
     fun parseWithThinking(content: String): Pair<String?, String> {
         val full = content.trim()
         
-        // 尝试 Open-AutoGLM 格式：<think> 和 <answer>
+        // 尝试 Aries 格式：<think> 和 <answer>
         val thinkFromTag = extractFromThinkTag(full)
         val answerFromTag = extractFromAnswerTag(full)
         if (answerFromTag != null) {

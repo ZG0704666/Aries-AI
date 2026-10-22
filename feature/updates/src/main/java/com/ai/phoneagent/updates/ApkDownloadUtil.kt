@@ -13,8 +13,10 @@ import androidx.core.content.ContextCompat
 import com.ai.phoneagent.feature.updates.BuildConfig
 import com.ai.phoneagent.feature.updates.R
 
+/** 基于系统 DownloadManager 的 APK/文件下载工具。 */
 object ApkDownloadUtil {
 
+    /** 根据令牌类型构造鉴权头（细粒度令牌用 `Bearer`，经典令牌用 `token`）。 */
     private fun buildAuthHeader(token: String): String? {
         val t = token.trim()
         if (t.isBlank()) return null
@@ -25,6 +27,11 @@ object ApkDownloadUtil {
         }
     }
 
+    /**
+     * 将任意 URL 交给 DownloadManager 下载到公共 Downloads 目录。
+     *
+     * @return 是否成功入队。
+     */
     fun enqueueDownloadUrl(
         context: Context,
         url: String,
@@ -53,6 +60,12 @@ object ApkDownloadUtil {
         return enqueueRequest(context, req, fileName)
     }
 
+    /**
+     * 下载发布条目对应的 APK。
+     *
+     * 配置了令牌且存在资产 ID 时走带鉴权的 API 资产地址，否则退回公开下载链接；
+     * 无可用链接时改为在浏览器中打开发布页。
+     */
     fun enqueueApkDownload(context: Context, entry: ReleaseEntry): Boolean {
         val resolvedUrl =
             if (BuildConfig.GITHUB_TOKEN.isNotBlank() && entry.apkAssetId != null) {
@@ -85,6 +98,11 @@ object ApkDownloadUtil {
         return enqueueRequest(context, req, fileName)
     }
 
+    /**
+     * 提交下载请求并注册完成/失败提示。
+     *
+     * 完成后自动注销广播接收器；失败时读取 COLUMN_REASON 提示原因。
+     */
     private fun enqueueRequest(
         context: Context,
         req: DownloadManager.Request,

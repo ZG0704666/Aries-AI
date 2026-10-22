@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.dimensionResource
 import com.ai.phoneagent.core.designsystem.R
 
+/** 玻璃卡片容器：统一圆角、内边距与纵向间距。 */
 @Composable
 fun AriesGlassCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     val shape = RoundedCornerShape(dimensionResource(R.dimen.aries_card_radius))
@@ -19,6 +20,7 @@ fun AriesGlassCard(modifier: Modifier = Modifier, content: @Composable ColumnSco
     }
 }
 
+/** 玻璃按钮：使用透明容器色的 Material3 按钮。 */
 @Composable
 fun AriesGlassButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
     contentColor: Color = MaterialTheme.colorScheme.onSurface, content: @Composable RowScope.() -> Unit) {

@@ -15,7 +15,11 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.cardview.widget.CardView
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import com.ai.phoneagent.R
+import com.ai.phoneagent.core.utils.DisplayUtils
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -87,11 +91,27 @@ class UIAutomationProgressOverlay(context: Context) {
                 y = 100 // 距离底部100像素
             }
 
+            val blurEnabled = windowManager?.let {
+                DisplayUtils.applyOverlayBlurBehind(context, it, params)
+            } ?: false
+
             // 创建Overlay视图
             overlayView = LayoutInflater.from(context).inflate(
                 R.layout.overlay_automation_progress,
                 null
             )
+
+            if (blurEnabled) {
+                (overlayView as? CardView)?.setCardBackgroundColor(
+                    ColorUtils.setAlphaComponent(
+                        ContextCompat.getColor(
+                            context,
+                            com.ai.phoneagent.core.designsystem.R.color.m3t_automation_progress_bg
+                        ),
+                        210
+                    )
+                )
+            }
 
             // 绑定UI组件
             overlayView?.let { view ->
