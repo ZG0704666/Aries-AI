@@ -1,14 +1,13 @@
 package com.ai.phoneagent.ui.onboarding
 
-import com.ai.phoneagent.ui.components.AriesAlertDialog
 import com.ai.phoneagent.ui.components.AriesPageTopBar
 import com.ai.phoneagent.core.designsystem.theme.AriesGlassCard
 import com.ai.phoneagent.core.designsystem.theme.AriesGlassButton
-import com.ai.phoneagent.core.designsystem.theme.ariesGlass
 import com.ai.phoneagent.core.designsystem.R as DesignR
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.Brush
@@ -59,7 +58,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -404,7 +402,7 @@ internal fun AgreementPanel(onAccept: () -> Unit, actionLabelRes: Int, requireAc
     val agreementHtml = stringResource(R.string.user_agreement_content)
     val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
     if (showFull) {
-        AriesAlertDialog(onDismissRequest = { showFull = false }, title = { Text(stringResource(R.string.user_agreement_title)) },
+        AlertDialog(onDismissRequest = { showFull = false }, title = { Text(stringResource(R.string.user_agreement_title)) },
             text = {
                 AndroidView(modifier = Modifier.fillMaxWidth(), factory = { ctx ->
                     ScrollView(ctx).apply {
@@ -420,7 +418,7 @@ internal fun AgreementPanel(onAccept: () -> Unit, actionLabelRes: Int, requireAc
                         text = Html.fromHtml(agreementHtml, Html.FROM_HTML_MODE_COMPACT)
                     }
                 })
-            }, textScrollable = false, confirmButton = { TextButton(onClick = { showFull = false }) { Text(stringResource(R.string.action_close)) } })
+            }, confirmButton = { TextButton(onClick = { showFull = false }) { Text(stringResource(R.string.action_close)) } })
     }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(padding), verticalArrangement = Arrangement.spacedBy(padding)) {
         item { Text(stringResource(R.string.ui_v2_agreement_heading), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
@@ -448,7 +446,8 @@ internal fun AgreementPanel(onAccept: () -> Unit, actionLabelRes: Int, requireAc
             }
         }
         item { Button(onClick = onAccept, enabled = !requireAcceptance || accepted,
-            shape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_action_radius))) { Text(stringResource(actionLabelRes)) } }
+            shape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_action_radius)),
+            modifier = Modifier.fillMaxWidth().height(dimensionResource(DesignR.dimen.m3t_button_height))) { Text(stringResource(actionLabelRes)) } }
         if (requireAcceptance) item { OnboardingStepCaption(2) }
     }
 }
@@ -467,15 +466,38 @@ private fun PermissionPanel(flowMode: OnboardingFlowMode, permissionUiState: Per
             Text(stringResource(R.string.perm_sheet_shizuku_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Text(stringResource(R.string.perm_sheet_shizuku_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(dimensionResource(DesignR.dimen.m3t_spacing_sm))) {
-                Button(onClick = onGuideAll, shape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_action_radius))) {
-                    Text(stringResource(if (permissionUiState.allReady) R.string.perm_sheet_primary_action_ready else R.string.perm_sheet_primary_action))
-                }
-                if (!permissionUiState.allReady || flowMode == OnboardingFlowMode.PERMISSION_ONLY) AriesGlassButton(onClick = onDone) { Text(stringResource(R.string.perm_sheet_secondary_action)) }
+        item { OnboardingButtonRow(
+            flowMode = flowMode,
+            allReady = permissionUiState.allReady,
+            onGuideAll = onGuideAll,
+            onDone = onDone,
+        ) }
+        item { OnboardingStepCaption(3) }
+    }
+}
+
+/** 权限页底部按钮行：主/次按钮同宽同高；主按钮粉色实心，次按钮浅灰描边玻璃。 */
+@Composable
+private fun OnboardingButtonRow(flowMode: OnboardingFlowMode, allReady: Boolean, onGuideAll: () -> Unit, onDone: () -> Unit) {
+    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
+    val buttonHeight = dimensionResource(DesignR.dimen.m3t_button_height)
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacingSm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Button(
+            onClick = onGuideAll,
+            shape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_action_radius)),
+            modifier = Modifier.weight(1f).height(buttonHeight),
+        ) {
+            Text(stringResource(if (allReady) R.string.perm_sheet_primary_action_ready else R.string.perm_sheet_primary_action), maxLines = 1)
+        }
+        if (!allReady || flowMode == OnboardingFlowMode.PERMISSION_ONLY) {
+            AriesGlassButton(onClick = onDone, modifier = Modifier.weight(1f).height(buttonHeight)) {
+                Text(stringResource(R.string.perm_sheet_secondary_action), maxLines = 1)
             }
         }
-        item { OnboardingStepCaption(3) }
     }
 }
 

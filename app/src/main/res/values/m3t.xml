@@ -31,7 +31,16 @@
     <dimen name="m3t_input_bar_voice_status_padding_v">6dp</dimen>
     <dimen name="m3t_input_bar_voice_cancel_enter_offset">150dp</dimen>
     <dimen name="m3t_input_bar_voice_cancel_exit_offset">110dp</dimen>
-    <dimen name="m3t_voice_wave_height">60dp</dimen>
+    <!-- 语音上滑取消目标区：屏幕中上方固定瞄准点 + 出现位移 -->
+    <dimen name="m3t_voice_cancel_target_size">72dp</dimen>
+    <dimen name="m3t_voice_cancel_target_icon">30dp</dimen>
+    <dimen name="m3t_voice_cancel_target_travel">236dp</dimen>
+    <dimen name="m3t_voice_breathing_glow_radius">44dp</dimen>
+    <!-- 平滑声波条（替代 8 点波形）：24 根 3dp 柱 -->
+    <dimen name="m3t_voice_wave_bar_width">3dp</dimen>
+    <dimen name="m3t_voice_wave_bar_min_height">6dp</dimen>
+    <dimen name="m3t_voice_wave_bar_max_height">48dp</dimen>
+    <dimen name="m3t_voice_wave_height">24dp</dimen>
     <dimen name="m3t_voice_wave_dot_size">10dp</dimen>
     <dimen name="m3t_voice_wave_dot_gap">8dp</dimen>
     <dimen name="m3t_transcript_empty_card_max_width">336dp</dimen>
@@ -46,11 +55,6 @@
     <dimen name="m3t_message_thinking_icon_box_size">20dp</dimen>
     <dimen name="m3t_top_bar_title_gap">8dp</dimen>
     <dimen name="m3t_input_bar_shadow">10dp</dimen>
-
-    <!-- 输入栏：上浮时改用不透明遮罩，保证文字可读性 -->
-    <dimen name="m3t_input_bar_elevation">3dp</dimen>
-    <dimen name="m3t_input_bar_stroke">1dp</dimen>
-    <color name="m3t_input_bar_action_bg">#1F000000</color>
 
     <!-- M3T Typography -->
     <style name="TextAppearance.M3t.ToolbarTitle" parent="TextAppearance.MaterialComponents.Headline6">

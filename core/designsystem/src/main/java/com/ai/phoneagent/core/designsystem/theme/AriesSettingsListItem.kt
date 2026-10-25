@@ -12,12 +12,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import com.ai.phoneagent.core.designsystem.R
+import com.ai.phoneagent.core.designsystem.theme.glass.AriesLiquidSwitch
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,10 +48,11 @@ fun AriesSettingsNavigationItem(
     supportingText: String? = null,
     leadingIcon: (@Composable () -> Unit)? = null,
 ) {
+    // Material B（滚动内容）：静态内容玻璃，滚动零 GPU 特效成本。
     ListItem(
         modifier = modifier
             .fillMaxWidth()
-            .ariesGlass(MaterialTheme.shapes.large, elevated = false)
+            .ariesGlass(MaterialTheme.shapes.large)
             .clip(MaterialTheme.shapes.large)
             .clickable(onClick = onClick),
         colors = ListItemDefaults.colors(
@@ -86,7 +87,7 @@ fun AriesSettingsNavigationItem(
 }
 
 /**
- * 开关型设置行，尾部为 [Switch]。
+ * 开关型设置行，尾部为 [AriesLiquidSwitch]（液态玻璃开关）。
  *
  * 点击行内任意位置即切换开关。
  */
@@ -100,10 +101,11 @@ fun AriesSettingsSwitchItem(
     leadingIcon: (@Composable () -> Unit)? = null,
     enabled: Boolean = true,
 ) {
+    // Material B（滚动内容）：静态内容玻璃；开关控件本身为交互液态玻璃（Material A）。
     ListItem(
         modifier = modifier
             .fillMaxWidth()
-            .ariesGlass(MaterialTheme.shapes.large, elevated = false)
+            .ariesGlass(MaterialTheme.shapes.large)
             .clip(MaterialTheme.shapes.large)
             .clickable(enabled = enabled) { onCheckedChange(!checked) },
         colors = ListItemDefaults.colors(
@@ -128,7 +130,7 @@ fun AriesSettingsSwitchItem(
         },
         leadingContent = leadingIcon,
         trailingContent = {
-            Switch(
+            AriesLiquidSwitch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
                 enabled = enabled,
@@ -151,10 +153,15 @@ fun AriesSettingsValueItem(
     leadingIcon: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
+    // Material B（滚动内容）：静态内容玻璃；只读行为同样式但无点击。
     val clickModifier = if (onClick != null) {
-        modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.large, elevated = false).clip(MaterialTheme.shapes.large).clickable(onClick = onClick)
+        modifier.fillMaxWidth()
+            .ariesGlass(MaterialTheme.shapes.large)
+            .clip(MaterialTheme.shapes.large)
+            .clickable(onClick = onClick)
     } else {
-        modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.large, elevated = false)
+        modifier.fillMaxWidth()
+            .ariesGlass(MaterialTheme.shapes.large)
     }
     ListItem(
         modifier = clickModifier,
@@ -203,10 +210,15 @@ fun AriesSettingsCustomItem(
     belowContent: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
+    // Material B（滚动内容）：静态内容玻璃。
     val clickModifier = if (onClick != null) {
-        modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.large, elevated = false).clip(MaterialTheme.shapes.large).clickable(onClick = onClick)
+        modifier.fillMaxWidth()
+            .ariesGlass(MaterialTheme.shapes.large)
+            .clip(MaterialTheme.shapes.large)
+            .clickable(onClick = onClick)
     } else {
-        modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.large, elevated = false)
+        modifier.fillMaxWidth()
+            .ariesGlass(MaterialTheme.shapes.large)
     }
     Column(modifier = clickModifier) {
         ListItem(

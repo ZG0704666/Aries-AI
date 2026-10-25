@@ -18,11 +18,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Download
 import com.composables.icons.lucide.ExternalLink
-import com.ai.phoneagent.ui.components.AriesAlertDialog
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -33,11 +35,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import com.ai.phoneagent.core.designsystem.theme.glass.AriesLiquidSwitch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -94,7 +96,7 @@ fun UpdateHistoryScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Switch(
+                AriesLiquidSwitch(
                     checked = uiState.includePrerelease,
                     onCheckedChange = { viewModel.setIncludePrerelease(it) }
                 )
@@ -167,14 +169,16 @@ fun UpdateHistoryScreen(
     }
 
     uiState.detailDialogState?.let { entry ->
-        AriesAlertDialog(
+        AlertDialog(
             onDismissRequest = { viewModel.dismissDetails() },
             title = { Text(entry.versionTag) },
             text = {
-                Text(
-                    text = entry.body.ifBlank { stringResource(R.string.m3t_updates_no_changelog) },
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text(
+                        text = entry.body.ifBlank { stringResource(R.string.m3t_updates_no_changelog) },
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -193,7 +197,7 @@ fun UpdateHistoryScreen(
     }
 
     uiState.downloadOptionsDialogState?.let { state ->
-        AriesAlertDialog(
+        AlertDialog(
             onDismissRequest = { viewModel.dismissDownloadOptionsDialog() },
             title = { Text(stringResource(R.string.m3t_updates_choose_source)) },
             text = {

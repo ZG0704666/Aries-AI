@@ -18,6 +18,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -32,6 +34,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -39,6 +42,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +53,7 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
@@ -57,7 +62,6 @@ import com.ai.phoneagent.helper.FeedbackLogExporter
 import com.ai.phoneagent.navigation.Routes
 import com.ai.phoneagent.ui.AboutScreen
 import com.ai.phoneagent.ui.automation.AutomationControlScreen
-import com.ai.phoneagent.ui.components.AriesAlertDialog
 import com.ai.phoneagent.viewmodel.AboutViewModel
 import com.ai.phoneagent.viewmodel.AutomationViewModel
 import com.ai.phoneagent.viewmodel.SettingsViewModel
@@ -118,25 +122,31 @@ fun SettingsRoute(
         }
     }
 
+    val currentPage by remember { derivedStateOf { viewModel.currentPage } }
+
     AnimatedContent(
-        targetState = viewModel.currentPage,
+        targetState = currentPage,
         transitionSpec = {
+            val spec = spring<IntOffset>(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMedium
+            )
             if (viewModel.pageTransitionForward) {
                 slideInHorizontally(
-                    animationSpec = tween(260),
+                    animationSpec = spec,
                     initialOffsetX = { it },
                 ) + fadeIn(animationSpec = tween(220)) togetherWith
                     slideOutHorizontally(
-                        animationSpec = tween(260),
+                        animationSpec = spec,
                         targetOffsetX = { -it },
                     ) + fadeOut(animationSpec = tween(220))
             } else {
                 slideInHorizontally(
-                    animationSpec = tween(260),
+                    animationSpec = spec,
                     initialOffsetX = { -it },
                 ) + fadeIn(animationSpec = tween(220)) togetherWith
                     slideOutHorizontally(
-                        animationSpec = tween(260),
+                        animationSpec = spec,
                         targetOffsetX = { it },
                     ) + fadeOut(animationSpec = tween(220))
             }
@@ -217,7 +227,7 @@ fun SettingsRoute(
                 )
                 // Aries 模型选择对话框
                 if (viewModel.showAriesModelDialog) {
-                    AriesAlertDialog(
+                    AlertDialog(
                         onDismissRequest = { viewModel.dismissAriesModelDialog() },
                         title = { Text(stringResource(com.ai.phoneagent.R.string.aries_model_select_title)) },
                         text = {
@@ -238,7 +248,6 @@ fun SettingsRoute(
                                 }
                             }
                         },
-                        textScrollable = false,
                         confirmButton = {},
                         dismissButton = {
                             TextButton(onClick = { viewModel.dismissAriesModelDialog() }) {
@@ -386,7 +395,7 @@ private fun SettingsAboutContent(
     )
 
     if (showFeedbackConfirmDialog) {
-        AriesAlertDialog(
+        AlertDialog(
             onDismissRequest = { showFeedbackConfirmDialog = false },
             title = { Text(stringResource(SettingsR.string.about_feedback_confirm_title)) },
             text = { Text(stringResource(SettingsR.string.about_feedback_confirm_message)) },
@@ -439,7 +448,7 @@ private fun SettingsAboutContent(
     }
 
     if (isExportingFeedbackBundle) {
-        AriesAlertDialog(
+        AlertDialog(
             onDismissRequest = {},
             title = { Text(stringResource(SettingsR.string.about_feedback_confirm_title)) },
             text = {
@@ -453,7 +462,7 @@ private fun SettingsAboutContent(
     }
 
     uiState.updateDialogState?.let { state ->
-        AriesAlertDialog(
+        AlertDialog(
             onDismissRequest = { viewModel.dismissUpdateDialog() },
             title = {
                 Text(
@@ -487,7 +496,7 @@ private fun SettingsAboutContent(
     }
 
     uiState.errorDialogState?.let { state ->
-        AriesAlertDialog(
+        AlertDialog(
             onDismissRequest = { viewModel.dismissErrorDialog() },
             title = { Text(stringResource(SettingsR.string.about_check_failed)) },
             text = { Text(state.message) },
@@ -510,7 +519,7 @@ private fun SettingsAboutContent(
     }
 
     uiState.upToDateDialogState?.let { state ->
-        AriesAlertDialog(
+        AlertDialog(
             onDismissRequest = { viewModel.dismissUpToDateDialog() },
             title = { Text(stringResource(SettingsR.string.about_up_to_date)) },
             text = {
@@ -537,7 +546,7 @@ private fun SettingsAboutContent(
     }
 
     uiState.downloadOptionsDialogState?.let { state ->
-        AriesAlertDialog(
+        AlertDialog(
             onDismissRequest = { viewModel.dismissDownloadOptionsDialog() },
             title = { Text(stringResource(SettingsR.string.m3t_updates_choose_source)) },
             text = {

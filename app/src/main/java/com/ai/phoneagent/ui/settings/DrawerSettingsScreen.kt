@@ -11,7 +11,7 @@ import com.ai.phoneagent.core.designsystem.theme.AriesGlassButton
 
 import com.ai.phoneagent.ui.components.AriesPageTopBar
 import android.content.res.Configuration
-import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import com.ai.phoneagent.core.designsystem.theme.glass.AriesLiquidButton
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import com.composables.icons.lucide.CircleHelp
@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.composables.icons.lucide.ChevronRight
@@ -59,7 +60,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -78,6 +78,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.colorResource
@@ -88,6 +89,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import com.ai.phoneagent.R
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
+import com.ai.phoneagent.core.designsystem.theme.AriesSoftHairline
+import com.ai.phoneagent.core.designsystem.theme.ariesGlass
 import com.ai.phoneagent.core.designsystem.theme.ThemeMode
 import com.ai.phoneagent.ui.components.InfoTooltip
 import com.ai.phoneagent.viewmodel.SettingsViewModel
@@ -146,9 +149,14 @@ fun DrawerSettingsScreen(
         SettingsEntryUi(SettingsEntryType.ModelApi, stringResource(R.string.ui_v2_model_title), modelSummary, Lucide.Cpu),
         SettingsEntryUi(SettingsEntryType.About, stringResource(R.string.ui_v2_about_title), stringResource(R.string.ui_v2_about_hint), Lucide.CircleHelp),
     )
-    LazyColumn(Modifier.fillMaxSize().navigationBarsPadding(),
-        contentPadding = PaddingValues(horizontal = padding, vertical = inner), verticalArrangement = Arrangement.spacedBy(gap)) {
+    LazyColumn(
+        Modifier.fillMaxSize().navigationBarsPadding().clipToBounds(),
+        state = rememberLazyListState(),
+        contentPadding = PaddingValues(horizontal = padding, vertical = inner), 
+        verticalArrangement = Arrangement.spacedBy(gap)
+    ) {
         item {
+            // Material B：设置账户卡（滚动内容，静态玻璃）。
             Surface(onClick = onOpenAccount, modifier = Modifier.fillMaxWidth().ariesGlass(cardShape),
                 shape = cardShape, color = Color.Transparent, contentColor = colors.onSurface) {
                 Row(Modifier.fillMaxWidth().padding(inner), verticalAlignment = Alignment.CenterVertically,
@@ -191,12 +199,14 @@ fun DrawerSettingsScreen(
                         SettingsGlassRow(row.first, row.second, row.third,
                             Modifier.clickable(onClick = if (index == 2) onOpenPermissions else onOpenAutomation).padding(vertical = gap))
                     }
-                    Surface(onClick = onOpenControl, modifier = Modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.small),
-                        color = Color.Transparent, contentColor = colors.onSurface, shape = MaterialTheme.shapes.small) {
-                        Row(Modifier.padding(gap), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Lucide.Cpu, null, Modifier.size(inner), tint = colors.primary)
-                            Text(stringResource(R.string.ui_v2_open_control), style = MaterialTheme.typography.bodySmall)
-                        }
+                    AriesLiquidButton(
+                        onClick = onOpenControl,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_action_radius)),
+                        contentPadding = PaddingValues(gap),
+                    ) {
+                        Icon(Lucide.Cpu, null, Modifier.size(inner), tint = colors.primary)
+                        Text(stringResource(R.string.ui_v2_open_control), style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -531,15 +541,16 @@ fun DrawerModelApiConfigScreen(
                     SectionIntro(title = stringResource(R.string.settings_model_api_mode_title))
                     Spacer(Modifier.height(spacingSm))
                     Box {
-                        Surface(onClick = { providerMenu = true },
-                            modifier = Modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.medium),
-                            shape = MaterialTheme.shapes.medium, color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface) {
-                            Row(Modifier.padding(spacingSm), horizontalArrangement = Arrangement.spacedBy(spacingSm), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(modeOptions.firstOrNull { it.mode == currentApiMode }?.icon ?: Lucide.Cloud, null,
-                                    Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_suggestion_icon)), tint = MaterialTheme.colorScheme.primary)
-                                Text(modeTitle, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                Icon(Lucide.ChevronDown, null, Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_nav_icon)))
-                            }
+                        AriesLiquidButton(
+                            onClick = { providerMenu = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium,
+                            contentPadding = PaddingValues(spacingSm),
+                        ) {
+                            Icon(modeOptions.firstOrNull { it.mode == currentApiMode }?.icon ?: Lucide.Cloud, null,
+                                Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_suggestion_icon)), tint = MaterialTheme.colorScheme.primary)
+                            Text(modeTitle, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Icon(Lucide.ChevronDown, null, Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_nav_icon)))
                         }
                         DropdownMenu(expanded = providerMenu, onDismissRequest = { providerMenu = false }) {
                             modeOptions.forEach { option ->
@@ -613,7 +624,7 @@ fun DrawerModelApiConfigScreen(
 
                         if (currentApiMode == SettingsViewModel.ApiMode.ThirdParty) {
                             Spacer(modifier = Modifier.height(spacingMd))
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            AriesSoftHairline()
                             Spacer(modifier = Modifier.height(spacingMd))
 
                             FilledInputField(

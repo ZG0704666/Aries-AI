@@ -44,6 +44,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.dimensionResource
 import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import com.ai.phoneagent.core.designsystem.theme.glass.AriesGlassTier
+import com.ai.phoneagent.core.designsystem.theme.glass.ariesLiquidGlass
+import com.ai.phoneagent.core.designsystem.theme.glass.ariesLiquidInteractive
+import com.ai.phoneagent.core.designsystem.theme.glass.rememberAriesPressState
 import com.ai.phoneagent.R
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -157,35 +161,47 @@ fun AttachmentSelectorPanel(
     )
     
     // 玻璃绘制放在随面板一起移动的内容中，避免外层偏移造成背景遮挡。
-    val sheetRadius = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_nav_radius)
-    val sheetShape = RoundedCornerShape(topStart = sheetRadius, topEnd = sheetRadius)
-    AriesBottomSheetOverlay(
-        visible = visible,
-        onDismissRequest = onDismiss
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .ariesGlass(sheetShape)
-                .padding(bottom = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding))
+    if (visible) {
+        val sheetRadius = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_nav_radius)
+        val sheetShape = RoundedCornerShape(topStart = sheetRadius, topEnd = sheetRadius)
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = sheetShape,
+            dragHandle = null,
+            scrimColor = BottomSheetDefaults.ScrimColor
         ) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                BottomSheetDefaults.DragHandle()
-            }
-            // 附件选项
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding)),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                attachmentOptions.forEach { option ->
-                    AttachmentOptionItem(
-                        icon = option.icon,
-                        label = option.label,
-                        onClick = option.onClick,
-                        modifier = Modifier.weight(1f),
+                    .ariesLiquidGlass(
+                        shape = sheetShape,
+                        tier = AriesGlassTier.Card,
+                        backdrop = com.ai.phoneagent.core.designsystem.theme.glass.LocalAriesGlassBackdrop.current
                     )
+                    .padding(bottom = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding))
+            ) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    BottomSheetDefaults.DragHandle()
+                }
+                // 附件选项
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding)),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    attachmentOptions.forEach { option ->
+                        AttachmentOptionItem(
+                            icon = option.icon,
+                            label = option.label,
+                            onClick = option.onClick,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
         }
@@ -257,7 +273,11 @@ private fun AttachmentPreviewItem(
     
     Box(
         modifier = Modifier
-            .ariesGlass(previewShape)
+            .ariesLiquidInteractive(
+                shape = previewShape,
+                press = rememberAriesPressState(),
+                tier = AriesGlassTier.Pill,
+            )
             .clip(previewShape)
             .clickable(onClick = onInsert)
     ) {

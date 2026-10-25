@@ -15,9 +15,9 @@ import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Mic
 import com.composables.icons.lucide.Smartphone
 import com.composables.icons.lucide.Shield
-import com.ai.phoneagent.core.designsystem.theme.ariesGlass
-import com.ai.phoneagent.ui.components.AriesBottomSheetOverlay
+import com.ai.phoneagent.core.designsystem.theme.AriesSoftHairline
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PermissionBottomSheet(
     onDismissRequest: () -> Unit,
@@ -28,24 +28,22 @@ fun PermissionBottomSheet(
     onGuideAll: () -> Unit,
     onDone: () -> Unit,
 ) {
-    AriesBottomSheetOverlay(
-        visible = true,
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
         onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.extraLarge,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .ariesGlass(MaterialTheme.shapes.extraLarge),
-        ) {
-            PermissionBottomSheetContent(
-                permissionUiState = permissionUiState,
-                onOpenAccessibility = onOpenAccessibility,
-                onOpenOverlay = onOpenOverlay,
-                onOpenMic = onOpenMic,
-                onGuideAll = onGuideAll,
-                onDone = onDone,
-            )
-        }
+        PermissionBottomSheetContent(
+            permissionUiState = permissionUiState,
+            onOpenAccessibility = onOpenAccessibility,
+            onOpenOverlay = onOpenOverlay,
+            onOpenMic = onOpenMic,
+            onGuideAll = onGuideAll,
+            onDone = onDone,
+        )
     }
 }
 
@@ -116,9 +114,9 @@ fun PermissionBottomSheetContent(
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 PermissionRow(Lucide.Smartphone, stringResource(R.string.perm_sheet_accessibility_title), stringResource(R.string.perm_sheet_accessibility_desc), permissionUiState.accessibilityReady, stringResource(R.string.perm_sheet_action_enable), onOpenAccessibility, compactButtonHeight)
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                AriesSoftHairline()
                 PermissionRow(Lucide.ExternalLink, stringResource(R.string.perm_sheet_overlay_title), stringResource(R.string.perm_sheet_overlay_desc), permissionUiState.overlayReady, stringResource(R.string.perm_sheet_action_settings), onOpenOverlay, compactButtonHeight)
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                AriesSoftHairline()
                 PermissionRow(Lucide.Mic, stringResource(R.string.perm_sheet_microphone_title), stringResource(R.string.perm_sheet_microphone_desc), permissionUiState.microphoneReady, stringResource(R.string.perm_sheet_action_grant), onOpenMic, compactButtonHeight)
             }
         }

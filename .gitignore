@@ -86,3 +86,4 @@ Aries-site/lighthouse-*.report.json
 
 # JavaScript dependencies (site, design tools, worker)
 node_modules/
+.shots

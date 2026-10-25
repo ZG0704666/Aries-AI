@@ -8,36 +8,33 @@ import android.os.VibratorManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import com.ai.phoneagent.core.designsystem.theme.LocalAriesLayerBackdrop
-import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import com.ai.phoneagent.core.designsystem.theme.glass.AriesLiquidTabs
+import com.ai.phoneagent.core.designsystem.theme.glass.LocalAriesGlassBackdrop
+import com.ai.phoneagent.core.designsystem.theme.glass.LocalAriesTabScale
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.highlight.Highlight
-import com.kyant.backdrop.shadow.InnerShadow
-import com.kyant.backdrop.shadow.Shadow
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.pager.HorizontalPager
+
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Icon
@@ -82,22 +79,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -129,7 +122,7 @@ fun HomeScreen(
     onDrawerConversationClick: (Long) -> Unit,
     onDrawerConversationLongClick: (Long) -> Unit,
     onDrawerSettingsClick: () -> Unit,
-    transcriptPaneContent: @Composable (bottomOverlayPadding: Dp, spacingMd: Dp, spacingXxxs: Dp) -> Unit,
+    transcriptPaneContent: @Composable (topOverlayPadding: Dp, bottomOverlayPadding: Dp, spacingMd: Dp, spacingXxxs: Dp) -> Unit,
     inputBarContent: @Composable () -> Unit,
     aiNoticeText: String,
     contentAlpha: Float,
@@ -158,10 +151,32 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     var navigationJob by remember { mutableStateOf<Job?>(null) }
     var lastReportedPage by remember { mutableIntStateOf(selectedPage) }
+    // 点击/路由切换产生的目的页。程序 tween 期间 pager.currentPage 会先穿过中间页签
+    // （foundation 1.12：currentPage 表示“最接近对齐位的页”，tween 滑过中点即翻转），
+    // 若把它直接喂给胶囊会被当成外部选择，把胶囊重定向到主页并取消正确的 tween。
+    // 因此在 tween 进行中只暴露目的页，tween 结束后再回退读 pager.currentPage。
+    var flyingToPage by remember { mutableIntStateOf(-1) }
     val navigate: (Int) -> Unit = { page ->
-        navigationJob?.cancel()
-        navigationJob = scope.launch {
-            pager.animateScrollToPage(page, animationSpec = tween(motionMs, easing = FastOutSlowInEasing))
+        // 回声去重：胶囊同步（onSelect）会以同一目的页再次调用 navigate；
+        // 若此时 cancel 正在飞的 tween，finally 窗口会把目的页清空，
+        // selectedDestination 洞穿回 pager 过程值并再次回声导航回去（BACK 回主页失效的根因）。
+        if (!(page == flyingToPage && navigationJob?.isActive == true)) {
+            flyingToPage = page
+            navigationJob?.cancel()
+            navigationJob = scope.launch {
+                try {
+                    pager.animateScrollToPage(page, animationSpec = tween(motionMs, easing = FastOutSlowInEasing))
+                } finally {
+                    if (flyingToPage == page) flyingToPage = -1
+                }
+            }
+        }
+    }
+    // 胶囊导航/页签选择的推导值：飞行目的页优先，其次才是 pager 过程值。
+    val selectedDestination by remember(pager) {
+        derivedStateOf {
+            val intent = flyingToPage
+            if (intent >= 0) intent else pager.currentPage
         }
     }
     LaunchedEffect(selectedPage) {
@@ -171,7 +186,9 @@ fun HomeScreen(
         // 本页签保存期间，外层路由可能请求切换到其他页签。
         // 在把恢复的页码上报给 Activity 之前，先应用该选择。
         if (pager.currentPage != selectedPage) pager.scrollToPage(selectedPage)
-        snapshotFlow { pager.currentPage }.distinctUntilChanged().collect { lastReportedPage = it; onPageSelected(it) }
+        // 上报“已落定”页：tween 过程中 currentPage 会穿过主页，不能把中间值
+        // 上报给 Activity（会污染持久化的页签，甚至拉起错误的恢复页）。
+        snapshotFlow { pager.settledPage }.distinctUntilChanged().collect { lastReportedPage = it; onPageSelected(it) }
     }
     // 兼容旧的回调逻辑：过去需要等待抽屉关闭。
     LaunchedEffect(drawerState.currentValue) {
@@ -180,195 +197,143 @@ fun HomeScreen(
             drawerState.close()
         } else onDrawerClosed()
     }
-    BackHandler(enabled = com.ai.phoneagent.navigation.homeBackAction(pager.currentPage, settingsAtRoot) == com.ai.phoneagent.navigation.HomeBackAction.HOME) { navigate(1) }
+    BackHandler(enabled = com.ai.phoneagent.navigation.homeBackAction(pager.currentPage, settingsAtRoot) == com.ai.phoneagent.navigation.HomeBackAction.HOME) {
+        navigate(1)
+    }
+    val navRegion =
+        WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + spacingSm * 2 + navHeight
+    val navVisible = pager.currentPage != 2 || settingsAtRoot
+    // 内容层 backdrop：让悬浮胶囊真正折射其下方滚动的对话内容。
+    val contentBackdrop = rememberLayerBackdrop()
+    val navBackdrop = rememberCombinedBackdrop(LocalAriesGlassBackdrop.current, contentBackdrop)
+
+    // 只有用户手指拖动 pager 时（DragInteraction），选中胶囊才逐帧跟随进度；
+    // 点击/程序触发的 tween 动画不跟随，避免弹簧飞行与 pager 动画互相覆盖。
+    var pagerDragging by remember { mutableStateOf(false) }
+    LaunchedEffect(pager) {
+        var dragCount = 0
+        pager.interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is DragInteraction.Start -> dragCount++
+                is DragInteraction.Stop, is DragInteraction.Cancel -> dragCount--
+            }
+            pagerDragging = dragCount > 0
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
-            if (pager.currentPage != 2 || settingsAtRoot) {
-                BoxWithConstraints(Modifier.fillMaxWidth().statusBarsPadding().padding(vertical = spacingSm), contentAlignment = Alignment.Center) {
-                    val effectiveNavWidth = minOf(navWidth, maxWidth - dimensionResource(DesignR.dimen.aries_touch_target) * 2)
-                    val colors = MaterialTheme.colorScheme
-                    val navInsetX = dimensionResource(DesignR.dimen.aries_nav_inset_x)
-                    val navInsetY = dimensionResource(DesignR.dimen.aries_nav_inset_y)
-                    val navShape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_nav_radius))
-                    val itemShape = RoundedCornerShape(dimensionResource(DesignR.dimen.aries_nav_item_radius))
-                    val lensShape = RoundedCornerShape(50)
-                    val pageBackdrop = LocalAriesLayerBackdrop.current
-                    Surface(
-                        modifier = Modifier.width(effectiveNavWidth).heightIn(min = navHeight)
-                            .ariesGlass(navShape),
-                        shape = navShape,
-                        color = Color.Transparent,
-                        contentColor = colors.onSurface,
-                    ) {
-                        val itemHeight = navHeight - navInsetY * 2
-                        // 指示器宽度直接取内容区的三分之一，与 weight(1f) 的标签宽度严格一致，
-                        // 避免用 Dp 反算带来的亚像素误差造成偏移。
-                        val tabWidthPx = with(density) { (effectiveNavWidth - navInsetX * 2).toPx() } / 3f
-                        // 拖拽偏移（像素）：拖拽过程中同步写入，保证指示器严格跟随手指。
-                        var capsuleDragOffset by remember { mutableFloatStateOf(0f) }
-                        val capsuleReleaseJob = remember { arrayOfNulls<Job>(1) }
-                        var capsuleEdgeHit by remember { mutableIntStateOf(0) }
-                        // 标签层：录制成 backdrop，供放大镜指示器取样放大。
-                        val tabsBackdrop = rememberLayerBackdrop()
-                        val lensBackdrop = if (pageBackdrop != null) {
-                            rememberCombinedBackdrop(pageBackdrop, tabsBackdrop)
-                        } else {
-                            null
-                        }
-                        Box(Modifier.draggable(
-                            state = rememberDraggableState { delta ->
-                                val basePx = tabWidthPx * (pager.currentPage + pager.currentPageOffsetFraction)
-                                val maxPx = tabWidthPx * 2f
-                                val raw = basePx + capsuleDragOffset + delta
-                                val clamped = raw.coerceIn(0f, maxPx)
-                                val edge = when {
-                                    raw > clamped -> -1
-                                    raw < clamped -> 1
-                                    else -> 0
-                                }
-                                if (edge != 0 && edge != capsuleEdgeHit) hapticTick(hapticContext)
-                                capsuleEdgeHit = edge
-                                // 取消进行中的回弹动画，避免它与本次拖拽互相覆盖。
-                                capsuleReleaseJob[0]?.cancel()
-                                capsuleDragOffset = clamped - basePx
-                            },
-                            orientation = Orientation.Horizontal,
-                            onDragStarted = {
-                                capsuleEdgeHit = 0
-                                capsuleReleaseJob[0]?.cancel()
-                            },
-                            onDragStopped = {
-                                capsuleEdgeHit = 0
-                                val basePx = tabWidthPx * (pager.currentPage + pager.currentPageOffsetFraction)
-                                val settled = (basePx + capsuleDragOffset).coerceIn(0f, tabWidthPx * 2f)
-                                val targetPage = (settled / tabWidthPx).roundToInt().coerceIn(0, 2)
-                                if (targetPage != pager.currentPage) navigate(targetPage)
-                                // 与 Pager 动画同步回弹：位移归零的同时 Pager 滑向目标页，
-                                // 两者相加后指示器从松手位置连续移动到目标页。
-                                val from = capsuleDragOffset
-                                capsuleReleaseJob[0]?.cancel()
-                                capsuleReleaseJob[0] = scope.launch {
-                                    val release = Animatable(from)
-                                    release.animateTo(0f, tween(motionMs, easing = FastOutSlowInEasing)) {
-                                        capsuleDragOffset = value
-                                    }
-                                }
-                            },
-                        ).padding(horizontal = navInsetX, vertical = navInsetY), contentAlignment = Alignment.CenterStart) {
-                            Row(
-                                Modifier.fillMaxWidth().align(Alignment.Center).layerBackdrop(tabsBackdrop),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                val labels = listOf(R.string.ui_v2_history, R.string.ui_v2_home, R.string.drawer_settings)
-                                val icons = listOf(Lucide.History, Lucide.House, Lucide.Settings)
-                                labels.forEachIndexed { index, label ->
-                                    Row(Modifier.weight(1f).heightIn(min = itemHeight)
-                                        .semantics { selected = pager.currentPage == index }
-                                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, role = Role.Tab) { hapticTick(hapticContext); navigate(index) },
-                                        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(icons[index], null, modifier = Modifier.height(dimensionResource(DesignR.dimen.aries_nav_icon)).width(dimensionResource(DesignR.dimen.aries_nav_icon)),
-                                            tint = if (pager.currentPage == index) colors.primary else colors.onSurfaceVariant)
-                                        Text(stringResource(label), Modifier.padding(start = spacingXxxs),
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = with(density) { dimensionResource(DesignR.dimen.aries_nav_text).toSp() }),
-                                            color = if (pager.currentPage == index) colors.onSurface else colors.onSurfaceVariant,
-                                            fontWeight = if (pager.currentPage == index) FontWeight.SemiBold else FontWeight.Normal)
-                                    }
-                                }
-                            }
-                            // 放大镜指示器：折射 + 色散 + 放大取样，形成液态玻璃透镜。
-                            Box(Modifier.align(Alignment.CenterStart)
-                                .offset {
-                                    IntOffset(
-                                        (tabWidthPx * (pager.currentPage + pager.currentPageOffsetFraction) + capsuleDragOffset)
-                                            .coerceIn(0f, tabWidthPx * 2f).roundToInt(),
-                                        0,
-                                    )
-                                }
-                                .fillMaxWidth(1f / 3f)
-                                .height(itemHeight)
-                                .then(
-                                    if (lensBackdrop != null) {
-                                        Modifier.drawBackdrop(
-                                            backdrop = lensBackdrop,
-                                            shape = { lensShape },
-                                            effects = {
-                                                lens(
-                                                    refractionHeight = 12.dp.toPx(),
-                                                    refractionAmount = 18.dp.toPx(),
-                                                    depthEffect = true,
-                                                    chromaticAberration = true,
-                                                )
-                                            },
-                                            highlight = { Highlight.Default },
-                                            innerShadow = {
-                                                InnerShadow(
-                                                    radius = 8.dp,
-                                                    offset = DpOffset(0.dp, 8.dp),
-                                                    color = Color.Black.copy(alpha = 0.22f),
-                                                )
-                                            },
-                                            shadow = {
-                                                Shadow(
-                                                    radius = 18.dp,
-                                                    offset = DpOffset(0.dp, 4.dp),
-                                                    color = Color.Black.copy(alpha = 0.18f),
-                                                )
-                                            },
-                                            onDrawBackdrop = { drawBackdrop ->
-                                                // 以透镜中心为支点放大取样，得到放大镜效果。
-                                                withTransform({ scale(1.35f, 1.35f, pivot = center) }, drawBackdrop)
-                                            },
-                                        )
-                                    } else {
-                                        Modifier.ariesGlass(itemShape, selected = true)
-                                    }
-                                ))
-                        }
+        HorizontalPager(
+            state = pager,
+            modifier = Modifier.fillMaxSize().layerBackdrop(contentBackdrop),
+            beyondViewportPageCount = 1,
+            pageNestedScrollConnection = horizontalPageConnection,
+            userScrollEnabled = drawerGesturesEnabled && settingsAtRoot,
+            flingBehavior = PagerDefaults.flingBehavior(
+                pager, 
+                snapAnimationSpec = spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessMedium
+                )
+            ),
+        ) { page ->
+            when (page) {
+                0 -> Box(Modifier.fillMaxSize().navigationBarsPadding()
+                    .padding(top = navRegion + dimensionResource(DesignR.dimen.aries_home_hero_gap))
+                    .padding(
+                        start = dimensionResource(DesignR.dimen.aries_page_padding),
+                        end = dimensionResource(DesignR.dimen.aries_page_padding),
+                        bottom = dimensionResource(DesignR.dimen.aries_home_hero_gap),
+                    )) {
+                    ConversationDrawer(
+                        searchQuery = drawerSearchQuery, items = drawerItems, emptyMessage = drawerEmptyMessage,
+                        onSearchQueryChange = onDrawerSearchQueryChange,
+                        onConversationClick = { onDrawerConversationClick(it); navigate(1) },
+                        onConversationLongClick = onDrawerConversationLongClick,
+                        onSettingsClick = { navigate(2) }, showSettingsEntry = false,
+                    )
+                }
+                1 -> Column(Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
+                    Column(Modifier.weight(1f).clipToBounds()) {
+                        Box(Modifier.weight(1f)) { transcriptPaneContent(navRegion, 0.dp, spacingMd, spacingXxxs) }
                     }
+                    HomeBottomOverlay(aiNoticeText, inputBarContent, spacingXxxs)
+                }
+                2 -> Box(Modifier.fillMaxSize().padding(top = if (settingsAtRoot) navRegion else 0.dp)) {
+                    settingsContent(pager.currentPage == 2)
                 }
             }
-            HorizontalPager(
-                state = pager,
-                modifier = Modifier.weight(1f),
-                beyondViewportPageCount = 2,
-                pageNestedScrollConnection = horizontalPageConnection,
-                userScrollEnabled = drawerGesturesEnabled && settingsAtRoot,
-                flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = tween(motionMs, easing = FastOutSlowInEasing)),
-            ) { page ->
-                when (page) {
-                    0 -> Box(Modifier.fillMaxSize().navigationBarsPadding()
-                        .padding(horizontal = dimensionResource(DesignR.dimen.aries_page_padding), vertical = dimensionResource(DesignR.dimen.aries_home_hero_gap))) {
-                        ConversationDrawer(
-                            searchQuery = drawerSearchQuery, items = drawerItems, emptyMessage = drawerEmptyMessage,
-                            onSearchQueryChange = onDrawerSearchQueryChange,
-                            onConversationClick = { onDrawerConversationClick(it); navigate(1) },
-                            onConversationLongClick = onDrawerConversationLongClick,
-                            onSettingsClick = { navigate(2) }, showSettingsEntry = false,
-                        )
-                    }
-                    1 -> {
-                        val pageBackdrop = rememberLayerBackdrop()
-                        var bottomOverlayHeight by remember { mutableStateOf(0.dp) }
-                        Box(Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
-                            Box(Modifier.matchParentSize().layerBackdrop(pageBackdrop).clipToBounds()) {
-                                transcriptPaneContent(bottomOverlayHeight, spacingMd, spacingXxxs)
-                            }
-                            Box(
-                                Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                                    .onSizeChanged { bottomOverlayHeight = with(density) { it.height.toDp() } },
-                            ) {
-                                CompositionLocalProvider(LocalAriesLayerBackdrop provides pageBackdrop) {
-                                    HomeBottomOverlay(aiNoticeText, inputBarContent, spacingXxxs)
-                                }
-                            }
-                        }
-                    }
-                    2 -> settingsContent(pager.currentPage == 2)
+        }
+        if (navVisible) {
+            BoxWithConstraints(
+                Modifier.fillMaxWidth().statusBarsPadding().padding(vertical = spacingSm),
+                contentAlignment = Alignment.Center,
+            ) {
+                val effectiveNavWidth = minOf(navWidth, maxWidth - dimensionResource(DesignR.dimen.aries_touch_target) * 2)
+                AriesLiquidTabs(
+                    selectedIndex = selectedDestination,
+                    onSelect = { page -> hapticTick(hapticContext); navigate(page) },
+                    progress = { pager.currentPage + pager.currentPageOffsetFraction },
+                    userDragging = { pagerDragging },
+                    backdrop = navBackdrop,
+                    modifier = Modifier.width(effectiveNavWidth),
+                    tabCount = 3,
+                    onEdgeHaptic = { hapticTick(hapticContext) },
+                ) { index ->
+                    HomeNavTab(index = index, selected = selectedDestination == index)
                 }
             }
         }
         onboardingContent?.invoke()
         historyDialogContent?.invoke()
+    }
+}
+
+/** 顶部胶囊导航的单个页签内容（跨三层复用：可见层、折射副本层）。 */
+@Composable
+private fun HomeNavTab(index: Int, selected: Boolean) {
+    val icon = when (index) {
+        0 -> Lucide.History
+        1 -> Lucide.House
+        else -> Lucide.Settings
+    }
+    val label = stringResource(
+        when (index) {
+            0 -> R.string.ui_v2_history
+            1 -> R.string.ui_v2_home
+            else -> R.string.drawer_settings
+        }
+    )
+    val colors = MaterialTheme.colorScheme
+    val scale = LocalAriesTabScale.current
+    Row(
+        Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                val s = scale()
+                scaleX = s
+                scaleY = s
+            }
+            .semantics { this.selected = selected },
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(dimensionResource(DesignR.dimen.aries_nav_icon)),
+            tint = if (selected) colors.primary else colors.onSurfaceVariant,
+        )
+        Text(
+            label,
+            Modifier.padding(start = dimensionResource(DesignR.dimen.m3t_spacing_xxxs)),
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = with(LocalDensity.current) {
+                    dimensionResource(DesignR.dimen.aries_nav_text).toSp()
+                },
+            ),
+            color = if (selected) colors.onSurface else colors.onSurfaceVariant,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+        )
     }
 }
 
@@ -385,6 +350,7 @@ fun HomeTranscriptPane(
     onAutomationAction: (TranscriptMessageUi) -> Unit,
     onEmptySuggestionClick: (String) -> Unit,
     scrollToBottomSignal: Long,
+    topOverlayPadding: Dp,
     bottomOverlayPadding: Dp,
     spacingMd: Dp,
     spacingXxxs: Dp,
@@ -401,7 +367,7 @@ fun HomeTranscriptPane(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .verticalScroll(rememberScrollState())
-                    .padding(top = dimensionResource(DesignR.dimen.aries_home_hero_gap), bottom = bottomOverlayPadding),
+                    .padding(top = dimensionResource(DesignR.dimen.aries_home_hero_gap) + topOverlayPadding, bottom = bottomOverlayPadding),
                 onSuggestionClick = onEmptySuggestionClick,
             )
         }
@@ -438,8 +404,8 @@ fun HomeTranscriptPane(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = spacingMd)
-            .padding(top = spacingXxxs),
+            .padding(horizontal = spacingMd),
+        contentPadding = PaddingValues(top = topOverlayPadding + spacingXxxs),
         state = listState,
     ) {
         conversationTranscriptItems(
@@ -546,19 +512,9 @@ private fun HomeBottomOverlay(
     spacingXxxs: Dp,
 ) {
     DebugRecomposeLogger(scope = "HomeBottomOverlay")
-    val background = MaterialTheme.colorScheme.background
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            // 输入区上浮在消息之上：不透明遮罩自上而下淡入，
-            // 让底部文字始终有稳定底色，避免消息内容透出影响可读性。
-            .background(
-                Brush.verticalGradient(
-                    0f to Color.Transparent,
-                    0.4f to background.copy(alpha = 0.88f),
-                    1f to background,
-                )
-            )
             .padding(bottom = dimensionResource(DesignR.dimen.aries_composer_bottom_gap)),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

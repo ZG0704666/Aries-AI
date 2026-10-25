@@ -94,34 +94,6 @@ object DisplayUtils {
         return WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
     }
 
-    /**
-     * 为悬浮窗启用跨窗口模糊（Android 12+）
-     * - 需要在 addView 之前修改 LayoutParams
-     * - 系统未开启模糊能力时返回 false，由调用方回退到静态玻璃背景
-     */
-    fun applyOverlayBlurBehind(
-            context: Context,
-            windowManager: WindowManager,
-            lp: WindowManager.LayoutParams,
-            radiusDp: Int = 24
-    ): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
-        val enabled =
-                try {
-                    windowManager.isCrossWindowBlurEnabled
-                } catch (_: Throwable) {
-                    false
-                }
-        if (!enabled) return false
-        return try {
-            lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-            lp.setBlurBehindRadius(dp(context, radiusDp))
-            true
-        } catch (_: Throwable) {
-            false
-        }
-    }
-
     /** 创建底部居中的 gravity */
     fun createBottomCenterGravity(): Int {
         return Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL

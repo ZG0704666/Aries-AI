@@ -23,15 +23,6 @@
 
 `HorizontalPagerScrollConnection` 协调横向分页的嵌套滚动。手势开关同时取决于 `drawerGesturesEnabled` 与 `settingsAtRoot`。
 
-## 顶部胶囊导航
-
-顶部导航是一个 272dp × 56dp 的玻璃胶囊，承载历史、主页、设置三个页签。
-
-- 指示器宽度直接取内容区的三分之一（`fillMaxWidth(1f / 3f)`），与 `weight(1f)` 的页签宽度严格一致，避免用 Dp 反算产生偏移。
-- 指示器绘制在页签行之上，是一个放大镜透镜：折射（`lens`）叠加色散（`chromaticAberration`），并以透镜中心为支点放大取样页签层（`layerBackdrop` + `CombinedBackdrop`），形成液态玻璃的透镜质感。
-- 拖拽偏移在拖拽过程中同步写入普通状态，保证指示器严格跟随手指；松手后由独立协程把偏移回弹到 0，与 Pager 动画同步，指示器从松手位置连续滑到目标页。
-- 没有可用背景层时，指示器回退为 `ariesGlass` 选中态玻璃。
-
 ## 对话与输入区域
 
 主页使用纵向布局：上方是可伸缩的 `transcriptPaneContent`，下方是 `HomeBottomOverlay`。输入区使用导航栏和 IME inset，消息区域裁剪在可用空间内。

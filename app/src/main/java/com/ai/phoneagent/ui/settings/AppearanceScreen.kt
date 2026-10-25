@@ -1,8 +1,8 @@
 package com.ai.phoneagent.ui.settings
 
 import android.content.res.Configuration
-import com.ai.phoneagent.ui.components.AriesAlertDialog
 import com.ai.phoneagent.ui.components.AriesPageTopBar
+
 import com.ai.phoneagent.core.designsystem.theme.ariesGlass
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -11,8 +11,6 @@ import com.composables.icons.lucide.Moon
 import com.composables.icons.lucide.Palette
 import com.composables.icons.lucide.Type
 import com.composables.icons.lucide.MessageSquare
-import com.composables.icons.lucide.Brain
-import com.composables.icons.lucide.Code
 import com.composables.icons.lucide.ChevronRight
 import android.os.Build
 import androidx.compose.foundation.background
@@ -151,12 +149,15 @@ fun AppearanceScreenContent(
             item { AppearanceEntry(Lucide.Palette, stringResource(R.string.settings_appearance_theme_palette), stringResource(palettes.firstOrNull { it.first == themeColorStyle }?.second ?: R.string.settings_appearance_theme_palette_default)) { dialog = "palette" } }
             item { AppearanceEntry(Lucide.Type, stringResource(R.string.ui_v2_font_and_size), stringResource(fonts.firstOrNull { it.first == chatFontFamily }?.second ?: R.string.settings_appearance_font_default) + " · ${chatFontScale}×") { dialog = "fontSize" } }
             item { AppearanceEntry(Lucide.MessageSquare, stringResource(R.string.ui_v2_message_style), stringResource(if (plainMessages) R.string.ui_v2_plain else R.string.ui_v2_bubble)) { dialog = "style" } }
-            item { AppearanceEntry(Lucide.Brain, stringResource(R.string.ui_v2_thinking_process), stringResource(if (thinkingExpanded) R.string.ui_v2_expanded else R.string.ui_v2_collapsed)) { dialog = "thinking" } }
-            item { AppearanceEntry(Lucide.Code, stringResource(R.string.settings_appearance_code_section), stringResource(R.string.ui_v2_code_options)) { dialog = "code" } }
+            item { AriesSettingsSwitchItem(headlineText = stringResource(R.string.ui_v2_thinking_process), checked = thinkingExpanded, onCheckedChange = onThinkingExpandedChange, supportingText = stringResource(if (thinkingExpanded) R.string.ui_v2_expanded else R.string.ui_v2_collapsed)) }
+            item { AriesSettingsSectionHeader(stringResource(R.string.settings_appearance_code_section)) }
+            item { AriesSettingsSwitchItem(headlineText = stringResource(R.string.settings_appearance_code_auto_wrap), checked = codeAutoWrap, onCheckedChange = onCodeAutoWrapChange) }
+            item { AriesSettingsSwitchItem(headlineText = stringResource(R.string.settings_appearance_code_line_numbers), checked = codeLineNumbers, onCheckedChange = onCodeLineNumbersChange) }
+            item { AriesSettingsSwitchItem(headlineText = stringResource(R.string.settings_appearance_code_auto_collapse), checked = codeAutoCollapse, onCheckedChange = onCodeAutoCollapseChange) }
             item { AriesSettingsSwitchItem(headlineText = stringResource(R.string.settings_appearance_amoled), checked = amoledDarkEnabled, onCheckedChange = onAmoledDarkEnabledChange, enabled = dark) }
         }
     }
-    if (dialog != null) AriesAlertDialog(onDismissRequest = { dialog = null }, confirmButton = {
+    if (dialog != null) androidx.compose.material3.AlertDialog(onDismissRequest = { dialog = null }, confirmButton = {
         androidx.compose.material3.TextButton(onClick = { dialog = null }) { Text(stringResource(R.string.action_close)) }
     }, text = {
         LazyColumn {
@@ -168,15 +169,9 @@ fun AppearanceScreenContent(
                     fonts.forEach { (value, label) -> item { AppearanceChoice(stringResource(label), chatFontFamily == value) { onChatFontFamilyChange(value) } } }
                 }
                 "style" -> listOf(false to R.string.ui_v2_bubble, true to R.string.ui_v2_plain).forEach { (value, label) -> item { AppearanceChoice(stringResource(label), plainMessages == value) { onPlainMessagesChange(value); dialog = null } } }
-                "thinking" -> listOf(false to R.string.ui_v2_collapsed, true to R.string.ui_v2_expanded).forEach { (value, label) -> item { AppearanceChoice(stringResource(label), thinkingExpanded == value) { onThinkingExpandedChange(value); dialog = null } } }
-                "code" -> {
-                    item { AriesSettingsSwitchItem(headlineText = stringResource(R.string.settings_appearance_code_auto_wrap), checked = codeAutoWrap, onCheckedChange = onCodeAutoWrapChange) }
-                    item { AriesSettingsSwitchItem(headlineText = stringResource(R.string.settings_appearance_code_line_numbers), checked = codeLineNumbers, onCheckedChange = onCodeLineNumbersChange) }
-                    item { AriesSettingsSwitchItem(headlineText = stringResource(R.string.settings_appearance_code_auto_collapse), checked = codeAutoCollapse, onCheckedChange = onCodeAutoCollapseChange) }
-                }
             }
         }
-    }, textScrollable = false)
+    })
 }
 
 @Composable

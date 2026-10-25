@@ -39,6 +39,8 @@
 //                  佛祖保佑             永无BUG 
 
 
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+
 package com.ai.phoneagent
 
 import android.Manifest
@@ -115,6 +117,8 @@ import android.view.ViewAnimationUtils
 import android.text.Html
 import com.google.android.material.materialswitch.MaterialSwitch
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -167,11 +171,8 @@ import com.ai.phoneagent.data.local.StoredMessageRecord
 import com.ai.phoneagent.data.preferences.AppPreferencesRepository
 import com.ai.phoneagent.data.preferences.MainUiPreferencesRepository
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
-import com.ai.phoneagent.core.designsystem.theme.LocalAriesLayerBackdrop
 import com.ai.phoneagent.core.designsystem.theme.ThemeColorStyle
 import com.ai.phoneagent.core.designsystem.theme.ThemeMode
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import com.ai.phoneagent.ui.drawer.ConversationDrawer
@@ -765,6 +766,8 @@ class MainActivity : AppCompatActivity() {
                 fontScale = fontScale,
                 fontFamily = resolvedFontFamily,
             ) {
+                // 项0：全局禁用 overscroll stretch 回弹（HIG 风格滚动，不做 Android stretch 形变）。
+                CompositionLocalProvider(LocalOverscrollFactory provides null) {
                 val navController = rememberNavController()
                 DisposableEffect(navController) {
                     val destinationListener =
@@ -793,19 +796,18 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                AppOverlayHost {
-                    AriesNavGraph(
-                        navController = navController,
-                        onStartNextTask = {
-                            selectedMainPage = 1
-                            navController.popBackStack(Routes.Home.route, false)
-                        },
-                        homeContent = {
-                            HomeRoute(
-                                codeBlockPrefs = codeBlockPrefs,
-                            )
-                        },
-                    )
+                AriesNavGraph(
+                    navController = navController,
+                    onStartNextTask = {
+                        selectedMainPage = 1
+                        navController.popBackStack(Routes.Home.route, false)
+                    },
+                    homeContent = {
+                        HomeRoute(
+                            codeBlockPrefs = codeBlockPrefs,
+                        )
+                    },
+                )
                 }
             }
         }
@@ -1005,8 +1007,9 @@ class MainActivity : AppCompatActivity() {
             onDrawerConversationClick = onDrawerConversationClick,
             onDrawerConversationLongClick = onDrawerConversationLongClick,
             onDrawerSettingsClick = onDrawerSettingsClick,
-            transcriptPaneContent = { bottomOverlayPadding, spacingMd, spacingXxxs ->
+            transcriptPaneContent = { topOverlayPadding, bottomOverlayPadding, spacingMd, spacingXxxs ->
                 HomeTranscriptRoute(
+                    topOverlayPadding = topOverlayPadding,
                     bottomOverlayPadding = bottomOverlayPadding,
                     spacingMd = spacingMd,
                     spacingXxxs = spacingXxxs,
@@ -1044,6 +1047,7 @@ class MainActivity : AppCompatActivity() {
 
     @Composable
     private fun HomeTranscriptRoute(
+        topOverlayPadding: Dp,
         bottomOverlayPadding: Dp,
         spacingMd: Dp,
         spacingXxxs: Dp,
@@ -1080,6 +1084,7 @@ class MainActivity : AppCompatActivity() {
             onAutomationAction = onAutomationAction,
             onEmptySuggestionClick = onEmptySuggestionClick,
             scrollToBottomSignal = currentScrollSignal,
+            topOverlayPadding = topOverlayPadding,
             bottomOverlayPadding = bottomOverlayPadding,
             spacingMd = spacingMd,
             spacingXxxs = spacingXxxs,
@@ -1089,55 +1094,32 @@ class MainActivity : AppCompatActivity() {
     @Composable
     private fun HomeHistoryDialog() {
         val currentShowHistoryDialog by remember { showHistoryDialogState }
-        val overlayController = com.ai.phoneagent.ui.components.LocalAriesOverlayController.current
-        var shownByHost by remember { mutableStateOf(false) }
-        var itemsRevision by remember { mutableStateOf(0) }
+        if (!currentShowHistoryDialog) return
 
-        LaunchedEffect(currentShowHistoryDialog, overlayController) {
-            val controller = overlayController ?: return@LaunchedEffect
-            if (currentShowHistoryDialog) {
-                controller.show {
-                    itemsRevision
-                    ConversationHistoryDialog(
-                        items = buildHistoryDialogItems(),
-                        onDismiss = {
-                            vibrateLight()
-                            showHistoryDialogState.value = false
-                        },
-                        onSelect = { conversationId ->
-                            conversations.firstOrNull { it.id == conversationId }?.let { conversation ->
-                                activeConversation = conversation
-                                renderConversation(conversation, animateTransition = true)
-                                persistConversations()
-                            }
-                            vibrateLight()
-                            showHistoryDialogState.value = false
-                        },
-                        onDelete = { conversationId ->
-                            if (deleteConversationById(conversationId, clearUiForActive = true)) {
-                                itemsRevision += 1
-                                if (buildHistoryDialogItems().isEmpty()) {
-                                    showHistoryDialogState.value = false
-                                }
-                            }
-                        },
-                    )
+        ConversationHistoryDialog(
+            items = buildHistoryDialogItems(),
+            onDismiss = {
+                vibrateLight()
+                showHistoryDialogState.value = false
+            },
+            onSelect = { conversationId ->
+                conversations.firstOrNull { it.id == conversationId }?.let { conversation ->
+                    activeConversation = conversation
+                    renderConversation(conversation, animateTransition = true)
+                    persistConversations()
                 }
-                shownByHost = true
-            } else if (shownByHost) {
-                controller.dismiss()
-                shownByHost = false
-            }
-        }
-
-        DisposableEffect(overlayController) {
-            onDispose {
-                if (shownByHost) {
-                    overlayController?.dismiss()
-                    shownByHost = false
+                vibrateLight()
+                showHistoryDialogState.value = false
+            },
+            onDelete = { conversationId ->
+                if (!deleteConversationById(conversationId, clearUiForActive = true)) {
+                    return@ConversationHistoryDialog
                 }
-            }
-        }
+                if (buildHistoryDialogItems().isEmpty()) {
+                    showHistoryDialogState.value = false
+                }
+            },
+        )
     }
 
     private fun refreshMainChatPromptOnLaunch() {
@@ -2795,9 +2777,13 @@ class MainActivity : AppCompatActivity() {
     private fun HomeInputBar() {
         val attachmentManager = remember(chatViewModel) { chatViewModel.getAttachmentManager() }
 
-        Column(modifier = Modifier.fillMaxWidth()) {
-            HomeAttachmentPreviewSection(attachmentManager = attachmentManager)
-            HomeInputBarControls()
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                HomeAttachmentPreviewSection(attachmentManager = attachmentManager)
+                HomeInputBarControls()
+            }
+
+            HomeAttachmentSelectorSheet(attachmentManager = attachmentManager)
         }
     }
 
@@ -2825,36 +2811,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     @Composable
-    private fun AppOverlayHost(content: @Composable () -> Unit) {
+    private fun HomeAttachmentSelectorSheet(
+        attachmentManager: com.ai.phoneagent.helper.AttachmentManager,
+    ) {
+        DebugRecomposeLogger(scope = "HomeAttachmentSelector")
         val attachmentSelectorVisible by chatViewModel.attachmentSelectorVisible.collectAsState()
-        val attachmentManager = remember(chatViewModel) { chatViewModel.getAttachmentManager() }
-        val backdrop = rememberLayerBackdrop()
-        val overlayController = remember { com.ai.phoneagent.ui.components.AriesOverlayController() }
-        val overlayContent = overlayController.content
-        val needsBackdrop = attachmentSelectorVisible || overlayContent != null
-
-        Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(if (needsBackdrop) Modifier.layerBackdrop(backdrop) else Modifier),
-            ) {
-                CompositionLocalProvider(
-                    com.ai.phoneagent.ui.components.LocalAriesOverlayController provides overlayController,
-                ) {
-                    content()
-                }
-            }
-
-            CompositionLocalProvider(LocalAriesLayerBackdrop provides backdrop) {
-                com.ai.phoneagent.ui.components.AttachmentSelectorPanel(
-                    visible = attachmentSelectorVisible,
-                    attachmentManager = attachmentManager,
-                    onDismiss = { chatViewModel.hideAttachmentSelector() },
-                )
-                overlayContent?.invoke()
-            }
-        }
+        com.ai.phoneagent.ui.components.AttachmentSelectorPanel(
+            visible = attachmentSelectorVisible,
+            attachmentManager = attachmentManager,
+            onDismiss = { chatViewModel.hideAttachmentSelector() },
+        )
     }
 
     @Composable
@@ -2968,13 +2934,12 @@ class MainActivity : AppCompatActivity() {
                 }
             },
             voiceAmplitude = amplitude,
-            onUpdateCancelState = { isCancelling ->
+            onUpdateCancelState = { _, isCancelling ->
                 val current = inputBarState.value
-                if (current is InputState.VoiceRecording) {
-                    if (current.isCancelling != isCancelling) {
-                        inputBarState.value = current.copy(isCancelling = isCancelling)
-                        vibrateLight()
-                    }
+                if (current is InputState.VoiceRecording && current.isCancelling != isCancelling) {
+                    inputBarState.value = current.copy(isCancelling = isCancelling)
+                    // 进入取消阈值：中震提示；退出：轻震
+                    if (isCancelling) vibrateMedium() else vibrateLight()
                 }
             },
         )

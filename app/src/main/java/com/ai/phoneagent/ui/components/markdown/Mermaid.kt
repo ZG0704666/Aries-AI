@@ -22,18 +22,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,11 +47,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.ai.phoneagent.ui.components.AriesBottomSheetOverlay
-import com.ai.phoneagent.ui.components.LocalAriesOverlayController
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Download
 import com.composables.icons.lucide.Expand
+import kotlinx.coroutines.launch
 import java.util.Base64
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -68,6 +70,7 @@ private val mermaidHeightCache = HashMap<String, Int>()
  *  - `updateHeight(px)` – adjusts the composable height
  *  - `exportImage(svgData)` – saves diagram as PNG to Downloads
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun Mermaid(code: String, modifier: Modifier = Modifier) {
@@ -75,12 +78,15 @@ fun Mermaid(code: String, modifier: Modifier = Modifier) {
     val context  = LocalContext.current
     val density  = LocalDensity.current
     val cs       = MaterialTheme.colorScheme
-    val overlayController = LocalAriesOverlayController.current
+    val scope    = rememberCoroutineScope()
 
     val cachedHeightPx = mermaidHeightCache[code] ?: 300
     var heightPx by rememberSaveable(code) { mutableIntStateOf(cachedHeightPx) }
+    var showPreview by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
     var exportSvgData by remember { mutableStateOf<String?>(null) }
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val html = remember(code, isDark, cs.primary.toArgb()) {
         buildMermaidHtml(code, isDark, cs)
@@ -98,38 +104,7 @@ fun Mermaid(code: String, modifier: Modifier = Modifier) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.weight(1f))
-            IconButton(
-                onClick = {
-                    overlayController?.let { controller ->
-                        controller.show {
-                            var visible by remember { mutableStateOf(false) }
-                            LaunchedEffect(Unit) { visible = true }
-                            AriesBottomSheetOverlay(
-                                visible = visible,
-                                onDismissRequest = { controller.dismiss() },
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Diagram preview", style = MaterialTheme.typography.titleMedium)
-                                        Spacer(Modifier.weight(1f))
-                                        TextButton(onClick = { controller.dismiss() }) {
-                                            Text("Close")
-                                        }
-                                    }
-                                    Spacer(Modifier.height(8.dp))
-                                    MermaidWebView(
-                                        html            = html,
-                                        modifier        = Modifier.fillMaxWidth().height(480.dp),
-                                        onHeightChanged = {},
-                                        onSvgExport     = {},
-                                    )
-                                }
-                            }
-                        }
-                    }
-                },
-                modifier = Modifier.size(28.dp),
-            ) {
+            IconButton(onClick = { showPreview = true }, modifier = Modifier.size(28.dp)) {
                 Icon(Lucide.Expand, "Preview diagram", modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -163,6 +138,31 @@ fun Mermaid(code: String, modifier: Modifier = Modifier) {
                 },
             )
             if (isLoading) CircularProgressIndicator(modifier = Modifier.size(32.dp))
+        }
+    }
+
+    // 预览底部弹层
+    if (showPreview) {
+        ModalBottomSheet(
+            onDismissRequest = { scope.launch { sheetState.hide(); showPreview = false } },
+            sheetState       = sheetState,
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Diagram preview", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = { scope.launch { sheetState.hide(); showPreview = false } }) {
+                        Text("Close")
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                MermaidWebView(
+                    html            = html,
+                    modifier        = Modifier.fillMaxWidth().height(480.dp),
+                    onHeightChanged = {},
+                    onSvgExport     = {},
+                )
+            }
         }
     }
 }

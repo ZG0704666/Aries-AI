@@ -38,8 +38,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import com.ai.phoneagent.core.designsystem.theme.glass.AriesLiquidSwitch
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -151,7 +151,9 @@ fun AutomationControlScreen(
                         Text(stringResource(R.string.automation_execution_mode_label), style = MaterialTheme.typography.titleMedium)
                         Row(Modifier.fillMaxWidth().padding(top = spacingSm), horizontalArrangement = Arrangement.spacedBy(spacingMd)) {
                             listOf(false, true).forEach { background ->
-                                Surface(onClick = { onExecutionModeChange(background) }, modifier = Modifier.weight(1f).ariesGlass(MaterialTheme.shapes.large, selected = isBackgroundMode == background), shape = MaterialTheme.shapes.large,
+                                Surface(onClick = { onExecutionModeChange(background) }, modifier = Modifier.weight(1f).ariesGlass(
+                                    MaterialTheme.shapes.large, selected = isBackgroundMode == background),
+                                    shape = MaterialTheme.shapes.large,
                                     color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface) {
                                     Column(Modifier.padding(spacingMd), verticalArrangement = Arrangement.spacedBy(spacingSm)) {
                                         Icon(if (background) Lucide.Layers else Lucide.Smartphone, null, tint = if (isBackgroundMode == background) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
@@ -179,6 +181,7 @@ fun AutomationControlScreen(
 private fun AutomationLogPanel(logText: String, onCopyLog: () -> Unit, modifier: Modifier = Modifier) {
     val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
     val shape = RoundedCornerShape(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_card_radius))
+    // Material B：日志内容面板（滚动内容，静态玻璃）。
     Surface(modifier = modifier.ariesGlass(shape), shape = shape, color = Color.Transparent) {
         Column(Modifier.fillMaxSize().padding(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_setting_padding))) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacingSm)) {
@@ -208,10 +211,11 @@ private fun AutomationConnectionBadge(
     val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
 
+    val badgeShape = RoundedCornerShape(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_radius_lg))
     Surface(
-        modifier = modifier.ariesGlass(MaterialTheme.shapes.large),
+        modifier = modifier.ariesGlass(badgeShape),
         color = Color.Transparent,
-        shape = RoundedCornerShape(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_radius_lg)),
+        shape = badgeShape,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingSm),
@@ -335,6 +339,6 @@ private fun AutomationSwitchRow(
                 )
             }
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        AriesLiquidSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
