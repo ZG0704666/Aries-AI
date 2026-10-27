@@ -46,6 +46,12 @@ fun AboutRoute(
     var showFeedbackConfirmDialog by remember { mutableStateOf(false) }
     var isExportingFeedbackBundle by remember { mutableStateOf(false) }
 
+    // 组合期解析资源，Configuration 变化随重组刷新（LocalContextGetResourceValueCall）
+    val websiteUrl = stringResource(R.string.about_website_url)
+    val sourceCodeUrl = stringResource(R.string.about_source_code_url)
+    val feedbackChooserTitle = stringResource(R.string.about_feedback_share_chooser)
+    val feedbackShareSubject = stringResource(R.string.about_feedback_share_subject)
+
     val vibrateLight = {
         try {
             val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -94,7 +100,7 @@ fun AboutRoute(
         onOpenWebsite = {
             vibrateLight()
             try {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(context.getString(R.string.about_website_url))))
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(websiteUrl)))
             } catch (_: Exception) {
                 Toast.makeText(context, R.string.about_open_url_failed, Toast.LENGTH_SHORT).show()
             }
@@ -102,7 +108,7 @@ fun AboutRoute(
         onOpenSourceCode = {
             vibrateLight()
             try {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(context.getString(R.string.about_source_code_url))))
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(sourceCodeUrl)))
             } catch (_: Exception) {
                 Toast.makeText(context, R.string.about_open_url_failed, Toast.LENGTH_SHORT).show()
             }
@@ -143,27 +149,13 @@ fun AboutRoute(
                                 FeedbackLogExporter.shareBundle(
                                     context = context,
                                     file = bundleFile,
-                                    chooserTitle = context.getString(R.string.about_feedback_share_chooser),
-                                    subject = context.getString(R.string.about_feedback_share_subject),
+                                    chooserTitle = feedbackChooserTitle,
+                                    subject = feedbackShareSubject,
                                 ).onFailure {
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(
-                                            R.string.about_feedback_export_failed,
-                                            it.message.orEmpty(),
-                                        ),
-                                        Toast.LENGTH_LONG,
-                                    ).show()
+                                    showExportFailedToast(context, it.message.orEmpty())
                                 }
                             }.onFailure {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(
-                                        R.string.about_feedback_export_failed,
-                                        it.message.orEmpty(),
-                                    ),
-                                    Toast.LENGTH_LONG,
-                                ).show()
+                                showExportFailedToast(context, it.message.orEmpty())
                             }
                         }
                     },
@@ -285,4 +277,14 @@ fun AboutRoute(
             }
         )
     }
+}
+
+// 导出失败的 Toast 在非 @Composable 函数中按事件时点解析资源：组合期解析的值在 Configuration 变化后会过期，
+// 事件时点解析始终取当前配置（LocalContextGetResourceValueCall）。
+private fun showExportFailedToast(context: Context, reason: String) {
+    Toast.makeText(
+        context,
+        context.getString(R.string.about_feedback_export_failed, reason),
+        Toast.LENGTH_LONG,
+    ).show()
 }

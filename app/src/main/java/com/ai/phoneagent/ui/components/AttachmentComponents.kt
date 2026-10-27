@@ -73,6 +73,8 @@ fun AttachmentSelectorPanel(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    // 组合期解析资源，Configuration 变化随重组刷新（LocalContextGetResourceValueCall）
+    val cameraFailedText = stringResource(R.string.ui_v2_camera_failed)
 
     fun processPickedUris(uris: List<Uri>) {
         if (uris.isNotEmpty()) {
@@ -136,7 +138,7 @@ fun AttachmentSelectorPanel(
                 method.invoke(act)
                 onDismiss()
             } catch (e: Exception) {
-                android.widget.Toast.makeText(context, context.getString(R.string.ui_v2_camera_failed), android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, cameraFailedText, android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }
