@@ -10,6 +10,7 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.composables.icons.lucide.ExternalLink
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Mic
@@ -110,6 +111,7 @@ fun PermissionBottomSheetContent(
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             shape = MaterialTheme.shapes.large,
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {

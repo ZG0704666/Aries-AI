@@ -185,12 +185,16 @@ class AriesTabDragAnimation(
         }
     }
 
-    /** 外部（pager 滚动）驱动时使用：立即对齐到给定位置，不做弹簧动画。 */
-    fun snapToValue(value: Float) {
-        animationScope.launch {
-            valueAnimation.snapTo(value.coerceIn(valueRange))
-            velocityAnimation.snapTo(0f)
-        }
+    /**
+     * 外部（pager 滚动）驱动时使用：立即对齐到给定位置，不做弹簧动画。
+     *
+     * 改为 suspend 并由调用方在手势收集协程内直接 await：collectLatest 取消上一个
+     * 收集块时会连带取消还没落地的 snapTo，避免过期快照在松手后的弹簧飞行中途
+     * 落地、把胶囊掐死在半路（吸附失效的竞态来源之一）。
+     */
+    suspend fun snapToValue(value: Float) {
+        valueAnimation.snapTo(value.coerceIn(valueRange))
+        velocityAnimation.snapTo(0f)
     }
 
     private fun updateVelocity() {

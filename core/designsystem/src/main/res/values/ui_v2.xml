@@ -68,6 +68,9 @@
  <dimen name="aries_glass_shadow_spread">5dp</dimen>
  <color name="aries_glass_selected_light">#0690A5BB</color>
  <color name="aries_glass_selected_dark">#08FFFFFF</color>
+ <!-- 卡片边界感描边：浅色下白玻璃与白背景需要细边框区分；深色保持原有边缘高光 -->
+ <color name="aries_glass_border_light">#1A000000</color>
+ <color name="aries_glass_border_dark">#00FFFFFF</color>
  <dimen name="aries_attachment_tile">64dp</dimen>
  <dimen name="aries_attachment_icon">28dp</dimen>
 

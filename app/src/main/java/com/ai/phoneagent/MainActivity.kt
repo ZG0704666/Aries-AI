@@ -998,7 +998,10 @@ class MainActivity : AppCompatActivity() {
 
         HomeScreen(
             drawerState = drawerState,
-            drawerGesturesEnabled = !onboardingOverlay.isShowing() && inputBarState.value !is InputState.VoiceRecording && inputBarState.value !is InputState.VoiceRecognizing,
+            drawerGesturesEnabled = !onboardingOverlay.isShowing() &&
+                inputBarState.value !is InputState.VoiceRecording &&
+                inputBarState.value !is InputState.VoiceRecognizing &&
+                inputBarState.value !is InputState.VoiceFinalizing,
             onOpenDrawer = onOpenDrawer,
             drawerSearchQuery = currentDrawerSearchQuery,
             drawerItems = currentDrawerItems,
@@ -1943,6 +1946,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun beginVoiceSession(): Long {
         val id = allocateVoiceSessionId()
+        savedInputText = inputTextState.value
         activeVoiceSessionId = id
         return id
     }
@@ -2889,14 +2893,22 @@ class MainActivity : AppCompatActivity() {
             onVoiceEnd = {
                 vibrateLight()
                 val sessionId = activeVoiceSessionId
-                inputBarState.value = InputState.Idle
-                stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
+                inputBarState.value = InputState.VoiceFinalizing
+                // 松手=发送：识别完成后自动标点并直接发送（onFinalResult 中消费）
+                pendingSendAfterVoice = true
+                stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = false)
             },
             onVoiceCancel = {
                 vibrateLight()
                 val sessionId = activeVoiceSessionId
+                inputTextState.value = savedInputText
+                pendingSendAfterVoice = false
                 inputBarState.value = InputState.Idle
-                stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
+                stopLocalVoiceInput(
+                    triggerRecognizerStop = false,
+                    expectedSessionId = sessionId,
+                    clearSession = true,
+                )
             },
             onAttachmentClick = {
                 vibrateMedium()
@@ -2920,7 +2932,10 @@ class MainActivity : AppCompatActivity() {
             onModeChange = { isVoice ->
                 vibrateLight()
                 val currentState = inputBarState.value
-                if (currentState is InputState.VoiceRecording || currentState is InputState.VoiceRecognizing) {
+                if (currentState is InputState.VoiceRecording ||
+                    currentState is InputState.VoiceRecognizing ||
+                    currentState is InputState.VoiceFinalizing
+                ) {
                     stopVoiceInputAnimation()
                     if (inputTextState.value.startsWith("正在语音输入")) {
                         inputTextState.value = savedInputText
@@ -3780,7 +3795,10 @@ class MainActivity : AppCompatActivity() {
                 offlineModelReady = true
                 updateStatusText()
             } else {
-                Toast.makeText(this@MainActivity, "语音模型初始化失败", Toast.LENGTH_LONG).show()
+                // 带上具体失败原因（native 库加载失败/模型资产缺失等），便于真机现场定位
+                val reason = sherpaSpeechRecognizer?.lastInitializationError.orEmpty()
+                val message = if (reason.isBlank()) "语音模型初始化失败" else "语音模型初始化失败：$reason"
+                Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -3897,6 +3915,16 @@ class MainActivity : AppCompatActivity() {
         if (!isVoiceSessionActive(sessionId)) return
         val recognizer = sherpaSpeechRecognizer
         if (recognizer == null || !recognizer.isReady()) {
+            // 启动时初始化失败或尚未完成：现场重试一次初始化，避免永久卡死在“模型加载中”。
+            // initialize() 内部有互斥锁且成功后幂等，重复触发是安全的。
+            if (recognizer != null && !recognizer.isInitializing()) {
+                lifecycleScope.launch {
+                    if (recognizer.initialize()) {
+                        offlineModelReady = true
+                        updateStatusText()
+                    }
+                }
+            }
             Toast.makeText(this, "模型加载中…", Toast.LENGTH_SHORT).show()
             inputBarState.value = InputState.Idle
             clearVoiceSession(sessionId)
@@ -3954,7 +3982,10 @@ class MainActivity : AppCompatActivity() {
                     // 仅当当前确实处于语音相关状态时才重置为 Idle
                     // 避免如果在识别过程中已经切换到了其他模式，被这里强行覆盖
                     val currentState = inputBarState.value
-                    if (currentState is InputState.VoiceRecording || currentState is InputState.VoiceRecognizing) {
+                    if (currentState is InputState.VoiceRecording ||
+                        currentState is InputState.VoiceRecognizing ||
+                        currentState is InputState.VoiceFinalizing
+                    ) {
                         inputBarState.value = InputState.Idle
                     }
                     
@@ -3992,7 +4023,10 @@ class MainActivity : AppCompatActivity() {
                     
                     // 同上，检查状态防止覆盖
                     val currentState = inputBarState.value
-                    if (currentState is InputState.VoiceRecording || currentState is InputState.VoiceRecognizing) {
+                    if (currentState is InputState.VoiceRecording ||
+                        currentState is InputState.VoiceRecognizing ||
+                        currentState is InputState.VoiceFinalizing
+                    ) {
                         inputBarState.value = InputState.Idle
                     }
                     
@@ -4015,7 +4049,10 @@ class MainActivity : AppCompatActivity() {
                     
                     // 同上，检查状态防止覆盖
                     val currentState = inputBarState.value
-                    if (currentState is InputState.VoiceRecording || currentState is InputState.VoiceRecognizing) {
+                    if (currentState is InputState.VoiceRecording ||
+                        currentState is InputState.VoiceRecognizing ||
+                        currentState is InputState.VoiceFinalizing
+                    ) {
                         inputBarState.value = InputState.Idle
                     }
                     

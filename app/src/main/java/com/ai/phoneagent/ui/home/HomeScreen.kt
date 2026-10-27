@@ -203,6 +203,7 @@ fun HomeScreen(
     val navRegion =
         WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + spacingSm * 2 + navHeight
     val navVisible = pager.currentPage != 2 || settingsAtRoot
+    var bottomOverlayHeightPx by remember { mutableIntStateOf(0) }
     // 内容层 backdrop：让悬浮胶囊真正折射其下方滚动的对话内容。
     val contentBackdrop = rememberLayerBackdrop()
     val navBackdrop = rememberCombinedBackdrop(LocalAriesGlassBackdrop.current, contentBackdrop)
@@ -252,11 +253,45 @@ fun HomeScreen(
                         onSettingsClick = { navigate(2) }, showSettingsEntry = false,
                     )
                 }
-                1 -> Column(Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
-                    Column(Modifier.weight(1f).clipToBounds()) {
-                        Box(Modifier.weight(1f)) { transcriptPaneContent(navRegion, 0.dp, spacingMd, spacingXxxs) }
+                1 -> Box(Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
+                    val bottomFadeHeight = dimensionResource(R.dimen.m3t_home_bottom_fade_height)
+                    val bottomOverlayHeight =
+                        if (bottomOverlayHeightPx > 0) with(density) { bottomOverlayHeightPx.toDp() }
+                        else bottomFadeHeight
+                    Box(Modifier.fillMaxSize().clipToBounds()) {
+                        transcriptPaneContent(navRegion, bottomOverlayHeight, spacingMd, spacingXxxs)
                     }
-                    HomeBottomOverlay(aiNoticeText, inputBarContent, spacingXxxs)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(bottomFadeHeight + bottomOverlayHeight)
+                            .background(
+                                // 越往下越深：输入栏是液态玻璃，必须由渐变承接住下方的
+                                // 背景文字，否则滚动内容会透过玻璃与前景混在一起。
+                                // stops 前移 + 中段加深：键盘/输入态时下半屏近乎不透明。
+                                Brush.verticalGradient(
+                                    colorStops = arrayOf(
+                                        0f to Color.Transparent,
+                                        0.22f to MaterialTheme.colorScheme.background.copy(alpha = 0.32f),
+                                        0.45f to MaterialTheme.colorScheme.background.copy(alpha = 0.72f),
+                                        0.68f to MaterialTheme.colorScheme.background.copy(alpha = 0.93f),
+                                        1f to MaterialTheme.colorScheme.background.copy(alpha = 0.97f),
+                                    ),
+                                ),
+                            ),
+                    )
+                    HomeBottomOverlay(
+                        aiNoticeText = aiNoticeText,
+                        inputBarContent = inputBarContent,
+                        spacingXxxs = spacingXxxs,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .onSizeChanged { size ->
+                                if (bottomOverlayHeightPx != size.height) bottomOverlayHeightPx = size.height
+                            },
+                    )
                 }
                 2 -> Box(Modifier.fillMaxSize().padding(top = if (settingsAtRoot) navRegion else 0.dp)) {
                     settingsContent(pager.currentPage == 2)
@@ -510,10 +545,11 @@ private fun HomeBottomOverlay(
     aiNoticeText: String,
     inputBarContent: @Composable () -> Unit,
     spacingXxxs: Dp,
+    modifier: Modifier = Modifier,
 ) {
     DebugRecomposeLogger(scope = "HomeBottomOverlay")
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(bottom = dimensionResource(DesignR.dimen.aries_composer_bottom_gap)),
         horizontalAlignment = Alignment.CenterHorizontally,

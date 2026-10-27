@@ -9,7 +9,26 @@ sealed class InputState {
     object Typing : InputState()                  // 输入中
     data class VoiceRecording(val isCancelling: Boolean = false) : InputState() // 语音录制中，带取消状态
     object VoiceRecognizing : InputState()        // 语音识别中
+    object VoiceFinalizing : InputState()         // 松手后等待最终识别结果
     object Sending : InputState()                 // 发送中
     object Generating : InputState()              // AI生成中（显示停止按钮）
     object Disabled : InputState()                // 禁用状态（AI回复中）
+}
+
+internal enum class VoicePresentation {
+    Idle,
+    Listening,
+    Cancelling,
+    Recognizing,
+    AwaitingRelease,
+    Finalizing,
+}
+
+internal fun voicePresentation(state: InputState): VoicePresentation = when (state) {
+    InputState.VoiceIdle -> VoicePresentation.Idle
+    is InputState.VoiceRecording ->
+        if (state.isCancelling) VoicePresentation.Cancelling else VoicePresentation.Listening
+    InputState.VoiceRecognizing -> VoicePresentation.Recognizing
+    InputState.VoiceFinalizing -> VoicePresentation.Finalizing
+    else -> VoicePresentation.Idle
 }

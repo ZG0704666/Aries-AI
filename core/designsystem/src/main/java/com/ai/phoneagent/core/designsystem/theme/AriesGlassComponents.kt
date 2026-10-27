@@ -1,16 +1,22 @@
 package com.ai.phoneagent.core.designsystem.theme
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.dimensionResource
 import com.ai.phoneagent.core.designsystem.R
+import com.ai.phoneagent.core.designsystem.theme.glass.AriesGlassTier
 import com.ai.phoneagent.core.designsystem.theme.glass.AriesLiquidButton
+import com.ai.phoneagent.core.designsystem.theme.glass.ariesLiquidInteractive
+import com.ai.phoneagent.core.designsystem.theme.glass.rememberAriesPressState
 import com.kyant.shapes.RoundedRectangle
 
 /** 玻璃卡片容器：统一圆角、内边距与纵向间距。
@@ -62,6 +68,34 @@ fun AriesGlassButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled
         enabled = enabled,
         shape = shape,
         contentColor = contentColor,
+        content = content,
+    )
+}
+
+/**
+ * 圆形液态玻璃图标按钮：Material A 交互玻璃 + 按压高光/缩放，
+ * 用于顶栏返回按钮、菜单按钮等图标操作。亮暗色下各自 token 自适应，
+ * API 30 自动降级为静态玻璃描边。触控热区与玻璃视觉直径一致。
+ */
+@Composable
+fun AriesGlassIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val press = rememberAriesPressState()
+    Box(
+        modifier = modifier
+            .size(dimensionResource(R.dimen.aries_touch_target))
+            .ariesLiquidInteractive(shape = CircleShape, press = press, tier = AriesGlassTier.Pill)
+            .clickable(
+                interactionSource = null,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
         content = content,
     )
 }

@@ -87,6 +87,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.ai.phoneagent.R
 import com.ai.phoneagent.core.designsystem.theme.AriesMaterialTheme
 import com.ai.phoneagent.core.designsystem.theme.AriesSoftHairline
@@ -693,6 +694,7 @@ private fun ModelApiSectionCard(
     Card(
         modifier = Modifier.fillMaxWidth().ariesGlass(shape),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         shape = shape,
     ) {
         Column(

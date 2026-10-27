@@ -236,6 +236,7 @@ private fun ReleaseItemCard(
 
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         shape = MaterialTheme.shapes.large,
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
     ) {

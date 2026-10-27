@@ -88,6 +88,16 @@ class SherpaSpeechRecognizer(private val context: Context) {
     private var isListening = false
     private val finalResultEmitted = AtomicBoolean(false)
 
+    /** 最近一次初始化失败的具体原因（成功后清空），供上层展示可定位的错误提示。 */
+    @Volatile
+    var lastInitializationError: String? = null
+        private set
+
+    /** 初始化是否正在进行（启动期或现场重试），用于上层避免重复排队。 */
+    private val initializing = AtomicBoolean(false)
+
+    fun isInitializing(): Boolean = initializing.get()
+
     private fun releaseAudioRecord() {
         val ar = audioRecord ?: return
         audioRecord = null
@@ -101,35 +111,52 @@ class SherpaSpeechRecognizer(private val context: Context) {
 
     /**
      * 初始化语音识别引擎
-     * @return true表示初始化成功
+     * @return true表示初始化成功；false 表示本次未就绪（可能正在初始化或初始化失败，原因见 [lastInitializationError]）
      */
-    suspend fun initialize(): Boolean = initializationMutex.withLock {
-        if (isInitialized) return@withLock true
-
-        Log.d(TAG, "Initializing sherpa-ncnn...")
+    suspend fun initialize(): Boolean {
+        if (isInitialized) return true
+        // 已有初始化在跑时不重复排队；由正在进行的调用负责上报结果
+        if (!initializing.compareAndSet(false, true)) return false
         try {
-            withContext(Dispatchers.IO) {
-                if (!SherpaNcnn.isNativeLibraryReady()) {
-                    Log.e(
-                            TAG,
-                            "Sherpa native library is unavailable: ${SherpaNcnn.nativeLibraryErrorMessage()}"
-                    )
-                    return@withContext false
-                }
+            return initializationMutex.withLock {
+                if (isInitialized) return@withLock true
 
-                val created = createRecognizer()
-                if (!created || recognizer == null) {
-                    Log.e(TAG, "Failed to create sherpa-ncnn recognizer")
-                    return@withContext false
-                }
+                Log.d(TAG, "Initializing sherpa-ncnn...")
+                try {
+                    withContext(Dispatchers.IO) {
+                        if (!SherpaNcnn.isNativeLibraryReady()) {
+                            val message =
+                                    "native 库加载失败：${SherpaNcnn.nativeLibraryErrorMessage() ?: "未知错误"}"
+                            Log.e(
+                                    TAG,
+                                    "Sherpa native library is unavailable: ${SherpaNcnn.nativeLibraryErrorMessage()}"
+                            )
+                            lastInitializationError = message
+                            return@withContext false
+                        }
 
-                Log.d(TAG, "sherpa-ncnn initialized successfully")
-                isInitialized = true
-                true
+                        val created = createRecognizer()
+                        if (!created || recognizer == null) {
+                            Log.e(TAG, "Failed to create sherpa-ncnn recognizer")
+                            if (lastInitializationError == null) {
+                                lastInitializationError = "模型文件缺失或加载失败"
+                            }
+                            return@withContext false
+                        }
+
+                        Log.d(TAG, "sherpa-ncnn initialized successfully")
+                        isInitialized = true
+                        lastInitializationError = null
+                        true
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to initialize sherpa-ncnn", e)
+                    lastInitializationError = e.message?.let { "初始化异常：$it" } ?: "初始化异常"
+                    false
+                }
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize sherpa-ncnn", e)
-            false
+        } finally {
+            initializing.set(false)
         }
     }
 
@@ -278,6 +305,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create SherpaNcnn instance", e)
+            lastInitializationError = "识别器创建失败：${e.message}"
             recognizer = null
             false
         }
@@ -303,7 +331,12 @@ class SherpaSpeechRecognizer(private val context: Context) {
         if (!isComplete()) {
             // 兼容布局是可选候选；不存在时直接尝试下一项，不创建空缓存或报加载错误。
             val assetEntries = context.assets.list(assetDir)?.toSet().orEmpty()
-            if (!assetEntries.containsAll(requiredFiles)) return null
+            if (!assetEntries.containsAll(requiredFiles)) {
+                if (assetEntries.isNotEmpty()) {
+                    lastInitializationError = "assets 缺少模型文件：$assetDir"
+                }
+                return null
+            }
             if (targetDir.exists()) {
                 Log.w(
                         TAG,
@@ -315,10 +348,12 @@ class SherpaSpeechRecognizer(private val context: Context) {
                 copyAssetDirRecursive(assetDir, targetDir, overwrite = true)
                 if (isComplete()) targetDir else {
                     Log.e(TAG, "Model assets are incomplete: $assetDir")
+                    lastInitializationError = "模型资产拷贝后不完整：$assetDir"
                     null
                 }
             } catch (e: IOException) {
                 Log.e(TAG, "Failed to copy model assets.", e)
+                lastInitializationError = "模型资产拷贝失败：${e.message}"
                 null
             }
         }

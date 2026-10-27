@@ -31,6 +31,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import com.ai.phoneagent.R
+import com.ai.phoneagent.core.designsystem.theme.AriesGlassIconButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,7 +97,7 @@ fun MainTopBar(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onOpenDrawer) {
+                    AriesGlassIconButton(onClick = onOpenDrawer) {
                         Icon(
                             painter = painterResource(R.drawable.ic_menu_24),
                             contentDescription = stringResource(R.string.drawer_open_navigation),

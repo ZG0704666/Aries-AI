@@ -2,6 +2,7 @@ package com.ai.phoneagent.ui.automation
 
 import com.ai.phoneagent.core.designsystem.theme.AriesGlassCard
 import com.ai.phoneagent.core.designsystem.theme.AriesGlassButton
+import com.ai.phoneagent.core.designsystem.theme.AriesGlassIconButton
 import com.composables.icons.lucide.Layers
 
 import com.ai.phoneagent.ui.components.AriesPageTopBar
@@ -96,7 +97,10 @@ fun AutomationControlScreen(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             AriesPageTopBar(stringResource(R.string.automation_toolbar_title), onBack) {
-                IconButton(onClick = onRefreshStatus) { Icon(Lucide.RefreshCw, stringResource(R.string.automation_refresh_status)) }
+                // 顶栏动作按钮：与返回按钮一致的圆形液态玻璃。
+                AriesGlassIconButton(onClick = onRefreshStatus) {
+                    Icon(Lucide.RefreshCw, stringResource(R.string.automation_refresh_status))
+                }
             }
         },
     ) { innerPadding ->

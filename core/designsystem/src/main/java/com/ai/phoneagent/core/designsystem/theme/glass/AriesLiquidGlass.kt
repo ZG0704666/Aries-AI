@@ -19,9 +19,12 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.colorResource
@@ -165,7 +168,7 @@ fun ariesGlassHighlight(tier: AriesGlassTier): Highlight =
 /**
  * 液态玻璃表面。
  *
- * - API 31+：真实背景采样 + RenderEffect 模糊/增艳 + 边缘高光 + 投影；
+ * - API 31+：真实背景采样 + RenderEffect 模糊/增艳 + 边缘高光；
  * - API 33+：额外启用 AGSL 折射（lens）；
  * - API 30：自动降级为原有的静态玻璃描边，避免无 RenderEffect 时出现全透明。
  */
@@ -177,7 +180,7 @@ fun Modifier.ariesLiquidGlass(
     surfaceColor: Color = ariesGlassSurfaceColor(tier),
     selected: Boolean = false,
     highlight: Highlight? = ariesGlassHighlight(tier),
-    shadow: Shadow? = Shadow.Default,
+    shadow: Shadow? = null,
     innerShadow: InnerShadow? = null,
     layerBlock: (GraphicsLayerScope.() -> Unit)? = null,
     onDrawSurface: (DrawScope.() -> Unit)? = null,
@@ -186,6 +189,19 @@ fun Modifier.ariesLiquidGlass(
 
     val spec = ariesGlassSpec(tier)
     val shapeLambda = remember(shape) { { shape } }
+    // 卡片档位补一圈边界描边（浅色可见、深色透明跳过），与静态玻璃卡片视觉一致。
+    val borderColor = if (tier == AriesGlassTier.Card) {
+        colorResource(
+            if (LocalAriesBackdrop.current.dark) {
+                R.color.aries_glass_border_dark
+            } else {
+                R.color.aries_glass_border_light
+            }
+        )
+    } else {
+        Color.Transparent
+    }
+    val rim = dimensionResource(R.dimen.aries_hairline)
     
     // 启用 RenderNode 缓存以优化性能
     return graphicsLayer {
@@ -200,6 +216,16 @@ fun Modifier.ariesLiquidGlass(
         layerBlock = layerBlock,
         onDrawSurface = {
             drawRect(surfaceColor)
+            if (borderColor.alpha > 0f) {
+                // 与 ariesGlass 一致：Path + 细描边画边界（drawOutline 在低版本 compose-ui 不可用）
+                val path = Path()
+                when (val outline = shape.createOutline(size, layoutDirection, this)) {
+                    is Outline.Rectangle -> path.addRect(outline.rect)
+                    is Outline.Rounded -> path.addRoundRect(outline.roundRect)
+                    is Outline.Generic -> path.addPath(outline.path)
+                }
+                drawPath(path, borderColor, style = Stroke(width = rim.toPx() * 2))
+            }
             onDrawSurface?.invoke(this)
         },
     )
@@ -319,7 +345,7 @@ fun Modifier.ariesLiquidInteractive(
     backdrop: Backdrop = LocalAriesGlassBackdrop.current,
     surfaceColor: Color = ariesGlassSurfaceColor(tier),
     selected: Boolean = false,
-    shadow: Shadow? = Shadow.Default,
+    shadow: Shadow? = null,
 ): Modifier {
     val grow = dimensionResource(R.dimen.aries_liquid_press_grow)
     return this

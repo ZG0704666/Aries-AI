@@ -813,7 +813,6 @@ private fun StreamingAssistantBodyPreview(
     showLoadingIndicator: Boolean,
     spacingMd: Dp,
 ) {
-    val streamingElevation = dimensionResource(R.dimen.m3t_message_streaming_tonal_elevation)
     val transcriptBlockGap = dimensionResource(R.dimen.m3t_transcript_block_gap)
     val plain = plainMessagesEnabled()
     Surface(
@@ -921,8 +920,6 @@ private fun AssistantMessageBody(
     spacingMd: Dp,
 ) {
     val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
-    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
-    val streamingElevation = dimensionResource(R.dimen.m3t_message_streaming_tonal_elevation)
     val plain = plainMessagesEnabled()
     Surface(
         modifier = if (plain) Modifier else Modifier.ariesGlass(MaterialTheme.shapes.large),
@@ -1697,7 +1694,6 @@ private fun ThinkingSection(
     val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
     val thinkingIconBox = dimensionResource(R.dimen.m3t_message_thinking_icon_box_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
-    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
 
     val thinkingLabel =
         thinkingDurationMs?.let { durationMs ->
@@ -1819,7 +1815,7 @@ private fun ThinkingSection(
             modifier = surfaceModifier,
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.secondaryContainer,
-            tonalElevation = messageElevation,
+            tonalElevation = 0.dp,
         ) {
             val contentModifier =
                 Modifier
@@ -1891,11 +1887,10 @@ private fun StreamingThinkingSection(
     spacingMd: Dp,
     spacingXs: Dp,
 ) {
-    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.secondaryContainer,
-        tonalElevation = messageElevation,
+        tonalElevation = 0.dp,
     ) {
         Column(
             modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
@@ -2037,7 +2032,6 @@ private fun AutomationMessageCard(
     val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
     val chipIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
-    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
     val logBlocks = remember(automation.logs.size, automation.logs.lastOrNull()) {
         buildAutomationLogBlocks(automation.logs)
     }

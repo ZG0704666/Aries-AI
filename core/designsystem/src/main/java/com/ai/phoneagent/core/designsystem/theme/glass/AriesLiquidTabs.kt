@@ -130,6 +130,9 @@ fun AriesLiquidTabs(
                     val target = targetValue.fastRoundToInt().fastCoerceIn(0, tabCount - 1)
                     edgeHit = 0
                     currentIndex = target
+                    // 无条件重新吸附：即使页码没变（本页签内小幅挪动后松手），
+                    // 胶囊也必须回到页签中心，不能停留在松手位置。
+                    animateToValue(target.toFloat())
                     scope.launch { offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f)) }
                 },
                 onDrag = { _, dragAmount ->
@@ -171,8 +174,20 @@ fun AriesLiquidTabs(
         LaunchedEffect(drag) {
             snapshotFlow { currentProgress() }
                 .collectLatest { p ->
-                    if (currentUserDragging() && !drag.isAnimating) {
+                    if (currentUserDragging()) {
+                        // 手指拖动 pager：胶囊逐帧 glued-in。snapTo 会取消进行中的
+                        // 弹簧飞行，手指永远优先。
                         drag.snapToValue(p.fastCoerceIn(0f, (tabCount - 1).toFloat()))
+                        return@collectLatest
+                    }
+                    // 吸附自愈：pager 已静止（进度贴合整数页）且胶囊没有弹簧在飞、
+                    // 也不在目标位时，强制弹簧归位。覆盖“中点前松手、pager 回弹回
+                    // 原页”等页码不变、因而没有任何事件驱动胶囊归位的残留场景。
+                    if (!drag.isAnimating) {
+                        val target = p.fastRoundToInt().fastCoerceIn(0, tabCount - 1)
+                        if (abs(drag.value - target) > 0.01f && abs(p - target) < 0.01f) {
+                            drag.animateToValue(target.toFloat())
+                        }
                     }
                 }
         }
