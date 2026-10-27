@@ -8,3 +8,18 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  # Gradle/version catalog (gradle/libs.versions.toml). Minor+patch bumps land
+  # as one PR; majors stay separate so AGP/Kotlin jumps get reviewed on their own.
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      gradle-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
