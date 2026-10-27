@@ -32,6 +32,7 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.ai.phoneagent.R
 
 data class ConversationHistoryItemUi(
@@ -79,8 +80,8 @@ fun ConversationHistoryDialog(
                     ),
             shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xxxs),
-            shadowElevation = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm),
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
         ) {
             Column(modifier = Modifier.padding(dialogPadding)) {
                 Row(

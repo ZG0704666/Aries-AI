@@ -1,6 +1,11 @@
 package com.ai.phoneagent.ui.messages
 
 import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import com.ai.phoneagent.core.designsystem.theme.glass.AriesGlassTier
+import com.ai.phoneagent.core.designsystem.theme.glass.AriesLiquidCircleButton
+import com.ai.phoneagent.core.designsystem.theme.glass.ariesLiquidGlass
+import com.ai.phoneagent.core.designsystem.theme.glass.ariesLiquidInteractive
+import com.ai.phoneagent.core.designsystem.theme.glass.rememberAriesPressState
 import com.composables.icons.lucide.Search
 import com.composables.icons.lucide.ScanLine
 import com.composables.icons.lucide.AlarmClock
@@ -42,6 +47,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Copy
@@ -456,9 +462,14 @@ fun TranscriptEmptyHintCard(
         Text(stringResource(R.string.ui_v2_try), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         val promptIcons = listOf(Lucide.Search, Lucide.ScanLine, Lucide.AlarmClock, Lucide.TrainFront)
         prompts.forEachIndexed { index, prompt ->
+            // Material A：主页首屏重点建议按钮，液态 Pill + 按压高光。
             Surface(onClick = { onSuggestionClick(prompt) }, shape = MaterialTheme.shapes.small,
                 color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.fillMaxWidth().ariesGlass(MaterialTheme.shapes.small)) {
+                modifier = Modifier.fillMaxWidth().ariesLiquidInteractive(
+                    shape = MaterialTheme.shapes.small,
+                    press = rememberAriesPressState(),
+                    tier = AriesGlassTier.Pill,
+                )) {
                 Row(Modifier.heightIn(min = rowHeight).padding(horizontal = gap, vertical = small),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(small)) {
                     Icon(promptIcons[index % promptIcons.size], null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_suggestion_icon)))
@@ -633,8 +644,8 @@ private fun UserMessageBubble(
             ) {
                 item.attachments.forEach { attachmentName ->
                     Surface(
-                        modifier = Modifier.ariesGlass(CircleShape),
-                        shape = CircleShape,
+                        modifier = Modifier.ariesLiquidGlass(RoundedCornerShape(50), tier = AriesGlassTier.Chip),
+                        shape = RoundedCornerShape(50),
                         color = Color.Transparent,
                         contentColor = MaterialTheme.colorScheme.onSurface,
                     ) {
@@ -802,7 +813,6 @@ private fun StreamingAssistantBodyPreview(
     showLoadingIndicator: Boolean,
     spacingMd: Dp,
 ) {
-    val streamingElevation = dimensionResource(R.dimen.m3t_message_streaming_tonal_elevation)
     val transcriptBlockGap = dimensionResource(R.dimen.m3t_transcript_block_gap)
     val plain = plainMessagesEnabled()
     Surface(
@@ -910,8 +920,6 @@ private fun AssistantMessageBody(
     spacingMd: Dp,
 ) {
     val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
-    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
-    val streamingElevation = dimensionResource(R.dimen.m3t_message_streaming_tonal_elevation)
     val plain = plainMessagesEnabled()
     Surface(
         modifier = if (plain) Modifier else Modifier.ariesGlass(MaterialTheme.shapes.large),
@@ -1686,7 +1694,6 @@ private fun ThinkingSection(
     val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
     val thinkingIconBox = dimensionResource(R.dimen.m3t_message_thinking_icon_box_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
-    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
 
     val thinkingLabel =
         thinkingDurationMs?.let { durationMs ->
@@ -1808,7 +1815,7 @@ private fun ThinkingSection(
             modifier = surfaceModifier,
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.secondaryContainer,
-            tonalElevation = messageElevation,
+            tonalElevation = 0.dp,
         ) {
             val contentModifier =
                 Modifier
@@ -1880,11 +1887,10 @@ private fun StreamingThinkingSection(
     spacingMd: Dp,
     spacingXs: Dp,
 ) {
-    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.secondaryContainer,
-        tonalElevation = messageElevation,
+        tonalElevation = 0.dp,
     ) {
         Column(
             modifier = Modifier.padding(horizontal = spacingMd, vertical = spacingXs + spacingSm),
@@ -2026,7 +2032,6 @@ private fun AutomationMessageCard(
     val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
     val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
     val chipIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
-    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
     val logBlocks = remember(automation.logs.size, automation.logs.lastOrNull()) {
         buildAutomationLogBlocks(automation.logs)
     }
@@ -2353,19 +2358,11 @@ private fun MessageActionButton(
     buttonSize: androidx.compose.ui.unit.Dp,
     content: @Composable () -> Unit,
 ) {
-    val messageElevation = dimensionResource(R.dimen.m3t_message_tonal_elevation)
-    Surface(
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = messageElevation,
-        modifier = Modifier.wrapContentWidth(),
-    ) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier.size(buttonSize),
-            content = { content() },
-        )
-    }
+    AriesLiquidCircleButton(
+        onClick = onClick,
+        size = buttonSize,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) { content() }
 }
 
 @Composable

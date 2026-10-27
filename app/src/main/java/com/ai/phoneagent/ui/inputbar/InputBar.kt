@@ -1,6 +1,7 @@
 package com.ai.phoneagent.ui.inputbar
 
 import com.ai.phoneagent.R
+import com.ai.phoneagent.core.designsystem.theme.LocalAriesBackdrop
 import com.ai.phoneagent.core.designsystem.theme.ariesGlass
 import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.ScanLine
@@ -23,10 +24,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
@@ -36,12 +40,31 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.integerResource
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import kotlin.math.abs
-import kotlin.random.Random
+
+/** 语音待命呼吸辉光：在控件底部绘制径向光晕（随呼吸 alpha 摆动，仅重绘不重组）。 */
+private fun Modifier.voiceBreathingGlow(
+    glowAlpha: () -> Float,
+    glowColor: Color,
+    radius: Dp,
+): Modifier = drawBehind {
+    val glowRadius = radius.toPx()
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(glowColor.copy(alpha = glowAlpha()), Color.Transparent),
+            center = Offset(size.width / 2f, size.height / 2f),
+            radius = glowRadius,
+        ),
+        radius = glowRadius,
+    )
+}
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -62,7 +85,8 @@ fun InputBar(
     onModeChange: (Boolean) -> Unit,
     voiceAmplitude: Float = 0f,
     modifier: Modifier = Modifier,
-    onUpdateCancelState: (Boolean) -> Unit = {}
+    // 上滑取消手势上报：progress=上滑归一进度(0..1，阈值处=1)，isCancelling=是否已进入取消区
+    onUpdateCancelState: (progress: Float, isCancelling: Boolean) -> Unit = { _, _ -> }
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val density = LocalDensity.current
@@ -77,12 +101,22 @@ fun InputBar(
     val inputBarMaxWidth = dimensionResource(R.dimen.m3t_input_bar_max_width)
     val inputBarHeight = dimensionResource(R.dimen.m3t_input_bar_height)
     val inputBarVoiceHeight = dimensionResource(R.dimen.m3t_input_bar_voice_height)
+    val voiceRecordPillHeight = dimensionResource(R.dimen.m3t_voice_record_pill_height)
     val iconButtonSize = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_composer_action)
     val iconSize = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_composer_icon)
     val sendIconSize = dimensionResource(R.dimen.m3t_input_bar_send_icon_size) - spacingXxxs
     val inputShape = RoundedCornerShape(radiusXl)
-    val showVoiceOverlay = state is InputState.VoiceRecording || state is InputState.VoiceRecognizing
-    val isVoiceMode = state is InputState.VoiceIdle || showVoiceOverlay
+    val showVoiceOverlay = state is InputState.VoiceRecording ||
+        state is InputState.VoiceRecognizing || state is InputState.VoiceFinalizing
+    val currentInputState by rememberUpdatedState(state)
+    var pointerDown by remember { mutableStateOf(false) }
+    val completedWhileHolding = pointerDown && state is InputState.Idle
+    val isVoiceMode = state is InputState.VoiceIdle || showVoiceOverlay ||
+        completedWhileHolding
+    val voiceState = when {
+        completedWhileHolding -> VoicePresentation.AwaitingRelease
+        else -> voicePresentation(state)
+    }
     val isGenerating = state is InputState.Generating
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
     val hasText = text.isNotBlank()
@@ -121,6 +155,18 @@ fun InputBar(
     )
     val composerMotionMs = integerResource(com.ai.phoneagent.core.designsystem.R.integer.aries_page_motion_ms)
     val expandedRadius = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_composer_expanded_radius)
+    // 语音待命呼吸辉光：单一合成值，底层仅触发重绘，不产生重组
+    val breathingGlow = rememberInfiniteTransition(label = "voiceBreathingGlow")
+    val glowAlpha by breathingGlow.animateFloat(
+        initialValue = 0.10f,
+        targetValue = 0.26f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "voiceBreathingGlowAlpha",
+    )
+    val breathingGlowRadius = dimensionResource(R.dimen.m3t_voice_breathing_glow_radius)
     val composerRadius by animateDpAsState(
         radiusXl + (expandedRadius - radiusXl) * expansion,
         tween(composerMotionMs, easing = FastOutSlowInEasing), label = "composerRadius",
@@ -156,28 +202,57 @@ fun InputBar(
                 Icon(Lucide.ChevronDown, null, Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_nav_icon)))
             }
         }
-        AnimatedVisibility(
-            visible = showVoiceOverlay,
-            enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-            exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
-        ) {
-            VoiceInputOverlayContent(
-                amplitude = voiceAmplitude,
-                inputState = state,
-            )
-        }
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = spacingXxxs),
             contentAlignment = Alignment.BottomCenter,
         ) {
+            // 录音中（按住说话/取消区）胶囊放大，待命/识别态维持常规语音高度
+            val voicePillExpanded = voiceState == VoicePresentation.Listening ||
+                voiceState == VoicePresentation.Cancelling
             val containerHeight by animateDpAsState(
-                targetValue = if (isVoiceMode) inputBarVoiceHeight else inputBarHeight,
+                targetValue = when {
+                    !isVoiceMode -> inputBarHeight
+                    voicePillExpanded -> voiceRecordPillHeight
+                    else -> inputBarVoiceHeight
+                },
                 animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
                 label = "inputBarContainerHeight",
             )
+            // 录音胶囊底色：录音=蓝、取消区=红（参考图配色，深浅色走 m3t token），松手后渐回玻璃
+            // 录音状态配色：本项目主题切换为 Compose 内部标志（不改资源配置），
+            // values-night 限定符不会生效；按项目惯例以 LocalAriesBackdrop.dark 分支选择。
+            val voiceDark = LocalAriesBackdrop.current.dark
+            val recordActiveColor = colorResource(
+                if (voiceDark) R.color.m3t_voice_record_pill_bg_dark else R.color.m3t_voice_record_pill_bg
+            )
+            val recordCancelColor = colorResource(
+                if (voiceDark) {
+                    R.color.m3t_voice_record_pill_bg_cancel_dark
+                } else {
+                    R.color.m3t_voice_record_pill_bg_cancel
+                }
+            )
+            val recordHintColor = colorResource(
+                if (voiceDark) R.color.m3t_voice_record_hint_dark else R.color.m3t_voice_record_hint
+            )
+            val voiceRecording = voiceState == VoicePresentation.Listening ||
+                voiceState == VoicePresentation.Cancelling
+            val pillColor by animateColorAsState(
+                targetValue = when (voiceState) {
+                    VoicePresentation.Cancelling -> recordCancelColor
+                    VoicePresentation.Listening -> recordActiveColor
+                    else -> Color.Transparent
+                },
+                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                label = "voicePillColor",
+            )
+            // 上滑抬起上限：胶囊随上滑进度跟手抬起
+            val voiceLiftMax = dimensionResource(R.dimen.m3t_voice_record_lift)
+            // 手势层上报的原始上滑进度（0..1）。只在 graphicsLayer lambda 内读取：
+            // 拖动过程逐帧更新只触发重绘，不触发重组。
+            val cancelProgressState = remember { mutableFloatStateOf(0f) }
 
             Row(
                 modifier = Modifier
@@ -188,49 +263,174 @@ fun InputBar(
                 verticalAlignment = Alignment.Bottom,
             ) {
                 if (isVoiceMode) {
-                    Surface(
+                    Column(
                         modifier = Modifier
                             .weight(1f)
-                            .height(containerHeight)
-                            .ariesGlass(inputShape),
-                        shape = inputShape,
-                        color = containerColor,
+                            .graphicsLayer {
+                                // 提示文字与胶囊整体跟随上滑进度抬起，
+                                // 保证抬起过程中胶囊不会遮挡上方的提示文字。
+                                translationY = -voiceLiftMax.toPx() * cancelProgressState.floatValue
+                            },
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Box(
+                        // 状态大字：录音中提示“松手发送，上移取消”，进入取消区变红“松手取消”。
+                        // 悬于胶囊上方居中，仅录音进行中显示（参考松手发送/取消两态图）。
+                        AnimatedVisibility(
+                            visible = voiceRecording,
+                            enter = fadeIn(tween(140)) + slideInVertically(
+                                animationSpec = tween(220, easing = FastOutSlowInEasing),
+                            ) { it / 2 },
+                            exit = fadeOut(tween(110)) + slideOutVertically(tween(110)) { it / 2 },
+                            label = "voiceStatusHint",
+                        ) {
+                            val cancelling = voiceState == VoicePresentation.Cancelling
+                            Text(
+                                text = stringResource(
+                                    if (cancelling) R.string.voice_release_to_cancel
+                                    else R.string.voice_release_to_transcribe
+                                ),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = if (cancelling) recordCancelColor else recordHintColor,
+                                modifier = Modifier.padding(bottom = spacingSm),
+                            )
+                        }
+                        Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(containerHeight)
-                                .padding(horizontal = spacingXs, vertical = spacingXs),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            VoiceRecordButtonHandler(
-                                onPressStart = onVoiceStart,
-                                onPressEnd = onVoiceEnd,
-                                onCancel = onVoiceCancel,
-                                onOffsetChange = { _, isCancelling ->
-                                    onUpdateCancelState(isCancelling)
-                                },
-                            )
-
-                            Text(
-                                text = stringResource(R.string.input_hold_to_talk),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = colorScheme.onSurface,
-                            )
-
-                            InputBarIconButton(
-                                onClick = { onModeChange(false) },
-                                modifier = Modifier.align(Alignment.CenterStart),
-                                buttonSize = iconButtonSize,
-                                iconSize = iconSize,
-                                containerColor = actionContainerColor,
-                            ) {
-                                Icon(
-                                    imageVector = Lucide.Keyboard,
-                                    contentDescription = stringResource(R.string.input_switch_keyboard),
-                                    tint = colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(iconSize),
+                                .testTag("voice_input_capsule")
+                                .clip(inputShape)
+                                .voiceBreathingGlow(
+                                    glowAlpha = { glowAlpha },
+                                    glowColor = colorScheme.primary,
+                                    radius = breathingGlowRadius,
                                 )
+                                // 录音中改用扁平状态底色；松手后回到液态玻璃（后续可扩展为玻璃录音态）
+                                .then(if (voiceRecording) Modifier else Modifier.ariesGlass(inputShape)),
+                            shape = inputShape,
+                            color = pillColor,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(containerHeight)
+                                    .padding(horizontal = spacingXs, vertical = spacingXs),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                VoiceRecordButtonHandler(
+                                    modifier = Modifier.padding(start = iconButtonSize + spacingXs),
+                                    enabled = pointerDown || (voiceState != VoicePresentation.Recognizing &&
+                                        voiceState != VoicePresentation.Finalizing),
+                                    onPressStart = {
+                                        pointerDown = true
+                                        onVoiceStart()
+                                    },
+                                    onPressEnd = {
+                                        pointerDown = false
+                                        if (currentInputState !is InputState.Idle) onVoiceEnd()
+                                    },
+                                    onCancel = {
+                                        pointerDown = false
+                                        if (currentInputState !is InputState.Idle) {
+                                            onVoiceCancel()
+                                        }
+                                    },
+                                    onOffsetChange = { progress, cancelling ->
+                                        cancelProgressState.floatValue = progress
+                                        onUpdateCancelState(progress, cancelling)
+                                    },
+                                )
+
+                                AnimatedContent(
+                                    targetState = voiceState,
+                                    transitionSpec = {
+                                        fadeIn(tween(130)) togetherWith fadeOut(tween(90))
+                                    },
+                                    label = "voiceCapsuleContent",
+                                ) { presentation ->
+                                    when (presentation) {
+                                        VoicePresentation.Idle -> Text(
+                                            text = stringResource(R.string.input_hold_to_talk),
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = colorScheme.onSurface,
+                                        )
+                                        VoicePresentation.Listening,
+                                        VoicePresentation.Cancelling,
+                                        -> Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            // 录音中：白色波形铺满状态色胶囊
+                                            VoiceWaveform(
+                                                amplitude = voiceAmplitude,
+                                                solidColor = Color.White,
+                                                spread = true,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(dimensionResource(R.dimen.m3t_voice_wave_height))
+                                                    .testTag("voice_input_waveform"),
+                                            )
+                                        }
+                                        else -> Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(start = iconButtonSize, end = spacingXs)
+                                                .height(iconButtonSize),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            VoiceWaveform(
+                                                amplitude = if (presentation == VoicePresentation.Recognizing) {
+                                                    voiceAmplitude
+                                                } else {
+                                                    0f
+                                                },
+                                                solidColor = colorResource(R.color.m3t_voice_wave_active),
+                                                modifier = Modifier
+                                                    .height(dimensionResource(R.dimen.m3t_voice_wave_height))
+                                                    .testTag("voice_input_waveform"),
+                                            )
+                                            Spacer(Modifier.width(spacingXs))
+                                            Text(
+                                                text = stringResource(R.string.voice_status_recognizing),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // 长按录音过程中隐藏键盘切换按钮，避免浮在状态色胶囊上显得突兀；
+                                // 按住说话/松手识别等状态仍显示。
+                                // （显式全限定调用：BoxScope 内存在外层 ColumnScope 隐式接收器，避免误解析到扩展重载）
+                                androidx.compose.animation.AnimatedVisibility(
+                                    visible = !voiceRecording,
+                                    enter = fadeIn(tween(140)) +
+                                        scaleIn(initialScale = 0.8f, animationSpec = tween(140)),
+                                    exit = fadeOut(tween(110)) +
+                                        scaleOut(targetScale = 0.8f, animationSpec = tween(110)),
+                                    modifier = Modifier.align(Alignment.CenterStart),
+                                    label = "voiceKeyboardToggle",
+                                ) {
+                                    InputBarIconButton(
+                                        onClick = {
+                                            pointerDown = false
+                                            onModeChange(false)
+                                        },
+                                        buttonSize = iconButtonSize,
+                                        iconSize = iconSize,
+                                        containerColor = actionContainerColor,
+                                    ) {
+                                        Icon(
+                                            imageVector = Lucide.Keyboard,
+                                            contentDescription = stringResource(R.string.input_switch_keyboard),
+                                            tint = colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(iconSize),
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -282,7 +482,17 @@ fun InputBar(
                                     onModeChange(true)
                                 } } else onSend,
                                 modifier = Modifier.size(iconButtonSize).scale(sendButtonScale)
-                                    .then(if (showAssistantEntry) Modifier.ariesGlass(CircleShape) else Modifier),
+                                    .then(
+                                        if (showAssistantEntry) Modifier
+                                            .clip(CircleShape)
+                                            .voiceBreathingGlow(
+                                                glowAlpha = { glowAlpha },
+                                                glowColor = colorScheme.primary,
+                                                radius = breathingGlowRadius,
+                                            )
+                                            .ariesGlass(CircleShape)
+                                        else Modifier
+                                    ),
                                 containerColor = sendContainerColor, contentColor = sendContentColor,
                             ) {
                                 if (showAssistantEntry) Icon(Lucide.Mic, stringResource(R.string.voice_input), Modifier.size(iconSize))
@@ -297,76 +507,10 @@ fun InputBar(
     }
 }
 
-/**
- * 语音状态条固定展示在输入栏上方，避免模式切换时主布局跳变。
- */
-@OptIn(ExperimentalAnimationApi::class)
-@Composable
-fun VoiceInputOverlayContent(
-    amplitude: Float,
-    inputState: InputState,
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    val spacingSm = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm)
-    val spacingMd = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_md)
-    val overlayBottomOffset = dimensionResource(R.dimen.m3t_input_bar_overlay_bottom_offset)
-    val statusPaddingH = dimensionResource(R.dimen.m3t_input_bar_voice_status_padding_h)
-    val statusPaddingV = dimensionResource(R.dimen.m3t_input_bar_voice_status_padding_v)
-    val isRecording = inputState is InputState.VoiceRecording || inputState is InputState.VoiceRecognizing
-    val isCancelled = (inputState as? InputState.VoiceRecording)?.isCancelling == true
-    val statusText =
-        when {
-            inputState is InputState.VoiceRecognizing -> stringResource(R.string.voice_status_recognizing)
-            else -> stringResource(R.string.voice_status_listening)
-        }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.Transparent)
-            .padding(bottom = overlayBottomOffset),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Surface(
-            shape = MaterialTheme.shapes.large,
-            color = if (isCancelled) colorScheme.errorContainer else colorScheme.secondaryContainer,
-        ) {
-            Text(
-                text = statusText,
-                style = MaterialTheme.typography.labelLarge,
-                color = if (isCancelled) colorScheme.onErrorContainer else colorScheme.onSecondaryContainer,
-                modifier = Modifier.padding(horizontal = statusPaddingH, vertical = statusPaddingV),
-            )
-        }
-
-        Spacer(modifier = Modifier.height(spacingSm))
-
-        val waveColor = if (isCancelled) colorScheme.error else colorScheme.primary
-
-        VoiceWaveformDots(amplitude = if (isRecording) amplitude else 0f, color = waveColor)
-
-        Spacer(modifier = Modifier.height(spacingMd))
-
-        Surface(
-            shape = MaterialTheme.shapes.large,
-            color = colorScheme.surfaceContainer,
-        ) {
-            Text(
-                text = if (isCancelled) {
-                    stringResource(R.string.voice_release_to_cancel)
-                } else {
-                    stringResource(R.string.voice_release_to_send)
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = statusPaddingH, vertical = statusPaddingV),
-            )
-        }
-    }
-}
-
 @Composable
 fun VoiceRecordButtonHandler(
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     onPressStart: () -> Unit,
     onPressEnd: () -> Unit,
     onCancel: () -> Unit,
@@ -406,11 +550,14 @@ fun VoiceRecordButtonHandler(
         resetGestureState()
     }
 
+    val cancelEnterPx = -cancelEnterThreshold
+
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(gestureHeight)
-            .pointerInput(Unit) {
+            .pointerInput(enabled) {
+                if (!enabled) return@pointerInput
                 detectDragGesturesAfterLongPress(
                     onDragStart = {
                         totalDy = 0f
@@ -435,7 +582,9 @@ fun VoiceRecordButtonHandler(
                                 !isCancelling && totalDy < cancelEnterThreshold -> true
                                 else -> isCancelling
                             }
-                        onOffsetChange(totalDy, isCancelling)
+                        // 上滑进度归一化：150dp 阈值处为 1.0（仅供视觉/反馈层使用）
+                        val progress = (-totalDy / cancelEnterPx).coerceIn(0f, 1f)
+                        onOffsetChange(progress, isCancelling)
                     },
                     onDragEnd = {
                         finishGesture(cancelBySystem = false)
@@ -446,43 +595,6 @@ fun VoiceRecordButtonHandler(
                 )
             },
     )
-}
-
-@Composable
-fun VoiceWaveformDots(amplitude: Float, color: Color) {
-    val dotCount = 8
-    val dotGap = dimensionResource(R.dimen.m3t_voice_wave_dot_gap)
-    val waveHeight = dimensionResource(R.dimen.m3t_voice_wave_height)
-    val dotSize = dimensionResource(R.dimen.m3t_voice_wave_dot_size)
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(dotGap),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.height(waveHeight),
-    ) {
-        repeat(dotCount) { index ->
-            val startScale = 0.6f
-            val targetScale = if (amplitude > 0.05f) {
-                val centerFactor = 1f - abs(index - dotCount / 2f) / (dotCount / 2f)
-                startScale + (amplitude * 2f * centerFactor) + (Random.nextFloat() * 0.3f)
-            } else {
-                startScale
-            }
-
-            val animatedScale by animateFloatAsState(
-                targetValue = targetScale.coerceIn(0.6f, 2.5f),
-                animationSpec = spring(stiffness = Spring.StiffnessLow),
-                label = "dot",
-            )
-
-            Box(
-                modifier = Modifier
-                    .size(dotSize)
-                    .scale(animatedScale)
-                    .clip(CircleShape)
-                    .background(color),
-            )
-        }
-    }
 }
 
 @Composable

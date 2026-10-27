@@ -23,7 +23,7 @@ val githubToken: String by lazy {
 
 android {
     namespace = "com.ai.phoneagent.feature.updates"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 30

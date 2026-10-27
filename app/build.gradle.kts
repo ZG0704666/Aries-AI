@@ -51,7 +51,7 @@ fun escapedBuildConfigString(value: String): String =
 
 android {
     namespace = "com.ai.phoneagent"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = "28.2.13676358"
 
     externalNativeBuild {
@@ -79,7 +79,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            abiFilters += listOf("arm64-v8a")
+            // arm64-v8a：真机；x86_64：Android Studio 模拟器（缺它会导致模拟器上语音 native 库加载失败）
+            abiFilters += listOf("arm64-v8a", "x86_64")
         }
 
         externalNativeBuild {

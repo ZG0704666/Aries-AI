@@ -26,18 +26,21 @@
     <dimen name="m3t_input_bar_send_button_size">36dp</dimen>
     <dimen name="m3t_input_bar_send_icon_size">18dp</dimen>
     <dimen name="m3t_input_bar_text_min_height">32dp</dimen>
-    <dimen name="m3t_input_bar_overlay_bottom_offset">72dp</dimen>
-    <dimen name="m3t_input_bar_voice_status_padding_h">12dp</dimen>
-    <dimen name="m3t_input_bar_voice_status_padding_v">6dp</dimen>
     <dimen name="m3t_input_bar_voice_cancel_enter_offset">150dp</dimen>
     <dimen name="m3t_input_bar_voice_cancel_exit_offset">110dp</dimen>
-    <dimen name="m3t_voice_wave_height">60dp</dimen>
+    <dimen name="m3t_voice_breathing_glow_radius">44dp</dimen>
+    <!-- 语音录音状态胶囊：录音/取消态的放大高度与上滑抬起上限 -->
+    <dimen name="m3t_voice_record_pill_height">76dp</dimen>
+    <dimen name="m3t_voice_record_lift">20dp</dimen>
+    <!-- 平滑声波条（替代 8 点波形）：24 根 3dp 柱 -->
+    <dimen name="m3t_voice_wave_bar_width">3dp</dimen>
+    <dimen name="m3t_voice_wave_bar_min_height">6dp</dimen>
+    <dimen name="m3t_voice_wave_bar_max_height">24dp</dimen>
+    <dimen name="m3t_voice_wave_height">24dp</dimen>
     <dimen name="m3t_voice_wave_dot_size">10dp</dimen>
     <dimen name="m3t_voice_wave_dot_gap">8dp</dimen>
     <dimen name="m3t_transcript_empty_card_max_width">336dp</dimen>
     <dimen name="m3t_message_user_bubble_max_width">392dp</dimen>
-    <dimen name="m3t_message_tonal_elevation">1dp</dimen>
-    <dimen name="m3t_message_streaming_tonal_elevation">2dp</dimen>
     <dimen name="m3t_transcript_block_gap">4dp</dimen>
     <dimen name="m3t_message_thinking_card_max_width">328dp</dimen>
     <dimen name="m3t_message_action_button_size">34dp</dimen>
@@ -45,7 +48,19 @@
     <dimen name="m3t_message_action_gap">2dp</dimen>
     <dimen name="m3t_message_thinking_icon_box_size">20dp</dimen>
     <dimen name="m3t_top_bar_title_gap">8dp</dimen>
-    <dimen name="m3t_input_bar_shadow">10dp</dimen>
+    <dimen name="m3t_home_bottom_fade_height">136dp</dimen>
+
+    <color name="m3t_voice_wave_active">#8FC8FF</color>
+    <color name="m3t_voice_wave_cancel">#FF9FA8</color>
+    <!-- 语音录音状态胶囊：录音蓝 / 取消红 / 录音提示文字（浅色） -->
+    <!-- 语音录音状态胶囊：录音蓝 / 取消红 / 录音提示文字。本项目主题切换为 Compose 内部
+         标志（不改资源配置），dark 值由代码按 LocalAriesBackdrop.dark 分支选择，勿用 values-night -->
+    <color name="m3t_voice_record_pill_bg">#1F6BF1</color>
+    <color name="m3t_voice_record_pill_bg_dark">#2C7BF2</color>
+    <color name="m3t_voice_record_pill_bg_cancel">#FF5348</color>
+    <color name="m3t_voice_record_pill_bg_cancel_dark">#FF6656</color>
+    <color name="m3t_voice_record_hint">#5E6470</color>
+    <color name="m3t_voice_record_hint_dark">#D0D3D9</color>
 
     <!-- M3T Typography -->
     <style name="TextAppearance.M3t.ToolbarTitle" parent="TextAppearance.MaterialComponents.Headline6">

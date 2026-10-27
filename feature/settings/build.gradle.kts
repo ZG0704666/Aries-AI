@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.ai.phoneagent.feature.settings"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 30

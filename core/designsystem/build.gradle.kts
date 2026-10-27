@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.ai.phoneagent.core.designsystem"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 30
@@ -40,6 +40,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    // 液态玻璃（Liquid Glass）：真实背景采样 + RenderEffect 模糊 + AGSL 折射
+    api(libs.kyant.backdrop)
+    implementation(libs.kyant.shapes)
     
     // Koin - Dependency Injection
     implementation(libs.koin.android)

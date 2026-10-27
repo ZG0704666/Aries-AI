@@ -95,9 +95,6 @@
     <color name="m3t_vd_status_text">#F5F5F7</color>
     <color name="m3t_vd_control_bar_bg">#252528</color>
     <color name="m3t_vd_control_btn_bg">#252528</color>
-    <color name="m3t_voice_wave_start">#7FB4FF</color>
-    <color name="m3t_voice_wave_mid">#A892FF</color>
-    <color name="m3t_voice_wave_end">#FF7AA2</color>
     <color name="m3t_btn_glow_border_start">#669FCBFF</color>
     <color name="m3t_btn_glow_border_end">#334A6CA0</color>
     <color name="m3t_btn_glow_inner_start">#1A7FB4FF</color>

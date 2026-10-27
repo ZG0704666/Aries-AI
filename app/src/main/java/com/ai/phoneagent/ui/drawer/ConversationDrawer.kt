@@ -26,13 +26,15 @@ import com.composables.icons.lucide.Settings
 import com.composables.icons.lucide.Trash2
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
+import com.ai.phoneagent.core.designsystem.theme.AriesSoftHairline
 import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import com.ai.phoneagent.core.designsystem.theme.glass.AriesGlassTier
+import com.ai.phoneagent.core.designsystem.theme.glass.ariesLiquidGlass
 import com.composables.icons.lucide.MessageCircle
 import com.ai.phoneagent.core.designsystem.R as DesignR
 import androidx.compose.material3.MaterialTheme
@@ -108,7 +110,10 @@ fun ConversationDrawer(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
             modifier = Modifier.fillMaxWidth()
-                .ariesGlass(RoundedCornerShape(dimensionResource(DesignR.dimen.aries_action_radius)))
+                .ariesLiquidGlass(
+                    RoundedCornerShape(dimensionResource(DesignR.dimen.aries_action_radius)),
+                    tier = AriesGlassTier.Chip,
+                )
                 .heightIn(min = dimensionResource(DesignR.dimen.aries_search_height)),
             singleLine = true,
             textStyle = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface),
@@ -178,7 +183,7 @@ fun ConversationDrawer(
         if (showSettingsEntry) {
         Spacer(modifier = Modifier.height(spacingMd))
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        AriesSoftHairline()
 
         Surface(
             modifier =
@@ -254,6 +259,7 @@ private fun DrawerConversationRow(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    // Material B：选中态由静态玻璃 selected 着色承载（滚动内容零特效成本）。
                     .then(if (item.selected) Modifier.ariesGlass(shape, selected = true) else Modifier)
                     .clip(shape)
                     .combinedClickable(

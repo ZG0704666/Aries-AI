@@ -44,6 +44,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.dimensionResource
 import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import com.ai.phoneagent.core.designsystem.theme.glass.AriesGlassTier
+import com.ai.phoneagent.core.designsystem.theme.glass.ariesLiquidGlass
+import com.ai.phoneagent.core.designsystem.theme.glass.ariesLiquidInteractive
+import com.ai.phoneagent.core.designsystem.theme.glass.rememberAriesPressState
 import com.ai.phoneagent.R
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,6 +73,8 @@ fun AttachmentSelectorPanel(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    // 组合期解析资源，Configuration 变化随重组刷新（LocalContextGetResourceValueCall）
+    val cameraFailedText = stringResource(R.string.ui_v2_camera_failed)
 
     fun processPickedUris(uris: List<Uri>) {
         if (uris.isNotEmpty()) {
@@ -132,7 +138,7 @@ fun AttachmentSelectorPanel(
                 method.invoke(act)
                 onDismiss()
             } catch (e: Exception) {
-                android.widget.Toast.makeText(context, context.getString(R.string.ui_v2_camera_failed), android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, cameraFailedText, android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -163,7 +169,7 @@ fun AttachmentSelectorPanel(
         ModalBottomSheet(
             onDismissRequest = onDismiss,
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = Color.Transparent,
             tonalElevation = 0.dp,
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = sheetShape,
@@ -173,7 +179,11 @@ fun AttachmentSelectorPanel(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .ariesGlass(sheetShape)
+                    .ariesLiquidGlass(
+                        shape = sheetShape,
+                        tier = AriesGlassTier.Card,
+                        backdrop = com.ai.phoneagent.core.designsystem.theme.glass.LocalAriesGlassBackdrop.current
+                    )
                     .padding(bottom = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding))
             ) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -265,7 +275,11 @@ private fun AttachmentPreviewItem(
     
     Box(
         modifier = Modifier
-            .ariesGlass(previewShape)
+            .ariesLiquidInteractive(
+                shape = previewShape,
+                press = rememberAriesPressState(),
+                tier = AriesGlassTier.Pill,
+            )
             .clip(previewShape)
             .clickable(onClick = onInsert)
     ) {

@@ -18,6 +18,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -40,6 +42,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +53,7 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
@@ -85,6 +89,10 @@ fun SettingsRoute(
     val lifecycleOwner = LocalLifecycleOwner.current
     var isExitingSettingsRoute by remember { mutableStateOf(false) }
 
+    // 组合期解析资源，Configuration 变化随重组刷新（LocalContextGetResourceValueCall）
+    val ariesLoginFailedText = stringResource(R.string.aries_login_failed)
+    val ariesLogoutSuccessText = stringResource(R.string.aries_logout_success)
+
     val exitSettingsRoute = remember(navController, onExitToChat) {
         exitSettingsRoute@{
             if (onExitToChat != null) { onExitToChat(); return@exitSettingsRoute }
@@ -118,25 +126,31 @@ fun SettingsRoute(
         }
     }
 
+    val currentPage by remember { derivedStateOf { viewModel.currentPage } }
+
     AnimatedContent(
-        targetState = viewModel.currentPage,
+        targetState = currentPage,
         transitionSpec = {
+            val spec = spring<IntOffset>(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMedium
+            )
             if (viewModel.pageTransitionForward) {
                 slideInHorizontally(
-                    animationSpec = tween(260),
+                    animationSpec = spec,
                     initialOffsetX = { it },
                 ) + fadeIn(animationSpec = tween(220)) togetherWith
                     slideOutHorizontally(
-                        animationSpec = tween(260),
+                        animationSpec = spec,
                         targetOffsetX = { -it },
                     ) + fadeOut(animationSpec = tween(220))
             } else {
                 slideInHorizontally(
-                    animationSpec = tween(260),
+                    animationSpec = spec,
                     initialOffsetX = { -it },
                 ) + fadeIn(animationSpec = tween(220)) togetherWith
                     slideOutHorizontally(
-                        animationSpec = tween(260),
+                        animationSpec = spec,
                         targetOffsetX = { it },
                     ) + fadeOut(animationSpec = tween(220))
             }
@@ -189,7 +203,7 @@ fun SettingsRoute(
                     onAriesLoginClick = {
                         val activity = context as? Activity
                         if (activity == null) {
-                            Toast.makeText(context, context.getString(com.ai.phoneagent.R.string.aries_login_failed), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, ariesLoginFailedText, Toast.LENGTH_SHORT).show()
                         } else {
                             viewModel.submitAriesSsoLogin(
                                 activity = activity,
@@ -200,7 +214,7 @@ fun SettingsRoute(
                     },
                     onAriesLogout = {
                         viewModel.ariesLogout()
-                        Toast.makeText(context, context.getString(com.ai.phoneagent.R.string.aries_logout_success), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, ariesLogoutSuccessText, Toast.LENGTH_SHORT).show()
                     },
                     onApiBaseUrlChange = { value -> viewModel.onApiBaseUrlChange(value) },
                     onApiModelChange = { value -> viewModel.onApiModelChange(value) },
@@ -277,6 +291,16 @@ fun SettingsRoute(
     }
 }
 
+// 导出失败的 Toast 在非 @Composable 函数中按事件时点解析资源：组合期解析的值在 Configuration 变化后会过期，
+// 事件时点解析始终取当前配置（LocalContextGetResourceValueCall）。
+private fun showExportFailedToast(context: Context, reason: String) {
+    Toast.makeText(
+        context,
+        context.getString(SettingsR.string.about_feedback_export_failed, reason),
+        Toast.LENGTH_LONG,
+    ).show()
+}
+
 // ── About content embedded in Settings ───────────────────────────────────────
 
 @Composable
@@ -290,6 +314,12 @@ private fun SettingsAboutContent(
     val scope = rememberCoroutineScope()
     var showFeedbackConfirmDialog by remember { mutableStateOf(false) }
     var isExportingFeedbackBundle by remember { mutableStateOf(false) }
+
+    // 组合期解析资源，Configuration 变化随重组刷新（LocalContextGetResourceValueCall）
+    val websiteUrl = stringResource(SettingsR.string.about_website_url)
+    val sourceCodeUrl = stringResource(SettingsR.string.about_source_code_url)
+    val feedbackChooserTitle = stringResource(SettingsR.string.about_feedback_share_chooser)
+    val feedbackShareSubject = stringResource(SettingsR.string.about_feedback_share_subject)
 
     val vibrateLight = {
         try {
@@ -345,7 +375,7 @@ private fun SettingsAboutContent(
                 context.startActivity(
                     Intent(
                         Intent.ACTION_VIEW,
-                        Uri.parse(context.getString(SettingsR.string.about_website_url)),
+                        Uri.parse(websiteUrl),
                     ),
                 )
             } catch (_: Exception) {
@@ -358,7 +388,7 @@ private fun SettingsAboutContent(
                 context.startActivity(
                     Intent(
                         Intent.ACTION_VIEW,
-                        Uri.parse(context.getString(SettingsR.string.about_source_code_url)),
+                        Uri.parse(sourceCodeUrl),
                     ),
                 )
             } catch (_: Exception) {
@@ -401,27 +431,13 @@ private fun SettingsAboutContent(
                                 FeedbackLogExporter.shareBundle(
                                     context = context,
                                     file = bundleFile,
-                                    chooserTitle = context.getString(SettingsR.string.about_feedback_share_chooser),
-                                    subject = context.getString(SettingsR.string.about_feedback_share_subject),
+                                    chooserTitle = feedbackChooserTitle,
+                                    subject = feedbackShareSubject,
                                 ).onFailure {
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(
-                                            SettingsR.string.about_feedback_export_failed,
-                                            it.message.orEmpty(),
-                                        ),
-                                        Toast.LENGTH_LONG,
-                                    ).show()
+                                    showExportFailedToast(context, it.message.orEmpty())
                                 }
                             }.onFailure {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(
-                                        SettingsR.string.about_feedback_export_failed,
-                                        it.message.orEmpty(),
-                                    ),
-                                    Toast.LENGTH_LONG,
-                                ).show()
+                                showExportFailedToast(context, it.message.orEmpty())
                             }
                         }
                     },

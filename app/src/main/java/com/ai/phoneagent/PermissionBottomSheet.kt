@@ -10,11 +10,13 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.composables.icons.lucide.ExternalLink
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Mic
 import com.composables.icons.lucide.Smartphone
 import com.composables.icons.lucide.Shield
+import com.ai.phoneagent.core.designsystem.theme.AriesSoftHairline
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,13 +111,14 @@ fun PermissionBottomSheetContent(
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             shape = MaterialTheme.shapes.large,
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 PermissionRow(Lucide.Smartphone, stringResource(R.string.perm_sheet_accessibility_title), stringResource(R.string.perm_sheet_accessibility_desc), permissionUiState.accessibilityReady, stringResource(R.string.perm_sheet_action_enable), onOpenAccessibility, compactButtonHeight)
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                AriesSoftHairline()
                 PermissionRow(Lucide.ExternalLink, stringResource(R.string.perm_sheet_overlay_title), stringResource(R.string.perm_sheet_overlay_desc), permissionUiState.overlayReady, stringResource(R.string.perm_sheet_action_settings), onOpenOverlay, compactButtonHeight)
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                AriesSoftHairline()
                 PermissionRow(Lucide.Mic, stringResource(R.string.perm_sheet_microphone_title), stringResource(R.string.perm_sheet_microphone_desc), permissionUiState.microphoneReady, stringResource(R.string.perm_sheet_action_grant), onOpenMic, compactButtonHeight)
             }
         }

@@ -277,10 +277,8 @@ class AutomationViewModel(
     }
 
     fun onExecutionModeChange(backgroundMode: Boolean) {
-        if (backgroundMode && !ensureBackgroundModeReady()) {
-            checkAccessibilityStatus()
-            return
-        }
+        // 开关偏好切换不再被后台就绪检查阻断：点开即开、点关即关；
+        // 运行时就绪校验留给真正启动执行时（startAgent/resolver）处理。
         setExecutionMode(backgroundMode)
         checkAccessibilityStatus()
     }
@@ -524,37 +522,31 @@ class AutomationViewModel(
         checked: Boolean,
         userInitiated: Boolean = true,
     ) {
-        if (checked && userInitiated) {
-            val state = collectRuntimeConnectionState()
-            if (!state.shizukuBinderConnected) {
-                Toast.makeText(appContext, "未检测到 Shizuku 服务连接，请先启动 Shizuku", Toast.LENGTH_SHORT).show()
-                checkAccessibilityStatus()
-                return
-            }
-            if (!state.shizukuPermissionGranted && !ensureShizukuPermissionGranted()) {
-                Toast.makeText(appContext, "未检测到 Shizuku 授权，已发起授权请求，请先在弹窗中授予", Toast.LENGTH_SHORT)
-                    .show()
-                checkAccessibilityStatus()
-                return
-            }
-        }
-
+        // 偏好状态先落（不再被运行时连接状态阻断：开关必须点开即开、点关即关）。
         useShizukuInteraction = checked
         VirtualDisplayConfig.setUseShizukuInteraction(appContext, checked)
 
         if (checked && userInitiated) {
-            val latestState = collectRuntimeConnectionState()
-            if (!latestState.accessibilityEnabled && latestState.shizukuReady) {
-                val granted = grantAccessibilityViaShizuku()
-                if (granted) {
-                    Toast.makeText(appContext, "已通过 Shizuku 自动开启无障碍", Toast.LENGTH_SHORT).show()
+            // 连接/授权检查降级为非阻断提示与自动增强，不回退开关状态。
+            val state = collectRuntimeConnectionState()
+            if (!state.shizukuBinderConnected) {
+                Toast.makeText(appContext, "未检测到 Shizuku 服务连接，请先启动 Shizuku", Toast.LENGTH_SHORT).show()
+            } else if (!state.shizukuPermissionGranted && !ensureShizukuPermissionGranted()) {
+                Toast.makeText(appContext, "未检测到 Shizuku 授权，已发起授权请求，请先在弹窗中授予", Toast.LENGTH_SHORT).show()
+            } else {
+                val latestState = collectRuntimeConnectionState()
+                if (!latestState.accessibilityEnabled && latestState.shizukuReady) {
+                    val granted = grantAccessibilityViaShizuku()
+                    if (granted) {
+                        Toast.makeText(appContext, "已通过 Shizuku 自动开启无障碍", Toast.LENGTH_SHORT).show()
+                        refreshStatusAfterOneTapAuthorize()
+                    } else {
+                        Toast.makeText(appContext, "Shizuku 自动开启无障碍失败，请手动开启", Toast.LENGTH_SHORT).show()
+                    }
+                } else if (latestState.accessibilityEnabled && !latestState.accessibilityConnected) {
+                    Toast.makeText(appContext, "无障碍已开启，正在等待服务连接…", Toast.LENGTH_SHORT).show()
                     refreshStatusAfterOneTapAuthorize()
-                } else {
-                    Toast.makeText(appContext, "Shizuku 自动开启无障碍失败，请手动开启", Toast.LENGTH_SHORT).show()
                 }
-            } else if (latestState.accessibilityEnabled && !latestState.accessibilityConnected) {
-                Toast.makeText(appContext, "无障碍已开启，正在等待服务连接…", Toast.LENGTH_SHORT).show()
-                refreshStatusAfterOneTapAuthorize()
             }
         }
         checkAccessibilityStatus()

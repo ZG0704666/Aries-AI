@@ -265,7 +265,7 @@ class AppPreferencesRepository(
 
     val amoledDarkEnabledFlow: Flow<Boolean> =
         readyPrefsFlow.map { prefs ->
-            prefs[Keys.amoledDarkEnabled] ?: false
+            prefs[Keys.amoledDarkEnabled] ?: true
         }
 
     val dynamicColorEnabledFlow: Flow<Boolean> =
@@ -595,7 +595,7 @@ class AppPreferencesRepository(
 
     suspend fun getAmoledDarkEnabled(): Boolean {
         val prefs = readyPrefsFlow.first()
-        return prefs[Keys.amoledDarkEnabled] ?: false
+        return prefs[Keys.amoledDarkEnabled] ?: true
     }
 
     suspend fun setAmoledDarkEnabled(value: Boolean) {

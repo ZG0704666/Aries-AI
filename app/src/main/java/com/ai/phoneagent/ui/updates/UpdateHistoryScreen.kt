@@ -35,11 +35,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import com.ai.phoneagent.core.designsystem.theme.glass.AriesLiquidSwitch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -96,7 +96,7 @@ fun UpdateHistoryScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Switch(
+                AriesLiquidSwitch(
                     checked = uiState.includePrerelease,
                     onCheckedChange = { viewModel.setIncludePrerelease(it) }
                 )
@@ -236,6 +236,7 @@ private fun ReleaseItemCard(
 
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         shape = MaterialTheme.shapes.large,
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
     ) {

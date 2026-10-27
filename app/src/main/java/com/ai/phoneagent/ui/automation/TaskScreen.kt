@@ -153,7 +153,7 @@ fun TaskScreen(navController: NavHostController, runId: String, resultPage: Bool
                             Text(stringResource(R.string.ui_v2_logs), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             TextButton(onClick = { clipboard.setText(AnnotatedString(log)) }, enabled = log.isNotBlank()) { Text(stringResource(R.string.ui_v2_copy_logs)) }
                         }
-                        androidx.compose.foundation.text.selection.SelectionContainer { Text(log.ifBlank { context.getString(R.string.ui_v2_no_logs) }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        androidx.compose.foundation.text.selection.SelectionContainer { Text(log.ifBlank { stringResource(R.string.ui_v2_no_logs) }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                 }
             }

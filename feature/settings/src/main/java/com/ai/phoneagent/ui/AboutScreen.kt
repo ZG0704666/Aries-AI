@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import com.ai.phoneagent.core.designsystem.theme.ariesGlass
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,6 +31,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
@@ -90,15 +90,22 @@ fun AboutScreen(
                 title = { Text(text = stringResource(R.string.about_title), modifier = Modifier.padding(start = dimensionResource(DesignSystemR.dimen.aries_toolbar_title_gap)), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 expandedHeight = dimensionResource(DesignSystemR.dimen.aries_toolbar_height),
                 navigationIcon = {
-                    IconButton(onClick = onBack, modifier = Modifier.padding(start = dimensionResource(DesignSystemR.dimen.aries_composer_inset_x))
-                        .size(dimensionResource(DesignSystemR.dimen.aries_touch_target))) {
-                        Box(Modifier.size(dimensionResource(DesignSystemR.dimen.aries_back_button)).ariesGlass(CircleShape), contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Lucide.ArrowLeft,
-                                contentDescription = stringResource(R.string.about_back),
-                                modifier = Modifier.size(dimensionResource(DesignSystemR.dimen.aries_back_icon)),
-                            )
-                        }
+                    // 与全局顶栏一致：无独立玻璃圆钮/遮罩，图标按主题着色，保留 48dp 触控热区。
+                    Box(
+                        modifier =
+                            Modifier
+                                .padding(start = dimensionResource(DesignSystemR.dimen.aries_composer_inset_x))
+                                .size(dimensionResource(DesignSystemR.dimen.aries_touch_target))
+                                .clip(CircleShape)
+                                .clickable(onClick = onBack),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Lucide.ArrowLeft,
+                            contentDescription = stringResource(R.string.about_back),
+                            modifier = Modifier.size(dimensionResource(DesignSystemR.dimen.aries_back_icon)),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                        )
                     }
                 },
                 colors =

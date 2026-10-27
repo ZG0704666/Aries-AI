@@ -257,7 +257,7 @@ fun HtmlPreviewDialog(html: String, onDismiss: () -> Unit) {
                 .fillMaxSize()
                 .padding(16.dp),
             shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 4.dp,
+            tonalElevation = 0.dp,
         ) {
             Column {
                 Row(
