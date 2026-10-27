@@ -13,9 +13,18 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Single source of truth for the Android toolchain. Keep in sync with
+  # compileSdk / ndkVersion in app/build.gradle.kts and the cache key below.
+  ANDROID_PLATFORM: platforms;android-37.0
+  ANDROID_BUILD_TOOLS: build-tools;37.0.0
+  ANDROID_NDK: ndk;28.2.13676358
+  ANDROID_CMAKE: cmake;3.22.1
+  ANDROID_TOOLCHAIN_CACHE_KEY: android-sdk-${{ runner.os }}-platform-37.0-buildtools-37.0.0-ndk-28.2.13676358-cmake-3.22.1-v1
+
 jobs:
   build:
-    name: Build & Test
+    name: Build APK
     runs-on: ubuntu-24.04
     # A cold recursive native build needs more time than a Kotlin-only build.
     timeout-minutes: 60
@@ -26,6 +35,17 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
+
+      - name: Verify submodule revisions
+        # Guards against a working tree drifting from the recorded gitlinks
+        # (prefix '+' = checked-out commit differs, '-' = not initialized, 'U' = conflict).
+        run: |
+          git submodule sync --recursive
+          git submodule status --recursive | tee submodules.txt
+          if grep -qE '^[+\-U]' submodules.txt; then
+            echo "::error::Submodules are not checked out at the commits recorded by the superproject."
+            exit 1
+          fi
 
       - name: Set up JDK 17
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
@@ -41,8 +61,18 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
 
+      - name: Cache Android SDK
+        # Restores the whole SDK root (platforms/build-tools/ndk/cmake), which keeps
+        # warm runs around ~8-12 min and absorbs upstream download flakiness.
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.ANDROID_HOME }}
+          key: ${{ env.ANDROID_TOOLCHAIN_CACHE_KEY }}
+
       - name: Install Android build dependencies
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;28.2.13676358"
+        # All modules compile against SDK 37 (AGP 9.2.1); the platform package id
+        # for API 37.0 is platforms;android-37.0.
+        run: sdkmanager "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$ANDROID_CMAKE" "$ANDROID_NDK"
 
       - name: Grant execute permission
         run: chmod +x gradlew
@@ -62,24 +92,6 @@ jobs:
               print(f"Verified {name}")
           PY
 
-      - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace
-
-      - name: Run Android Lint
-        run: ./gradlew lintDebug --no-daemon --stacktrace
-
-      - name: Upload test and lint reports
-        if: ${{ always() }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: android-reports
-          path: |
-            **/build/reports/
-            **/build/test-results/
-            **/build/outputs/logs/
-          if-no-files-found: ignore
-          retention-days: 7
-
       - name: Upload APK
         if: ${{ success() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -87,4 +99,111 @@ jobs:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 7
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        # Submodules are not needed for JVM unit tests; skipping them keeps this
+        # job small. (They are verified in the build job.)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
+        with:
+          cache-provider: basic
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+
+      - name: Cache Android SDK
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.ANDROID_HOME }}
+          key: ${{ env.ANDROID_TOOLCHAIN_CACHE_KEY }}
+
+      - name: Install Android build dependencies
+        run: sdkmanager "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$ANDROID_CMAKE" "$ANDROID_NDK"
+
+      - name: Grant execute permission
+        run: chmod +x gradlew
+
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace
+
+      - name: Upload test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: unit-test-reports
+          path: |
+            **/build/reports/tests/
+            **/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  lint:
+    name: Android Lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        # Lint does not require native submodules (no C/C++ compilation).
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
+        with:
+          cache-provider: basic
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+
+      - name: Cache Android SDK
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.ANDROID_HOME }}
+          key: ${{ env.ANDROID_TOOLCHAIN_CACHE_KEY }}
+
+      - name: Install Android build dependencies
+        run: sdkmanager "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$ANDROID_CMAKE" "$ANDROID_NDK"
+
+      - name: Grant execute permission
+        run: chmod +x gradlew
+
+      - name: Run Android Lint
+        # Every Android module uses lint-baseline.xml + warningsAsErrors=true
+        # (see root build.gradle.kts), so only *new* warnings fail the build.
+        run: ./gradlew lintDebug --no-daemon --stacktrace
+
+      - name: Upload lint reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: lint-reports
+          path: |
+            **/build/reports/lint-results-*.*
+            **/build/intermediates/lint*/**/*.xml
+          if-no-files-found: ignore
           retention-days: 7

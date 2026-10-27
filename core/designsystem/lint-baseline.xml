@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 9.2.1" type="baseline" client="gradle" dependencies="false" name="AGP (9.2.1)" variant="all" version="9.2.1">
+
+    <issue
+        id="PrivateResource"
+        message="The resource `@anim/m3_side_sheet_enter_from_right` is marked as private in com.google.android.material:material:1.13.0"
+        errorLine1="        enter = com.google.android.material.R.anim.m3_side_sheet_enter_from_right,"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ai/phoneagent/system/MaterialActivityTransitions.kt"
+            line="21"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="PrivateResource"
+        message="The resource `@anim/m3_side_sheet_exit_to_left` is marked as private in com.google.android.material:material:1.13.0"
+        errorLine1="        exit = com.google.android.material.R.anim.m3_side_sheet_exit_to_left,"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ai/phoneagent/system/MaterialActivityTransitions.kt"
+            line="22"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="PrivateResource"
+        message="The resource `@anim/m3_side_sheet_enter_from_left` is marked as private in com.google.android.material:material:1.13.0"
+        errorLine1="        enter = com.google.android.material.R.anim.m3_side_sheet_enter_from_left,"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ai/phoneagent/system/MaterialActivityTransitions.kt"
+            line="28"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="PrivateResource"
+        message="The resource `@anim/m3_side_sheet_exit_to_right` is marked as private in com.google.android.material:material:1.13.0"
+        errorLine1="        exit = com.google.android.material.R.anim.m3_side_sheet_exit_to_right,"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ai/phoneagent/system/MaterialActivityTransitions.kt"
+            line="29"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 27"
+        errorLine1="        &lt;item name=&quot;android:windowLightNavigationBar&quot; tools:targetApi=&quot;27&quot;>@bool/m3t_light_system_bars&lt;/item>"
+        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/m3t.xml"
+            line="452"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
+        errorLine1="                    var sliderValue by remember { mutableStateOf(0.5f) }"
+        errorLine2="                                                  ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ai/phoneagent/core/designsystem/theme/AriesSettingsListItem.kt"
+            line="311"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
+        errorLine1="                    var sliderValue by remember { mutableStateOf(0.5f) }"
+        errorLine2="                                                  ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ai/phoneagent/core/designsystem/theme/AriesSettingsListItem.kt"
+            line="350"
+            column="51"/>
+    </issue>
+
+</issues>

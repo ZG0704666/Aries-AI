@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 9.2.1" type="baseline" client="gradle" dependencies="false" name="AGP (9.2.1)" variant="all" version="9.2.1">
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ai/phoneagent/updates/ReleaseHistoryAdapter.kt"
+            line="36"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is never &lt; 30"
+        errorLine1="        if (Build.VERSION.SDK_INT &lt; Build.VERSION_CODES.O) return"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ai/phoneagent/updates/UpdateNotificationUtil.kt"
+            line="71"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="TypographyDashes"
+        message="Replace &quot;-&quot; with an &quot;en dash&quot; character (–, &amp;#8211;) ?"
+        errorLine1="    &lt;string name=&quot;about_copyright&quot;>© 2025-2026 Aries AI. 保留所有权利。&lt;/string>"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="62"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="TypographyDashes"
+        message="Replace &quot;-&quot; with an &quot;en dash&quot; character (–, &amp;#8211;) ?"
+        errorLine1="    &lt;string name=&quot;m3t_sidebar_local_model_switch_to_qwen&quot;>已切换为本地模型 Qwen3.5-9B&lt;/string>"
+        errorLine2="                                                          ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings_m3_fix.xml"
+            line="12"
+            column="59"/>
+    </issue>
+
+    <issue
+        id="TypographyDashes"
+        message="Replace &quot;-&quot; with an &quot;en dash&quot; character (–, &amp;#8211;) ?"
+        errorLine1="    &lt;string name=&quot;m3t_sidebar_qwen_download_complete&quot;>Qwen3.5-9B 下载完成，本地模型已就绪&lt;/string>"
+        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings_m3_fix.xml"
+            line="24"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;retrying&quot;>重试中...&lt;/string>"
+        errorLine2="                            ~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="11"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;automation_confirming&quot;>执行中...&lt;/string>"
+        errorLine2="                                         ~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="13"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;automation_terminating&quot;>终止中...&lt;/string>"
+        errorLine2="                                          ~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="16"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;automation_scene_waiting&quot;>等待执行日志...&lt;/string>"
+        errorLine2="                                            ~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="29"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;automation_task_hint&quot;>在此输入或录入您的任务指令...&lt;/string>"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="39"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;automation_log_default&quot;>系统已就绪，等待指令输入...&lt;/string>"
+        errorLine2="                                          ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="43"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;about_checking_updates&quot;>检查中...&lt;/string>"
+        errorLine2="                                          ~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="68"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;m3t_sidebar_local_model_downloading&quot;>本地模型下载中...&lt;/string>"
+        errorLine2="                                                       ~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings_m3_fix.xml"
+            line="14"
+            column="56"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;m3t_sidebar_qwen_download_preparing&quot;>准备下载任务...&lt;/string>"
+        errorLine2="                                                       ~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings_m3_fix.xml"
+            line="19"
+            column="56"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val req = DownloadManager.Request(Uri.parse(url))"
+        errorLine2="                                          ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ai/phoneagent/updates/ApkDownloadUtil.kt"
+            line="43"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val req = DownloadManager.Request(Uri.parse(resolvedUrl))"
+        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ai/phoneagent/updates/ApkDownloadUtil.kt"
+            line="86"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {"
+        errorLine2="                                                ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ai/phoneagent/updates/ReleaseUiUtil.kt"
+            line="33"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        p.edit().putLong(KEY_LAST_CHECK_AT, nowMs).apply()"
+        errorLine2="        ~~~~~~~~">
+        <location
+            file="src/main/java/com/ai/phoneagent/updates/UpdateStore.kt"
+            line="35"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        p.edit().putString(KEY_LAST_NOTIFIED_VERSION, versionTag).apply()"
+        errorLine2="        ~~~~~~~~">
+        <location
+            file="src/main/java/com/ai/phoneagent/updates/UpdateStore.kt"
+            line="48"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        p.edit()"
+        errorLine2="        ~~~~~~~~">
+        <location
+            file="src/main/java/com/ai/phoneagent/updates/UpdateStore.kt"
+            line="54"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageView"
+        errorLine2="         ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/item_update_link.xml"
+            line="44"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageView"
+        errorLine2="         ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/item_update_link.xml"
+            line="54"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;GhProxy&quot;, should use `@string` resource"
+        errorLine1="                android:text=&quot;GhProxy&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/item_update_link.xml"
+            line="29"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;https://...&quot;, should use `@string` resource"
+        errorLine1="                android:text=&quot;https://...&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/item_update_link.xml"
+            line="39"
+            column="17"/>
+    </issue>
+
+</issues>
