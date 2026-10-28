@@ -28,10 +28,12 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
@@ -56,8 +58,9 @@ import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.Capsule
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -73,6 +76,7 @@ import kotlin.math.sign
  * 4. 按压高光点跟随手指，松手回弹。
  *
  * @param progress 当前页位置（支持小数，来自 pager 的 `currentPage + currentPageOffsetFraction`）。
+ * @param pagerScrolling pager 是否正在滚动（含用户拖动与程序 tween）。
  */
 @Composable
 fun AriesLiquidTabs(
@@ -82,7 +86,7 @@ fun AriesLiquidTabs(
     backdrop: Backdrop,
     modifier: Modifier = Modifier,
     tabCount: Int = 3,
-    userDragging: () -> Boolean = { false },
+    pagerScrolling: () -> Boolean = { false },
     onEdgeHaptic: () -> Unit = {},
     content: @Composable (index: Int) -> Unit,
 ) {
@@ -116,7 +120,11 @@ fun AriesLiquidTabs(
         }
 
         val currentOnSelect by rememberUpdatedState(onSelect)
-        var currentIndex by remember { mutableIntStateOf(selectedIndex) }
+        val currentSettledIndex by rememberUpdatedState(selectedIndex)
+        val currentPagerScrolling by rememberUpdatedState(pagerScrolling)
+        val currentProgress by rememberUpdatedState(progress)
+        // 松手后的三态：0 静止驱动 / 1 已请求切页等 pager 接管 / 2 pager 滚动中贴进度。
+        var releasePhase by remember { mutableIntStateOf(0) }
         var edgeHit by remember { mutableIntStateOf(0) }
         val drag = remember(scope) {
             AriesTabDragAnimation(
@@ -127,13 +135,18 @@ fun AriesLiquidTabs(
                 initialScale = 1f,
                 pressedScale = 78f / 56f,
                 onDragStopped = {
-                    val target = targetValue.fastRoundToInt().fastCoerceIn(0, tabCount - 1)
+                    val target = value.fastRoundToInt().fastCoerceIn(0, tabCount - 1)
                     edgeHit = 0
-                    currentIndex = target
-                    // 无条件重新吸附：即使页码没变（本页签内小幅挪动后松手），
-                    // 胶囊也必须回到页签中心，不能停留在松手位置。
-                    animateToValue(target.toFloat())
+                    // 整条页签带拖动时的 4dp 惯性偏移，松手必须回弹归零。
                     scope.launch { offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f)) }
+                    if (target == currentSettledIndex) {
+                        // 未跨页签（或原页签内小幅挪动后松手）：直接吸附回页签中心。
+                        snapToValue(target.toFloat())
+                    } else {
+                        // 跨页签：胶囊原地待命，pager tween 起飞后以进度接管（pager 为唯一驱动）。
+                        releasePhase = 1
+                        currentOnSelect(target)
+                    }
                 },
                 onDrag = { _, dragAmount ->
                     updateValue(
@@ -151,42 +164,48 @@ fun AriesLiquidTabs(
             )
         }
 
-        // 点击切页：选中层以弹簧飞行到目标位（带按压形变与速度挤压），
-        // 与参考实现 LiquidBottomTabs 一致；onSelect 立即触发，不阻塞页面跳转。
-        LaunchedEffect(drag) {
-            snapshotFlow { currentIndex }
-                .drop(1)
-                .collectLatest { index ->
-                    drag.animateToValue(index.toFloat())
-                    currentOnSelect(index)
-                }
-        }
-        // 外部选中项变化（pager 落页 / 从抽屉跳转）时保持同步。
-        LaunchedEffect(selectedIndex) {
-            snapshotFlow { selectedIndex }.collectLatest { index ->
-                if (currentIndex != index) currentIndex = index
-            }
-        }
-        // slider 仅在用户手指拖动 pager 时逐帧跟随进度（glued-in）；
-        // 点击触发的弹簧飞行与 pager tween 期间不接管，确保动画全程不被覆盖。
-        val currentUserDragging by rememberUpdatedState(userDragging)
-        val currentProgress by rememberUpdatedState(progress)
+        // 唯一驱动源：pager 进度。手指按住胶囊时 pager 进程值不接管；
+        // pager 滚动中逐帧贴进度；静止且胶囊离位时弹簧归位（吸附自愈）。
         LaunchedEffect(drag) {
             snapshotFlow { currentProgress() }
                 .collectLatest { p ->
-                    if (currentUserDragging()) {
-                        // 手指拖动 pager：胶囊逐帧 glued-in。snapTo 会取消进行中的
-                        // 弹簧飞行，手指永远优先。
-                        drag.snapToValue(p.fastCoerceIn(0f, (tabCount - 1).toFloat()))
+                    val clamped = p.fastCoerceIn(0f, (tabCount - 1).toFloat())
+                    if (drag.isPressed) return@collectLatest
+                    if (releasePhase == 2 || currentPagerScrolling()) {
+                        // 从松手位置追上轨道（弹簧追赶），对齐后逐帧 glued-in。
+                        if (releasePhase == 2 && abs(drag.value - clamped) > 0.12f) {
+                            drag.updateValue(clamped)
+                        } else {
+                            drag.snapToValue(clamped)
+                        }
                         return@collectLatest
                     }
-                    // 吸附自愈：pager 已静止（进度贴合整数页）且胶囊没有弹簧在飞、
-                    // 也不在目标位时，强制弹簧归位。覆盖“中点前松手、pager 回弹回
-                    // 原页”等页码不变、因而没有任何事件驱动胶囊归位的残留场景。
-                    if (!drag.isAnimating) {
-                        val target = p.fastRoundToInt().fastCoerceIn(0, tabCount - 1)
-                        if (abs(drag.value - target) > 0.01f && abs(p - target) < 0.01f) {
+                    if (releasePhase == 0 && !drag.isAnimating) {
+                        val target = clamped.fastRoundToInt().fastCoerceIn(0, tabCount - 1)
+                        if (abs(clamped - target) < 0.01f && abs(drag.value - target) > 0.01f) {
                             drag.animateToValue(target.toFloat())
+                        }
+                    }
+                }
+        }
+        // 松手状态机：等 pager 接管或超时自愈；滚动结束回归静态驱动。
+        LaunchedEffect(drag) {
+            snapshotFlow { releasePhase }
+                .collectLatest { phase ->
+                    when (phase) {
+                        1 -> {
+                            val started = withTimeoutOrNull(180L) {
+                                snapshotFlow { currentPagerScrolling() }.first { it }
+                            }
+                            if (started == null && !drag.isPressed) {
+                                drag.snapToValue(currentSettledIndex.toFloat())
+                            }
+                            releasePhase = 0
+                        }
+                        2 -> {
+                            snapshotFlow { currentPagerScrolling() }.first { !it }
+                            // 残余亚像素偏差交给静态自愈分支吸附回中心。
+                            if (!drag.isPressed) releasePhase = 0
                         }
                     }
                 }
@@ -215,9 +234,14 @@ fun AriesLiquidTabs(
                         scaleX = scale
                         scaleY = scale
                     },
-                    onDrawSurface = { drawRect(containerColor) },
+                    onDrawSurface = {
+                        // onDrawSurface 不带 shape 裁剪，必须自己 clipPath 再画表面色。
+                        clipPath(ariesShapePath(shape)) { drawRect(containerColor) }
+                    },
                 )
-                .then(press.drawModifier)
+                // 容器的按压高光按胶囊裁剪，避免直角矩形亮块。
+                .clip(shape)
+                .then(press.highlightModifier(shape))
                 .height(barHeight)
                 .fillMaxWidth()
                 .padding(inset),
@@ -225,7 +249,7 @@ fun AriesLiquidTabs(
         ) {
             repeat(tabCount) { index ->
                 TabSlot(
-                    onClick = { currentIndex = index },
+                    onClick = { currentOnSelect(index) },
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                 ) {
                     content(index)
@@ -253,7 +277,10 @@ fun AriesLiquidTabs(
                             lens(barLensHeight.toPx() * p, barLensAmount.toPx() * p)
                         },
                         highlight = { Highlight.Default.copy(alpha = drag.pressProgress) },
-                        onDrawSurface = { drawRect(containerColor) },
+                        onDrawSurface = {
+                            // onDrawSurface 不带 shape 裁剪，必须自己 clipPath 再画表面色。
+                            clipPath(ariesShapePath(shape)) { drawRect(containerColor) }
+                        },
                     )
                     .height(barHeight - inset * 2)
                     .fillMaxWidth()
@@ -271,9 +298,7 @@ fun AriesLiquidTabs(
         Box(
             Modifier
                 .padding(horizontal = inset)
-                .graphicsLayer {
-                    translationX = drag.value * tabWidthPx + panelOffset
-                }
+                .graphicsLayer { translationX = drag.value * tabWidthPx + panelOffset }
                 .then(press.gestureModifier)
                 .then(drag.modifier)
                 .drawBackdrop(
@@ -305,8 +330,11 @@ fun AriesLiquidTabs(
                         scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                     },
                     onDrawSurface = {
-                        drawRect(restTint, alpha = 1f - drag.pressProgress)
-                        drawRect(Color.Black.copy(alpha = 0.03f * drag.pressProgress))
+                        // 滑块表面色同样要按胶囊裁剪（按压缩放 1.39x 时会泄出矩形）。
+                        clipPath(ariesShapePath(Capsule())) {
+                            drawRect(restTint, alpha = 1f - drag.pressProgress)
+                            drawRect(Color.Black.copy(alpha = 0.03f * drag.pressProgress))
+                        }
                     },
                 )
                 .height(barHeight - inset * 2)

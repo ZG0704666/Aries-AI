@@ -42,7 +42,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     // 液态玻璃（Liquid Glass）：真实背景采样 + RenderEffect 模糊 + AGSL 折射
     api(libs.kyant.backdrop)
-    implementation(libs.kyant.shapes)
+    // shapes 类型（RoundedRectangle/Capsule）出现在 designsystem 的公共 API 中，需要 api 透传。
+    api(libs.kyant.shapes)
     
     // Koin - Dependency Injection
     implementation(libs.koin.android)

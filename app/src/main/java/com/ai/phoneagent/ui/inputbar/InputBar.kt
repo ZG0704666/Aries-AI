@@ -239,10 +239,18 @@ fun InputBar(
             )
             val voiceRecording = voiceState == VoicePresentation.Listening ||
                 voiceState == VoicePresentation.Cancelling
+            // 语音会话全程同一胶囊：录音/识别/收尾共用录音底色，仅取消区变红；
+            // 停留在一个胶囊里完成“松手→识别→发送”，不再中途换成玻璃样式。
+            val voicePillActive = voiceRecording ||
+                voiceState == VoicePresentation.Recognizing ||
+                voiceState == VoicePresentation.Finalizing
             val pillColor by animateColorAsState(
                 targetValue = when (voiceState) {
                     VoicePresentation.Cancelling -> recordCancelColor
-                    VoicePresentation.Listening -> recordActiveColor
+                    VoicePresentation.Listening,
+                    VoicePresentation.Recognizing,
+                    VoicePresentation.Finalizing,
+                    -> recordActiveColor
                     else -> Color.Transparent
                 },
                 animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
@@ -305,8 +313,8 @@ fun InputBar(
                                     glowColor = colorScheme.primary,
                                     radius = breathingGlowRadius,
                                 )
-                                // 录音中改用扁平状态底色；松手后回到液态玻璃（后续可扩展为玻璃录音态）
-                                .then(if (voiceRecording) Modifier else Modifier.ariesGlass(inputShape)),
+                                // 语音胶囊全程使用扁平状态底色；仅待命态用液态玻璃。
+                                .then(if (voicePillActive) Modifier else Modifier.ariesGlass(inputShape)),
                             shape = inputShape,
                             color = pillColor,
                         ) {
@@ -371,42 +379,78 @@ fun InputBar(
                                                     .testTag("voice_input_waveform"),
                                             )
                                         }
-                                        else -> Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(start = iconButtonSize, end = spacingXs)
-                                                .height(iconButtonSize),
-                                            horizontalArrangement = Arrangement.Center,
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            VoiceWaveform(
-                                                amplitude = if (presentation == VoicePresentation.Recognizing) {
-                                                    voiceAmplitude
-                                                } else {
-                                                    0f
-                                                },
-                                                solidColor = colorResource(R.color.m3t_voice_wave_active),
-                                                modifier = Modifier
-                                                    .height(dimensionResource(R.dimen.m3t_voice_wave_height))
-                                                    .testTag("voice_input_waveform"),
-                                            )
-                                            Spacer(Modifier.width(spacingXs))
-                                            Text(
-                                                text = stringResource(R.string.voice_status_recognizing),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
+                                        else -> {
+                                            // 识别/收尾：仍是同一状态胶囊。无转写时保持全宽白色波形；
+                                            // 有转写则左侧小波形 + 实时转写 + 呼吸点（“正在识别”文案删除）。
+                                            if (text.isBlank()) {
+                                                Box(
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentAlignment = Alignment.Center,
+                                                ) {
+                                                    VoiceWaveform(
+                                                        amplitude = voiceAmplitude,
+                                                        solidColor = Color.White,
+                                                        spread = true,
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .height(dimensionResource(R.dimen.m3t_voice_wave_height))
+                                                            .testTag("voice_input_waveform"),
+                                                    )
+                                                }
+                                            } else {
+                                                val liveDot = rememberInfiniteTransition(label = "voiceFinalizingDot")
+                                                val dotAlpha by liveDot.animateFloat(
+                                                    initialValue = 0.35f,
+                                                    targetValue = 1f,
+                                                    animationSpec = infiniteRepeatable(
+                                                        animation = tween(700, easing = FastOutSlowInEasing),
+                                                        repeatMode = RepeatMode.Reverse,
+                                                    ),
+                                                    label = "voiceFinalizingDotAlpha",
+                                                )
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(start = iconButtonSize, end = spacingXs)
+                                                        .height(iconButtonSize),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(spacingXs),
+                                                ) {
+                                                    VoiceWaveform(
+                                                        amplitude = voiceAmplitude,
+                                                        solidColor = Color.White,
+                                                        spread = false,
+                                                        barCount = 3,
+                                                        modifier = Modifier
+                                                            .height(dimensionResource(R.dimen.m3t_voice_wave_height))
+                                                            .testTag("voice_input_waveform"),
+                                                    )
+                                                    Text(
+                                                        text = text,
+                                                        modifier = Modifier.weight(1f),
+                                                        style = MaterialTheme.typography.labelLarge,
+                                                        color = Color.White,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                    )
+                                                    // 呼吸点：持续可见的“仍在处理”信号。
+                                                    Box(
+                                                        Modifier
+                                                            .size(spacingXs)
+                                                            .graphicsLayer { alpha = dotAlpha }
+                                                            .background(Color.White, CircleShape),
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
 
-                                // 长按录音过程中隐藏键盘切换按钮，避免浮在状态色胶囊上显得突兀；
-                                // 按住说话/松手识别等状态仍显示。
+                                // 长按录音/识别/收尾全程隐藏键盘切换按钮，避免浮在状态色胶囊上显得突兀；
+                                // 仅语音待命态显示。
                                 // （显式全限定调用：BoxScope 内存在外层 ColumnScope 隐式接收器，避免误解析到扩展重载）
                                 androidx.compose.animation.AnimatedVisibility(
-                                    visible = !voiceRecording,
+                                    visible = !voicePillActive,
                                     enter = fadeIn(tween(140)) +
                                         scaleIn(initialScale = 0.8f, animationSpec = tween(140)),
                                     exit = fadeOut(tween(110)) +

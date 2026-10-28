@@ -18,7 +18,6 @@
     <string name="input_switch_keyboard">切换键盘</string>
     <string name="input_hold_to_talk">按住说话</string>
     <string name="input_stop_generating">终止生成</string>
-    <string name="voice_status_recognizing">正在识别</string>
     <string name="voice_release_to_cancel">松手取消</string>
     <string name="voice_release_to_transcribe">松手发送，上移取消</string>
     <string name="send">发送</string>

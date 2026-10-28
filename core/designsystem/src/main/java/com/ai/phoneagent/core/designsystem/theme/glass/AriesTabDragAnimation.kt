@@ -3,11 +3,13 @@ package com.ai.phoneagent.core.designsystem.theme.glass
 import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.MutatorMutex
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
@@ -22,10 +24,7 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.fastFirstOrNull
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 
 /**
  * 与参考实现一致的手势观察器：只观察按下/移动/抬起，不消费事件，
@@ -96,7 +95,7 @@ class AriesTabDragAnimation(
     private val visibilityThreshold: Float = 0.001f,
     private val initialScale: Float = 1f,
     private val pressedScale: Float,
-    private val onDragStopped: AriesTabDragAnimation.() -> Unit,
+    private val onDragStopped: suspend AriesTabDragAnimation.() -> Unit,
     private val onDrag: AriesTabDragAnimation.(size: IntSize, dragAmount: Offset) -> Unit,
 ) {
 
@@ -114,6 +113,8 @@ class AriesTabDragAnimation(
 
     private val mutatorMutex = MutatorMutex()
     private val velocityTracker = VelocityTracker()
+    // 手指是否按在胶囊上（含拖动）；按住期间 pager 进度不得接管胶囊位置。
+    private var _isPressed by mutableStateOf(false)
 
     val value: Float get() = valueAnimation.value
     val targetValue: Float get() = valueAnimation.targetValue
@@ -122,20 +123,23 @@ class AriesTabDragAnimation(
     val scaleY: Float get() = scaleYAnimation.value
     val velocity: Float get() = velocityAnimation.value
 
-    /** 当前是否处于弹簧飞行中（点击切页时为真，pager 进度暂不接管滑块）。 */
+    /** 当前是否处于弹簧飞行中（静止自愈时为真，pager 进度暂不接管滑块）。 */
     val isAnimating: Boolean get() = valueAnimation.isRunning
+    val isPressed: Boolean get() = _isPressed
 
     val modifier: Modifier = Modifier.pointerInput(Unit) {
+        // awaitEachGesture 的受限协程不能直接调任意 suspend lambda，
+        // 因此在启动的协程内顺序执行：先结算（吸附/请求切页），再恢复静息形变。
+        fun stopGesture() {
+            animationScope.launch {
+                onDragStopped()
+                release()
+            }
+        }
         inspectDragGestures(
             onDragStart = { press() },
-            onDragEnd = {
-                onDragStopped()
-                release()
-            },
-            onDragCancel = {
-                onDragStopped()
-                release()
-            },
+            onDragEnd = { stopGesture() },
+            onDragCancel = { stopGesture() },
         ) { change, dragAmount ->
             onDrag(size, dragAmount)
         }
@@ -143,6 +147,7 @@ class AriesTabDragAnimation(
 
     fun press() {
         velocityTracker.resetTracking()
+        _isPressed = true
         animationScope.launch {
             launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
             launch { scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec) }
@@ -151,14 +156,10 @@ class AriesTabDragAnimation(
     }
 
     fun release() {
+        _isPressed = false
+        // 直接回弹：旧的“等弹簧接近目标再恢复”的等待（snapshotFlow.first）在
+        // pager 接管驱动的新状态机下可能永远等不到，造成胶囊按住不松的死态。
         animationScope.launch {
-            withFrameNanos { }
-            if (value != targetValue) {
-                val threshold = (valueRange.endInclusive - valueRange.start) * 0.025f
-                snapshotFlow { valueAnimation.value }
-                    .filter { abs(it - valueAnimation.targetValue) < threshold }
-                    .first()
-            }
             launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
             launch { scaleXAnimation.animateTo(initialScale, scaleXAnimationSpec) }
             launch { scaleYAnimation.animateTo(initialScale, scaleYAnimationSpec) }
@@ -174,27 +175,24 @@ class AriesTabDragAnimation(
 
     fun animateToValue(value: Float) {
         animationScope.launch {
+            // 在 mutex 内 await 动画：提前释放会让后续 snapToValue 撞上还在飞行的弹簧。
             mutatorMutex.mutate {
-                press()
                 val target = value.coerceIn(valueRange)
-                launch {
-                    valueAnimation.animateTo(target, valueAnimationSpec) { updateVelocity() }
-                }
-                release()
+                valueAnimation.animateTo(target, valueAnimationSpec) { updateVelocity() }
             }
         }
     }
 
     /**
      * 外部（pager 滚动）驱动时使用：立即对齐到给定位置，不做弹簧动画。
-     *
-     * 改为 suspend 并由调用方在手势收集协程内直接 await：collectLatest 取消上一个
-     * 收集块时会连带取消还没落地的 snapTo，避免过期快照在松手后的弹簧飞行中途
-     * 落地、把胶囊掐死在半路（吸附失效的竞态来源之一）。
+     * 以 MutatePriority.UserInput 抢占 mutex——取消任何进行中的弹簧飞行，
+     * 保证逐帧贴进度不被旧动画覆盖。
      */
     suspend fun snapToValue(value: Float) {
-        valueAnimation.snapTo(value.coerceIn(valueRange))
-        velocityAnimation.snapTo(0f)
+        mutatorMutex.mutate(MutatePriority.UserInput) {
+            valueAnimation.snapTo(value.coerceIn(valueRange))
+            velocityAnimation.snapTo(0f)
+        }
     }
 
     private fun updateVelocity() {

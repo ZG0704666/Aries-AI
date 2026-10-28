@@ -3803,19 +3803,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** 启动"正在语音输入..."的点动画 */
+    /**
+     * 录音等待首条 partial 的占位：胶囊以全宽白色波形提示（无文字态），
+     * 不再往输入框写“正在语音输入...”点动画文案。
+     */
     private fun startVoiceInputAnimation() {
         voiceInputAnimJob?.cancel()
         savedInputText = inputTextState.value
-        voiceInputAnimJob = lifecycleScope.launch {
-            var dotCount = 1
-            while (true) {
-                val dots = ".".repeat(dotCount)
-                inputTextState.value = "正在语音输入$dots"
-                dotCount = if (dotCount >= 3) 1 else dotCount + 1
-                delay(400)
-            }
-        }
+        voiceInputAnimJob = null
     }
 
     /** 停止"正在语音输入..."动画 */
@@ -3944,9 +3939,14 @@ class MainActivity : AppCompatActivity() {
             override fun onPartialResult(text: String) {
                 runOnUiThread {
                     if (!isVoiceSessionActive(sessionId)) return@runOnUiThread
-                    // 有识别结果时，停止动画并显示实际文字
+                    // 有识别结果时，停止动画并显示实际文字。
+                    // 只在仍在录音时把状态推进到 VoiceRecognizing：
+                    // 松手后已处于 VoiceFinalizing，partial 结果不得把状态盖回去，
+                    // 否则胶囊会在“收尾”与“识别”间反复横跳。
                     stopVoiceInputAnimation()
-                    inputBarState.value = InputState.VoiceRecognizing
+                    if (inputBarState.value is InputState.VoiceRecording) {
+                        inputBarState.value = InputState.VoiceRecognizing
+                    }
                     val txt = (voicePrefix + text).trimStart()
                     inputTextState.value = txt
                 }

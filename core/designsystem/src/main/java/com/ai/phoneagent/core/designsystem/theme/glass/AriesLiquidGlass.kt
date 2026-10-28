@@ -12,9 +12,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -24,12 +26,15 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import com.ai.phoneagent.core.designsystem.R
 import com.ai.phoneagent.core.designsystem.theme.LocalAriesBackdrop
@@ -62,13 +67,15 @@ import kotlinx.coroutines.launch
 val LocalAriesGlassBackdrop = staticCompositionLocalOf<Backdrop> { emptyBackdrop() }
 
 /**
- * 液态玻璃参数档位，与参考实现（io.github.kyant0:backdrop 2.0.1 的 catalog）一一对应：
- * - [Pill]：48dp 胶囊按钮 —— vibrancy + blur(2dp) + lens(12dp, 24dp)
+ * 液态玻璃参数档位（边框统一为细描边，与静态玻璃 ariesGlass 一致）：
+ * - [Pill]：48dp 胶囊按钮 —— vibrancy + blur(2dp)，无 lens 边缘
  * - [Bar]：导航胶囊容器 —— vibrancy + blur(8dp) + lens(24dp, 24dp)
  * - [Card]：卡片/对话框 —— colorControls + blur(16dp) + lens(24dp, 48dp, depthEffect)
- * - [Chip]：静态小标签 —— blur(8dp) + lens(8dp, 16dp)，不参与按压
+ * - [Chip]：静态小标签 —— blur(8dp)，无 lens 边缘，不参与按压
+ * - [Bubble]：聊天气泡 —— vibrancy + blur(8dp)，无 lens 边缘、无 depthEffect
+ *   （滚动列表中数量多、更新频繁，档位保持轻量）
  */
-enum class AriesGlassTier { Pill, Bar, Card, Chip }
+enum class AriesGlassTier { Pill, Bar, Card, Chip, Bubble }
 
 /** 一档液态玻璃的渲染参数（像素换算在各绘制阶段完成）。 */
 @Immutable
@@ -89,7 +96,11 @@ fun BackdropEffectScope.applyAriesGlassSpec(spec: AriesGlassSpec) {
             colorControls(brightness = brightness, saturation = saturation)
         }
         blur(blur.toPx())
-        lens(lensHeight.toPx(), lensAmount.toPx(), depthEffect = depthEffect)
+        // lens 会沿形状边缘画出折射/色散边框；边框统一改回细描边后，
+        // 仅 Bar（导航）与 Card（大卡片）保留 lens 边缘效果。
+        if (lensAmount > 0.dp) {
+            lens(lensHeight.toPx(), lensAmount.toPx(), depthEffect = depthEffect)
+        }
     }
 }
 
@@ -100,8 +111,8 @@ fun ariesGlassSpec(tier: AriesGlassTier): AriesGlassSpec {
     return when (tier) {
         AriesGlassTier.Pill -> AriesGlassSpec(
             blur = dimensionResource(R.dimen.aries_liquid_blur_pill),
-            lensHeight = dimensionResource(R.dimen.aries_liquid_lens_pill_height),
-            lensAmount = dimensionResource(R.dimen.aries_liquid_lens_pill_amount),
+            lensHeight = 0.dp,
+            lensAmount = 0.dp,
             vibrancy = true,
             brightness = 0f,
             saturation = 1f,
@@ -130,8 +141,18 @@ fun ariesGlassSpec(tier: AriesGlassTier): AriesGlassSpec {
 
         AriesGlassTier.Chip -> AriesGlassSpec(
             blur = dimensionResource(R.dimen.aries_liquid_blur_bar),
-            lensHeight = dimensionResource(R.dimen.aries_liquid_lens_card_height),
-            lensAmount = dimensionResource(R.dimen.aries_liquid_lens_pill_amount),
+            lensHeight = 0.dp,
+            lensAmount = 0.dp,
+            vibrancy = true,
+            brightness = 0f,
+            saturation = 1f,
+            depthEffect = false,
+        )
+
+        AriesGlassTier.Bubble -> AriesGlassSpec(
+            blur = dimensionResource(R.dimen.aries_liquid_blur_bubble),
+            lensHeight = 0.dp,
+            lensAmount = 0.dp,
             vibrancy = true,
             brightness = 0f,
             saturation = 1f,
@@ -149,6 +170,7 @@ fun ariesGlassSurfaceColor(tier: AriesGlassTier): Color {
         AriesGlassTier.Bar -> if (dark) R.color.aries_liquid_bar_dark else R.color.aries_liquid_bar_light
         AriesGlassTier.Card -> if (dark) R.color.aries_liquid_card_dark else R.color.aries_liquid_card_light
         AriesGlassTier.Chip -> if (dark) R.color.aries_liquid_chip_dark else R.color.aries_liquid_chip_light
+        AriesGlassTier.Bubble -> if (dark) R.color.aries_liquid_bubble_dark else R.color.aries_liquid_bubble_light
     }
     return colorResource(res)
 }
@@ -161,9 +183,26 @@ fun ariesGlassSelectionTint(): Color {
     )
 }
 
-/** 高光样式：胶囊/导航使用方向高光，卡片使用纯色描边（与参考实现一致）。 */
-fun ariesGlassHighlight(tier: AriesGlassTier): Highlight =
-    if (tier == AriesGlassTier.Card) Highlight.Plain else Highlight.Default
+/** 高光样式：Bar 导航与 Card 保留方向高光/纯色描边；Pill/Bubble 边缘回归细描边（无高光）。 */
+fun ariesGlassHighlight(tier: AriesGlassTier): Highlight? =
+    when (tier) {
+        AriesGlassTier.Bar -> Highlight.Default
+        AriesGlassTier.Card -> Highlight.Plain
+        AriesGlassTier.Chip -> Highlight.Default
+        // Pill/Bubble：与静态玻璃一致的细描边外观，不再叠加方向高光。
+        AriesGlassTier.Pill, AriesGlassTier.Bubble -> null
+    }
+
+/** DrawScope 内按 shape 构建 Path（Outline → Path），用于 onDrawSurface 裁剪与描边。 */
+internal fun DrawScope.ariesShapePath(shape: Shape): Path {
+    val path = Path()
+    when (val outline = shape.createOutline(size, layoutDirection, this)) {
+        is Outline.Rectangle -> path.addRect(outline.rect)
+        is Outline.Rounded -> path.addRoundRect(outline.roundRect)
+        is Outline.Generic -> path.addPath(outline.path)
+    }
+    return path
+}
 
 /**
  * 液态玻璃表面。
@@ -178,6 +217,7 @@ fun Modifier.ariesLiquidGlass(
     tier: AriesGlassTier = AriesGlassTier.Pill,
     backdrop: Backdrop = LocalAriesGlassBackdrop.current,
     surfaceColor: Color = ariesGlassSurfaceColor(tier),
+    tint: Color = Color.Transparent,
     selected: Boolean = false,
     highlight: Highlight? = ariesGlassHighlight(tier),
     shadow: Shadow? = null,
@@ -185,27 +225,32 @@ fun Modifier.ariesLiquidGlass(
     layerBlock: (GraphicsLayerScope.() -> Unit)? = null,
     onDrawSurface: (DrawScope.() -> Unit)? = null,
 ): Modifier {
-    if (!isRenderEffectSupported()) return ariesGlass(shape, selected)
+    if (!isRenderEffectSupported()) {
+        // API 30 降级：静态玻璃 + 同款表面色/染色，保证降级外观与 31+ 一致。
+        return ariesGlass(shape, selected, surfaceColor, tint)
+    }
 
     val spec = ariesGlassSpec(tier)
     val shapeLambda = remember(shape) { { shape } }
-    // 卡片档位补一圈边界描边（浅色可见、深色透明跳过），与静态玻璃卡片视觉一致。
-    val borderColor = if (tier == AriesGlassTier.Card) {
-        colorResource(
-            if (LocalAriesBackdrop.current.dark) {
-                R.color.aries_glass_border_dark
-            } else {
-                R.color.aries_glass_border_light
-            }
-        )
-    } else {
-        Color.Transparent
-    }
+    // 所有档位统一细描边（与原静态玻璃一致的边框，用户明确要求换回）。
+    val borderColor = colorResource(
+        if (LocalAriesBackdrop.current.dark) {
+            R.color.aries_glass_border_dark
+        } else {
+            R.color.aries_glass_border_light
+        }
+    )
     val rim = dimensionResource(R.dimen.aries_hairline)
-    
-    // 启用 RenderNode 缓存以优化性能
+
+    // 单层合成：Offscreen + shape 裁剪 + 按压缩放并入同一个 graphicsLayer。
+    // kyant drawBackdrop 的 layerBlock 也是外层 graphicsLayer（2.0.1 源码行为），
+    // 合并后玻璃纹理（含 blur 晕边）在合成时刻即被 shape 裁剪，按压缩放不会再泄出矩形边界。
+    // 注意：shadow 画在层内会被裁掉，调用方不要传常驻投影。
     return graphicsLayer {
         compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+        this.shape = shapeLambda()
+        clip = true
+        layerBlock?.invoke(this)
     }.drawBackdrop(
         backdrop = backdrop,
         shape = shapeLambda,
@@ -215,18 +260,19 @@ fun Modifier.ariesLiquidGlass(
         innerShadow = innerShadow?.let { { it } },
         layerBlock = layerBlock,
         onDrawSurface = {
-            drawRect(surfaceColor)
+            // kyant 的 onDrawSurface 在 shape 裁剪之外调用，直接 drawRect 会画出
+            // 整块矩形表面（按压缩放时会泄出直角边界），必须先按形状 clipPath。
+            val path = ariesShapePath(shape)
+            clipPath(path) {
+                drawRect(surfaceColor)
+                // tint 在表面色之后绘制：气泡用主题色轻染玻璃（如用户气泡 primary 14%）。
+                if (tint.alpha > 0f) drawRect(tint)
+                onDrawSurface?.invoke(this)
+            }
             if (borderColor.alpha > 0f) {
                 // 与 ariesGlass 一致：Path + 细描边画边界（drawOutline 在低版本 compose-ui 不可用）
-                val path = Path()
-                when (val outline = shape.createOutline(size, layoutDirection, this)) {
-                    is Outline.Rectangle -> path.addRect(outline.rect)
-                    is Outline.Rounded -> path.addRoundRect(outline.roundRect)
-                    is Outline.Generic -> path.addPath(outline.path)
-                }
                 drawPath(path, borderColor, style = Stroke(width = rim.toPx() * 2))
             }
-            onDrawSurface?.invoke(this)
         },
     )
 }
@@ -267,13 +313,16 @@ half4 main(float2 coord) {
             null
         }
 
-    /** 绘制层：先叠加高光，再绘制内容，保证图标文字始终在最上层。 */
-    val drawModifier: Modifier = Modifier.drawWithContent {
+    /** 绘制层：先按 shape 裁剪叠加高光，再绘制内容，保证图标文字始终在最上层。 */
+    fun highlightModifier(shape: Shape): Modifier = Modifier.drawWithContent {
         val progress = pressProgressAnimation.value
+        // 高光自带 shape 裁剪：drawRect(BlendMode.Plus) 在透明角落会留下白色矩形，
+        // 必须把高光约束进玻璃形状的 Path 内。
+        val clipPath = ariesShapePath(shape)
         if (progress > 0f) {
             val shader = shader
             if (shader != null) {
-                drawRect(Color.White.copy(alpha = 0.08f * progress), blendMode = BlendMode.Plus)
+                drawPath(clipPath, Color.White.copy(alpha = 0.08f * progress), blendMode = BlendMode.Plus)
                 shader.apply {
                     val position = positionProvider(size, positionAnimation.value)
                     setFloatUniform("size", size.width, size.height)
@@ -285,10 +334,10 @@ half4 main(float2 coord) {
                         position.y.fastCoerceIn(0f, size.height),
                     )
                 }
-                drawRect(ShaderBrush(shader.asComposeShader()), blendMode = BlendMode.Plus)
+                drawPath(clipPath, ShaderBrush(shader.asComposeShader()), blendMode = BlendMode.Plus)
             } else {
                 // API 31/32 没有 AGSL：退化为整体白色渐显。
-                drawRect(Color.White.copy(alpha = 0.25f * progress), blendMode = BlendMode.Plus)
+                drawPath(clipPath, Color.White.copy(alpha = 0.25f * progress), blendMode = BlendMode.Plus)
             }
         }
         drawContent()
@@ -367,6 +416,8 @@ fun Modifier.ariesLiquidInteractive(
                 scaleY = scale
             },
         )
-        .then(press.drawModifier)
+        // 按压高光（press.highlightModifier）自带 shape 裁剪；此处 clip(shape) 再兜一层。
+        .clip(shape)
+        .then(press.highlightModifier(shape))
         .then(press.gestureModifier)
 }

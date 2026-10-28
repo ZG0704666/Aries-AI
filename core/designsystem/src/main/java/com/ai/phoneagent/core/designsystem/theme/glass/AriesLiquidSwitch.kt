@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -268,7 +269,11 @@ fun AriesLiquidSwitch(
                         scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                     },
                     onDrawSurface = {
-                        drawRect(thumbColor, alpha = 1f - drag.pressProgress)
+                        // onDrawSurface 不带 shape 裁剪（kyant 2.0.1 行为），
+                        // 拇指按压缩放时会泄出直角矩形表面，必须先 clipPath。
+                        clipPath(ariesShapePath(Capsule())) {
+                            drawRect(thumbColor, alpha = 1f - drag.pressProgress)
+                        }
                     },
                 )
                 .size(

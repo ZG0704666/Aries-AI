@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.pager.HorizontalPager
 
-import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.animation.core.Animatable
@@ -151,36 +150,22 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     var navigationJob by remember { mutableStateOf<Job?>(null) }
     var lastReportedPage by remember { mutableIntStateOf(selectedPage) }
-    // 点击/路由切换产生的目的页。程序 tween 期间 pager.currentPage 会先穿过中间页签
-    // （foundation 1.12：currentPage 表示“最接近对齐位的页”，tween 滑过中点即翻转），
-    // 若把它直接喂给胶囊会被当成外部选择，把胶囊重定向到主页并取消正确的 tween。
-    // 因此在 tween 进行中只暴露目的页，tween 结束后再回退读 pager.currentPage。
-    var flyingToPage by remember { mutableIntStateOf(-1) }
+    // 飞行中的程序导航目的页：tween 过程中 pager.currentPage 会先穿过中间页签
+    // （foundation 1.12：currentPage 表示“最接近对齐位的页”），它只是去重凭据；
+    // pager 本身是唯一事实源，tween 结束后清空。
+    var navigationTarget by remember { mutableIntStateOf(-1) }
     val navigate: (Int) -> Unit = { page ->
-        // 回声去重：胶囊同步（onSelect）会以同一目的页再次调用 navigate；
-        // 若此时 cancel 正在飞的 tween，finally 窗口会把目的页清空，
-        // selectedDestination 洞穿回 pager 过程值并再次回声导航回去（BACK 回主页失效的根因）。
-        if (!(page == flyingToPage && navigationJob?.isActive == true)) {
-            flyingToPage = page
+        if (navigationTarget != page) {
+            navigationTarget = page
             navigationJob?.cancel()
             navigationJob = scope.launch {
                 try {
                     pager.animateScrollToPage(page, animationSpec = tween(motionMs, easing = FastOutSlowInEasing))
                 } finally {
-                    if (flyingToPage == page) flyingToPage = -1
+                    if (navigationTarget == page) navigationTarget = -1
                 }
             }
         }
-    }
-    // 胶囊导航/页签选择的推导值：飞行目的页优先，其次才是 pager 过程值。
-    val selectedDestination by remember(pager) {
-        derivedStateOf {
-            val intent = flyingToPage
-            if (intent >= 0) intent else pager.currentPage
-        }
-    }
-    LaunchedEffect(selectedPage) {
-        if (lastReportedPage != selectedPage) navigate(selectedPage)
     }
     LaunchedEffect(pager) {
         // 本页签保存期间，外层路由可能请求切换到其他页签。
@@ -190,6 +175,10 @@ fun HomeScreen(
         // 上报给 Activity（会污染持久化的页签，甚至拉起错误的恢复页）。
         snapshotFlow { pager.settledPage }.distinctUntilChanged().collect { lastReportedPage = it; onPageSelected(it) }
     }
+    LaunchedEffect(selectedPage) {
+        // 外层路由请求切页：仅当 pager 未在向该页飞行（含已抵达）时才导航，防止回声。
+        if (pager.settledPage != selectedPage && navigationTarget != selectedPage) navigate(selectedPage)
+    }
     // 兼容旧的回调逻辑：过去需要等待抽屉关闭。
     LaunchedEffect(drawerState.currentValue) {
         if (drawerState.currentValue == DrawerValue.Open) {
@@ -197,7 +186,7 @@ fun HomeScreen(
             drawerState.close()
         } else onDrawerClosed()
     }
-    BackHandler(enabled = com.ai.phoneagent.navigation.homeBackAction(pager.currentPage, settingsAtRoot) == com.ai.phoneagent.navigation.HomeBackAction.HOME) {
+    BackHandler(enabled = com.ai.phoneagent.navigation.homeBackAction(pager.settledPage, settingsAtRoot) == com.ai.phoneagent.navigation.HomeBackAction.HOME) {
         navigate(1)
     }
     val navRegion =
@@ -207,20 +196,8 @@ fun HomeScreen(
     // 内容层 backdrop：让悬浮胶囊真正折射其下方滚动的对话内容。
     val contentBackdrop = rememberLayerBackdrop()
     val navBackdrop = rememberCombinedBackdrop(LocalAriesGlassBackdrop.current, contentBackdrop)
-
-    // 只有用户手指拖动 pager 时（DragInteraction），选中胶囊才逐帧跟随进度；
-    // 点击/程序触发的 tween 动画不跟随，避免弹簧飞行与 pager 动画互相覆盖。
-    var pagerDragging by remember { mutableStateOf(false) }
-    LaunchedEffect(pager) {
-        var dragCount = 0
-        pager.interactionSource.interactions.collect { interaction ->
-            when (interaction) {
-                is DragInteraction.Start -> dragCount++
-                is DragInteraction.Stop, is DragInteraction.Cancel -> dragCount--
-            }
-            pagerDragging = dragCount > 0
-        }
-    }
+    // 页签高亮跟随导航意图（tween 进行中即高亮目标页签）；胶囊位置则贴 pager 进度。
+    val navHighlight = if (navigationTarget >= 0) navigationTarget else pager.settledPage
 
     Box(Modifier.fillMaxSize()) {
         HorizontalPager(
@@ -305,16 +282,16 @@ fun HomeScreen(
             ) {
                 val effectiveNavWidth = minOf(navWidth, maxWidth - dimensionResource(DesignR.dimen.aries_touch_target) * 2)
                 AriesLiquidTabs(
-                    selectedIndex = selectedDestination,
+                    selectedIndex = pager.settledPage,
                     onSelect = { page -> hapticTick(hapticContext); navigate(page) },
                     progress = { pager.currentPage + pager.currentPageOffsetFraction },
-                    userDragging = { pagerDragging },
+                    pagerScrolling = { pager.isScrollInProgress },
                     backdrop = navBackdrop,
                     modifier = Modifier.width(effectiveNavWidth),
                     tabCount = 3,
                     onEdgeHaptic = { hapticTick(hapticContext) },
                 ) { index ->
-                    HomeNavTab(index = index, selected = selectedDestination == index)
+                    HomeNavTab(index = index, selected = navHighlight == index)
                 }
             }
         }

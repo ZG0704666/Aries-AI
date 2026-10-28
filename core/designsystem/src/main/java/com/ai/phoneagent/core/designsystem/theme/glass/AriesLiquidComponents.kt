@@ -119,7 +119,9 @@ fun AriesLiquidCircleButton(
                         scaleY = scale
                     },
                 )
-                .then(press.drawModifier),
+                // 按压高光按圆形裁剪，避免直角矩形遮罩泄到玻璃外。
+                .clip(shape)
+                .then(press.highlightModifier(shape)),
             contentAlignment = Alignment.Center,
         ) {
             CompositionLocalProvider(LocalContentColor provides contentColor) { content() }
