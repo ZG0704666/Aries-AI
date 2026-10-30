@@ -1,5 +1,6 @@
 package com.ai.phoneagent.core.designsystem.theme.glass
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.VisibilityThreshold
@@ -313,7 +314,11 @@ half4 main(float2 coord) {
             null
         }
 
-    /** 绘制层：先按 shape 裁剪叠加高光，再绘制内容，保证图标文字始终在最上层。 */
+    /**
+     * 绘制层：先按 shape 裁剪叠加高光，再绘制内容，保证图标文字始终在最上层。
+     * 依赖本实例的按压进度/着色器状态，无法改为 Modifier 扩展函数。
+     */
+    @SuppressLint("ModifierFactoryExtensionFunction")
     fun highlightModifier(shape: Shape): Modifier = Modifier.drawWithContent {
         val progress = pressProgressAnimation.value
         // 高光自带 shape 裁剪：drawRect(BlendMode.Plus) 在透明角落会留下白色矩形，

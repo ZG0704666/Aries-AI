@@ -110,6 +110,11 @@ fun InputBar(
         state is InputState.VoiceRecognizing || state is InputState.VoiceFinalizing
     val currentInputState by rememberUpdatedState(state)
     var pointerDown by remember { mutableStateOf(false) }
+    // 外部（权限回调/看门狗）把状态复位时，清掉可能悬挂的按下标记，
+    // 避免下一次长按被旧的 pointerDown 状态干扰。
+    LaunchedEffect(state) {
+        if (state is InputState.Idle || state is InputState.VoiceIdle) pointerDown = false
+    }
     val completedWhileHolding = pointerDown && state is InputState.Idle
     val isVoiceMode = state is InputState.VoiceIdle || showVoiceOverlay ||
         completedWhileHolding

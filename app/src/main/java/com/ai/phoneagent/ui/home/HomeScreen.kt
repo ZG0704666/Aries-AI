@@ -10,7 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import com.ai.phoneagent.core.designsystem.theme.glass.AriesLiquidTabs
 import com.ai.phoneagent.core.designsystem.theme.glass.LocalAriesGlassBackdrop
-import com.ai.phoneagent.core.designsystem.theme.glass.LocalAriesTabScale
+
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -32,7 +32,6 @@ import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.Surface
@@ -207,10 +206,12 @@ fun HomeScreen(
             pageNestedScrollConnection = horizontalPageConnection,
             userScrollEnabled = drawerGesturesEnabled && settingsAtRoot,
             flingBehavior = PagerDefaults.flingBehavior(
-                pager, 
+                pager,
+                // 对齐参考 DampedDragAnimation 的 spring(1f, 1000f)：临界阻尼、无回弹，
+                // 与胶囊吸附同源，避免松手后页面和滑块两套手感。
                 snapAnimationSpec = spring(
-                    dampingRatio = Spring.DampingRatioLowBouncy,
-                    stiffness = Spring.StiffnessMedium
+                    dampingRatio = 1f,
+                    stiffness = 1000f,
                 )
             ),
         ) { page ->
@@ -316,15 +317,11 @@ private fun HomeNavTab(index: Int, selected: Boolean) {
         }
     )
     val colors = MaterialTheme.colorScheme
-    val scale = LocalAriesTabScale.current
     Row(
         Modifier
             .fillMaxSize()
-            .graphicsLayer {
-                val s = scale()
-                scaleX = s
-                scaleY = s
-            }
+            // 缩放由 TabSlot（可见层）与副本层的 CompositionLocal 各自负责，
+            // 这里不能再乘一次，否则按压时图标会被放大 1.2×1.2。
             .semantics { this.selected = selected },
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,

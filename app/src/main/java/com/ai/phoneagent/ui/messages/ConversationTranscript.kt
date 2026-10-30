@@ -538,7 +538,7 @@ private fun UserMessageBubble(
                     else Modifier.ariesLiquidGlass(
                         shape = bubbleShape,
                         tier = AriesGlassTier.Bubble,
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
                     )
                 ),
             shape = bubbleShape,

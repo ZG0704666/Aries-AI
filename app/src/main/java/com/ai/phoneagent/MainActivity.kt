@@ -477,6 +477,7 @@ class MainActivity : AppCompatActivity() {
     private var savedInputText: String = ""
 
     private var pendingSendAfterVoice: Boolean = false
+    private var voiceFinalizeWatchdogJob: Job? = null
     private var voiceSessionSeed: Long = 0L
     @Volatile private var activeVoiceSessionId: Long = 0L
 
@@ -1958,6 +1959,8 @@ class MainActivity : AppCompatActivity() {
     private fun clearVoiceSession(expectedSessionId: Long? = null) {
         if (expectedSessionId == null || activeVoiceSessionId == expectedSessionId) {
             activeVoiceSessionId = 0L
+            voiceFinalizeWatchdogJob?.cancel()
+            voiceFinalizeWatchdogJob = null
         }
     }
 
@@ -2276,17 +2279,26 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (requestCode == 100 && pendingStartVoice) {
-            pendingStartVoice = false
+        if (requestCode == 100) {
             val granted =
                 grantResults.isNotEmpty() &&
                     grantResults[0] == PackageManager.PERMISSION_GRANTED
+            pendingStartVoice = false
+            // 权限弹窗会打断长按手势：把可能悬挂的会话/看门狗一起复位，
+            // 否则迟到的 onVoiceEnd 会把 UI 永久留在 VoiceFinalizing。
+            voiceFinalizeWatchdogJob?.cancel()
+            voiceFinalizeWatchdogJob = null
+            pendingSendAfterVoice = false
+            if (inputTextState.value.startsWith("正在语音输入")) {
+                inputTextState.value = savedInputText
+            }
+            clearVoiceSession()
             if (granted) {
-                clearVoiceSession()
+                inputBarState.value = InputState.VoiceIdle
                 Toast.makeText(this, getString(R.string.voice_permission_granted_retry_hold), Toast.LENGTH_SHORT).show()
             } else {
                 PermissionSetupSupport.handleMicPermissionResult(this, grantResults)
-                clearVoiceSession()
+                inputBarState.value = InputState.Idle
             }
         }
 
@@ -2883,9 +2895,9 @@ class MainActivity : AppCompatActivity() {
             },
             onVoiceStart = {
                 vibrateLight()
-                val sessionId = beginVoiceSession()
+                // 权限已授予后才创建 session，避免权限弹窗期间留下悬挂会话。
                 ensureAudioPermission {
-                    if (!isVoiceSessionActive(sessionId)) return@ensureAudioPermission
+                    val sessionId = beginVoiceSession()
                     inputBarState.value = InputState.VoiceRecording()
                     startLocalVoiceInput(sessionId)
                 }
@@ -2893,10 +2905,16 @@ class MainActivity : AppCompatActivity() {
             onVoiceEnd = {
                 vibrateLight()
                 val sessionId = activeVoiceSessionId
-                inputBarState.value = InputState.VoiceFinalizing
-                // 松手=发送：识别完成后自动标点并直接发送（onFinalResult 中消费）
-                pendingSendAfterVoice = true
-                stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = false)
+                val currentState = inputBarState.value
+                // 只有当本次抬手确实对应一个正在录制的会话时才进入收尾；
+                // 权限弹窗关闭后迟到的抬手事件不应再改变 UI 状态。
+                if (sessionId > 0L && currentState is InputState.VoiceRecording) {
+                    inputBarState.value = InputState.VoiceFinalizing
+                    // 松手=发送：识别完成后自动标点并直接发送（onFinalResult 中消费）
+                    pendingSendAfterVoice = true
+                    startVoiceFinalizeWatchdog(sessionId)
+                    stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = false)
+                }
             },
             onVoiceCancel = {
                 vibrateLight()
@@ -2946,6 +2964,8 @@ class MainActivity : AppCompatActivity() {
                 inputBarState.value = if (isVoice) InputState.VoiceIdle else InputState.Idle
                 if (isVoice) {
                     hideKeyboard()
+                    // 进入语音模式即预请求权限，避免长按过程中才弹窗打断手势。
+                    if (!hasAudioPermission()) requestAudioPermission()
                 }
             },
             voiceAmplitude = amplitude,
@@ -4106,22 +4126,49 @@ class MainActivity : AppCompatActivity() {
         // 动画由 Compose UI 基于状态自行处理
     }
 
+    private fun hasAudioPermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private fun requestAudioPermission() {
+        pendingStartVoice = false
+        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
+    }
+
     private fun ensureAudioPermission(onGranted: () -> Unit) {
-
-        val granted =
-                ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
-                        PackageManager.PERMISSION_GRANTED
-
-        if (granted) {
-
+        if (hasAudioPermission()) {
             pendingStartVoice = false
-
             onGranted()
         } else {
-
             pendingStartVoice = true
-
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
+        }
+    }
+
+    /** 收尾看门狗：识别链路异常时不回调 onFinal/onError 时兜底复位，避免永久卡在蓝色波形。 */
+    private fun startVoiceFinalizeWatchdog(sessionId: Long) {
+        voiceFinalizeWatchdogJob?.cancel()
+        voiceFinalizeWatchdogJob = lifecycleScope.launch {
+            delay(8_000L)
+            if (!isVoiceSessionActive(sessionId)) return@launch
+            val currentState = inputBarState.value
+            if (currentState is InputState.VoiceFinalizing || currentState is InputState.VoiceRecognizing) {
+                voiceFinalizeWatchdogJob = null
+                stopVoiceInputAnimation()
+                inputTextState.value = savedInputText
+                pendingSendAfterVoice = false
+                inputBarState.value = InputState.Idle
+                Toast.makeText(
+                    this@MainActivity,
+                    getString(R.string.voice_finalize_timeout_cancelled),
+                    Toast.LENGTH_SHORT,
+                ).show()
+                stopLocalVoiceInput(
+                    triggerRecognizerStop = false,
+                    expectedSessionId = sessionId,
+                    clearSession = true,
+                )
+            }
         }
     }
 

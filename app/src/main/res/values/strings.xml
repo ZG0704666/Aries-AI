@@ -211,6 +211,7 @@
     <string name="update_download_submit_failed">下载未能提交，请稍后重试</string>
     <string name="update_open_detail_failed">打开更新详情失败，请稍后重试</string>
     <string name="voice_permission_granted_retry_hold">已授予麦克风权限，请重新长按开始录音</string>
+    <string name="voice_finalize_timeout_cancelled">语音处理超时，已取消本次录音</string>
 
     <string name="action_ok">确定</string>
     <string name="action_close">关闭</string>

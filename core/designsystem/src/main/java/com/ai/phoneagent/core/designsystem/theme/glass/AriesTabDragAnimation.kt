@@ -2,6 +2,7 @@ package com.ai.phoneagent.core.designsystem.theme.glass
 
 import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.MutatorMutex
@@ -174,12 +175,21 @@ class AriesTabDragAnimation(
     }
 
     fun animateToValue(value: Float) {
-        animationScope.launch {
-            // 在 mutex 内 await 动画：提前释放会让后续 snapToValue 撞上还在飞行的弹簧。
-            mutatorMutex.mutate {
-                val target = value.coerceIn(valueRange)
-                valueAnimation.animateTo(target, valueAnimationSpec) { updateVelocity() }
-            }
+        animationScope.launch { animateToValueAwait(value) }
+    }
+
+    /**
+     * 等待动画结束的版本：供「松手后与 pager tween 同步追赶」使用，
+     * 调用方可在此期间保留本地位置驱动，动画结束后再交还 pager。
+     */
+    suspend fun animateToValueAwait(
+        value: Float,
+        animationSpec: AnimationSpec<Float> = valueAnimationSpec,
+    ) {
+        // 在 mutex 内 await 动画：提前释放会让后续 snapToValue 撞上还在飞行的弹簧。
+        mutatorMutex.mutate {
+            val target = value.coerceIn(valueRange)
+            valueAnimation.animateTo(target, animationSpec) { updateVelocity() }
         }
     }
 
