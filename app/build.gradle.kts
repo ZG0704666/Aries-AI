@@ -77,7 +77,7 @@ android {
         }
         // 语音 native 库：sherpa-onnx 预编译 so（libonnxruntime.so + libsherpa-onnx-jni.so）
         // 位于 jniLibs/<abi>/ 随包打包，无 externalNativeBuild/CMake 步骤；
-        // 旧 sherpa-ncnn 的 CMake 构建（src/main/cpp/CMakeLists.txt）已断开挂接，回退时从 git 历史恢复。
+        // 旧 sherpa-ncnn 的 CMake 构建与子模块已整体移除（2026-10-31），回退时从 git 历史恢复。
     }
 
     buildTypes {
