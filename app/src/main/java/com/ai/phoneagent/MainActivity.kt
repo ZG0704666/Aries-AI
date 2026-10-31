@@ -102,6 +102,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.ai.phoneagent.speech.SherpaSpeechRecognizer
+import com.ai.phoneagent.speech.SherpaSpeechRegistry
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -452,7 +453,10 @@ class MainActivity : AppCompatActivity() {
 
     private var activeConversation: Conversation? = null
 
+    // R-07：识别器实例由 SherpaSpeechRegistry 进程级共享，这里仅缓存 attach 返回值；
+    // sherpaRegistryAcquired 表示本 Activity 持有一票引用。
     private var sherpaSpeechRecognizer: SherpaSpeechRecognizer? = null
+    private var sherpaRegistryAcquired = false
 
     private var isListening = false
 
@@ -481,6 +485,9 @@ class MainActivity : AppCompatActivity() {
     private val voiceSession = VoiceSessionController()
     private var voiceFinalizeWatchdogJob: Job? = null
     private var voiceSessionSeed: Long = 0L
+
+    // R-10：final 后的自动标点任务；与发起会话的会话代数绑定，新会话 begin 前作废取消。
+    private var voiceAutoPunctJob: Job? = null
 
     private val CAMERA_PERMISSION_REQUEST_CODE = 1236
     private var pendingAutomationLogUiRefresh: Boolean = false
@@ -1947,6 +1954,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun beginVoiceSession(): Long {
+        // R-10：上一会话遗留的自动标点任务随新会话作废（其结果不再回写或触发发送）。
+        voiceAutoPunctJob?.cancel()
+        voiceAutoPunctJob = null
         val id = allocateVoiceSessionId()
         savedInputText = inputTextState.value
         voiceSession.begin(id)
@@ -2969,9 +2979,8 @@ class MainActivity : AppCompatActivity() {
             },
             voiceAmplitude = amplitude,
             onUpdateCancelState = { _, isCancelling ->
-                val current = inputBarState.value
-                if (current is InputState.VoiceRecording && current.isCancelling != isCancelling) {
-                    inputBarState.value = current.copy(isCancelling = isCancelling)
+                if (voiceSession.onUpdateCancelState(isCancelling)) {
+                    inputBarState.value = voiceSession.state
                     // 进入取消阈值：中震提示；退出：轻震
                     if (isCancelling) vibrateMedium() else vibrateLight()
                 }
@@ -3807,15 +3816,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initSherpaModel() {
-        sherpaSpeechRecognizer = SherpaSpeechRecognizer(this)
+        if (sherpaRegistryAcquired) return
+        sherpaRegistryAcquired = true
+        // R-07：共享进程级识别器所有者，不再自建实例（避免双份 native 模型内存）。
+        val recognizer = SherpaSpeechRegistry.attach(this)
+        sherpaSpeechRecognizer = recognizer
         lifecycleScope.launch {
-            val success = sherpaSpeechRecognizer?.initialize() == true
+            // initialize() 幂等：即便 ViewModel 侧已初始化过，也会立即返回成功。
+            val success = recognizer.initialize() == true
             if (success) {
                 offlineModelReady = true
                 updateStatusText()
             } else {
                 // 带上具体失败原因（native 库加载失败/模型资产缺失等），便于真机现场定位
-                val reason = sherpaSpeechRecognizer?.lastInitializationError.orEmpty()
+                val reason = recognizer.lastInitializationError.orEmpty()
                 val message = if (reason.isBlank()) "语音模型初始化失败" else "语音模型初始化失败：$reason"
                 Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
             }
@@ -3838,7 +3852,20 @@ class MainActivity : AppCompatActivity() {
         voiceInputAnimJob = null
     }
 
-    private fun applyAutoPunctuationIfNeeded(text: String, onDone: (String) -> Unit) {
+    /**
+     * final 之后触发自动标点（R-10：让最终产出版本绑定语音会话）。
+     *
+     * 以前回调 task 是“脱离会话”的独立生命周期，其结果可能在会话已完成清理后仍被发送。
+     * 现在改为：
+     * - [epoch] 为发起本次标点的语音会话代数（voiceSessionSeed）；
+     * - 新语音会话 beginVoiceSession() 时显式取消旧任务（voiceAutoPunctJob）；
+     * - onFinalResult 侧回调内再按 epoch 兜底，旧代数结果一律作废。
+     */
+    private fun applyAutoPunctuationIfNeeded(
+        text: String,
+        epoch: Long,
+        onDone: (String) -> Unit,
+    ) {
         val raw = text.trim()
         if (raw.isBlank()) {
             onDone(text)
@@ -3863,7 +3890,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        lifecycleScope.launch {
+        voiceAutoPunctJob?.cancel()
+        voiceAutoPunctJob = lifecycleScope.launch {
             val requestApiKey =
                 if (localModeEnabled) {
                     ""
@@ -3964,7 +3992,7 @@ class MainActivity : AppCompatActivity() {
                     // 松手后已处于 VoiceFinalizing，partial 结果不得把状态盖回去，
                     // 否则胶囊会在“收尾”与“识别”间反复横跳。
                     if (voiceSession.onPartialResult(sessionId)) {
-                        inputBarState.value = InputState.VoiceRecognizing
+                        inputBarState.value = voiceSession.state
                     }
                     val txt = (voicePrefix + text).trimStart()
                     inputTextState.value = txt
@@ -4010,7 +4038,12 @@ class MainActivity : AppCompatActivity() {
                         clearSession = true,
                     )
 
-                    applyAutoPunctuationIfNeeded(rawText) { punctuated ->
+                    // R-10：自动标点与发送绑定本次语音会话代数，旧代数结果一律作废。
+                    val punctEpoch = voiceSessionSeed
+                    applyAutoPunctuationIfNeeded(rawText, punctEpoch) { punctuated ->
+                        if (voiceSessionSeed != punctEpoch) {
+                            return@applyAutoPunctuationIfNeeded
+                        }
                         if (inputTextState.value == rawText) {
                             inputTextState.value = punctuated
                         }
@@ -4509,7 +4542,12 @@ class MainActivity : AppCompatActivity() {
         stopLocalVoiceInput(clearSession = true)
         clearAutomationTerminatePending()
 
-        sherpaSpeechRecognizer?.shutdown()
+        if (sherpaRegistryAcquired) {
+            // R-07：归还一票引用；若 ViewModel 或新实例仍持有引用则共享实例继续存活，
+            // 引用计数归零时由注册表确定性 close native 资源。
+            SherpaSpeechRegistry.release()
+            sherpaRegistryAcquired = false
+        }
 
         sherpaSpeechRecognizer = null
     }

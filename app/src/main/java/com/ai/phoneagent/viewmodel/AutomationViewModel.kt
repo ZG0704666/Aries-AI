@@ -49,6 +49,7 @@ import com.ai.phoneagent.net.LocalMnnInferenceEngine
 import com.ai.phoneagent.net.ModelScopeModelDownloader
 import com.ai.phoneagent.core.templates.PromptTemplates
 import com.ai.phoneagent.speech.SherpaSpeechRecognizer
+import com.ai.phoneagent.speech.SherpaSpeechRegistry
 import java.lang.ref.WeakReference
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -142,7 +143,10 @@ class AutomationViewModel(
     var isBackgroundMode by mutableStateOf(false)
         private set
 
+    // R-07：识别器实例由 SherpaSpeechRegistry 进程级共享，这里仅缓存 attach 返回值；
+    // sherpaRegistryAcquired 表示本 ViewModel 持有一票引用。
     private var sherpaSpeechRecognizer: SherpaSpeechRecognizer? = null
+    private var sherpaRegistryAcquired = false
     private var isListeningInternal: Boolean = false
     private var voiceInputAnimJob: Job? = null
     private var savedTaskText: String = ""
@@ -1110,21 +1114,20 @@ class AutomationViewModel(
         sherpaInitializing = true
         viewModelScope.launch {
             try {
-                val (recognizer, success) =
-                    withContext(Dispatchers.Default) {
-                        val localRecognizer = SherpaSpeechRecognizer(appContext)
-                        val ok = localRecognizer.initialize()
-                        localRecognizer to ok
-                    }
-                sherpaSpeechRecognizer = if (success) recognizer else null
-                if (!success) {
+                // R-07：共享进程级识别器所有者，不再自建实例；初始化幂等，可重复触发。
+                val recognizer = SherpaSpeechRegistry.attach(appContext)
+                sherpaSpeechRecognizer = recognizer
+                sherpaRegistryAcquired = true
+                withContext(Dispatchers.Default) {
+                    recognizer.initialize()
+                }
+                if (!recognizer.isReady()) {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(appContext, "语音模型初始化失败，请重试", Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (e: Exception) {
                 Log.e("AutomationViewModel", "语音模型初始化异常: ${e.message}", e)
-                sherpaSpeechRecognizer = null
                 withContext(Dispatchers.Main) {
                     Toast.makeText(appContext, "语音模型异常: ${e.message}", Toast.LENGTH_LONG).show()
                 }
@@ -1157,13 +1160,22 @@ class AutomationViewModel(
     }
 
     fun startLocalVoiceInput() {
-        val recognizer = sherpaSpeechRecognizer
+        // R-07：取共享实例；本地缓存的过期引用（已被注册表释放）回退为注册表现值。
+        val recognizer =
+            sherpaSpeechRecognizer
+                ?.takeIf { it.isReady() || it.isListening() || it.isInitializing() }
+                ?: SherpaSpeechRegistry.current()
+                ?.also { sherpaSpeechRecognizer = it }
         if (recognizer == null) {
             Toast.makeText(appContext, "语音模型未初始化，请稍候重试", Toast.LENGTH_SHORT).show()
             initSherpaModel()
             return
         }
         if (!recognizer.isReady()) {
+            // 未就绪（首次排队中或此前初始化失败）：现场再触发一次初始化（幂等）后提示等待。
+            if (!recognizer.isInitializing() && !sherpaInitializing) {
+                initSherpaModel()
+            }
             Toast.makeText(appContext, "语音模型加载中，请稍候…", Toast.LENGTH_SHORT).show()
             return
         }
@@ -1220,7 +1232,11 @@ class AutomationViewModel(
     }
 
     fun stopLocalVoiceInput(triggerRecognizerStop: Boolean = true) {
-        val recognizer = sherpaSpeechRecognizer
+        // R-07：取共享实例；本地缓存的过期引用回退为注册表现值。
+        val recognizer =
+            sherpaSpeechRecognizer
+                ?.takeIf { it.isReady() || it.isListening() || it.isInitializing() }
+                ?: SherpaSpeechRegistry.current()
         stopVoiceInputAnimation()
 
         val currentText = taskText
@@ -1376,7 +1392,12 @@ class AutomationViewModel(
         recommendJob?.cancel()
         recommendJob = null
         stopLocalVoiceInput(triggerRecognizerStop = true)
-        sherpaSpeechRecognizer?.shutdown()
+        if (sherpaRegistryAcquired) {
+            // R-07：归还一票引用；若 MainActivity 侧仍持有引用则共享实例继续存活，
+            // 引用计数归零时由注册表确定性 close native 资源。
+            SherpaSpeechRegistry.release()
+            sherpaRegistryAcquired = false
+        }
         sherpaSpeechRecognizer = null
         stopAgent()
     }
