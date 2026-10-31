@@ -96,3 +96,4 @@ atomcode-*.md
 # Local corrupted-build quarantine snapshots (do not commit)
 app/build_corrupt_*/
 app/cxx_corrupt_*/
+.workbuddy/memory/2026-10-31.md
