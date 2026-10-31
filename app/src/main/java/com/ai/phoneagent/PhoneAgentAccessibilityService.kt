@@ -862,12 +862,6 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
         return collectTextInputCandidates(root).firstOrNull()
     }
 
-    fun runDemo() {
-        performGlobalAction(GLOBAL_ACTION_HOME)
-        mainHandler.postDelayed({ swipeUp() }, 450)
-        mainHandler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 1100)
-    }
-
     fun click(x: Float, y: Float, durationMs: Long = 60L) {
         val p =
                 Path().apply {
@@ -1489,13 +1483,5 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
                 if (cont.isActive) cont.resume(false)
             }
         }
-    }
-
-    private fun swipeUp() {
-        val dm = resources.displayMetrics
-        val x = dm.widthPixels * 0.5f
-        val y1 = dm.heightPixels * 0.78f
-        val y2 = dm.heightPixels * 0.32f
-        swipe(x, y1, x, y2, 360L)
     }
 }
