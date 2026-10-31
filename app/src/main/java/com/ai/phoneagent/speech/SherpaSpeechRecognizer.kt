@@ -561,23 +561,25 @@ class SherpaSpeechRecognizer(private val context: Context) {
      * @param listener 识别结果回调
      */
     fun startListening(listener: RecognitionListener) {
-        if (!isInitialized) {
-            listener.onError(IllegalStateException("Speech recognizer not initialized"))
-            return
-        }
-        if (isListening) {
-            return
-        }
+        synchronized(this) {
+            if (!isInitialized) {
+                listener.onError(IllegalStateException("Speech recognizer not initialized"))
+                return
+            }
+            if (isListening) {
+                return
+            }
 
-        val session =
-                Session(
-                        generation = sessionGeneration.incrementAndGet(),
-                        listener = listener
-                )
-        activeSession = session
-        isListening = true
+            val session =
+                    Session(
+                            generation = sessionGeneration.incrementAndGet(),
+                            listener = listener
+                    )
+            activeSession = session
+            isListening = true
 
-        sessionExecutor.execute { runSession(session) }
+            sessionExecutor.execute { runSession(session) }
+        }
     }
 
     /**

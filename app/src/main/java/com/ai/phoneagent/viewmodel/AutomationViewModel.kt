@@ -1164,7 +1164,7 @@ class AutomationViewModel(
         val recognizer =
             sherpaSpeechRecognizer
                 ?.takeIf { it.isReady() || it.isListening() || it.isInitializing() }
-                ?: SherpaSpeechRegistry.current()
+                ?: SherpaSpeechRegistry.attach(appContext)
                 ?.also { sherpaSpeechRecognizer = it }
         if (recognizer == null) {
             Toast.makeText(appContext, "语音模型未初始化，请稍候重试", Toast.LENGTH_SHORT).show()
@@ -1233,10 +1233,13 @@ class AutomationViewModel(
 
     fun stopLocalVoiceInput(triggerRecognizerStop: Boolean = true) {
         // R-07：取共享实例；本地缓存的过期引用回退为注册表现值。
+        // 回退路径本次 attach 持一票，函数收尾配对 release，避免引用计数泄漏。
+        var attachedHere = false
         val recognizer =
             sherpaSpeechRecognizer
                 ?.takeIf { it.isReady() || it.isListening() || it.isInitializing() }
-                ?: SherpaSpeechRegistry.current()
+                ?: SherpaSpeechRegistry.attach(appContext)
+                    .also { attachedHere = true }
         stopVoiceInputAnimation()
 
         val currentText = taskText
@@ -1255,6 +1258,9 @@ class AutomationViewModel(
         }
 
         isListeningInternal = false
+        if (attachedHere) {
+            SherpaSpeechRegistry.release()
+        }
     }
 
     private fun getApiKey(): String {
