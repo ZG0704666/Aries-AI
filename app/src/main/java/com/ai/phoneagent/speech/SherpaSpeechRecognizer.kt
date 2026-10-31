@@ -148,7 +148,7 @@ internal object ModelCacheManifest {
  * - cancel() 不产出 final（不变量 3）。
  * - 按住说话是独立会话：会话开始时 reset(true) 重建流，不复用上一会话的 Stream/decoder/encoder
  *   状态（R-05）。
- * - native 识别器通过 [SherpaNcnn.close] 幂等释放，不再只依赖 finalize()（R-06）。
+ * - native 识别器幂等释放（R-06）：sherpa-onnx 侧经 OnlineRecognizer.release()（finalize 内 ptr 置 0 保护）。
  * - 会话任务整体 try/catch：保证异常时资源释放、状态复位与恰好一次 error 回调（R-08）。
  */
 @SuppressLint("MissingPermission")

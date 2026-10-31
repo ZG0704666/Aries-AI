@@ -39,13 +39,10 @@ app/src/main/assets/sherpa-models/
 启动期校验中，清单缺失、格式不符或任何必需文件长度不一致都会触发整份缓存重建；
 进程被杀/拷贝中断不会留下“长度大于 0 的残缺模型”被加载。
 
-## 旧引擎回退模型（sherpa-ncnn，过渡期保留）
+## 旧引擎模型（sherpa-ncnn，已从 assets 移除）
 
-| 项 | 值 |
-|---|---|
-| 模型 | `sherpa-ncnn-streaming-zipformer-bilingual-zh-en-2023-02-13`（7 文件 ≈134.6MiB） |
-| 状态 | 代码已切至 sherpa-onnx；此目录仅在回退分支时使用，定稿后移除 |
-| 官方文档 | https://k2-fsa.github.io/sherpa/ncnn/pretrained_models/zipformer-transucer-models.html |
+- `sherpa-ncnn-streaming-zipformer-bilingual-zh-en-2023-02-13`（7 文件 ≈134.6MiB）已于 2026-10-31 从本目录移除，APK 相应瘦身。
+- 需要回退 ncnn 引擎时：切回 `test-capsule` 分支后，从 sherpa-ncnn 官方 releases 重新下载同名 `tar.bz2`（≈123.6MiB），按嵌套或平铺结构放回本目录即可（代码入口在回退分支的 `createRecognizer()`）。
 
 ## 获取模型文件
 

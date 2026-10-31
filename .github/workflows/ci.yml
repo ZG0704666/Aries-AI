@@ -86,10 +86,10 @@ jobs:
           from zipfile import ZipFile
 
           with ZipFile("app/build/outputs/apk/debug/app-debug.apk") as apk:
-              name = "lib/arm64-v8a/libsherpa-ncnn-jni.so"
-              if name not in apk.namelist() or apk.getinfo(name).file_size == 0:
-                  raise SystemExit(f"Missing or empty native speech library: {name}")
-              print(f"Verified {name}")
+              for name in ("lib/arm64-v8a/libsherpa-onnx-jni.so", "lib/arm64-v8a/libonnxruntime.so"):
+                  if name not in apk.namelist() or apk.getinfo(name).file_size == 0:
+                      raise SystemExit(f"Missing or empty native speech library: {name}")
+                  print(f"Verified {name}")
           PY
 
       - name: Upload APK
