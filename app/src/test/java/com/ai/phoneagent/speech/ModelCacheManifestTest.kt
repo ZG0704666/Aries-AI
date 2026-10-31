@@ -1,10 +1,14 @@
 package com.ai.phoneagent.speech
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+
+import java.io.File
+import java.security.MessageDigest
 
 /**
  * 模型缓存完整性清单（R-04）纯逻辑的 JVM 单测：
@@ -81,5 +85,44 @@ class ModelCacheManifestTest {
     fun `parse rejects non positive length`() {
         assertNull(ModelCacheManifest.parse("tokens.txt\t0\t$validSha"))
         assertNull(ModelCacheManifest.parse("tokens.txt\t-1\t$validSha"))
+    }
+
+    /** sha256Hex：小文件结果与标准值一致（回归：digest() 只能调用一次，重复调用会得到空输入哈希）。 */
+    @Test
+    fun `sha256Hex matches standard digest for small file`() {
+        val file = File.createTempFile("sha-small", ".tmp")
+        try {
+            file.writeBytes("hello".toByteArray(Charsets.UTF_8))
+            // "hello" 的标准 SHA-256
+            assertEquals(
+                "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+                ModelCacheManifest.sha256Hex(file)
+            )
+        } finally {
+            file.delete()
+        }
+    }
+
+    /** sha256Hex：超过 64KiB 缓冲的大文件按流式累计正确，且绝不是空输入哈希。 */
+    @Test
+    fun `sha256Hex streams large file and never equals empty input digest`() {
+        val file = File.createTempFile("sha-large", ".tmp")
+        try {
+            // 128 KiB > 64 KiB 单次读写缓冲，强制多轮 update
+            val chunk = ByteArray(1024) { (it % 251).toByte() }
+            file.outputStream().use { out ->
+                repeat(128) { out.write(chunk) }
+            }
+
+            val reference = MessageDigest.getInstance("SHA-256")
+                .digest(file.readBytes())
+                .joinToString("") { "%02x".format(it) }
+
+            val result = ModelCacheManifest.sha256Hex(file)
+            assertEquals(reference, result)
+            assertFalse("空输入哈希不应出现（digest() 重复调用回归）", result == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+        } finally {
+            file.delete()
+        }
     }
 }

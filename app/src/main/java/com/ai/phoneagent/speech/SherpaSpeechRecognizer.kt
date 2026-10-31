@@ -63,6 +63,28 @@ internal object ModelCacheManifest {
     /** 单文件条目：磁盘长度 + 拷贝完成时算出的 SHA-256(hex)。 */
     data class Entry(val length: Long, val sha256: String)
 
+    /** 流式计算文件 SHA-256（hex 小写）。注意 digest() 只调用一次——它在返回摘要的同时会重置 MessageDigest，重复调用会得到空输入的哈希。 */
+    @Throws(IOException::class)
+    fun sha256Hex(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                if (read > 0) digest.update(buffer, 0, read)
+            }
+        }
+        val bytes = digest.digest()
+        val hex = StringBuilder(bytes.size * 2)
+        for (b in bytes) {
+            val v = b.toInt() and 0xFF
+            hex.append("0123456789abcdef"[v ushr 4])
+            hex.append("0123456789abcdef"[v and 0x0F])
+        }
+        return hex.toString()
+    }
+
     /** 序列化：每行 "name \t length \t sha256"，行序稳定，便于 diff。 */
     fun format(entries: Map<String, Entry>): String {
         return entries.entries.joinToString("\n") { (name, entry) ->
@@ -500,7 +522,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
                 if (!f.isFile || f.length() <= 0) {
                     throw IOException("Staged model file missing or empty: $name")
                 }
-                entries[name] = ModelCacheManifest.Entry(length = f.length(), sha256 = sha256Hex(f))
+                entries[name] = ModelCacheManifest.Entry(length = f.length(), sha256 = ModelCacheManifest.sha256Hex(f))
             }
 
             // 清单最后写入并 fsync：只有完整拷贝+摘要都到位后才可能出现清单
@@ -528,27 +550,6 @@ class SherpaSpeechRecognizer(private val context: Context) {
             runCatching { stagingDir.deleteRecursively() }
             throw t
         }
-    }
-
-    /** 流式计算文件 SHA-256（hex 小写）。 */
-    @Throws(IOException::class)
-    private fun sha256Hex(file: File): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        file.inputStream().use { input ->
-            val buffer = ByteArray(64 * 1024)
-            while (true) {
-                val read = input.read(buffer)
-                if (read < 0) break
-                if (read > 0) digest.update(buffer, 0, read)
-            }
-        }
-        val hex = StringBuilder(digest.digest().size * 2)
-        for (b in digest.digest()) {
-            val v = b.toInt() and 0xFF
-            hex.append("0123456789abcdef"[v ushr 4])
-            hex.append("0123456789abcdef"[v and 0x0F])
-        }
-        return hex.toString()
     }
 
     /**
