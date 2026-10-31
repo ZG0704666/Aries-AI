@@ -1,5 +1,6 @@
 # OS / editor files
 .DS_Store
+._*
 *.iml
 .idea/
 .kotlin/
@@ -87,3 +88,12 @@ Aries-site/lighthouse-*.report.json
 # JavaScript dependencies (site, design tools, worker)
 node_modules/
 .shots
+
+# AtomCode local session/config files
+.atomcode/
+atomcode-*.md
+
+# Local corrupted-build quarantine snapshots (do not commit)
+app/build_corrupt_*/
+app/cxx_corrupt_*/
+.workbuddy/memory/2026-10-31.md

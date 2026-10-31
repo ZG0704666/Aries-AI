@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.dimensionResource
@@ -88,7 +89,13 @@ fun AriesGlassIconButton(
     Box(
         modifier = modifier
             .size(dimensionResource(R.dimen.aries_touch_target))
-            .ariesLiquidInteractive(shape = CircleShape, press = press, tier = AriesGlassTier.Pill)
+            .ariesLiquidInteractive(
+                shape = CircleShape,
+                press = press,
+                tier = AriesGlassTier.Bar,
+            )
+            // 双保险：按压高光必须裁进圆形，避免直角矩形遮罩。
+            .clip(CircleShape)
             .clickable(
                 interactionSource = null,
                 indication = null,

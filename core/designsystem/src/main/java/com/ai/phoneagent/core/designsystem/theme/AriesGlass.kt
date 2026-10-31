@@ -28,9 +28,16 @@ import com.ai.phoneagent.core.designsystem.R
  * - Material C 模态浮层材质：弹窗/菜单走系统 Dialog 默认遮罩+各自 Surface。
  */
 @Composable
-fun Modifier.ariesGlass(shape: Shape, selected: Boolean = false): Modifier {
+fun Modifier.ariesGlass(
+    shape: Shape,
+    selected: Boolean = false,
+    // 覆盖默认表面色：API 30 降级的液态玻璃用它取同一档位的 bubble/surface 底色，
+    // 保证降级外观与 API 31+ 玻璃的底色一致。
+    surfaceColor: Color? = null,
+    tint: Color = Color.Transparent,
+): Modifier {
     val dark = LocalAriesBackdrop.current.dark
-    val base = colorResource(if (dark) R.color.aries_glass_dark else R.color.aries_glass_light)
+    val base = surfaceColor ?: colorResource(if (dark) R.color.aries_glass_dark else R.color.aries_glass_light)
     val highlight = colorResource(if (dark) R.color.aries_glass_highlight_dark else R.color.aries_glass_highlight_light)
     val edge = colorResource(if (dark) R.color.aries_glass_edge_dark else R.color.aries_glass_edge_light)
     val selection = colorResource(if (dark) R.color.aries_glass_selected_dark else R.color.aries_glass_selected_light)
@@ -53,6 +60,7 @@ fun Modifier.ariesGlass(shape: Shape, selected: Boolean = false): Modifier {
         )
         onDrawBehind {
             drawPath(lens, base)
+            if (tint.alpha > 0f) drawPath(lens, tint)
             if (selected) drawPath(lens, selection)
             // 将半描边裁剪到镜面内，避免边框影响布局尺寸。
             clipPath(lens) { drawPath(lens, reflection, style = Stroke(width = rim.toPx() * 2)) }

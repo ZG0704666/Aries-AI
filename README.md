@@ -222,6 +222,8 @@ Aries-AI/
 | [CODING_STANDARDS.md](./Aries-site/docs/CODING_STANDARDS.md) | 代码规范、命名规则、注释要求 |
 | [GIT_WORKFLOW.md](./Aries-site/docs/GIT_WORKFLOW.md) | Git 使用规范、分支管理、提交规范 |
 | [TECHNICAL_OVERVIEW.md](./Aries-site/docs/TECHNICAL_OVERVIEW.md) | 核心技术实现与优势 ⭐ |
+| [语音输入与液态玻璃专项交接](./Aries-site/docs/对话系统/语音输入与液态玻璃专项交接%202026-10-31.md) | 语音 Bug 修复、ASR 风险与选型、液态玻璃对齐及后续验收 |
+| [离线 ASR 模型调研](./Aries-site/docs/对话系统/离线ASR模型调研%202026-10-31.md) | 2025–2026 移动端离线流式 ASR 全量对比、许可审计与 A/B 方案 |
 
 ### 技术栈
 

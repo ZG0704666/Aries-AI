@@ -174,7 +174,10 @@ fun AttachmentSelectorPanel(
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = sheetShape,
             dragHandle = null,
-            scrimColor = BottomSheetDefaults.ScrimColor
+            scrimColor = BottomSheetDefaults.ScrimColor,
+            // 让玻璃铺到屏幕底部：去掉 sheet 自带的 insets，
+            // 系统导航条空间由内容自行消化（navigationBarsPadding）。
+            contentWindowInsets = { WindowInsets(0) },
         ) {
             Column(
                 modifier = Modifier
@@ -184,6 +187,7 @@ fun AttachmentSelectorPanel(
                         tier = AriesGlassTier.Card,
                         backdrop = com.ai.phoneagent.core.designsystem.theme.glass.LocalAriesGlassBackdrop.current
                     )
+                    .navigationBarsPadding()
                     .padding(bottom = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding))
             ) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {

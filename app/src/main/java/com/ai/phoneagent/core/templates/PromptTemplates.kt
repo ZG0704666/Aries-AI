@@ -99,10 +99,13 @@ class PromptTemplates {
 	do(action="Tap", element=[500,150], desc="点击顶部搜索")
 </answer>
 
-错误示例：
+错误示例（禁止模仿，不要这样输出）：
 <answer>
-	do(action="Tap", element=[500,150], desc="点击顶部搜索")
+	好的，我将点击搜索框。do(action=Tap, element=[500,150])
 </answer>
+上面错误在于：混入了解释文字、action 值缺少引号、缺少 desc 字段。
+
+输出硬约束：每次只输出一个 do(...) 或 finish(...)，不要输出任何解释、前后缀或多余文本；参数值一律用引号包裹。
 
 当前屏幕比例：$ratio
 范围 0-1000，优先输出下一步动作。""".trimIndent()

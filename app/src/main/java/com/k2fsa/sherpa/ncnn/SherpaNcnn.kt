@@ -40,8 +40,11 @@ data class RecognizerConfig(
 class SherpaNcnn(
     var config: RecognizerConfig,
     assetManager: AssetManager? = null,
-) {
+) : AutoCloseable {
     private val ptr: Long
+
+    /** 幂等释放标记：保证 delete(ptr) 恰好执行一次（R-06）。 */
+    private val closed = java.util.concurrent.atomic.AtomicBoolean(false)
 
     init {
         if (assetManager != null) {
@@ -52,7 +55,20 @@ class SherpaNcnn(
     }
 
     protected fun finalize() {
-        delete(ptr)
+        close()
+    }
+
+    /**
+     * 幂等释放 native 识别器，不再只依赖 finalize() 回收（R-06）。
+     *
+     * 调用方必须保证关闭后不再调用任何会触碰 native 状态的方法；
+     * 参考实现（会话执行器）通过单线程串行化满足该约束，
+     * 以避免关闭与在途 native 调用并发导致的崩溃。
+     */
+    override fun close() {
+        if (closed.compareAndSet(false, true)) {
+            delete(ptr)
+        }
     }
 
     fun acceptSamples(samples: FloatArray) =

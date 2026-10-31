@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
@@ -240,8 +241,8 @@ private fun AboutHeroSection(
     val spacingXs = dimensionResource(DesignSystemR.dimen.m3t_spacing_xs)
     val spacingMd = dimensionResource(DesignSystemR.dimen.m3t_spacing_md)
     val spacingXxl = dimensionResource(DesignSystemR.dimen.m3t_spacing_xxl)
-    val appIconSize = dimensionResource(DesignSystemR.dimen.aries_brand_size)
-    val appIconVisualSize = dimensionResource(DesignSystemR.dimen.aries_brand_icon)
+    val appIconSize = dimensionResource(DesignSystemR.dimen.aries_about_brand_size)
+    val appIconVisualSize = dimensionResource(DesignSystemR.dimen.aries_about_brand_icon)
 
     Column(
         modifier =
@@ -258,7 +259,9 @@ private fun AboutHeroSection(
             contentAlignment = Alignment.Center) {
             Image(painter = painterResource(R.drawable.ic_launcher_foreground),
                 contentDescription = stringResource(R.string.app_name),
-                colorFilter = ColorFilter.tint(Color.White), modifier = Modifier.size(appIconVisualSize))
+                colorFilter = ColorFilter.tint(Color.White),
+                // adaptive foreground 自带安全区，1.3x 后可见图形约占容器 36%，与品牌区比例更协调。
+                modifier = Modifier.size(appIconVisualSize).scale(1.3f))
         }
 
         Text(

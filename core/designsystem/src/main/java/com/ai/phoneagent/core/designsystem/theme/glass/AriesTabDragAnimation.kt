@@ -2,12 +2,16 @@ package com.ai.phoneagent.core.designsystem.theme.glass
 
 import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.MutatorMutex
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
@@ -25,6 +29,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 
 /**
@@ -96,7 +101,7 @@ class AriesTabDragAnimation(
     private val visibilityThreshold: Float = 0.001f,
     private val initialScale: Float = 1f,
     private val pressedScale: Float,
-    private val onDragStopped: AriesTabDragAnimation.() -> Unit,
+    private val onDragStopped: suspend AriesTabDragAnimation.() -> Unit,
     private val onDrag: AriesTabDragAnimation.(size: IntSize, dragAmount: Offset) -> Unit,
 ) {
 
@@ -114,6 +119,8 @@ class AriesTabDragAnimation(
 
     private val mutatorMutex = MutatorMutex()
     private val velocityTracker = VelocityTracker()
+    // 手指是否按在胶囊上（含拖动）；按住期间 pager 进度不得接管胶囊位置。
+    private var _isPressed by mutableStateOf(false)
 
     val value: Float get() = valueAnimation.value
     val targetValue: Float get() = valueAnimation.targetValue
@@ -122,20 +129,23 @@ class AriesTabDragAnimation(
     val scaleY: Float get() = scaleYAnimation.value
     val velocity: Float get() = velocityAnimation.value
 
-    /** 当前是否处于弹簧飞行中（点击切页时为真，pager 进度暂不接管滑块）。 */
+    /** 当前是否处于弹簧飞行中（静止自愈时为真，pager 进度暂不接管滑块）。 */
     val isAnimating: Boolean get() = valueAnimation.isRunning
+    val isPressed: Boolean get() = _isPressed
 
     val modifier: Modifier = Modifier.pointerInput(Unit) {
+        // awaitEachGesture 的受限协程不能直接调任意 suspend lambda，
+        // 因此在启动的协程内顺序执行：先结算（吸附/请求切页），再恢复静息形变。
+        fun stopGesture() {
+            animationScope.launch {
+                onDragStopped()
+                release()
+            }
+        }
         inspectDragGestures(
             onDragStart = { press() },
-            onDragEnd = {
-                onDragStopped()
-                release()
-            },
-            onDragCancel = {
-                onDragStopped()
-                release()
-            },
+            onDragEnd = { stopGesture() },
+            onDragCancel = { stopGesture() },
         ) { change, dragAmount ->
             onDrag(size, dragAmount)
         }
@@ -143,6 +153,7 @@ class AriesTabDragAnimation(
 
     fun press() {
         velocityTracker.resetTracking()
+        _isPressed = true
         animationScope.launch {
             launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
             launch { scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec) }
@@ -151,13 +162,17 @@ class AriesTabDragAnimation(
     }
 
     fun release() {
+        // 位置立即交给 catchUp/pager，形变则像参考实现一样等滑块接近吸附点再恢复。
+        // 有界等待避免 pager 交接异常时再次出现永久按住或形变不释放。
+        _isPressed = false
         animationScope.launch {
-            withFrameNanos { }
             if (value != targetValue) {
                 val threshold = (valueRange.endInclusive - valueRange.start) * 0.025f
-                snapshotFlow { valueAnimation.value }
-                    .filter { abs(it - valueAnimation.targetValue) < threshold }
-                    .first()
+                withTimeoutOrNull(500L) {
+                    snapshotFlow { valueAnimation.value }
+                        .filter { abs(it - valueAnimation.targetValue) < threshold }
+                        .first()
+                }
             }
             launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
             launch { scaleXAnimation.animateTo(initialScale, scaleXAnimationSpec) }
@@ -173,28 +188,38 @@ class AriesTabDragAnimation(
     }
 
     fun animateToValue(value: Float) {
-        animationScope.launch {
-            mutatorMutex.mutate {
-                press()
-                val target = value.coerceIn(valueRange)
-                launch {
-                    valueAnimation.animateTo(target, valueAnimationSpec) { updateVelocity() }
-                }
-                release()
+        animationScope.launch { animateToValueAwait(value) }
+    }
+
+    /**
+     * 等待动画结束的版本：供「松手后与 pager tween 同步追赶」使用，
+     * 调用方可在此期间保留本地位置驱动，动画结束后再交还 pager。
+     */
+    suspend fun animateToValueAwait(
+        value: Float,
+        animationSpec: AnimationSpec<Float> = valueAnimationSpec,
+    ) {
+        // 在 mutex 内 await 动画：提前释放会让后续 snapToValue 撞上还在飞行的弹簧。
+        mutatorMutex.mutate {
+            val target = value.coerceIn(valueRange)
+            // 程序吸附不再制造新的速度挤压；与参考一致，只让拖动残留速度衰减到 0。
+            if (velocity != 0f) {
+                animationScope.launch { velocityAnimation.animateTo(0f, velocityAnimationSpec) }
             }
+            valueAnimation.animateTo(target, animationSpec)
         }
     }
 
     /**
      * 外部（pager 滚动）驱动时使用：立即对齐到给定位置，不做弹簧动画。
-     *
-     * 改为 suspend 并由调用方在手势收集协程内直接 await：collectLatest 取消上一个
-     * 收集块时会连带取消还没落地的 snapTo，避免过期快照在松手后的弹簧飞行中途
-     * 落地、把胶囊掐死在半路（吸附失效的竞态来源之一）。
+     * 以 MutatePriority.UserInput 抢占 mutex——取消任何进行中的弹簧飞行，
+     * 保证逐帧贴进度不被旧动画覆盖。
      */
     suspend fun snapToValue(value: Float) {
-        valueAnimation.snapTo(value.coerceIn(valueRange))
-        velocityAnimation.snapTo(0f)
+        mutatorMutex.mutate(MutatePriority.UserInput) {
+            valueAnimation.snapTo(value.coerceIn(valueRange))
+            velocityAnimation.snapTo(0f)
+        }
     }
 
     private fun updateVelocity() {

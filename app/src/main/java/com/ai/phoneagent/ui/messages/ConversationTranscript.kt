@@ -8,15 +8,22 @@ import com.ai.phoneagent.core.designsystem.theme.glass.ariesLiquidInteractive
 import com.ai.phoneagent.core.designsystem.theme.glass.rememberAriesPressState
 import com.composables.icons.lucide.Search
 import com.composables.icons.lucide.ScanLine
+import com.kyant.shapes.RoundedRectangle
+import androidx.compose.ui.graphics.Shape
 import com.composables.icons.lucide.AlarmClock
 import com.composables.icons.lucide.TrainFront
 import com.composables.icons.lucide.ArrowUpRight
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.StartOffset
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -45,6 +52,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -89,6 +97,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -463,14 +472,23 @@ fun TranscriptEmptyHintCard(
         val promptIcons = listOf(Lucide.Search, Lucide.ScanLine, Lucide.AlarmClock, Lucide.TrainFront)
         prompts.forEachIndexed { index, prompt ->
             // Material A：主页首屏重点建议按钮，液态 Pill + 按压高光。
-            Surface(onClick = { onSuggestionClick(prompt) }, shape = MaterialTheme.shapes.small,
+            // 注意：不用 Surface(onClick)——其 ripple 追加在 clip 之后，会画出直角矩形状态层；
+            // 改为内部 clickable(indication = null) + 按压高光承担全部反馈。
+            Surface(shape = MaterialTheme.shapes.small,
                 color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.fillMaxWidth().ariesLiquidInteractive(
                     shape = MaterialTheme.shapes.small,
                     press = rememberAriesPressState(),
                     tier = AriesGlassTier.Pill,
                 )) {
-                Row(Modifier.heightIn(min = rowHeight).padding(horizontal = gap, vertical = small),
+                Row(Modifier.heightIn(min = rowHeight)
+                    .clip(MaterialTheme.shapes.small)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        role = Role.Button,
+                    ) { onSuggestionClick(prompt) }
+                    .padding(horizontal = gap, vertical = small),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(small)) {
                     Icon(promptIcons[index % promptIcons.size], null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_suggestion_icon)))
                     Text(prompt, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
@@ -497,6 +515,7 @@ private fun UserMessageBubble(
     val actionButtonSize = dimensionResource(R.dimen.m3t_message_action_button_size)
     val actionIconSize = dimensionResource(R.dimen.m3t_message_action_icon_size)
     val plain = plainMessagesEnabled()
+    val bubbleShape = chatBubbleShape()
     var isEditing by remember { mutableStateOf(false) }
     var editText by remember(item.body) { mutableStateOf(item.body) }
     var showActions by remember(item.id) { mutableStateOf(false) }
@@ -512,8 +531,17 @@ private fun UserMessageBubble(
         verticalArrangement = Arrangement.spacedBy(spacingSm),
     ) {
         Surface(
-            modifier = Modifier.widthIn(max = bubbleMaxWidth).then(if (plain) Modifier else Modifier.ariesGlass(MaterialTheme.shapes.large)),
-            shape = MaterialTheme.shapes.large,
+            // 聊天气泡：Bubble 档液态玻璃 + 圆角 token；用户气泡叠一层主题色轻染。
+            modifier = Modifier.widthIn(max = bubbleMaxWidth)
+                .then(
+                    if (plain) Modifier
+                    else Modifier.ariesLiquidGlass(
+                        shape = bubbleShape,
+                        tier = AriesGlassTier.Bubble,
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+                    )
+                ),
+            shape = bubbleShape,
             color = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onSurface,
         ) {
@@ -815,12 +843,13 @@ private fun StreamingAssistantBodyPreview(
 ) {
     val transcriptBlockGap = dimensionResource(R.dimen.m3t_transcript_block_gap)
     val plain = plainMessagesEnabled()
+    val bubbleShape = chatBubbleShape()
     Surface(
-        shape = MaterialTheme.shapes.large,
+        shape = bubbleShape,
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.heightIn(min = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_toolbar_button))
-            .then(if (plain) Modifier else Modifier.ariesGlass(MaterialTheme.shapes.large)),
+            .then(if (plain) Modifier else Modifier.ariesLiquidGlass(shape = bubbleShape, tier = AriesGlassTier.Bubble)),
     ) {
         if (showLoadingIndicator) {
             StreamingLoadingIndicator(
@@ -868,16 +897,41 @@ private fun StreamingAssistantBodyPreview(
     }
 }
 
+/** 聊天气泡共用圆角（token 化），用户/AI 正文/流式预览保持一致。 */
+@Composable
+private fun chatBubbleShape(): Shape =
+    RoundedRectangle(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_chat_bubble_radius))
+
 @Composable
 private fun StreamingLoadingIndicator(
     modifier: Modifier = Modifier,
 ) {
-    Text(
-        text = "...",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier,
-    )
+    // 三颗呼吸点：占位文案不再用 "..."，改成与语音胶囊一致的“仍在处理”信号。
+    val transition = rememberInfiniteTransition(label = "streamingDots")
+    Row(
+        modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)),
+    ) {
+        repeat(3) { index ->
+            val dotAlpha by transition.animateFloat(
+                initialValue = 0.25f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(600, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse,
+                    initialStartOffset = StartOffset(index * 200),
+                ),
+                label = "streamingDot$index",
+            )
+            Box(
+                Modifier
+                    .size(dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_sm))
+                    .graphicsLayer { alpha = dotAlpha }
+                    .background(MaterialTheme.colorScheme.onSurfaceVariant, CircleShape),
+            )
+        }
+    }
 }
 
 @Composable
@@ -921,9 +975,11 @@ private fun AssistantMessageBody(
 ) {
     val spacingXs = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.m3t_spacing_xs)
     val plain = plainMessagesEnabled()
+    val bubbleShape = chatBubbleShape()
     Surface(
-        modifier = if (plain) Modifier else Modifier.ariesGlass(MaterialTheme.shapes.large),
-        shape = MaterialTheme.shapes.large,
+        modifier = if (plain) Modifier
+        else Modifier.ariesLiquidGlass(shape = bubbleShape, tier = AriesGlassTier.Bubble),
+        shape = bubbleShape,
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {

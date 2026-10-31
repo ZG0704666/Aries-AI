@@ -110,6 +110,11 @@ fun InputBar(
         state is InputState.VoiceRecognizing || state is InputState.VoiceFinalizing
     val currentInputState by rememberUpdatedState(state)
     var pointerDown by remember { mutableStateOf(false) }
+    // 外部（权限回调/看门狗）把状态复位时，清掉可能悬挂的按下标记，
+    // 避免下一次长按被旧的 pointerDown 状态干扰。
+    LaunchedEffect(state) {
+        if (state is InputState.Idle || state is InputState.VoiceIdle) pointerDown = false
+    }
     val completedWhileHolding = pointerDown && state is InputState.Idle
     val isVoiceMode = state is InputState.VoiceIdle || showVoiceOverlay ||
         completedWhileHolding
@@ -239,10 +244,18 @@ fun InputBar(
             )
             val voiceRecording = voiceState == VoicePresentation.Listening ||
                 voiceState == VoicePresentation.Cancelling
+            // 语音会话全程同一胶囊：录音/识别/收尾共用录音底色，仅取消区变红；
+            // 停留在一个胶囊里完成“松手→识别→发送”，不再中途换成玻璃样式。
+            val voicePillActive = voiceRecording ||
+                voiceState == VoicePresentation.Recognizing ||
+                voiceState == VoicePresentation.Finalizing
             val pillColor by animateColorAsState(
                 targetValue = when (voiceState) {
                     VoicePresentation.Cancelling -> recordCancelColor
-                    VoicePresentation.Listening -> recordActiveColor
+                    VoicePresentation.Listening,
+                    VoicePresentation.Recognizing,
+                    VoicePresentation.Finalizing,
+                    -> recordActiveColor
                     else -> Color.Transparent
                 },
                 animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
@@ -273,7 +286,7 @@ fun InputBar(
                             },
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        // 状态大字：录音中提示“松手发送，上移取消”，进入取消区变红“松手取消”。
+                        // 状态大字：录音中提示“松手发送，上移取消”，进入取消区变红“上滑取消”。
                         // 悬于胶囊上方居中，仅录音进行中显示（参考松手发送/取消两态图）。
                         AnimatedVisibility(
                             visible = voiceRecording,
@@ -305,8 +318,8 @@ fun InputBar(
                                     glowColor = colorScheme.primary,
                                     radius = breathingGlowRadius,
                                 )
-                                // 录音中改用扁平状态底色；松手后回到液态玻璃（后续可扩展为玻璃录音态）
-                                .then(if (voiceRecording) Modifier else Modifier.ariesGlass(inputShape)),
+                                // 语音胶囊全程使用扁平状态底色；仅待命态用液态玻璃。
+                                .then(if (voicePillActive) Modifier else Modifier.ariesGlass(inputShape)),
                             shape = inputShape,
                             color = pillColor,
                         ) {
@@ -371,42 +384,78 @@ fun InputBar(
                                                     .testTag("voice_input_waveform"),
                                             )
                                         }
-                                        else -> Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(start = iconButtonSize, end = spacingXs)
-                                                .height(iconButtonSize),
-                                            horizontalArrangement = Arrangement.Center,
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            VoiceWaveform(
-                                                amplitude = if (presentation == VoicePresentation.Recognizing) {
-                                                    voiceAmplitude
-                                                } else {
-                                                    0f
-                                                },
-                                                solidColor = colorResource(R.color.m3t_voice_wave_active),
-                                                modifier = Modifier
-                                                    .height(dimensionResource(R.dimen.m3t_voice_wave_height))
-                                                    .testTag("voice_input_waveform"),
-                                            )
-                                            Spacer(Modifier.width(spacingXs))
-                                            Text(
-                                                text = stringResource(R.string.voice_status_recognizing),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
+                                        else -> {
+                                            // 识别/收尾：仍是同一状态胶囊。无转写时保持全宽白色波形；
+                                            // 有转写则左侧小波形 + 实时转写 + 呼吸点（“正在识别”文案删除）。
+                                            if (text.isBlank()) {
+                                                Box(
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentAlignment = Alignment.Center,
+                                                ) {
+                                                    VoiceWaveform(
+                                                        amplitude = voiceAmplitude,
+                                                        solidColor = Color.White,
+                                                        spread = true,
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .height(dimensionResource(R.dimen.m3t_voice_wave_height))
+                                                            .testTag("voice_input_waveform"),
+                                                    )
+                                                }
+                                            } else {
+                                                val liveDot = rememberInfiniteTransition(label = "voiceFinalizingDot")
+                                                val dotAlpha by liveDot.animateFloat(
+                                                    initialValue = 0.35f,
+                                                    targetValue = 1f,
+                                                    animationSpec = infiniteRepeatable(
+                                                        animation = tween(700, easing = FastOutSlowInEasing),
+                                                        repeatMode = RepeatMode.Reverse,
+                                                    ),
+                                                    label = "voiceFinalizingDotAlpha",
+                                                )
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(start = iconButtonSize, end = spacingXs)
+                                                        .height(iconButtonSize),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(spacingXs),
+                                                ) {
+                                                    VoiceWaveform(
+                                                        amplitude = voiceAmplitude,
+                                                        solidColor = Color.White,
+                                                        spread = false,
+                                                        barCount = 3,
+                                                        modifier = Modifier
+                                                            .height(dimensionResource(R.dimen.m3t_voice_wave_height))
+                                                            .testTag("voice_input_waveform"),
+                                                    )
+                                                    Text(
+                                                        text = text,
+                                                        modifier = Modifier.weight(1f),
+                                                        style = MaterialTheme.typography.labelLarge,
+                                                        color = Color.White,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                    )
+                                                    // 呼吸点：持续可见的“仍在处理”信号。
+                                                    Box(
+                                                        Modifier
+                                                            .size(spacingXs)
+                                                            .graphicsLayer { alpha = dotAlpha }
+                                                            .background(Color.White, CircleShape),
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
 
-                                // 长按录音过程中隐藏键盘切换按钮，避免浮在状态色胶囊上显得突兀；
-                                // 按住说话/松手识别等状态仍显示。
+                                // 长按录音/识别/收尾全程隐藏键盘切换按钮，避免浮在状态色胶囊上显得突兀；
+                                // 仅语音待命态显示。
                                 // （显式全限定调用：BoxScope 内存在外层 ColumnScope 隐式接收器，避免误解析到扩展重载）
                                 androidx.compose.animation.AnimatedVisibility(
-                                    visible = !voiceRecording,
+                                    visible = !voicePillActive,
                                     enter = fadeIn(tween(140)) +
                                         scaleIn(initialScale = 0.8f, animationSpec = tween(140)),
                                     exit = fadeOut(tween(110)) +
@@ -517,13 +566,15 @@ fun VoiceRecordButtonHandler(
     onOffsetChange: (Float, Boolean) -> Unit,
 ) {
     val density = LocalDensity.current
+    val gestureHeight = dimensionResource(R.dimen.m3t_input_bar_voice_height)
     val cancelEnterThreshold = with(density) {
-        -dimensionResource(R.dimen.m3t_input_bar_voice_cancel_enter_offset).toPx()
+        -gestureHeight.toPx() *
+            integerResource(R.integer.m3t_input_bar_voice_cancel_enter_height_percent) / 100f
     }
     val cancelExitThreshold = with(density) {
-        -dimensionResource(R.dimen.m3t_input_bar_voice_cancel_exit_offset).toPx()
+        -gestureHeight.toPx() *
+            integerResource(R.integer.m3t_input_bar_voice_cancel_exit_height_percent) / 100f
     }
-    val gestureHeight = dimensionResource(R.dimen.m3t_input_bar_voice_height)
     var totalDy by remember { mutableStateOf(0f) }
     var isLongPressConfirmed by remember { mutableStateOf(false) }
     var isCancelling by remember { mutableStateOf(false) }
@@ -582,7 +633,7 @@ fun VoiceRecordButtonHandler(
                                 !isCancelling && totalDy < cancelEnterThreshold -> true
                                 else -> isCancelling
                             }
-                        // 上滑进度归一化：150dp 阈值处为 1.0（仅供视觉/反馈层使用）
+                        // 上滑进度归一化：相对胶囊高度的进入阈值处为 1.0。
                         val progress = (-totalDy / cancelEnterPx).coerceIn(0f, 1f)
                         onOffsetChange(progress, isCancelling)
                     },

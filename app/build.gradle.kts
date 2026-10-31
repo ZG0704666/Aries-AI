@@ -131,7 +131,8 @@ android {
 
     packaging {
         jniLibs {
-            useLegacyPackaging = true
+            // 不压缩 .so：安装时直接 mmap，zipalign -P16 的 16KB 页对齐才会生效。
+            useLegacyPackaging = false
         }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

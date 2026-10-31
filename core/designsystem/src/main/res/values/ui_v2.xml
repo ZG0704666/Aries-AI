@@ -5,6 +5,9 @@
  <dimen name="aries_nav_height">64dp</dimen>
  <dimen name="aries_brand_size">62dp</dimen>
  <dimen name="aries_brand_icon">32dp</dimen>
+ <!-- 关于页品牌区：容器/图标略大于通用品牌尺寸，保证 adaptive 图标安全区下仍有足够视觉重量 -->
+ <dimen name="aries_about_brand_size">68dp</dimen>
+ <dimen name="aries_about_brand_icon">46dp</dimen>
  <dimen name="aries_suggestion_height">51dp</dimen>
  <color name="aries_glow_green">#1B3A35</color>
  <color name="aries_glow_purple">#54506F</color>
@@ -78,12 +81,15 @@
  <dimen name="aries_liquid_blur_pill">2dp</dimen>
  <dimen name="aries_liquid_blur_bar">8dp</dimen>
  <dimen name="aries_liquid_blur_card">16dp</dimen>
+ <dimen name="aries_liquid_blur_bubble">8dp</dimen>
  <dimen name="aries_liquid_lens_pill_height">12dp</dimen>
  <dimen name="aries_liquid_lens_pill_amount">24dp</dimen>
  <dimen name="aries_liquid_lens_bar_height">24dp</dimen>
  <dimen name="aries_liquid_lens_bar_amount">24dp</dimen>
  <dimen name="aries_liquid_lens_card_height">24dp</dimen>
  <dimen name="aries_liquid_lens_card_amount">48dp</dimen>
+ <dimen name="aries_liquid_lens_bubble_height">8dp</dimen>
+ <dimen name="aries_liquid_lens_bubble_amount">16dp</dimen>
  <dimen name="aries_liquid_press_grow">4dp</dimen>
  <dimen name="aries_liquid_bar_press_grow">16dp</dimen>
  <dimen name="aries_liquid_button_height">48dp</dimen>
@@ -96,8 +102,19 @@
  <color name="aries_liquid_card_dark">#59121212</color>
  <color name="aries_liquid_chip_light">#4DFFFFFF</color>
  <color name="aries_liquid_chip_dark">#40121212</color>
+ <color name="aries_liquid_bubble_light">#80FFFFFF</color>
+ <color name="aries_liquid_bubble_dark">#59121212</color>
+ <color name="aries_nav_surface_light">#66FAFAFA</color>
+ <color name="aries_nav_surface_dark">#66121212</color>
  <color name="aries_liquid_selected_light">#1A000000</color>
  <color name="aries_liquid_selected_dark">#1AFFFFFF</color>
+ <!-- 选中滑块静止态玻璃参数：轻模糊 + 低强度折射；文字/图标由上层绘制 -->
+ <dimen name="aries_liquid_selected_blur">4dp</dimen>
+ <dimen name="aries_liquid_selected_lens_height">10dp</dimen>
+ <dimen name="aries_liquid_selected_lens_amount">14dp</dimen>
+ <dimen name="aries_liquid_selected_inner_shadow_radius">8dp</dimen>
+ <!-- 聊天气泡圆角：用户/AI 正文气泡共用 -->
+ <dimen name="aries_chat_bubble_radius">20dp</dimen>
 
  <!-- 液态玻璃开关（LiquidToggle）：64×28 轨道 + 40×24 玻璃滑钮，与参考实现同尺寸 -->
  <dimen name="aries_liquid_switch_track_width">64dp</dimen>

@@ -102,6 +102,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.ai.phoneagent.speech.SherpaSpeechRecognizer
+import com.ai.phoneagent.speech.SherpaSpeechRegistry
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -139,6 +140,7 @@ import com.ai.phoneagent.core.automation.AutomationLogBridge
 import com.ai.phoneagent.core.prompt.MainChatPromptRepository
 import com.ai.phoneagent.ui.debug.DebugRecomposeLogger
 import com.ai.phoneagent.ui.inputbar.InputState
+import com.ai.phoneagent.ui.inputbar.VoiceSessionController
 import com.ai.phoneagent.ui.inputbar.InputBar
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -451,7 +453,10 @@ class MainActivity : AppCompatActivity() {
 
     private var activeConversation: Conversation? = null
 
+    // R-07：识别器实例由 SherpaSpeechRegistry 进程级共享，这里仅缓存 attach 返回值；
+    // sherpaRegistryAcquired 表示本 Activity 持有一票引用。
     private var sherpaSpeechRecognizer: SherpaSpeechRecognizer? = null
+    private var sherpaRegistryAcquired = false
 
     private var isListening = false
 
@@ -476,9 +481,13 @@ class MainActivity : AppCompatActivity() {
     private var voiceInputAnimJob: Job? = null
     private var savedInputText: String = ""
 
-    private var pendingSendAfterVoice: Boolean = false
+    // 语音会话状态机唯一事实来源（见 VoiceSessionController）。
+    private val voiceSession = VoiceSessionController()
+    private var voiceFinalizeWatchdogJob: Job? = null
     private var voiceSessionSeed: Long = 0L
-    @Volatile private var activeVoiceSessionId: Long = 0L
+
+    // R-10：final 后的自动标点任务；与发起会话的会话代数绑定，新会话 begin 前作废取消。
+    private var voiceAutoPunctJob: Job? = null
 
     private val CAMERA_PERMISSION_REQUEST_CODE = 1236
     private var pendingAutomationLogUiRefresh: Boolean = false
@@ -1540,8 +1549,21 @@ class MainActivity : AppCompatActivity() {
                 lifecycleScope.launch(Dispatchers.IO) {
                     runCatching {
                         val serviceId = "$packageName/${PhoneAgentAccessibilityService::class.java.name}"
+                        // 读-改-写：保留用户已开启的其他无障碍服务，仅追加本应用服务（去重）。
+                        val existing =
+                            ShizukuBridge.execResultArgs(
+                                listOf("settings", "get", "secure", "enabled_accessibility_services"),
+                            ).stdoutText().trim()
+                        val merged =
+                            if (existing.isBlank()) {
+                                serviceId
+                            } else {
+                                val alreadyEnabled =
+                                    existing.split(':').any { it.equals(serviceId, ignoreCase = true) }
+                                if (alreadyEnabled) existing else "$existing:$serviceId"
+                            }
                         ShizukuBridge.execResultArgs(
-                            listOf("settings", "put", "secure", "enabled_accessibility_services", serviceId),
+                            listOf("settings", "put", "secure", "enabled_accessibility_services", merged),
                         )
                         ShizukuBridge.execResultArgs(
                             listOf("settings", "put", "secure", "accessibility_enabled", "1"),
@@ -1945,19 +1967,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun beginVoiceSession(): Long {
+        // R-10：上一会话遗留的自动标点任务随新会话作废（其结果不再回写或触发发送）。
+        voiceAutoPunctJob?.cancel()
+        voiceAutoPunctJob = null
         val id = allocateVoiceSessionId()
         savedInputText = inputTextState.value
-        activeVoiceSessionId = id
+        voiceSession.begin(id)
         return id
     }
 
     private fun isVoiceSessionActive(sessionId: Long): Boolean {
-        return activeVoiceSessionId == sessionId && sessionId > 0L
+        return voiceSession.isActive(sessionId)
     }
 
     private fun clearVoiceSession(expectedSessionId: Long? = null) {
-        if (expectedSessionId == null || activeVoiceSessionId == expectedSessionId) {
-            activeVoiceSessionId = 0L
+        if (expectedSessionId == null || voiceSession.activeSessionId == expectedSessionId) {
+            voiceSession.clearSession(expectedSessionId)
+            voiceFinalizeWatchdogJob?.cancel()
+            voiceFinalizeWatchdogJob = null
         }
     }
 
@@ -2276,17 +2303,26 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (requestCode == 100 && pendingStartVoice) {
-            pendingStartVoice = false
+        if (requestCode == 100) {
             val granted =
                 grantResults.isNotEmpty() &&
                     grantResults[0] == PackageManager.PERMISSION_GRANTED
+            pendingStartVoice = false
+            // 权限弹窗会打断长按手势：把可能悬挂的会话/看门狗一起复位，
+            // 否则迟到的 onVoiceEnd 会把 UI 永久留在 VoiceFinalizing。
+            voiceFinalizeWatchdogJob?.cancel()
+            voiceFinalizeWatchdogJob = null
+            voiceSession.consumePendingSend()
+            if (inputTextState.value.startsWith("正在语音输入")) {
+                inputTextState.value = savedInputText
+            }
+            clearVoiceSession()
             if (granted) {
-                clearVoiceSession()
+                inputBarState.value = InputState.VoiceIdle
                 Toast.makeText(this, getString(R.string.voice_permission_granted_retry_hold), Toast.LENGTH_SHORT).show()
             } else {
                 PermissionSetupSupport.handleMicPermissionResult(this, grantResults)
-                clearVoiceSession()
+                inputBarState.value = InputState.Idle
             }
         }
 
@@ -2883,26 +2919,30 @@ class MainActivity : AppCompatActivity() {
             },
             onVoiceStart = {
                 vibrateLight()
-                val sessionId = beginVoiceSession()
+                // 权限已授予后才创建 session，避免权限弹窗期间留下悬挂会话。
                 ensureAudioPermission {
-                    if (!isVoiceSessionActive(sessionId)) return@ensureAudioPermission
+                    val sessionId = beginVoiceSession()
                     inputBarState.value = InputState.VoiceRecording()
                     startLocalVoiceInput(sessionId)
                 }
             },
             onVoiceEnd = {
                 vibrateLight()
-                val sessionId = activeVoiceSessionId
-                inputBarState.value = InputState.VoiceFinalizing
-                // 松手=发送：识别完成后自动标点并直接发送（onFinalResult 中消费）
-                pendingSendAfterVoice = true
-                stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = false)
+                val sessionId = voiceSession.activeSessionId
+                // 无论是否收到过 partial（录音态或识别态）都进入收尾；
+                // 权限弹窗关闭后迟到的抬手事件（无活动会话/状态已复位）不生效。
+                if (voiceSession.onVoiceEnd(sessionId)) {
+                    inputBarState.value = InputState.VoiceFinalizing
+                    // 松手=发送：识别完成后自动标点并直接发送（onFinalResult 中消费）
+                    startVoiceFinalizeWatchdog(sessionId)
+                    stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = false)
+                }
             },
             onVoiceCancel = {
                 vibrateLight()
-                val sessionId = activeVoiceSessionId
+                val sessionId = voiceSession.activeSessionId
                 inputTextState.value = savedInputText
-                pendingSendAfterVoice = false
+                voiceSession.onVoiceCancel(sessionId)
                 inputBarState.value = InputState.Idle
                 stopLocalVoiceInput(
                     triggerRecognizerStop = false,
@@ -2940,19 +2980,20 @@ class MainActivity : AppCompatActivity() {
                     if (inputTextState.value.startsWith("正在语音输入")) {
                         inputTextState.value = savedInputText
                     }
-                    val sessionId = activeVoiceSessionId
+                    val sessionId = voiceSession.activeSessionId
                     stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
                 }
                 inputBarState.value = if (isVoice) InputState.VoiceIdle else InputState.Idle
                 if (isVoice) {
                     hideKeyboard()
+                    // 进入语音模式即预请求权限，避免长按过程中才弹窗打断手势。
+                    if (!hasAudioPermission()) requestAudioPermission()
                 }
             },
             voiceAmplitude = amplitude,
             onUpdateCancelState = { _, isCancelling ->
-                val current = inputBarState.value
-                if (current is InputState.VoiceRecording && current.isCancelling != isCancelling) {
-                    inputBarState.value = current.copy(isCancelling = isCancelling)
+                if (voiceSession.onUpdateCancelState(isCancelling)) {
+                    inputBarState.value = voiceSession.state
                     // 进入取消阈值：中震提示；退出：轻震
                     if (isCancelling) vibrateMedium() else vibrateLight()
                 }
@@ -3788,34 +3829,34 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initSherpaModel() {
-        sherpaSpeechRecognizer = SherpaSpeechRecognizer(this)
+        if (sherpaRegistryAcquired) return
+        sherpaRegistryAcquired = true
+        // R-07：共享进程级识别器所有者，不再自建实例（避免双份 native 模型内存）。
+        val recognizer = SherpaSpeechRegistry.attach(this)
+        sherpaSpeechRecognizer = recognizer
         lifecycleScope.launch {
-            val success = sherpaSpeechRecognizer?.initialize() == true
+            // initialize() 幂等：即便 ViewModel 侧已初始化过，也会立即返回成功。
+            val success = recognizer.initialize() == true
             if (success) {
                 offlineModelReady = true
                 updateStatusText()
             } else {
                 // 带上具体失败原因（native 库加载失败/模型资产缺失等），便于真机现场定位
-                val reason = sherpaSpeechRecognizer?.lastInitializationError.orEmpty()
+                val reason = recognizer.lastInitializationError.orEmpty()
                 val message = if (reason.isBlank()) "语音模型初始化失败" else "语音模型初始化失败：$reason"
                 Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
             }
         }
     }
 
-    /** 启动"正在语音输入..."的点动画 */
+    /**
+     * 录音等待首条 partial 的占位：胶囊以全宽白色波形提示（无文字态），
+     * 不再往输入框写“正在语音输入...”点动画文案。
+     */
     private fun startVoiceInputAnimation() {
         voiceInputAnimJob?.cancel()
         savedInputText = inputTextState.value
-        voiceInputAnimJob = lifecycleScope.launch {
-            var dotCount = 1
-            while (true) {
-                val dots = ".".repeat(dotCount)
-                inputTextState.value = "正在语音输入$dots"
-                dotCount = if (dotCount >= 3) 1 else dotCount + 1
-                delay(400)
-            }
-        }
+        voiceInputAnimJob = null
     }
 
     /** 停止"正在语音输入..."动画 */
@@ -3824,7 +3865,20 @@ class MainActivity : AppCompatActivity() {
         voiceInputAnimJob = null
     }
 
-    private fun applyAutoPunctuationIfNeeded(text: String, onDone: (String) -> Unit) {
+    /**
+     * final 之后触发自动标点（R-10：让最终产出版本绑定语音会话）。
+     *
+     * 以前回调 task 是“脱离会话”的独立生命周期，其结果可能在会话已完成清理后仍被发送。
+     * 现在改为：
+     * - [epoch] 为发起本次标点的语音会话代数（voiceSessionSeed）；
+     * - 新语音会话 beginVoiceSession() 时显式取消旧任务（voiceAutoPunctJob）；
+     * - onFinalResult 侧回调内再按 epoch 兜底，旧代数结果一律作废。
+     */
+    private fun applyAutoPunctuationIfNeeded(
+        text: String,
+        epoch: Long,
+        onDone: (String) -> Unit,
+    ) {
         val raw = text.trim()
         if (raw.isBlank()) {
             onDone(text)
@@ -3849,7 +3903,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        lifecycleScope.launch {
+        voiceAutoPunctJob?.cancel()
+        voiceAutoPunctJob = lifecycleScope.launch {
             val requestApiKey =
                 if (localModeEnabled) {
                     ""
@@ -3944,9 +3999,14 @@ class MainActivity : AppCompatActivity() {
             override fun onPartialResult(text: String) {
                 runOnUiThread {
                     if (!isVoiceSessionActive(sessionId)) return@runOnUiThread
-                    // 有识别结果时，停止动画并显示实际文字
+                    // 有识别结果时，停止动画并显示实际文字。
                     stopVoiceInputAnimation()
-                    inputBarState.value = InputState.VoiceRecognizing
+                    // 只在仍在录音时把状态推进到 VoiceRecognizing：
+                    // 松手后已处于 VoiceFinalizing，partial 结果不得把状态盖回去，
+                    // 否则胶囊会在“收尾”与“识别”间反复横跳。
+                    if (voiceSession.onPartialResult(sessionId)) {
+                        inputBarState.value = voiceSession.state
+                    }
                     val txt = (voicePrefix + text).trimStart()
                     inputTextState.value = txt
                 }
@@ -3976,16 +4036,12 @@ class MainActivity : AppCompatActivity() {
                     val rawText = if (txt.isBlank()) savedInputText else txt
                     inputTextState.value = rawText
 
-                    val shouldSend = pendingSendAfterVoice
-                    pendingSendAfterVoice = false
+                    val shouldSend = voiceSession.consumePendingSend()
                     
                     // 仅当当前确实处于语音相关状态时才重置为 Idle
                     // 避免如果在识别过程中已经切换到了其他模式，被这里强行覆盖
-                    val currentState = inputBarState.value
-                    if (currentState is InputState.VoiceRecording ||
-                        currentState is InputState.VoiceRecognizing ||
-                        currentState is InputState.VoiceFinalizing
-                    ) {
+                    if (voiceSession.shouldResetToIdle(sessionId)) {
+                        voiceSession.resetToIdle()
                         inputBarState.value = InputState.Idle
                     }
                     
@@ -3995,11 +4051,20 @@ class MainActivity : AppCompatActivity() {
                         clearSession = true,
                     )
 
-                    applyAutoPunctuationIfNeeded(rawText) { punctuated ->
+                    // R-10：自动标点与发送绑定本次语音会话代数，旧代数结果一律作废。
+                    val punctEpoch = voiceSessionSeed
+                    applyAutoPunctuationIfNeeded(rawText, punctEpoch) { punctuated ->
+                        if (voiceSessionSeed != punctEpoch) {
+                            return@applyAutoPunctuationIfNeeded
+                        }
                         if (inputTextState.value == rawText) {
                             inputTextState.value = punctuated
                         }
                         if (shouldSend) {
+                            // 用户在标点请求往返期间已编辑输入框：放弃自动发送，避免覆盖用户编辑。
+                            if (inputTextState.value != rawText) {
+                                return@applyAutoPunctuationIfNeeded
+                            }
                             val toSend = punctuated.trim()
                             if (toSend.isBlank()) {
                                 Toast.makeText(this@MainActivity, "请输入内容", Toast.LENGTH_SHORT).show()
@@ -4019,14 +4084,11 @@ class MainActivity : AppCompatActivity() {
                     // 恢复原来的文字
                     inputTextState.value = savedInputText
                     Toast.makeText(this@MainActivity, "识别失败: ${exception.message}", Toast.LENGTH_SHORT).show()
-                    pendingSendAfterVoice = false
-                    
+                    voiceSession.consumePendingSend()
+
                     // 同上，检查状态防止覆盖
-                    val currentState = inputBarState.value
-                    if (currentState is InputState.VoiceRecording ||
-                        currentState is InputState.VoiceRecognizing ||
-                        currentState is InputState.VoiceFinalizing
-                    ) {
+                    if (voiceSession.shouldResetToIdle(sessionId)) {
+                        voiceSession.resetToIdle()
                         inputBarState.value = InputState.Idle
                     }
                     
@@ -4045,14 +4107,11 @@ class MainActivity : AppCompatActivity() {
                     // 恢复原来的文字
                     inputTextState.value = savedInputText
                     Toast.makeText(this@MainActivity, "语音识别超时", Toast.LENGTH_SHORT).show()
-                    pendingSendAfterVoice = false
-                    
+                    voiceSession.consumePendingSend()
+
                     // 同上，检查状态防止覆盖
-                    val currentState = inputBarState.value
-                    if (currentState is InputState.VoiceRecording ||
-                        currentState is InputState.VoiceRecognizing ||
-                        currentState is InputState.VoiceFinalizing
-                    ) {
+                    if (voiceSession.shouldResetToIdle(sessionId)) {
+                        voiceSession.resetToIdle()
                         inputBarState.value = InputState.Idle
                     }
                     
@@ -4087,7 +4146,7 @@ class MainActivity : AppCompatActivity() {
                 recognizer.stopListening()
             } else {
                 recognizer?.cancel()
-                pendingSendAfterVoice = false
+                voiceSession.consumePendingSend()
             }
         } else {
             recognizer?.cancel()
@@ -4106,22 +4165,49 @@ class MainActivity : AppCompatActivity() {
         // 动画由 Compose UI 基于状态自行处理
     }
 
+    private fun hasAudioPermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private fun requestAudioPermission() {
+        pendingStartVoice = false
+        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
+    }
+
     private fun ensureAudioPermission(onGranted: () -> Unit) {
-
-        val granted =
-                ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
-                        PackageManager.PERMISSION_GRANTED
-
-        if (granted) {
-
+        if (hasAudioPermission()) {
             pendingStartVoice = false
-
             onGranted()
         } else {
-
             pendingStartVoice = true
-
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
+        }
+    }
+
+    /** 收尾看门狗：识别链路异常时不回调 onFinal/onError 时兜底复位，避免永久卡在蓝色波形。 */
+    private fun startVoiceFinalizeWatchdog(sessionId: Long) {
+        voiceFinalizeWatchdogJob?.cancel()
+        voiceFinalizeWatchdogJob = lifecycleScope.launch {
+            delay(8_000L)
+            if (!isVoiceSessionActive(sessionId)) return@launch
+            val currentState = inputBarState.value
+            if (currentState is InputState.VoiceFinalizing || currentState is InputState.VoiceRecognizing) {
+                voiceFinalizeWatchdogJob = null
+                stopVoiceInputAnimation()
+                inputTextState.value = savedInputText
+                voiceSession.resetToIdle()
+                inputBarState.value = InputState.Idle
+                Toast.makeText(
+                    this@MainActivity,
+                    getString(R.string.voice_finalize_timeout_cancelled),
+                    Toast.LENGTH_SHORT,
+                ).show()
+                stopLocalVoiceInput(
+                    triggerRecognizerStop = false,
+                    expectedSessionId = sessionId,
+                    clearSession = true,
+                )
+            }
         }
     }
 
@@ -4156,303 +4242,6 @@ class MainActivity : AppCompatActivity() {
             }
     }
 
-    private fun attachAnimatedRing(target: View, strokeDp: Float) {
-        val strokePx = strokeDp * target.resources.displayMetrics.density
-        val blue = ContextCompat.getColor(this, com.ai.phoneagent.core.designsystem.R.color.m3t_primary)
-        val cyan = ContextCompat.getColor(this, com.ai.phoneagent.core.designsystem.R.color.m3t_primary_container)
-        val pink = ContextCompat.getColor(this, com.ai.phoneagent.core.designsystem.R.color.m3t_tertiary)
-        val maxHalf = (maxOf(strokePx * 1.6f, strokePx)) / 2f
-
-        val glowPaint =
-                Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    isDither = true
-                    style = Paint.Style.STROKE
-                    strokeWidth = strokePx * 1.8f
-                    strokeCap = Paint.Cap.ROUND
-                    strokeJoin = Paint.Join.ROUND
-                    alpha = 180
-                }
-        val corePaint =
-                Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    isDither = true
-                    style = Paint.Style.STROKE
-                    strokeWidth = strokePx
-                    strokeCap = Paint.Cap.ROUND
-                    strokeJoin = Paint.Join.ROUND
-                }
-        var angle = 0f
-        var shader: SweepGradient? = null
-        var shaderCx = Float.NaN
-        var shaderCy = Float.NaN
-        val shaderMatrix = Matrix()
-        val drawable =
-                object : Drawable() {
-                    override fun draw(canvas: Canvas) {
-                        val w = bounds.width().toFloat()
-                        val h = bounds.height().toFloat()
-                        if (w <= 0f || h <= 0f) return
-                        val cx = bounds.left + w / 2f
-                        val cy = bounds.top + h / 2f
-                        if (shader == null || cx != shaderCx || cy != shaderCy) {
-                            shader =
-                                    SweepGradient(cx, cy, intArrayOf(Color.argb(255, Color.red(blue), Color.green(blue), Color.blue(blue)), Color.argb(240, Color.red(cyan), Color.green(cyan), Color.blue(cyan)), Color.argb(220, Color.red(blue), Color.green(blue), Color.blue(blue)), Color.argb(220, Color.red(pink), Color.green(pink), Color.blue(pink)), Color.argb(150, Color.red(pink), Color.green(pink), Color.blue(pink)), Color.argb(60, Color.red(pink), Color.green(pink), Color.blue(pink)), Color.argb(0, Color.red(blue), Color.green(blue), Color.blue(blue)), Color.argb(0, Color.red(blue), Color.green(blue), Color.blue(blue))), floatArrayOf(0f, 0.08f, 0.14f, 0.22f, 0.30f, 0.40f, 0.48f, 1f))
-                            shaderCx = cx
-                            shaderCy = cy
-                        }
-                        shader?.let {
-                            shaderMatrix.setRotate(angle, cx, cy)
-                            it.setLocalMatrix(shaderMatrix)
-                            // glowPaint.shader = it
-                            // corePaint.shader = it
-                        }
-                        // val oval = RectF(cx - r, cy - r, cx + r, cy + r)
-                        // canvas.drawOval(oval, glowPaint)
-                        // canvas.drawOval(oval, corePaint)
-                    }
-                    override fun setAlpha(alpha: Int) {
-                        glowPaint.alpha = (alpha * 0.55f).toInt().coerceIn(0, 255)
-                        corePaint.alpha = alpha
-                    }
-                    override fun setColorFilter(colorFilter: ColorFilter?) {
-                        glowPaint.colorFilter = colorFilter
-                        corePaint.colorFilter = colorFilter
-                    }
-                    override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
-                }
-        target.post {
-            drawable.setBounds(0, 0, target.width, target.height)
-            target.overlay.add(drawable)
-        }
-                        var fastAnimator: ValueAnimator? = null
-        var slowAnimator: ValueAnimator? = null
-        var startFast: (() -> Unit)? = null
-        var startSlow: (() -> Unit)? = null
-
-        startSlow = {
-            val start = angle
-            slowAnimator = ValueAnimator.ofFloat(0f, 1080f).apply {
-                duration = 5200L * 3
-                interpolator = LinearInterpolator()
-                addUpdateListener {
-                    if (!isDrawerMoving) {
-                        angle = start + (it.animatedValue as Float)
-                        drawable.invalidateSelf()
-                    }
-                }
-                addListener(object : android.animation.AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: android.animation.Animator) {
-                        if (target.isAttachedToWindow) {
-                            angle = start + 1080f
-                            startFast?.invoke()
-                        }
-                    }
-                })
-                start()
-            }
-        }
-
-        startFast = {
-            val start = angle
-            fastAnimator = ValueAnimator.ofFloat(0f, 720f).apply {
-                duration = 360
-                interpolator = LinearInterpolator()
-                addUpdateListener {
-                    if (!isDrawerMoving) {
-                        angle = start + (it.animatedValue as Float)
-                        drawable.invalidateSelf()
-                    }
-                }
-                addListener(object : android.animation.AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: android.animation.Animator) {
-                        if (target.isAttachedToWindow) {
-                            angle = start + 720f
-                            startSlow?.invoke()
-                        }
-                    }
-                })
-                start()
-            }
-        }
-
-        target.post { startFast?.invoke() }
-
-        target.addOnAttachStateChangeListener(
-                object : View.OnAttachStateChangeListener {
-                    override fun onViewAttachedToWindow(v: View) {}
-
-                    override fun onViewDetachedFromWindow(v: View) {
-                                                fastAnimator?.cancel()
-                        slowAnimator?.cancel()
-                        target.overlay.remove(drawable)
-                    }
-                }
-        )
-    }
-    private fun attachAnimatedBorderRing(target: View, strokeDp: Float, cornerDp: Float) {
-        val density = target.resources.displayMetrics.density
-        val strokePx = strokeDp * density
-        val cornerPx = cornerDp * density
-        val overlayHostView = (target.parent as? View) ?: target
-        val overlayHostGroup = target.parent as? ViewGroup
-        val blue = ContextCompat.getColor(this, com.ai.phoneagent.core.designsystem.R.color.m3t_primary)
-        val cyan = ContextCompat.getColor(this, com.ai.phoneagent.core.designsystem.R.color.m3t_primary_container)
-        val pink = ContextCompat.getColor(this, com.ai.phoneagent.core.designsystem.R.color.m3t_tertiary)
-        val maxHalf = (maxOf(strokePx * 1.6f, strokePx)) / 2f
-
-        val glowPaint =
-                Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    isDither = true
-                    style = Paint.Style.STROKE
-                    strokeWidth = strokePx * 1.8f
-                    strokeCap = Paint.Cap.ROUND
-                    strokeJoin = Paint.Join.ROUND
-                    alpha = 180
-                }
-        val corePaint =
-                Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    isDither = true
-                    style = Paint.Style.STROKE
-                    strokeWidth = strokePx
-                    strokeCap = Paint.Cap.ROUND
-                    strokeJoin = Paint.Join.ROUND
-                }
-        var angle = 0f
-        var shader: SweepGradient? = null
-        var shaderCx = Float.NaN
-        var shaderCy = Float.NaN
-        val shaderMatrix = Matrix()
-        val drawable =
-                object : Drawable() {
-                    override fun draw(canvas: Canvas) {
-                        val w = bounds.width().toFloat()
-                        val h = bounds.height().toFloat()
-                        if (w <= 0f || h <= 0f) return
-                        val cx = bounds.left + w / 2f
-                        val cy = bounds.top + h / 2f
-                        if (shader == null || cx != shaderCx || cy != shaderCy) {
-                            shader =
-                                    SweepGradient(cx, cy, intArrayOf(Color.argb(255, Color.red(blue), Color.green(blue), Color.blue(blue)), Color.argb(240, Color.red(cyan), Color.green(cyan), Color.blue(cyan)), Color.argb(220, Color.red(blue), Color.green(blue), Color.blue(blue)), Color.argb(220, Color.red(pink), Color.green(pink), Color.blue(pink)), Color.argb(150, Color.red(pink), Color.green(pink), Color.blue(pink)), Color.argb(60, Color.red(pink), Color.green(pink), Color.blue(pink)), Color.argb(0, Color.red(blue), Color.green(blue), Color.blue(blue)), Color.argb(0, Color.red(blue), Color.green(blue), Color.blue(blue))), floatArrayOf(0f, 0.08f, 0.14f, 0.22f, 0.30f, 0.40f, 0.48f, 1f))
-                            shaderCx = cx
-                            shaderCy = cy
-                        }
-                        shader?.let {
-                            shaderMatrix.setRotate(angle, cx, cy)
-                            it.setLocalMatrix(shaderMatrix)
-                            // glowPaint.shader = it
-                            // corePaint.shader = it
-                        }
-                        // val oval = RectF(cx - r, cy - r, cx + r, cy + r)
-                        // canvas.drawOval(oval, glowPaint)
-                        // canvas.drawOval(oval, corePaint)
-                    }
-                    override fun setAlpha(alpha: Int) {
-                        glowPaint.alpha = (alpha * 0.55f).toInt().coerceIn(0, 255)
-                        corePaint.alpha = alpha
-                    }
-                    override fun setColorFilter(colorFilter: ColorFilter?) {
-                        glowPaint.colorFilter = colorFilter
-                        corePaint.colorFilter = colorFilter
-                    }
-                    override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
-                }
-
-        fun updateBounds() {
-            if (target.width <= 0 || target.height <= 0) return
-            if (overlayHostGroup != null) {
-                val rect = Rect()
-                target.getDrawingRect(rect)
-                overlayHostGroup.offsetDescendantRectToMyCoords(target, rect)
-                drawable.setBounds(rect)
-            } else {
-                val locTarget = IntArray(2)
-                val locHost = IntArray(2)
-                target.getLocationInWindow(locTarget)
-                overlayHostView.getLocationInWindow(locHost)
-                val l = locTarget[0] - locHost[0]
-                val t = locTarget[1] - locHost[1]
-                drawable.setBounds(l, t, l + target.width, t + target.height)
-            }
-        }
-
-        target.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            updateBounds()
-            drawable.invalidateSelf()
-        }
-        overlayHostView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            updateBounds()
-            drawable.invalidateSelf()
-        }
-
-        target.post {
-            updateBounds()
-            overlayHostView.overlay.add(drawable)
-        }
-
-                        var fastAnimator: ValueAnimator? = null
-        var slowAnimator: ValueAnimator? = null
-        var startFast: (() -> Unit)? = null
-        var startSlow: (() -> Unit)? = null
-
-        startSlow = {
-            val start = angle
-            slowAnimator = ValueAnimator.ofFloat(0f, 1080f).apply {
-                duration = 5200L * 3
-                interpolator = LinearInterpolator()
-                addUpdateListener {
-                    if (!isDrawerMoving) {
-                        angle = start + (it.animatedValue as Float)
-                        drawable.invalidateSelf()
-                    }
-                }
-                addListener(object : android.animation.AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: android.animation.Animator) {
-                        if (target.isAttachedToWindow) {
-                            angle = start + 1080f
-                            startFast?.invoke()
-                        }
-                    }
-                })
-                start()
-            }
-        }
-
-        startFast = {
-            val start = angle
-            fastAnimator = ValueAnimator.ofFloat(0f, 720f).apply {
-                duration = 360
-                interpolator = LinearInterpolator()
-                addUpdateListener {
-                    if (!isDrawerMoving) {
-                        angle = start + (it.animatedValue as Float)
-                        drawable.invalidateSelf()
-                    }
-                }
-                addListener(object : android.animation.AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: android.animation.Animator) {
-                        if (target.isAttachedToWindow) {
-                            angle = start + 720f
-                            startSlow?.invoke()
-                        }
-                    }
-                })
-                start()
-            }
-        }
-
-        target.post { startFast?.invoke() }
-
-        target.addOnAttachStateChangeListener(
-                object : View.OnAttachStateChangeListener {
-                    override fun onViewAttachedToWindow(v: View) {}
-
-                    override fun onViewDetachedFromWindow(v: View) {
-                                                fastAnimator?.cancel()
-                        slowAnimator?.cancel()
-                        overlayHostView.overlay.remove(drawable)
-                    }
-                }
-        )
-    }
     override fun onStop() {
 
         super.onStop()
@@ -4473,7 +4262,12 @@ class MainActivity : AppCompatActivity() {
         stopLocalVoiceInput(clearSession = true)
         clearAutomationTerminatePending()
 
-        sherpaSpeechRecognizer?.shutdown()
+        if (sherpaRegistryAcquired) {
+            // R-07：归还一票引用；若 ViewModel 或新实例仍持有引用则共享实例继续存活，
+            // 引用计数归零时由注册表确定性 close native 资源。
+            SherpaSpeechRegistry.release()
+            sherpaRegistryAcquired = false
+        }
 
         sherpaSpeechRecognizer = null
     }

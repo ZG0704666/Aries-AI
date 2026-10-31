@@ -31,6 +31,7 @@ import kotlin.math.abs
  * @param solidColor 非空时整条波形使用指定颜色；默认使用浅蓝录音色。
  * @param spread 为 true 时声波柱均匀铺满整个宽度（录音胶囊内的白色全宽波形）；
  *               为 false 时保持紧凑排布（玻璃胶囊内的局部波形）。
+ * @param barCount 声波柱数量；默认随 spread 取值（36/18），可覆盖（如识别态 3 根小波形）。
  */
 @Composable
 fun VoiceWaveform(
@@ -38,8 +39,8 @@ fun VoiceWaveform(
     modifier: Modifier = Modifier,
     solidColor: Color? = null,
     spread: Boolean = false,
+    barCount: Int = if (spread) 36 else 18,
 ) {
-    val barCount = if (spread) 36 else 18
     val barWidth = dimensionResource(R.dimen.m3t_voice_wave_bar_width)
     val barSpacing = dimensionResource(R.dimen.m3t_voice_wave_bar_width)
     val maxHeight = dimensionResource(R.dimen.m3t_voice_wave_bar_max_height)
