@@ -166,6 +166,17 @@ class SherpaSpeechRecognizer(private val context: Context) {
          */
         private const val MAX_RECORDING_SECONDS = 60
 
+        /**
+         * 松手后的尾音捕获时长（ms）。
+         *
+         * 用户松手动作与最后的语音常常重叠：若松手立即停止采集，
+         * AudioRecord 缓冲内未读取的尾部音频会被丢弃，叠加流式模型的
+         * 未满块尾段，表现为“最后 1~2 秒语音没有被转成文本”。
+         * 停止采集请求只置标志，会话线程继续录音 [TAIL_CAPTURE_MS] 后才真正
+         * 停止采集，保证尾部语音完整进入解码。
+         */
+        private const val TAIL_CAPTURE_MS = 600L
+
         /** 振幅回调最大派发频率（约 30Hz，R-09/8.3 P2 项）。 */
         private const val AMPLITUDE_DISPATCH_INTERVAL_MS = 33L
     }
@@ -238,8 +249,14 @@ class SherpaSpeechRecognizer(private val context: Context) {
      */
     suspend fun initialize(): Boolean {
         if (isInitialized) return true
-        // 已有初始化在跑时不重复排队；由正在进行的调用负责上报结果
-        if (!initializing.compareAndSet(false, true)) return false
+        // 已有初始化在跑时不得快速返回 false：调用方（MainActivity/AutomationViewModel）
+        // 会把 false 当作“模型初始化失败”弹提示，而实际初始化仍在正常进行——
+        // 这正是“语音可用却报初始化失败”误报的根源。改为排队等待在途调用完成后，
+        // 如实返回其结果（成功则立即短路，失败则如实失败）。
+        if (!initializing.compareAndSet(false, true)) {
+            initializationMutex.withLock { }
+            return isInitialized
+        }
         try {
             return initializationMutex.withLock {
                 if (isInitialized) return@withLock true
@@ -645,8 +662,12 @@ class SherpaSpeechRecognizer(private val context: Context) {
         }
 
         fun requestStop() {
+            // 只置标志，不立即 stop() AudioRecord：
+            // 提前 stop 会丢弃缓冲内尚未读取的尾部音频（尾音丢失成因之一）；
+            // 正常停止路径由会话任务完成尾音捕获（TAIL_CAPTURE_MS）后自行 stop。
+            // 录音期间 read 不会被长时间阻塞（麦克风持续产生数据），
+            // 循环头检查最多延迟一个读取周期（数十毫秒）感知本标志。
             stopRequested = true
-            unblockRead()
         }
 
         fun requestCancel() {
@@ -761,6 +782,8 @@ class SherpaSpeechRecognizer(private val context: Context) {
             }
 
             // R-02：尾音排空，与本会话采样同线程串行执行；
+            // 尾音捕获（runRecordingLoop 末尾）已把尾部语音喂给模型后到达此处，
+            // 此时 stop() 只会丢弃其后的静音帧，不会丢用户语音。
             // 若排空期间被取消或换代，同样禁止产出 final。
             runCatching {
                 if (ar.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
@@ -910,7 +933,36 @@ class SherpaSpeechRecognizer(private val context: Context) {
                         TAG,
                         "Recording reached max duration (${MAX_RECORDING_SECONDS}s); finalizing session"
                 )
-                return null
+                break
+            }
+        }
+
+        // 尾音捕获（修复“松手后最后 1~2 秒语音丢失”）：此时采集仍在进行，
+        // 继续 read TAIL_CAPTURE_MS 并喂给模型；随后由 runSession 统一
+        // 停止采集 → inputFinished → 排空解码 → 恰好一次 final。
+        // 取消或被新会话替换时跳过（不产出 final）。
+        if (!session.cancelRequested && sessionGeneration.get() == session.generation) {
+            val tailDeadline = SystemClock.elapsedRealtime() + TAIL_CAPTURE_MS
+            while (sessionGeneration.get() == session.generation &&
+                            !session.cancelRequested &&
+                            SystemClock.elapsedRealtime() < tailDeadline
+            ) {
+                val tailRet = audioRecord.read(audioBuffer, 0, audioBuffer.size)
+                if (tailRet <= 0) {
+                    runCatching { Thread.sleep(10) }
+                    continue
+                }
+                recordedShorts += tailRet
+                val tailSamples = FloatArray(tailRet) { i -> audioBuffer[i] / 32768.0f }
+                stream.acceptWaveform(tailSamples, SAMPLE_RATE)
+                while (recognizer.isReady(stream)) {
+                    recognizer.decode(stream)
+                }
+                val tailText = recognizer.getResult(stream).text
+                if (tailText.isNotBlank() && lastText != tailText) {
+                    lastText = tailText
+                    dispatch(session) { it.onPartialResult(tailText) }
+                }
             }
         }
 
