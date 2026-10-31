@@ -55,7 +55,7 @@ flowchart TD
     subgraph ExternalLayer["☁️ 外部服务层"]
         AutoGlmClient[AutoGlmClient API 客户端]
         LLM[大语言模型 GPT-4V/GLM-4V 等]
-        SpeechEngine[Sherpa-ncnn 本地语音识别]
+        SpeechEngine[Sherpa-onnx 本地语音识别]
     end
 
     UserLayer --> AutomationCore

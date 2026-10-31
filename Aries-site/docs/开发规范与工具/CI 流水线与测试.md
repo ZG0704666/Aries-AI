@@ -11,7 +11,7 @@ flowchart TD
     Checkout["递归检出子模块"] --> Setup["JDK 17 / Gradle / Android SDK"]
     Setup --> SDK["API 36 / Build Tools 36.0.0 / NDK / CMake"]
     SDK --> Build["assembleDebug"]
-    Build --> Native["检查 APK 中 Sherpa JNI 库"]
+    Build --> Native["检查 APK 中 Sherpa-onnx JNI 库"]
     Native --> Test["testDebugUnitTest"]
     Test --> Lint["lintDebug"]
     Lint --> APK["成功时上传 app-debug"]
@@ -20,7 +20,7 @@ flowchart TD
     Lint -.-> Reports
 ```
 
-安装的 NDK 为 `28.2.13676358`，CMake 为 `3.22.1`。Gradle 执行使用 `--no-daemon --stacktrace`。native 检查打开构建 APK，验证 `lib/arm64-v8a/libsherpa-ncnn-jni.so` 存在且非空；它不证明所有设备上的语音识别运行正常。
+安装的 NDK 为 `28.2.13676358`，CMake 为 `3.22.1`。Gradle 执行使用 `--no-daemon --stacktrace`。native 检查打开构建 APK，验证 `lib/arm64-v8a/libsherpa-onnx-jni.so` 与 `libonnxruntime.so` 存在且非空；它不证明所有设备上的语音识别运行正常。
 
 `android-reports` 收集报告、测试结果和日志，使用 `always()` 条件，保留 7 天；APK 仅在成功时上传，同样保留 7 天。不能把上传构建产物等同于发布 GitHub Release。
 
