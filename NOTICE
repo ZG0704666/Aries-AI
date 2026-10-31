@@ -75,13 +75,34 @@ https://github.com/noties/Markwon/blob/master/LICENSE
 
 ================================================================================
 
-Sherpa-ncnn (Apache-2.0)
+sherpa-onnx (Apache-2.0)
 ------------------------
-Offline speech recognition engine
+Offline speech recognition runtime
 
 Copyright (c) Sherpa Project
 
-https://github.com/k2-fsa/sherpa-ncnn
+https://github.com/k2-fsa/sherpa-onnx
+
+================================================================================
+
+ONNX Runtime (MIT)
+------------------
+Cross-platform ML inference engine used by sherpa-onnx
+
+Copyright (c) Microsoft Corporation
+
+https://github.com/microsoft/onnxruntime
+
+================================================================================
+
+X-ASR-zh-en streaming model (Apache-2.0)
+----------------------------------------
+Bilingual Chinese-English streaming speech recognition model
+(x-asr-480ms-streaming-zipformer-transducer-zh-en-punct, int8)
+
+Copyright (c) X-ASR authors (GilgameshWind)
+
+https://huggingface.co/GilgameshWind/X-ASR-zh-en
 
 ================================================================================
 

@@ -3885,6 +3885,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        // X-ASR punct 引擎（sherpa-onnx-x-asr-*-punct，2026-06-05）的 final 文本自带标点，
+        // 会在此处直接命中短路、不再发起 LLM 标点请求；本短路继续作为兜底保留。
         val hasPunctuation = Regex("[，。！？；：,.!?;:]").containsMatchIn(raw)
         if (hasPunctuation || raw.length < 10) {
             onDone(text)

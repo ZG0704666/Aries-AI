@@ -26,11 +26,13 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
-import com.k2fsa.sherpa.ncnn.ModelConfig
-import com.k2fsa.sherpa.ncnn.RecognizerConfig
-import com.k2fsa.sherpa.ncnn.SherpaNcnn
-import com.k2fsa.sherpa.ncnn.getDecoderConfig
-import com.k2fsa.sherpa.ncnn.getFeatureExtractorConfig
+import com.k2fsa.sherpa.onnx.FeatureConfig
+import com.k2fsa.sherpa.onnx.OnlineModelConfig
+import com.k2fsa.sherpa.onnx.OnlineRecognizer
+import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig
+import com.k2fsa.sherpa.onnx.OnlineStream
+import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
+import com.k2fsa.sherpa.onnx.SherpaOnnxNative
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -128,10 +130,10 @@ internal object ModelCacheManifest {
 }
 
 /**
- * 基于sherpa-ncnn的本地语音识别实现
+ * 基于 sherpa-onnx（X-ASR-zh-en 流式 zipformer transducer：中英双语 + 自动标点）的本地语音识别实现。
  *
- * sherpa-ncnn是一个轻量级、高性能的语音识别引擎，比Vosk更适合移动端。
- * 参考: https://github.com/k2-fsa/sherpa-ncnn
+ * 引擎与模型来源、替换决策见 assets/sherpa-models/README.md 与
+ * Aries-site/docs/对话系统/X-ASR-zh-en 模型替换计划 2026-10-31.md。
  *
  * 并发模型（会话执行器，修复 R-02/R-03/R-05/R-06/R-08）：
  * - 所有识别相关工作（流重建、录音、解码、尾音排空、终态派发、资源释放）一律串行运行在单个
@@ -146,7 +148,7 @@ internal object ModelCacheManifest {
  * - cancel() 不产出 final（不变量 3）。
  * - 按住说话是独立会话：会话开始时 reset(true) 重建流，不复用上一会话的 Stream/decoder/encoder
  *   状态（R-05）。
- * - native 识别器通过 [SherpaNcnn.close] 幂等释放，不再只依赖 finalize()（R-06）。
+ * - native 识别器幂等释放（R-06）：sherpa-onnx 侧经 OnlineRecognizer.release()（finalize 内 ptr 置 0 保护）。
  * - 会话任务整体 try/catch：保证异常时资源释放、状态复位与恰好一次 error 回调（R-08）。
  */
 @SuppressLint("MissingPermission")
@@ -163,6 +165,17 @@ class SherpaSpeechRecognizer(private val context: Context) {
          * 不再无限增长内存，也不给用户悬挂的录音状态。
          */
         private const val MAX_RECORDING_SECONDS = 60
+
+        /**
+         * 松手后的尾音捕获时长（ms）。
+         *
+         * 用户松手动作与最后的语音常常重叠：若松手立即停止采集，
+         * AudioRecord 缓冲内未读取的尾部音频会被丢弃，叠加流式模型的
+         * 未满块尾段，表现为“最后 1~2 秒语音没有被转成文本”。
+         * 停止采集请求只置标志，会话线程继续录音 [TAIL_CAPTURE_MS] 后才真正
+         * 停止采集，保证尾部语音完整进入解码。
+         */
+        private const val TAIL_CAPTURE_MS = 600L
 
         /** 振幅回调最大派发频率（约 30Hz，R-09/8.3 P2 项）。 */
         private const val AMPLITUDE_DISPATCH_INTERVAL_MS = 33L
@@ -191,7 +204,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
 
     /** native 识别器：创建发生在初始化线程（IO），访问与会话执行器线程、shutdown 线程之间需可见性保证。 */
     @Volatile
-    private var recognizer: SherpaNcnn? = null
+    private var recognizer: OnlineRecognizer? = null
 
     /** 初始化是否完成：初始化线程写，UI/会话线程读。 */
     @Volatile
@@ -236,21 +249,27 @@ class SherpaSpeechRecognizer(private val context: Context) {
      */
     suspend fun initialize(): Boolean {
         if (isInitialized) return true
-        // 已有初始化在跑时不重复排队；由正在进行的调用负责上报结果
-        if (!initializing.compareAndSet(false, true)) return false
+        // 已有初始化在跑时不得快速返回 false：调用方（MainActivity/AutomationViewModel）
+        // 会把 false 当作“模型初始化失败”弹提示，而实际初始化仍在正常进行——
+        // 这正是“语音可用却报初始化失败”误报的根源。改为排队等待在途调用完成后，
+        // 如实返回其结果（成功则立即短路，失败则如实失败）。
+        if (!initializing.compareAndSet(false, true)) {
+            initializationMutex.withLock { }
+            return isInitialized
+        }
         try {
             return initializationMutex.withLock {
                 if (isInitialized) return@withLock true
 
-                Log.d(TAG, "Initializing sherpa-ncnn...")
+                Log.d(TAG, "Initializing sherpa-onnx (X-ASR-zh-en)...")
                 try {
                     withContext(Dispatchers.IO) {
-                        if (!SherpaNcnn.isNativeLibraryReady()) {
+                        if (!SherpaOnnxNative.isNativeLibraryReady()) {
                             val message =
-                                    "native 库加载失败：${SherpaNcnn.nativeLibraryErrorMessage() ?: "未知错误"}"
+                                    "native 库加载失败：${SherpaOnnxNative.nativeLibraryErrorMessage() ?: "未知错误"}"
                             Log.e(
                                     TAG,
-                                    "Sherpa native library is unavailable: ${SherpaNcnn.nativeLibraryErrorMessage()}"
+                                    "sherpa-onnx native library is unavailable: ${SherpaOnnxNative.nativeLibraryErrorMessage()}"
                             )
                             lastInitializationError = message
                             return@withContext false
@@ -265,7 +284,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
                             return@withContext false
                         }
 
-                        Log.d(TAG, "sherpa-ncnn initialized successfully")
+                        Log.d(TAG, "sherpa-onnx initialized successfully")
                         isInitialized = true
                         lastInitializationError = null
                         true
@@ -341,7 +360,8 @@ class SherpaSpeechRecognizer(private val context: Context) {
     }
 
     private fun createRecognizer(): Boolean {
-        val modelDirName = "sherpa-ncnn-streaming-zipformer-bilingual-zh-en-2023-02-13"
+        val modelDirName =
+                "sherpa-onnx-x-asr-480ms-streaming-zipformer-transducer-zh-en-punct-int8-2026-06-05"
 
         // 候选模型目录（按优先级依次尝试）：
         // 1. 文档约定的嵌套布局  sherpa-models/<modelDirName>/
@@ -354,14 +374,13 @@ class SherpaSpeechRecognizer(private val context: Context) {
                         "sherpa-models"
                 )
 
+        // X-ASR punct-int8 包内 4 文件（encoder int8 量化，decoder/joiner 惯例保留 fp32；
+        // 实名以模型包解压清单为准，替换模型版本时需同步更新）。
         val requiredFiles =
                 listOf(
-                        "encoder_jit_trace-pnnx.ncnn.param",
-                        "encoder_jit_trace-pnnx.ncnn.bin",
-                        "decoder_jit_trace-pnnx.ncnn.param",
-                        "decoder_jit_trace-pnnx.ncnn.bin",
-                        "joiner_jit_trace-pnnx.ncnn.param",
-                        "joiner_jit_trace-pnnx.ncnn.bin",
+                        "encoder.int8.onnx",
+                        "decoder.onnx",
+                        "joiner.int8.onnx",
                         "tokens.txt",
                 )
 
@@ -375,57 +394,41 @@ class SherpaSpeechRecognizer(private val context: Context) {
                 }
                         ?: return false
 
-        val featConfig =
-                getFeatureExtractorConfig(sampleRate = SAMPLE_RATE.toFloat(), featureDim = 80)
-
-        val modelConfig =
-                ModelConfig(
-                        encoderParam =
-                                File(localModelDir, "encoder_jit_trace-pnnx.ncnn.param")
-                                        .absolutePath,
-                        encoderBin =
-                                File(localModelDir, "encoder_jit_trace-pnnx.ncnn.bin").absolutePath,
-                        decoderParam =
-                                File(localModelDir, "decoder_jit_trace-pnnx.ncnn.param")
-                                        .absolutePath,
-                        decoderBin =
-                                File(localModelDir, "decoder_jit_trace-pnnx.ncnn.bin").absolutePath,
-                        joinerParam =
-                                File(localModelDir, "joiner_jit_trace-pnnx.ncnn.param")
-                                        .absolutePath,
-                        joinerBin =
-                                File(localModelDir, "joiner_jit_trace-pnnx.ncnn.bin").absolutePath,
-                        tokens = File(localModelDir, "tokens.txt").absolutePath,
-                        numThreads = 4,
-                        useGPU = false
-                )
-
-        val decoderConfig = getDecoderConfig(method = "greedy_search", numActivePaths = 4)
-
         val recognizerConfig =
-                RecognizerConfig(
-                        featConfig = featConfig,
-                        modelConfig = modelConfig,
-                        decoderConfig = decoderConfig,
+                OnlineRecognizerConfig(
+                        featConfig = FeatureConfig(sampleRate = SAMPLE_RATE, featureDim = 80),
+                        modelConfig =
+                                OnlineModelConfig(
+                                        transducer =
+                                                OnlineTransducerModelConfig(
+                                                        encoder =
+                                                                File(localModelDir, "encoder.int8.onnx")
+                                                                        .absolutePath,
+                                                        decoder =
+                                                                File(localModelDir, "decoder.onnx")
+                                                                        .absolutePath,
+                                                        joiner =
+                                                                File(localModelDir, "joiner.int8.onnx")
+                                                                        .absolutePath,
+                                                ),
+                                        tokens = File(localModelDir, "tokens.txt").absolutePath,
+                                        numThreads = 2,
+                                        provider = "cpu",
+                                ),
                         // 按住说话模式：用户按住按钮期间持续录音，
-                        // 仅在显式调用 stopListening() 时定稿。
+                        // 仅在显式调用 stopListening() 时定稿（与原 ncnn 配置语义一致）。
                         enableEndpoint = false,
-                        rule1MinTrailingSilence = 2.4f,
-                        rule2MinTrailingSilence = 1.2f,
-                        rule3MinUtteranceLength = 20.0f,
+                        decodingMethod = "greedy_search",
+                        maxActivePaths = 4,
                         hotwordsFile = "",
                         hotwordsScore = 1.5f
                 )
 
         return try {
-            recognizer =
-                    SherpaNcnn(
-                            config = recognizerConfig,
-                            assetManager = null // Force using newFromFile
-                    )
+            recognizer = OnlineRecognizer(assetManager = null, config = recognizerConfig)
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to create SherpaNcnn instance", e)
+            Log.e(TAG, "Failed to create sherpa-onnx OnlineRecognizer", e)
             lastInitializationError = "识别器创建失败：${e.message}"
             recognizer = null
             false
@@ -620,8 +623,8 @@ class SherpaSpeechRecognizer(private val context: Context) {
         recognizer = null
         isInitialized = false
         sessionExecutor.execute {
-            runCatching { rec.close() }
-                    .onFailure { Log.w(TAG, "Failed to close sherpa native recognizer", it) }
+            runCatching { rec.release() }
+                    .onFailure { Log.w(TAG, "Failed to release sherpa-onnx native recognizer", it) }
         }
     }
 
@@ -659,8 +662,12 @@ class SherpaSpeechRecognizer(private val context: Context) {
         }
 
         fun requestStop() {
+            // 只置标志，不立即 stop() AudioRecord：
+            // 提前 stop 会丢弃缓冲内尚未读取的尾部音频（尾音丢失成因之一）；
+            // 正常停止路径由会话任务完成尾音捕获（TAIL_CAPTURE_MS）后自行 stop。
+            // 录音期间 read 不会被长时间阻塞（麦克风持续产生数据），
+            // 循环头检查最多延迟一个读取周期（数十毫秒）感知本标志。
             stopRequested = true
-            unblockRead()
         }
 
         fun requestCancel() {
@@ -719,6 +726,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
      * 5. finish()：释放本会话 AudioRecord，复位全局状态（幂等）
      */
     private fun runSession(session: Session) {
+        var stream: OnlineStream? = null
         try {
             if (sessionGeneration.get() != session.generation) {
                 session.finish()
@@ -736,8 +744,10 @@ class SherpaSpeechRecognizer(private val context: Context) {
                 return
             }
 
-            // R-05：按住说话是独立会话，重建流，不复用上一会话 decoder/encoder 状态。
-            rec.reset(true)
+            // R-05：按住说话是独立会话，每会话新建 OnlineStream，
+            // 不复用上一会话 decoder/encoder 状态（stream 在 finally 中幂等释放）。
+            val sessionStream = rec.createStream()
+            stream = sessionStream
 
             val ar = createAndStartAudioRecord()
             session.attach(ar)
@@ -750,7 +760,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
                             AudioFormat.ENCODING_PCM_16BIT
                     )
 
-            val endpointText = runRecordingLoop(session, rec, ar, chunkShorts)
+            val endpointText = runRecordingLoop(session, rec, sessionStream, ar, chunkShorts)
             Log.d(TAG, "Recording loop ended.")
 
             if (session.cancelRequested || sessionGeneration.get() != session.generation) {
@@ -763,7 +773,7 @@ class SherpaSpeechRecognizer(private val context: Context) {
             if (endpointText != null) {
                 // 端点分支（当前配置 enableEndpoint=false，不可达；保留与旧实现一致的语义）：
                 // onResult 已在循环内派发，final 文本取端点处的识别文本。
-                rec.reset(false)
+                runCatching { rec.reset(sessionStream) }
                 session.finish()
                 if (session.tryMarkTerminal()) {
                     dispatch(session) { it.onFinalResult(endpointText) }
@@ -772,17 +782,19 @@ class SherpaSpeechRecognizer(private val context: Context) {
             }
 
             // R-02：尾音排空，与本会话采样同线程串行执行；
+            // 尾音捕获（runRecordingLoop 末尾）已把尾部语音喂给模型后到达此处，
+            // 此时 stop() 只会丢弃其后的静音帧，不会丢用户语音。
             // 若排空期间被取消或换代，同样禁止产出 final。
             runCatching {
                 if (ar.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
                     ar.stop()
                 }
             }
-            rec.inputFinished()
-            while (rec.isReady()) {
-                rec.decode()
+            sessionStream.inputFinished()
+            while (rec.isReady(sessionStream)) {
+                rec.decode(sessionStream)
             }
-            val finalText = rec.text
+            val finalText = rec.getResult(sessionStream).text
 
             if (session.cancelRequested || sessionGeneration.get() != session.generation) {
                 session.tryMarkTerminal()
@@ -801,6 +813,10 @@ class SherpaSpeechRecognizer(private val context: Context) {
                     it.onError(t as? Exception ?: IllegalStateException(t.message, t))
                 }
             }
+        } finally {
+            // OnlineStream.release() 幂等（finalize 内 ptr 置 0 保护），
+            // 正常/取消/异常三条路径都在此统一释放会话流。
+            runCatching { stream?.release() }
         }
     }
 
@@ -843,7 +859,8 @@ class SherpaSpeechRecognizer(private val context: Context) {
      */
     private fun runRecordingLoop(
             session: Session,
-            recognizer: SherpaNcnn,
+            recognizer: OnlineRecognizer,
+            stream: OnlineStream,
             audioRecord: AudioRecord,
             chunkShorts: Int,
     ): String? {
@@ -886,13 +903,13 @@ class SherpaSpeechRecognizer(private val context: Context) {
             }
 
             val samples = FloatArray(ret) { i -> audioBuffer[i] / 32768.0f }
-            recognizer.acceptSamples(samples)
-            while (recognizer.isReady()) {
-                recognizer.decode()
+            stream.acceptWaveform(samples, SAMPLE_RATE)
+            while (recognizer.isReady(stream)) {
+                recognizer.decode(stream)
             }
 
-            val isEndpoint = recognizer.isEndpoint()
-            val text = recognizer.text
+            val isEndpoint = recognizer.isEndpoint(stream)
+            val text = recognizer.getResult(stream).text
 
             if (text.isNotBlank() && lastText != text) {
                 lastText = text
@@ -916,7 +933,36 @@ class SherpaSpeechRecognizer(private val context: Context) {
                         TAG,
                         "Recording reached max duration (${MAX_RECORDING_SECONDS}s); finalizing session"
                 )
-                return null
+                break
+            }
+        }
+
+        // 尾音捕获（修复“松手后最后 1~2 秒语音丢失”）：此时采集仍在进行，
+        // 继续 read TAIL_CAPTURE_MS 并喂给模型；随后由 runSession 统一
+        // 停止采集 → inputFinished → 排空解码 → 恰好一次 final。
+        // 取消或被新会话替换时跳过（不产出 final）。
+        if (!session.cancelRequested && sessionGeneration.get() == session.generation) {
+            val tailDeadline = SystemClock.elapsedRealtime() + TAIL_CAPTURE_MS
+            while (sessionGeneration.get() == session.generation &&
+                            !session.cancelRequested &&
+                            SystemClock.elapsedRealtime() < tailDeadline
+            ) {
+                val tailRet = audioRecord.read(audioBuffer, 0, audioBuffer.size)
+                if (tailRet <= 0) {
+                    runCatching { Thread.sleep(10) }
+                    continue
+                }
+                recordedShorts += tailRet
+                val tailSamples = FloatArray(tailRet) { i -> audioBuffer[i] / 32768.0f }
+                stream.acceptWaveform(tailSamples, SAMPLE_RATE)
+                while (recognizer.isReady(stream)) {
+                    recognizer.decode(stream)
+                }
+                val tailText = recognizer.getResult(stream).text
+                if (tailText.isNotBlank() && lastText != tailText) {
+                    lastText = tailText
+                    dispatch(session) { it.onPartialResult(tailText) }
+                }
             }
         }
 

@@ -1,5 +1,7 @@
 # 离线语音识别 (Sherpa-ncnn)
 
+> ⚠️ **状态更新（2026-10-31）**：语音引擎已迁移至 **sherpa-onnx + X-ASR-zh-en 模型**（中英双语、自带标点，预编译 so 走 `app/src/main/jniLibs/`，sherpa-ncnn 子模块与 CMake 构建已移除）。本文保留作为旧引擎实现的历史参考；现行实现见 `SherpaSpeechRecognizer.kt` 与《[X-ASR-zh-en 模型替换计划](./X-ASR-zh-en%20模型替换计划%202026-10-31.md)》。
+
 本页将 DeepWiki 的 Speech Recognition (Sherpa-ncnn) 与当前 `SherpaSpeechRecognizer` 实现对应，核对日期为 2026-10-14。
 
 ## 识别链路

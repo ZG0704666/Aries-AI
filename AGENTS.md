@@ -47,7 +47,7 @@ Android app for AI-driven UI automation on Android 11+, with Kotlin + Compose + 
 - Report the selected AVD/serial, build result, installation result, tests actually executed, and any runtime or visual issues. If the emulator, SDK, build, or test environment is unavailable, report the exact blocker instead of claiming the app was tested.
 
 ## ANTI-PATTERNS
-- Do not edit vendored code under `app/src/main/cpp/thirdparty/` unless explicitly required.
+- 语音引擎已迁移至 sherpa-onnx（预编译 so 走 `app/src/main/jniLibs/`）；旧 sherpa-ncnn 子模块与 `app/src/main/cpp/`（CMake 构建）已于 2026-10-31 移除，如需回退请从 git 历史整体恢复。
 - Do not hardcode new `dp`/`sp`/hex colors where a reusable token should exist.
 - Do not bypass `FAIL_ON_PROJECT_REPOS` by adding Maven repos in module `build.gradle.kts`.
 
@@ -67,4 +67,4 @@ Android app for AI-driven UI automation on Android 11+, with Kotlin + Compose + 
 
 ## NOTES
 - LSP for Kotlin is unavailable in this environment; validate changes with Gradle tasks.
-- If touching native/CMake content, scope changes to first-party app logic before third-party trees.
+- There is no native/CMake build anymore: speech native libraries ship as prebuilt `.so` files in `app/src/main/jniLibs/`.

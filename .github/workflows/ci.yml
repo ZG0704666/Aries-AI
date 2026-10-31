@@ -77,6 +77,29 @@ jobs:
       - name: Grant execute permission
         run: chmod +x gradlew
 
+      - name: Fetch X-ASR speech model
+        # The offline recognizer model is not stored in the repo (.gitignore'd,
+        # ~128MB). CI fetches it so the produced APK ships a working offline ASR.
+        # sha256 pinned to the official k2-fsa "asr-models" release digest.
+        run: |
+          MODEL_NAME="sherpa-onnx-x-asr-480ms-streaming-zipformer-transducer-zh-en-punct-int8-2026-06-05"
+          MODEL_DIR="app/src/main/assets/sherpa-models/$MODEL_NAME"
+          MODEL_TARBALL="$MODEL_NAME.tar.bz2"
+          EXPECTED_SHA256="fa5f63d618e5a01526e275a358bb7772e403f84808a4769fba52cffd8160bf74"
+          curl -sL --retry 3 --max-time 900 -o "$MODEL_TARBALL" \
+            "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/$MODEL_TARBALL"
+          echo "$EXPECTED_SHA256  $MODEL_TARBALL" | sha256sum -c -
+          mkdir -p "$MODEL_DIR"
+          EXTRACT_DIR="$(mktemp -d)"
+          tar xjf "$MODEL_TARBALL" -C "$EXTRACT_DIR"
+          cp "$EXTRACT_DIR/$MODEL_NAME/encoder.int8.onnx" \
+             "$EXTRACT_DIR/$MODEL_NAME/decoder.onnx" \
+             "$EXTRACT_DIR/$MODEL_NAME/joiner.int8.onnx" \
+             "$EXTRACT_DIR/$MODEL_NAME/tokens.txt" \
+             "$MODEL_DIR/"
+          rm -rf "$EXTRACT_DIR" "$MODEL_TARBALL"
+          ls -la "$MODEL_DIR"
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
@@ -86,10 +109,10 @@ jobs:
           from zipfile import ZipFile
 
           with ZipFile("app/build/outputs/apk/debug/app-debug.apk") as apk:
-              name = "lib/arm64-v8a/libsherpa-ncnn-jni.so"
-              if name not in apk.namelist() or apk.getinfo(name).file_size == 0:
-                  raise SystemExit(f"Missing or empty native speech library: {name}")
-              print(f"Verified {name}")
+              for name in ("lib/arm64-v8a/libsherpa-onnx-jni.so", "lib/arm64-v8a/libonnxruntime.so"):
+                  if name not in apk.namelist() or apk.getinfo(name).file_size == 0:
+                      raise SystemExit(f"Missing or empty native speech library: {name}")
+                  print(f"Verified {name}")
           PY
 
       - name: Upload APK

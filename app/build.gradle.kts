@@ -54,13 +54,6 @@ android {
     compileSdk = 37
     ndkVersion = "28.2.13676358"
 
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
-        }
-    }
-
     defaultConfig {
         applicationId = "com.ai.phoneagent"
         minSdk = 30
@@ -82,14 +75,9 @@ android {
             // arm64-v8a：真机；x86_64：Android Studio 模拟器（缺它会导致模拟器上语音 native 库加载失败）
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
-
-        externalNativeBuild {
-            cmake {
-                arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON", "-DARIES_ENABLE_SHERPA_NCNN=ON")
-                targets += listOf("sherpa-ncnn-jni")
-                cppFlags += listOf("-std=c++17")
-            }
-        }
+        // 语音 native 库：sherpa-onnx 预编译 so（libonnxruntime.so + libsherpa-onnx-jni.so）
+        // 位于 jniLibs/<abi>/ 随包打包，无 externalNativeBuild/CMake 步骤；
+        // 旧 sherpa-ncnn 的 CMake 构建与子模块已整体移除（2026-10-31），回退时从 git 历史恢复。
     }
 
     buildTypes {

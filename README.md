@@ -30,7 +30,7 @@ Aries AI 是一个开源的 Android UI 自动化引擎，通过接入大语言�
 - ⚡ **执行链路可配置**：支持截图缓存、流式响应与异步输入等自动化能力；实际耗时受设备、模型和网络影响
 - 🔓 **完全开源**：代码透明，可自由定制和扩展
 - 🔌 **模型灵活**：提供第三方 OpenAI 兼容 API、Aries API 和本地 MNN 三种接入模式
-- 🎙️ **对话与语音**：支持流式回复、会话历史、附件输入与 Sherpa-ncnn 离线语音识别
+- 🎙️ **对话与语音**：支持流式回复、会话历史、附件输入与 sherpa-onnx（X-ASR-zh-en）离线语音识别
 
 **适用场景**：跨应用信息查询、重复界面操作、预订流程辅助和应用测试。任务完成情况取决于模型能力、目标应用和设备环境。
 
@@ -60,7 +60,7 @@ Aries AI 将任务运行、画面采集和输入注入组织到虚拟屏执行�
 | 状态采集 | 结合截图和 UI 状态，为模型提供当前页面上下文 |
 | 输入执行 | 按执行模式选择无障碍、Shizuku 或虚拟屏输入路径 |
 | 对话管理 | 保存会话历史，支持 Markdown、代码块和附件展示 |
-| 离线语音 | 通过 Sherpa-ncnn 在设备端识别语音，需要准备语音模型 |
+| 离线语音 | 通过 sherpa-onnx（X-ASR-zh-en 模型，自带标点）在设备端识别语音，需要准备语音模型 |
 
 实际响应时间受设备性能、画面内容、模型服务和网络影响；此处列出实现能力，不作为速度或成功率基准。
 
@@ -103,7 +103,7 @@ Aries AI 将任务运行、画面采集和输入注入组织到虚拟屏执行�
 
 ```bash
 # 克隆仓库
-git clone --recurse-submodules https://github.com/ZG0704666/Aries-AI.git
+git clone https://github.com/ZG0704666/Aries-AI.git
 cd Aries-AI
 
 # 构建项目
@@ -113,7 +113,7 @@ cd Aries-AI
 ./gradlew installDebug
 ```
 
-已克隆的仓库可执行 `git submodule update --init --recursive` 补齐 native 子模块。Windows PowerShell 使用 `./gradlew.bat` 替代 `./gradlew`。
+仓库无子模块。离线语音模型不入库（约 128MB）：按 `app/src/main/assets/sherpa-models/README.md` 放置 X-ASR 模型后再使用语音功能，或直接使用 CI 产出的 APK（构建时已自动下载模型）。Windows PowerShell 使用 `./gradlew.bat` 替代 `./gradlew`。
 
 | 项目 | 当前配置 |
 |------|----------|
@@ -235,7 +235,7 @@ Aries-AI/
 - **图形处理**：OpenGL ES 3.0+
 - **虚拟屏**：VirtualDisplay + SurfaceTexture
 - **存储与依赖注入**：Room + DataStore + Koin
-- **设备端模型**：MNN 推理 + Sherpa-ncnn 语音识别
+- **设备端模型**：MNN 推理 + sherpa-onnx（X-ASR-zh-en）语音识别
 
 ### 检查与测试
 
