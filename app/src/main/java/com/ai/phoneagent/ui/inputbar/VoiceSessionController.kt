@@ -38,11 +38,29 @@ class VoiceSessionController {
      */
     fun onPartialResult(sessionId: Long): Boolean {
         if (!isActive(sessionId)) return false
-        if (state is InputState.VoiceRecording) {
-            state = InputState.VoiceRecognizing
+        val current = state
+        if (current is InputState.VoiceRecording) {
+            state = InputState.VoiceRecognizing(isCancelling = current.isCancelling)
             return true
         }
         return false
+    }
+
+    /** 按住期间更新上滑取消态；partial 到达后仍保留同一取消链路。 */
+    fun onUpdateCancelState(isCancelling: Boolean): Boolean {
+        val current = state
+        state = when (current) {
+            is InputState.VoiceRecording -> {
+                if (current.isCancelling == isCancelling) return false
+                current.copy(isCancelling = isCancelling)
+            }
+            is InputState.VoiceRecognizing -> {
+                if (current.isCancelling == isCancelling) return false
+                current.copy(isCancelling = isCancelling)
+            }
+            else -> return false
+        }
+        return true
     }
 
     /**

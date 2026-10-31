@@ -26,8 +26,9 @@
     <dimen name="m3t_input_bar_send_button_size">36dp</dimen>
     <dimen name="m3t_input_bar_send_icon_size">18dp</dimen>
     <dimen name="m3t_input_bar_text_min_height">32dp</dimen>
-    <dimen name="m3t_input_bar_voice_cancel_enter_offset">150dp</dimen>
-    <dimen name="m3t_input_bar_voice_cancel_exit_offset">110dp</dimen>
+    <!-- 上滑取消阈值相对 64dp 手势胶囊高度：进入 80dp，滞回退出 57.6dp。 -->
+    <integer name="m3t_input_bar_voice_cancel_enter_height_percent">125</integer>
+    <integer name="m3t_input_bar_voice_cancel_exit_height_percent">90</integer>
     <dimen name="m3t_voice_breathing_glow_radius">44dp</dimen>
     <!-- 语音录音状态胶囊：录音/取消态的放大高度与上滑抬起上限 -->
     <dimen name="m3t_voice_record_pill_height">76dp</dimen>

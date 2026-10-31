@@ -21,7 +21,15 @@ class VoicePresentationTest {
 
     @Test
     fun recognizingStateKeepsVoiceCapsuleVisible() {
-        assertEquals(VoicePresentation.Recognizing, voicePresentation(InputState.VoiceRecognizing))
+        assertEquals(VoicePresentation.Recognizing, voicePresentation(InputState.VoiceRecognizing()))
+    }
+
+    @Test
+    fun recognizingStateCanShowCancelFeedback() {
+        assertEquals(
+            VoicePresentation.Cancelling,
+            voicePresentation(InputState.VoiceRecognizing(isCancelling = true)),
+        )
     }
 
     @Test

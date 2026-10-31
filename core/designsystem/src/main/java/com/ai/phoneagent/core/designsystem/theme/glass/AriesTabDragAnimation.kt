@@ -11,6 +11,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
@@ -25,7 +26,11 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.fastFirstOrNull
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.abs
 
 /**
  * 与参考实现一致的手势观察器：只观察按下/移动/抬起，不消费事件，
@@ -157,10 +162,18 @@ class AriesTabDragAnimation(
     }
 
     fun release() {
+        // 位置立即交给 catchUp/pager，形变则像参考实现一样等滑块接近吸附点再恢复。
+        // 有界等待避免 pager 交接异常时再次出现永久按住或形变不释放。
         _isPressed = false
-        // 直接回弹：旧的“等弹簧接近目标再恢复”的等待（snapshotFlow.first）在
-        // pager 接管驱动的新状态机下可能永远等不到，造成胶囊按住不松的死态。
         animationScope.launch {
+            if (value != targetValue) {
+                val threshold = (valueRange.endInclusive - valueRange.start) * 0.025f
+                withTimeoutOrNull(500L) {
+                    snapshotFlow { valueAnimation.value }
+                        .filter { abs(it - valueAnimation.targetValue) < threshold }
+                        .first()
+                }
+            }
             launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
             launch { scaleXAnimation.animateTo(initialScale, scaleXAnimationSpec) }
             launch { scaleYAnimation.animateTo(initialScale, scaleYAnimationSpec) }
@@ -189,7 +202,11 @@ class AriesTabDragAnimation(
         // 在 mutex 内 await 动画：提前释放会让后续 snapToValue 撞上还在飞行的弹簧。
         mutatorMutex.mutate {
             val target = value.coerceIn(valueRange)
-            valueAnimation.animateTo(target, animationSpec) { updateVelocity() }
+            // 程序吸附不再制造新的速度挤压；与参考一致，只让拖动残留速度衰减到 0。
+            if (velocity != 0f) {
+                animationScope.launch { velocityAnimation.animateTo(0f, velocityAnimationSpec) }
+            }
+            valueAnimation.animateTo(target, animationSpec)
         }
     }
 

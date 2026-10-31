@@ -45,6 +45,37 @@ class VoiceSessionControllerTest {
         assertTrue(controller.consumePendingSend())
     }
 
+    /** partial 后上滑仍进入取消态，松手由手势层走取消而非发送。 */
+    @Test
+    fun `cancel feedback remains available after partial result`() {
+        beginSession()
+        assertTrue(controller.onPartialResult(1L))
+        assertTrue(controller.onUpdateCancelState(true))
+        val state = controller.state as InputState.VoiceRecognizing
+        assertTrue(state.isCancelling)
+        assertTrue(controller.onVoiceCancel(1L))
+        assertFalse(controller.consumePendingSend())
+    }
+
+    /** 已进入取消区后收到 partial，不得把红色取消反馈覆盖掉。 */
+    @Test
+    fun `partial result preserves active cancel feedback`() {
+        beginSession()
+        assertTrue(controller.onUpdateCancelState(true))
+        assertTrue(controller.onPartialResult(1L))
+        val state = controller.state as InputState.VoiceRecognizing
+        assertTrue(state.isCancelling)
+    }
+
+    /** 松手进入收尾后，迟到的拖动事件不得重新打开取消态。 */
+    @Test
+    fun `finalizing rejects stale drag updates`() {
+        beginSession()
+        assertTrue(controller.onVoiceEnd(1L))
+        assertFalse(controller.onUpdateCancelState(true))
+        assertTrue(controller.state is InputState.VoiceFinalizing)
+    }
+
     /** 场景 3：上滑取消 —— 复位为 Idle、不发送。 */
     @Test
     fun `cancel resets to idle and never sends`() {

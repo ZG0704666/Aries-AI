@@ -14,6 +14,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
@@ -150,6 +151,16 @@ class InputBarVoiceTest {
 
         assertEquals(1, ends.get())
         assertEquals(0, cancels.get())
+    }
+
+    @Test
+    fun recognizingCancelStateShowsCancelHint() {
+        renderInputBar(state = InputState.VoiceRecognizing(isCancelling = true))
+
+        val cancelHint = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(com.ai.phoneagent.R.string.voice_release_to_cancel)
+        compose.onNodeWithText(cancelHint).assertIsDisplayed()
+        compose.onNodeWithTag("voice_input_waveform").assertIsDisplayed()
     }
 
     @Test

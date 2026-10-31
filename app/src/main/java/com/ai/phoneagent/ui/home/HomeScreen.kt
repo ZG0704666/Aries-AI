@@ -320,8 +320,8 @@ private fun HomeNavTab(index: Int, selected: Boolean) {
     Row(
         Modifier
             .fillMaxSize()
-            // 缩放由 TabSlot（可见层）与副本层的 CompositionLocal 各自负责，
-            // 这里不能再乘一次，否则按压时图标会被放大 1.2×1.2。
+            // 对齐参考：可见层保持 1x，仅折射副本层由 CompositionLocal 放大；
+            // 这里不能再乘一次，否则副本图标会被放大 1.2×1.2。
             .semantics { this.selected = selected },
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,

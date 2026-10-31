@@ -140,7 +140,9 @@ fun AriesLiquidTabs(
                 initialScale = 1f,
                 pressedScale = 78f / 56f,
                 onDragStopped = {
-                    val target = value.fastRoundToInt().fastCoerceIn(0, tabCount - 1)
+                    // 与参考 DampedDragAnimation 一致：按最近提交的动画目标吸附，
+                    // 锚点即 TabSlot 的实际中心等分位置 0..tabCount-1。
+                    val target = targetValue.fastRoundToInt().fastCoerceIn(0, tabCount - 1)
                     edgeHit = 0
                     // 整条页签带拖动时的 4dp 惯性偏移，松手必须回弹归零。
                     scope.launch { offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f)) }
@@ -151,10 +153,8 @@ fun AriesLiquidTabs(
                     // pager 的 360ms tween 先到，若此刻交还 pager 进度，滑块会被
                     // 半程进度拉回去再追一次，表现为松手后“回弹一下”。
                     // 解除时机由下方 snapshotFlow 统一裁决。
-                    scope.launch {
-                        catchUp = true
-                        animateToValueAwait(target.toFloat())
-                    }
+                    catchUp = true
+                    scope.launch { animateToValueAwait(target.toFloat()) }
                 },
                 onDrag = { _, dragAmount ->
                     updateValue(
@@ -166,7 +166,7 @@ fun AriesLiquidTabs(
                         targetValue >= tabCount - 1 -> 1
                         else -> 0
                     }
-                    if (edge != 0 && edge != edgeHit) onEdgeHaptic()
+                    if (dragAmount.x != 0f && edge != 0 && edge != edgeHit) onEdgeHaptic()
                     edgeHit = edge
                 },
             )
@@ -214,9 +214,8 @@ fun AriesLiquidTabs(
 
         // 1) 胶囊容器 + 可见内容（对齐参考 LiquidBottomTabs:161-188 的单层结构）：
         //    内容直接画在玻璃层里，表面色 40% alpha 盖在上面，内容仍透出可读。
-        CompositionLocalProvider(LocalAriesTabScale provides {
-            lerp(1f, 1.2f, drag.pressProgress)
-        }) {
+        // 参考实现只放大供滑块采样的透明副本，可见页签本身保持 1x。
+        CompositionLocalProvider(LocalAriesTabScale provides { 1f }) {
             Row(
                 Modifier
                     .graphicsLayer { translationX = panelOffset }
@@ -372,6 +371,7 @@ private fun TabSlot(
                 scaleX = s
                 scaleY = s
             }
+            .clip(Capsule())
             .clickable(
                 interactionSource = null,
                 indication = null,

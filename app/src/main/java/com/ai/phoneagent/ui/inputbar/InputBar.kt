@@ -286,7 +286,7 @@ fun InputBar(
                             },
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        // 状态大字：录音中提示“松手发送，上移取消”，进入取消区变红“松手取消”。
+                        // 状态大字：录音中提示“松手发送，上移取消”，进入取消区变红“上滑取消”。
                         // 悬于胶囊上方居中，仅录音进行中显示（参考松手发送/取消两态图）。
                         AnimatedVisibility(
                             visible = voiceRecording,
@@ -566,13 +566,15 @@ fun VoiceRecordButtonHandler(
     onOffsetChange: (Float, Boolean) -> Unit,
 ) {
     val density = LocalDensity.current
+    val gestureHeight = dimensionResource(R.dimen.m3t_input_bar_voice_height)
     val cancelEnterThreshold = with(density) {
-        -dimensionResource(R.dimen.m3t_input_bar_voice_cancel_enter_offset).toPx()
+        -gestureHeight.toPx() *
+            integerResource(R.integer.m3t_input_bar_voice_cancel_enter_height_percent) / 100f
     }
     val cancelExitThreshold = with(density) {
-        -dimensionResource(R.dimen.m3t_input_bar_voice_cancel_exit_offset).toPx()
+        -gestureHeight.toPx() *
+            integerResource(R.integer.m3t_input_bar_voice_cancel_exit_height_percent) / 100f
     }
-    val gestureHeight = dimensionResource(R.dimen.m3t_input_bar_voice_height)
     var totalDy by remember { mutableStateOf(0f) }
     var isLongPressConfirmed by remember { mutableStateOf(false) }
     var isCancelling by remember { mutableStateOf(false) }
@@ -631,7 +633,7 @@ fun VoiceRecordButtonHandler(
                                 !isCancelling && totalDy < cancelEnterThreshold -> true
                                 else -> isCancelling
                             }
-                        // 上滑进度归一化：150dp 阈值处为 1.0（仅供视觉/反馈层使用）
+                        // 上滑进度归一化：相对胶囊高度的进入阈值处为 1.0。
                         val progress = (-totalDy / cancelEnterPx).coerceIn(0f, 1f)
                         onOffsetChange(progress, isCancelling)
                     },
