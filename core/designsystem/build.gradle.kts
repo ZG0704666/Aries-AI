@@ -23,6 +23,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
+    testOptions {
+        unitTests {
+            // Robolectric Compose 测试需要合并依赖的清单/资源（ui-test-manifest 提供 ComponentActivity）
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 kotlin {
@@ -44,8 +50,17 @@ dependencies {
     api(libs.kyant.backdrop)
     // shapes 类型（RoundedRectangle/Capsule）出现在 designsystem 的公共 API 中，需要 api 透传。
     api(libs.kyant.shapes)
-    
+
     // Koin - Dependency Injection
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
+
+    // 测试依赖
+    testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.junit)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.compose.ui.test.manifest)
 }

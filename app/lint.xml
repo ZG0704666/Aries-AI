@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- 仅豁免已审计的第三方 JAR；应用源码和其他依赖仍执行证书信任检查。 -->
+    <!-- 升级 Bouncy Castle 或 POI 后必须重新审计，并同步更新下面的精确版本路径。 -->
+    <issue id="TrustAllX509TrustManager">
+        <ignore path="**/bcpkix-jdk15on-1.70.jar" />
+        <ignore path="**/poi-ooxml-5.2.5.jar" />
+    </issue>
+</lint>

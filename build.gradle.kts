@@ -16,6 +16,11 @@ subprojects {
                 baseline = file("lint-baseline.xml")
                 warningsAsErrors = true
                 abortOnError = true
+                // 依赖版本升级提示不进 lint 门禁：由 Renovate/Dependabot 等专门流程管理，
+                // 避免每次依赖升级都要重生成 baseline（可移植性差、噪声大）。
+                disable += "GradleDependency"
+                disable += "NewerVersionAvailable"
+                disable += "AndroidGradlePluginVersion"
             }
         }
     }
@@ -25,6 +30,10 @@ subprojects {
                 baseline = file("lint-baseline.xml")
                 warningsAsErrors = true
                 abortOnError = true
+                // 与 application 模块保持同一策略，理由见上。
+                disable += "GradleDependency"
+                disable += "NewerVersionAvailable"
+                disable += "AndroidGradlePluginVersion"
             }
         }
     }

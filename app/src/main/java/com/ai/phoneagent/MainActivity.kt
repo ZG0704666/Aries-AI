@@ -139,6 +139,7 @@ import com.ai.phoneagent.core.automation.AutomationLogBridge
 import com.ai.phoneagent.core.prompt.MainChatPromptRepository
 import com.ai.phoneagent.ui.debug.DebugRecomposeLogger
 import com.ai.phoneagent.ui.inputbar.InputState
+import com.ai.phoneagent.ui.inputbar.VoiceSessionController
 import com.ai.phoneagent.ui.inputbar.InputBar
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -476,10 +477,10 @@ class MainActivity : AppCompatActivity() {
     private var voiceInputAnimJob: Job? = null
     private var savedInputText: String = ""
 
-    private var pendingSendAfterVoice: Boolean = false
+    // 语音会话状态机唯一事实来源（见 VoiceSessionController）。
+    private val voiceSession = VoiceSessionController()
     private var voiceFinalizeWatchdogJob: Job? = null
     private var voiceSessionSeed: Long = 0L
-    @Volatile private var activeVoiceSessionId: Long = 0L
 
     private val CAMERA_PERMISSION_REQUEST_CODE = 1236
     private var pendingAutomationLogUiRefresh: Boolean = false
@@ -1948,17 +1949,17 @@ class MainActivity : AppCompatActivity() {
     private fun beginVoiceSession(): Long {
         val id = allocateVoiceSessionId()
         savedInputText = inputTextState.value
-        activeVoiceSessionId = id
+        voiceSession.begin(id)
         return id
     }
 
     private fun isVoiceSessionActive(sessionId: Long): Boolean {
-        return activeVoiceSessionId == sessionId && sessionId > 0L
+        return voiceSession.isActive(sessionId)
     }
 
     private fun clearVoiceSession(expectedSessionId: Long? = null) {
-        if (expectedSessionId == null || activeVoiceSessionId == expectedSessionId) {
-            activeVoiceSessionId = 0L
+        if (expectedSessionId == null || voiceSession.activeSessionId == expectedSessionId) {
+            voiceSession.clearSession(expectedSessionId)
             voiceFinalizeWatchdogJob?.cancel()
             voiceFinalizeWatchdogJob = null
         }
@@ -2288,7 +2289,7 @@ class MainActivity : AppCompatActivity() {
             // 否则迟到的 onVoiceEnd 会把 UI 永久留在 VoiceFinalizing。
             voiceFinalizeWatchdogJob?.cancel()
             voiceFinalizeWatchdogJob = null
-            pendingSendAfterVoice = false
+            voiceSession.consumePendingSend()
             if (inputTextState.value.startsWith("正在语音输入")) {
                 inputTextState.value = savedInputText
             }
@@ -2904,23 +2905,21 @@ class MainActivity : AppCompatActivity() {
             },
             onVoiceEnd = {
                 vibrateLight()
-                val sessionId = activeVoiceSessionId
-                val currentState = inputBarState.value
-                // 只有当本次抬手确实对应一个正在录制的会话时才进入收尾；
-                // 权限弹窗关闭后迟到的抬手事件不应再改变 UI 状态。
-                if (sessionId > 0L && currentState is InputState.VoiceRecording) {
+                val sessionId = voiceSession.activeSessionId
+                // 无论是否收到过 partial（录音态或识别态）都进入收尾；
+                // 权限弹窗关闭后迟到的抬手事件（无活动会话/状态已复位）不生效。
+                if (voiceSession.onVoiceEnd(sessionId)) {
                     inputBarState.value = InputState.VoiceFinalizing
                     // 松手=发送：识别完成后自动标点并直接发送（onFinalResult 中消费）
-                    pendingSendAfterVoice = true
                     startVoiceFinalizeWatchdog(sessionId)
                     stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = false)
                 }
             },
             onVoiceCancel = {
                 vibrateLight()
-                val sessionId = activeVoiceSessionId
+                val sessionId = voiceSession.activeSessionId
                 inputTextState.value = savedInputText
-                pendingSendAfterVoice = false
+                voiceSession.onVoiceCancel(sessionId)
                 inputBarState.value = InputState.Idle
                 stopLocalVoiceInput(
                     triggerRecognizerStop = false,
@@ -2958,7 +2957,7 @@ class MainActivity : AppCompatActivity() {
                     if (inputTextState.value.startsWith("正在语音输入")) {
                         inputTextState.value = savedInputText
                     }
-                    val sessionId = activeVoiceSessionId
+                    val sessionId = voiceSession.activeSessionId
                     stopLocalVoiceInput(expectedSessionId = sessionId, clearSession = true)
                 }
                 inputBarState.value = if (isVoice) InputState.VoiceIdle else InputState.Idle
@@ -3960,11 +3959,11 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (!isVoiceSessionActive(sessionId)) return@runOnUiThread
                     // 有识别结果时，停止动画并显示实际文字。
+                    stopVoiceInputAnimation()
                     // 只在仍在录音时把状态推进到 VoiceRecognizing：
                     // 松手后已处于 VoiceFinalizing，partial 结果不得把状态盖回去，
                     // 否则胶囊会在“收尾”与“识别”间反复横跳。
-                    stopVoiceInputAnimation()
-                    if (inputBarState.value is InputState.VoiceRecording) {
+                    if (voiceSession.onPartialResult(sessionId)) {
                         inputBarState.value = InputState.VoiceRecognizing
                     }
                     val txt = (voicePrefix + text).trimStart()
@@ -3996,16 +3995,12 @@ class MainActivity : AppCompatActivity() {
                     val rawText = if (txt.isBlank()) savedInputText else txt
                     inputTextState.value = rawText
 
-                    val shouldSend = pendingSendAfterVoice
-                    pendingSendAfterVoice = false
+                    val shouldSend = voiceSession.consumePendingSend()
                     
                     // 仅当当前确实处于语音相关状态时才重置为 Idle
                     // 避免如果在识别过程中已经切换到了其他模式，被这里强行覆盖
-                    val currentState = inputBarState.value
-                    if (currentState is InputState.VoiceRecording ||
-                        currentState is InputState.VoiceRecognizing ||
-                        currentState is InputState.VoiceFinalizing
-                    ) {
+                    if (voiceSession.shouldResetToIdle(sessionId)) {
+                        voiceSession.resetToIdle()
                         inputBarState.value = InputState.Idle
                     }
                     
@@ -4039,14 +4034,11 @@ class MainActivity : AppCompatActivity() {
                     // 恢复原来的文字
                     inputTextState.value = savedInputText
                     Toast.makeText(this@MainActivity, "识别失败: ${exception.message}", Toast.LENGTH_SHORT).show()
-                    pendingSendAfterVoice = false
-                    
+                    voiceSession.consumePendingSend()
+
                     // 同上，检查状态防止覆盖
-                    val currentState = inputBarState.value
-                    if (currentState is InputState.VoiceRecording ||
-                        currentState is InputState.VoiceRecognizing ||
-                        currentState is InputState.VoiceFinalizing
-                    ) {
+                    if (voiceSession.shouldResetToIdle(sessionId)) {
+                        voiceSession.resetToIdle()
                         inputBarState.value = InputState.Idle
                     }
                     
@@ -4065,14 +4057,11 @@ class MainActivity : AppCompatActivity() {
                     // 恢复原来的文字
                     inputTextState.value = savedInputText
                     Toast.makeText(this@MainActivity, "语音识别超时", Toast.LENGTH_SHORT).show()
-                    pendingSendAfterVoice = false
-                    
+                    voiceSession.consumePendingSend()
+
                     // 同上，检查状态防止覆盖
-                    val currentState = inputBarState.value
-                    if (currentState is InputState.VoiceRecording ||
-                        currentState is InputState.VoiceRecognizing ||
-                        currentState is InputState.VoiceFinalizing
-                    ) {
+                    if (voiceSession.shouldResetToIdle(sessionId)) {
+                        voiceSession.resetToIdle()
                         inputBarState.value = InputState.Idle
                     }
                     
@@ -4107,7 +4096,7 @@ class MainActivity : AppCompatActivity() {
                 recognizer.stopListening()
             } else {
                 recognizer?.cancel()
-                pendingSendAfterVoice = false
+                voiceSession.consumePendingSend()
             }
         } else {
             recognizer?.cancel()
@@ -4156,7 +4145,7 @@ class MainActivity : AppCompatActivity() {
                 voiceFinalizeWatchdogJob = null
                 stopVoiceInputAnimation()
                 inputTextState.value = savedInputText
-                pendingSendAfterVoice = false
+                voiceSession.resetToIdle()
                 inputBarState.value = InputState.Idle
                 Toast.makeText(
                     this@MainActivity,

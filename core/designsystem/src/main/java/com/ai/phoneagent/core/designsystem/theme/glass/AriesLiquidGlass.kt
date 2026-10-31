@@ -246,6 +246,8 @@ fun Modifier.ariesLiquidGlass(
     // 单层合成：Offscreen + shape 裁剪 + 按压缩放并入同一个 graphicsLayer。
     // kyant drawBackdrop 的 layerBlock 也是外层 graphicsLayer（2.0.1 源码行为），
     // 合并后玻璃纹理（含 blur 晕边）在合成时刻即被 shape 裁剪，按压缩放不会再泄出矩形边界。
+    // 注意：layerBlock 只在这里应用一次——drawBackdrop 内部也会创建自己的 graphicsLayer，
+    // 若再传入 layerBlock 会造成缩放/挤压被叠加应用两次（速度挤压、翻页追赶时形变翻倍）。
     // 注意：shadow 画在层内会被裁掉，调用方不要传常驻投影。
     return graphicsLayer {
         compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
@@ -259,7 +261,6 @@ fun Modifier.ariesLiquidGlass(
         highlight = highlight?.let { { it } },
         shadow = shadow?.let { { it } },
         innerShadow = innerShadow?.let { { it } },
-        layerBlock = layerBlock,
         onDrawSurface = {
             // kyant 的 onDrawSurface 在 shape 裁剪之外调用，直接 drawRect 会画出
             // 整块矩形表面（按压缩放时会泄出直角边界），必须先按形状 clipPath。
