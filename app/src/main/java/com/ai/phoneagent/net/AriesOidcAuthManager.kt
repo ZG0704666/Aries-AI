@@ -96,6 +96,8 @@ class AriesOidcAuthManager(
                             client = client,
                             callbackApiUrl = "${AriesApiClient.BASE_URL}/api/oauth/oidc",
                             expectedRedirectUri = config.redirectUri,
+                            // N2：发起时记录服务端下发的 state，回调时比对（CSRF 防护客户端侧）。
+                            expectedState = config.state,
                             initialCookies = cookieJar.loadForUrl(AriesApiClient.BASE_URL).map { it.toString() },
                             currentCookies = {
                                 cookieJar.loadForUrl(AriesApiClient.BASE_URL).map { "${it.name}=${it.value}" }

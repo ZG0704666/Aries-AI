@@ -4,9 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -765,19 +767,64 @@ private fun RenderInlineText(
     modifier: Modifier = Modifier,
 ) {
     if (text.text.isBlank()) return
-    val uriHandler = LocalUriHandler.current
     val style = MaterialTheme.typography.bodyMedium.let {
         if (isBold) it.copy(fontWeight = FontWeight.Bold) else it
     }
     if (LocalMarkdownSettings.current.enableLatex && containsInlineMath(text.text)) {
         MathInlineText(text = text.text, modifier = modifier)
     } else {
-        Text(
-            text     = text,
-            style    = style,
-            modifier = modifier.clickOnLinks(text, uriHandler),
+        LinkText(
+            text = text,
+            style = style,
+            modifier = modifier,
         )
     }
+}
+
+/**
+ * 带链接点击的文本（G1/G3 修复）：
+ * - 按点击位置命中 URL 注解，多链接段落各自打开正确目标（不再固定打开第一个）；
+ * - 仅放行 http/https scheme，其余 scheme（javascript:/intent:/file: 等）不打开。
+ */
+@Composable
+private fun LinkText(
+    text: AnnotatedString,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+) {
+    val uriHandler = LocalUriHandler.current
+    var layoutResult by remember {
+        mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null)
+    }
+    Text(
+        text = text,
+        style = style,
+        onTextLayout = { layoutResult = it },
+        modifier = modifier.pointerInput(text) {
+            detectTapGestures { position ->
+                val layout = layoutResult ?: return@detectTapGestures
+                val offset = layout.getOffsetForPosition(position)
+                val annotation = text
+                    .getStringAnnotations("URL", offset, offset)
+                    .firstOrNull()
+                    ?: return@detectTapGestures
+                if (isSafeHttpUrl(annotation.item)) {
+                    runCatching { uriHandler.openUri(annotation.item) }
+                }
+            }
+        },
+    )
+}
+
+/** 仅放行 http/https scheme 的 URL；无 scheme 或其他 scheme 一律不打开。 */
+private fun isSafeHttpUrl(url: String): Boolean {
+    val trimmed = url.trim()
+    if (trimmed.isBlank()) return false
+    val scheme =
+        runCatching { java.net.URI(trimmed).scheme?.lowercase() }
+            .getOrNull()
+            ?: trimmed.substringBefore(':', "").lowercase().takeIf { ':' in trimmed }
+    return scheme == "http" || scheme == "https"
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1257,15 +1304,3 @@ private fun isEmptyTextNode(node: ASTNode, source: String): Boolean {
 //  Modifier 辅助
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Composable
-private fun Modifier.clickOnLinks(
-    annotated: AnnotatedString,
-    uriHandler: androidx.compose.ui.platform.UriHandler,
-): Modifier = clickable(
-    indication    = null,
-    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-) {
-    // find first URL annotation at the tap position – fallback: open the first URL
-    val urls = annotated.getStringAnnotations("URL", 0, annotated.length)
-    urls.firstOrNull()?.let { runCatching { uriHandler.openUri(it.item) } }
-}

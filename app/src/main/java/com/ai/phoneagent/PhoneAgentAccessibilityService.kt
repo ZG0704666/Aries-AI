@@ -63,11 +63,10 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
                     .lowercase() // 转小写
         }
 
-        /** 繁体中文转简体，覆盖常见字符 */
+        /** 繁体中文转简体：仅保留确认正确的常见字符映射（原表含错误映射会破坏文本匹配，R3-A1 修复）。 */
         private fun String.toSimplifiedChinese(): String {
             val traditionalToSimplified =
                     mapOf(
-                            // 常见繁体字
                             '錄' to '录',
                             '應' to '应',
                             '開' to '开',
@@ -76,14 +75,11 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
                             '節' to '节',
                             '點' to '点',
                             '選' to '选',
-                            '瀋' to '览',
                             '頁' to '页',
-                            '鯒' to '龙',
-                            '青' to '香',
                             '臺' to '台',
                             '灣' to '湾',
                             '國' to '国',
-                            '獨' to '小',
+                            '獨' to '独',
                             '學' to '学',
                             '會' to '会',
                             '還' to '还',
@@ -94,15 +90,8 @@ class PhoneAgentAccessibilityService : AccessibilityService() {
                             '讓' to '让',
                             '說' to '说',
                             '閱' to '阅',
-                            '文' to '件',
-                            '事' to '件',
-                            '工' to '作',
                             '資' to '资',
-                            '訊' to '讯',
-                            '已' to '已',
-                            '未' to '未',
-                            '更' to '更',
-                            '呼' to '呼'
+                            '訊' to '讯'
                     )
             var result = this
             traditionalToSimplified.forEach { (trad, simp) -> result = result.replace(trad, simp) }

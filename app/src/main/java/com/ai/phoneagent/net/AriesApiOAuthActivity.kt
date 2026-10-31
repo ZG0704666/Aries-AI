@@ -70,6 +70,8 @@ class AriesApiOAuthActivity : Activity() {
         val client: OkHttpClient,
         val callbackApiUrl: String,
         val expectedRedirectUri: String,
+        /** 发起授权时服务端下发的 state；回调时必须一致（N2 CSRF 校验），空串表示未知（放行，兼容旧会话）。 */
+        val expectedState: String = "",
         val initialCookies: List<String>,
         val currentCookies: () -> List<String>,
         val completion: (ApiLoginResult) -> Unit,
@@ -379,6 +381,10 @@ class AriesApiOAuthActivity : Activity() {
             val state = callbackUri.getQueryParameter("state").orEmpty()
             if (code.isBlank() || state.isBlank()) {
                 return ApiLoginResult(success = false, message = "OIDC 回调缺少 code 或 state")
+            }
+            // N2 CSRF 校验：回调 state 必须与发起授权时服务端下发的 state 一致。
+            if (session.expectedState.isNotBlank() && state != session.expectedState) {
+                return ApiLoginResult(success = false, message = "OIDC 回调 state 校验失败，已拒绝登录")
             }
             val apiUrl =
                 Uri.parse(session.callbackApiUrl)

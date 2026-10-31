@@ -1549,8 +1549,21 @@ class MainActivity : AppCompatActivity() {
                 lifecycleScope.launch(Dispatchers.IO) {
                     runCatching {
                         val serviceId = "$packageName/${PhoneAgentAccessibilityService::class.java.name}"
+                        // 读-改-写：保留用户已开启的其他无障碍服务，仅追加本应用服务（去重）。
+                        val existing =
+                            ShizukuBridge.execResultArgs(
+                                listOf("settings", "get", "secure", "enabled_accessibility_services"),
+                            ).stdoutText().trim()
+                        val merged =
+                            if (existing.isBlank()) {
+                                serviceId
+                            } else {
+                                val alreadyEnabled =
+                                    existing.split(':').any { it.equals(serviceId, ignoreCase = true) }
+                                if (alreadyEnabled) existing else "$existing:$serviceId"
+                            }
                         ShizukuBridge.execResultArgs(
-                            listOf("settings", "put", "secure", "enabled_accessibility_services", serviceId),
+                            listOf("settings", "put", "secure", "enabled_accessibility_services", merged),
                         )
                         ShizukuBridge.execResultArgs(
                             listOf("settings", "put", "secure", "accessibility_enabled", "1"),
@@ -4048,6 +4061,10 @@ class MainActivity : AppCompatActivity() {
                             inputTextState.value = punctuated
                         }
                         if (shouldSend) {
+                            // 用户在标点请求往返期间已编辑输入框：放弃自动发送，避免覆盖用户编辑。
+                            if (inputTextState.value != rawText) {
+                                return@applyAutoPunctuationIfNeeded
+                            }
                             val toSend = punctuated.trim()
                             if (toSend.isBlank()) {
                                 Toast.makeText(this@MainActivity, "请输入内容", Toast.LENGTH_SHORT).show()

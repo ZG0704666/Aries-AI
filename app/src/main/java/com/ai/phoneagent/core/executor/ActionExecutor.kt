@@ -438,9 +438,9 @@ class ActionExecutor(
 
         if (service != null) {
             val beforeTime = service.lastWindowEventTime()
-            service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+            val performed = service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
             service.awaitWindowEvent(beforeTime, timeoutMs = config.backAwaitWindowTimeoutMs)
-            return true
+            return performed
         }
 
         onLog("无法执行返回：无可用执行通道")
@@ -467,9 +467,9 @@ class ActionExecutor(
 
         if (service != null) {
             val beforeTime = service.lastWindowEventTime()
-            service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+            val performed = service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
             service.awaitWindowEvent(beforeTime, timeoutMs = config.homeAwaitWindowTimeoutMs)
-            return true
+            return performed
         }
 
         onLog("无法执行回到主页：无可用执行通道")
@@ -802,12 +802,12 @@ class ActionExecutor(
             }
 
             if (service != null) {
-                service.clickAwait(x, y)
+                val clicked = service.clickAwait(x, y)
                 service.awaitWindowEvent(
                         service.lastWindowEventTime(),
                         timeoutMs = config.tapAwaitWindowTimeoutMs
                 )
-                return@withAutomationOverlayHidden true
+                return@withAutomationOverlayHidden clicked
             }
 
             onLog("无法执行点击：无可用执行通道")

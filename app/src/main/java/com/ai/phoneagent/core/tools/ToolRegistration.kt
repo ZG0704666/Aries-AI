@@ -629,24 +629,24 @@ class ToolRegistration(
                             error = "需要至少一个选择器参数: resource_id, text, content_desc, 或 class_name"
                         )
                     } else {
-                        kotlinx.coroutines.runBlocking {
-                            val success = service.scrollToElement(
-                                resourceId = resourceId,
-                                text = text,
-                                contentDesc = contentDesc,
-                                className = className,
-                                direction = direction,
-                                maxScrolls = maxScrolls,
-                                scrollDelayMs = scrollDelayMs
-                            )
-                            val selector = text ?: resourceId ?: "目标元素"
-                            ToolResult(
-                                toolName = tool.name,
-                                success = success,
-                                result = UIActionResultData("scroll_to_element", success, "滚动查找: $selector ($direction)"),
-                                error = if (success) "" else "未能找到目标元素"
-                            )
-                        }
+                        // executor 为 suspend 上下文（与 wait_for_element 一致），直接 await，
+                        // 不再 runBlocking 阻塞调用线程（最多 10 次滚动 × 500ms，R3-A2 修复）。
+                        val success = service.scrollToElement(
+                            resourceId = resourceId,
+                            text = text,
+                            contentDesc = contentDesc,
+                            className = className,
+                            direction = direction,
+                            maxScrolls = maxScrolls,
+                            scrollDelayMs = scrollDelayMs
+                        )
+                        val selector = text ?: resourceId ?: "目标元素"
+                        ToolResult(
+                            toolName = tool.name,
+                            success = success,
+                            result = UIActionResultData("scroll_to_element", success, "滚动查找: $selector ($direction)"),
+                            error = if (success) "" else "未能找到目标元素"
+                        )
                     }
                 }
             }
