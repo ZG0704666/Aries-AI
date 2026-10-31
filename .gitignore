@@ -1,5 +1,6 @@
 # OS / editor files
 .DS_Store
+._*
 *.iml
 .idea/
 .kotlin/

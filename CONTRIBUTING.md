@@ -375,6 +375,8 @@ A:
 - [Git 工作流](./Aries-site/docs/GIT_WORKFLOW.md)
 - [技术文档](./Aries-site/docs/TECHNICAL_OVERVIEW.md)
 - [AI PR 审阅指南](./Aries-site/docs/AI_PR_REVIEW.md)
+- [语音输入与液态玻璃专项交接](./Aries-site/docs/对话系统/语音输入与液态玻璃专项交接%202026-10-31.md)
+- [离线 ASR 模型调研](./Aries-site/docs/对话系统/离线ASR模型调研%202026-10-31.md)
 - [FAQ](./Aries-site/docs/FAQ.md)
 
 ---
