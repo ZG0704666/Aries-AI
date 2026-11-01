@@ -23,7 +23,7 @@ import { screenshots } from '../data/screenshots';
           下载最新版
           <span class="btn__meta">{site.release.tag}</span>
         </button>
-        <a class="btn btn--ghost" href="/docs-center">阅读技术文档</a>
+        <a class="btn btn--ghost" href={site.docsUrl}>阅读技术文档</a>
       </div>
 
       <dl class="hero__stats">
@@ -47,6 +47,7 @@ import { screenshots } from '../data/screenshots';
     <div class="hero__stage" aria-label="产品界面预览">
       <div class="hero__glow" aria-hidden="true"></div>
       <PhoneMock
+        id={screenshots[0].id}
         label={screenshots[0].label}
         caption={screenshots[0].caption}
         src={screenshots[0].src}
@@ -54,6 +55,7 @@ import { screenshots } from '../data/screenshots';
         tilt="left"
       />
       <PhoneMock
+        id={screenshots[1].id}
         label={screenshots[1].label}
         caption={screenshots[1].caption}
         src={screenshots[1].src}
@@ -61,6 +63,7 @@ import { screenshots } from '../data/screenshots';
         featured
       />
       <PhoneMock
+        id={screenshots[2].id}
         label={screenshots[2].label}
         caption={screenshots[2].caption}
         src={screenshots[2].src}
@@ -87,6 +90,7 @@ import { screenshots } from '../data/screenshots';
 
   .hero__copy {
     max-width: 620px;
+    transform: translateX(-2%);
     animation: rise 0.7s var(--ease) both;
   }
 
@@ -140,7 +144,10 @@ import { screenshots } from '../data/screenshots';
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 108%;
+    margin-left: -4%;
     min-height: 520px;
+    transform: translateX(3%);
     animation: rise 0.8s 0.08s var(--ease) both;
   }
 
@@ -160,6 +167,7 @@ import { screenshots } from '../data/screenshots';
 
     .hero__copy {
       margin-inline: auto;
+      transform: none;
     }
 
     .hero__lede {
@@ -176,8 +184,11 @@ import { screenshots } from '../data/screenshots';
     }
 
     .hero__stage {
+      width: 100%;
+      margin-left: 0;
       min-height: 420px;
       margin-top: 8px;
+      transform: none;
     }
   }
 

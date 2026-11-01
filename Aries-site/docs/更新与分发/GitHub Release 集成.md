@@ -542,11 +542,11 @@ window.ARIES_DATA = {
 };
 ```
 
-> Source: [config.js](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/scripts/config.js#L5-L13)
+> Source: [site.generated.json](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/site/src/data/site.generated.json)（由 [`build-site-data.mjs`](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/scripts/build-site-data.mjs) 生成）
 
 静态站点直接使用 GitHub 提供的 `releases/latest/download/app-release.apk` 永久链接，由浏览器导航跟随重定向到最新 Release 资产，不再跨域 `fetch` GitHub API 或 Atom Feed。若配置中未提供该永久链接，则使用 `fixedApkUrl`。下载弹窗提供官方直连、ghfast.top 镜像、gitmirror.com 镜像三个下载通道。
 
-> Source: [modal.js](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/scripts/modal.js#L101-L118)
+> Source: [DownloadDialog.astro](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/site/src/components/DownloadDialog.astro)
 
 ## 使用示例
 
@@ -703,7 +703,7 @@ val githubToken: String by lazy {
 | `githubLatestApkUrl` | String | GitHub 最新 Release APK 永久链接（通过导航重定向，不执行跨域请求） |
 | `fixedApkUrl` | String | 固定的 APK 回退下载链接 |
 
-> Source: [config.js](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/scripts/config.js#L5-L13)
+> Source: [site.generated.json](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/site/src/data/site.generated.json)（由 [`build-site-data.mjs`](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/scripts/build-site-data.mjs) 生成）
 
 ## API 参考
 
@@ -821,8 +821,8 @@ val githubToken: String by lazy {
 - [build.gradle.kts](https://github.com/ZG0704666/Aries-AI/blob/main/feature/updates/build.gradle.kts) — 模块构建配置
 
 ### 网站端
-- [config.js](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/scripts/config.js) — 网站全局配置
-- [modal.js](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/scripts/modal.js) — 下载弹窗逻辑
+- [site.generated.json](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/site/src/data/site.generated.json) — 网站版本与下载数据
+- [DownloadDialog.astro](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/site/src/components/DownloadDialog.astro) — 下载弹窗逻辑
 
 ### 外部链接
 - [GitHub Releases 页面](https://github.com/ZG0704666/Aries-AI/releases) — Aries AI 的 GitHub Release 发布页

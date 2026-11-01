@@ -1,0 +1,191 @@
+<section class="section decision" id="intelligent-routing">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">AI 需求识别</span>
+      <h2 class="h2">先判断，再决定是否替你操作</h2>
+      <p class="lede">
+        Aries AI 会先理解你的真实意图，自动判断当前需求是否需要启动手机自动化。需要操作时标记为
+        <strong>Auto Execute</strong>，不需要操作时就保持自然对话。
+      </p>
+    </div>
+
+    <div class="decision__flow" aria-label="AI 需求识别流程">
+      <div class="decision__input">
+        <span class="decision__step">01</span>
+        <span class="decision__icon" aria-hidden="true">✦</span>
+        <div>
+          <strong>理解用户需求</strong>
+          <span>识别语义、上下文与行动意图</span>
+        </div>
+      </div>
+
+      <span class="decision__arrow" aria-hidden="true">→</span>
+
+      <div class="decision__branches">
+        <article class="decision__branch decision__branch--execute">
+          <span class="decision__badge">Auto Execute</span>
+          <h3>需要启动手机操作</h3>
+          <p>自动进入执行链路，跨应用完成任务，并实时反馈进度。</p>
+        </article>
+        <article class="decision__branch decision__branch--chat">
+          <span class="decision__badge">Normal Chat</span>
+          <h3>无需启动自动化</h3>
+          <p>直接进入普通问答，快速给出清晰、自然的回答。</p>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .decision {
+    padding-top: clamp(36px, 5vw, 72px);
+  }
+
+  .decision .section-head {
+    margin-bottom: clamp(28px, 4vw, 44px);
+  }
+
+  .decision .lede {
+    max-width: 680px;
+    margin-inline: auto;
+  }
+
+  .decision .lede strong {
+    color: var(--accent-3);
+    font-weight: 750;
+  }
+
+  .decision__flow {
+    display: grid;
+    grid-template-columns: minmax(210px, 0.8fr) auto minmax(0, 1.5fr);
+    align-items: center;
+    gap: clamp(16px, 3vw, 34px);
+    padding: clamp(20px, 3vw, 30px);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl);
+    background:
+      linear-gradient(110deg, rgba(91, 140, 255, 0.1), transparent 42%),
+      var(--surface);
+    box-shadow: var(--shadow-card);
+  }
+
+  .decision__input {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 126px;
+    padding: 18px;
+    border: 1px solid rgba(91, 140, 255, 0.3);
+    border-radius: var(--radius-lg);
+    background: rgba(91, 140, 255, 0.1);
+  }
+
+  .decision__step {
+    align-self: flex-start;
+    color: var(--text-muted);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+
+  .decision__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    border-radius: 14px;
+    background: rgba(34, 211, 238, 0.12);
+    color: var(--accent-3);
+    font-size: 22px;
+    box-shadow: 0 0 24px rgba(34, 211, 238, 0.16);
+  }
+
+  .decision__input strong,
+  .decision__input span:last-child {
+    display: block;
+  }
+
+  .decision__input strong {
+    font-size: 15px;
+  }
+
+  .decision__input span:last-child {
+    margin-top: 5px;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .decision__arrow {
+    color: var(--accent-3);
+    font-size: 28px;
+    text-shadow: 0 0 18px rgba(34, 211, 238, 0.5);
+  }
+
+  .decision__branches {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .decision__branch {
+    min-height: 126px;
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  .decision__branch--execute {
+    border-color: rgba(167, 139, 250, 0.38);
+    background: linear-gradient(145deg, rgba(167, 139, 250, 0.16), rgba(91, 140, 255, 0.06));
+  }
+
+  .decision__branch--chat {
+    border-color: rgba(52, 211, 153, 0.3);
+    background: linear-gradient(145deg, rgba(52, 211, 153, 0.12), rgba(34, 211, 238, 0.04));
+  }
+
+  .decision__badge {
+    display: inline-flex;
+    padding: 4px 9px;
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-soft);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+
+  .decision__branch h3 {
+    margin-top: 12px;
+    font-size: 15px;
+  }
+
+  .decision__branch p {
+    margin-top: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 800px) {
+    .decision__flow {
+      grid-template-columns: 1fr;
+    }
+
+    .decision__arrow {
+      justify-self: center;
+      transform: rotate(90deg);
+    }
+  }
+
+  @media (max-width: 520px) {
+    .decision__branches {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
