@@ -85,7 +85,6 @@ async function renderRedirects(legacyRoutes) {
     '',
     '# 旧文档中心（hash 路由由跳转壳处理）',
     '/docs-center            /docs-center.html   200',
-    '/docs-center.html       /docs-center.html   200',
     '',
     '# 旧文档目录与首页',
     '/docs                   ' + DOCS_ORIGIN + '/   301',
