@@ -61,6 +61,8 @@ function tokenize(text: string): string[] {
 
 export default defineConfig({
   lang: 'zh-CN',
+  // 产物集中到 Aries-site/dist/，与官网部署路径对称
+  outDir: '../dist/docs',
   title: 'Aries AI',
   titleTemplate: ':title — Aries AI 文档',
   description:

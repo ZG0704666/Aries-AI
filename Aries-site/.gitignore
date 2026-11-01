@@ -1,7 +1,6 @@
 node_modules/
-site/dist/
+dist/
 site/.astro/
-docs/.vitepress/dist/
 docs/.vitepress/cache/
 docs/.vitepress/.temp/
 .astro/

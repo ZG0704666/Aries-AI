@@ -8,6 +8,8 @@ import path from 'node:path';
 import { siteRoot } from './lib/docs-data.mjs';
 
 const TARGETS = [
+  path.join(siteRoot, 'dist'),
+  // 旧产物位置：清理可能残留的历史输出
   path.join(siteRoot, 'site/dist'),
   path.join(siteRoot, 'docs/.vitepress/dist'),
 ];
