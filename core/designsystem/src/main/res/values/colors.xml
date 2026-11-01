@@ -3,11 +3,11 @@
     <!-- ===========================================
          核心品牌色 (Brand Colors)
          =========================================== -->
-    <!-- 主色调 - 蓝色玻璃风格 -->
-    <color name="blue_glass_primary">#6BA8FF</color>
-    <color name="blue_glass_primary_variant">#4F8EF5</color>
-    <color name="blue_glass_primary_dark">#3D7DD9</color>
-    <color name="blue_glass_primary_light">#9CC8FF</color>
+    <!-- 主色调 - 薄荷青玻璃风格（参考 temp 渐变图，与官网 #0AA3C2 同源） -->
+    <color name="blue_glass_primary">#38B6E3</color>
+    <color name="blue_glass_primary_variant">#0AA3C2</color>
+    <color name="blue_glass_primary_dark">#0E8FB5</color>
+    <color name="blue_glass_primary_light">#9FE6F2</color>
 
     <!-- 次要色 -->
     <color name="teal_accent">#26A69A</color>
@@ -44,7 +44,7 @@
     <!-- 边框和分割线 -->
     <color name="border_light">#E2E8F0</color>
     <color name="border_default">#CBD5E1</color>
-    <color name="border_focus">#6BA8FF</color>
+    <color name="border_focus">#38B6E3</color>
     <color name="divider">#F1F5F9</color>
 
     <!-- ===========================================
@@ -54,18 +54,18 @@
     <color name="surface">#FFFFFF</color>
     <color name="surface_variant">#F1F5F9</color>
 
-    <!-- 浅色玻璃背景 -->
-    <color name="blue_glass_light">#E8F3FF</color>
-    <color name="blue_glass_surface">#CCF5F9FF</color>
-    <color name="blue_glass_stroke">#80A7CFFF</color>
-    <color name="blue_glass_ripple">#336BA8FF</color>
-    <color name="blue_glass_icon">#4A6FAE</color>
+    <!-- 浅色玻璃背景（薄荷青调） -->
+    <color name="blue_glass_light">#E4F7FB</color>
+    <color name="blue_glass_surface">#CCF0FAFD</color>
+    <color name="blue_glass_stroke">#80A9DDF0</color>
+    <color name="blue_glass_ripple">#3338B6E3</color>
+    <color name="blue_glass_icon">#3D7E96</color>
     <color name="blue_glass_text">#1B2B3D</color>
     <color name="blue_glass_text_dim">#661B2B3D</color>
 
     <!-- 思考气泡背景 -->
     <color name="thinking_background">#F5F7FA</color>
-    <color name="user_bubble_background">#6BA8FF</color>
+    <color name="user_bubble_background">#38B6E3</color>
     <color name="ai_bubble_background">#FFFFFF</color>
 
     <!-- ===========================================
@@ -75,10 +75,10 @@
     <color name="input_background">#F8FAFC</color>
     <color name="input_background_focused">#FFFFFF</color>
     <color name="input_stroke">#E2E8F0</color>
-    <color name="input_stroke_focused">#6BA8FF</color>
+    <color name="input_stroke_focused">#38B6E3</color>
 
     <!-- 按钮 -->
-    <color name="button_primary">#6BA8FF</color>
+    <color name="button_primary">#38B6E3</color>
     <color name="button_primary_pressed">#4F8EF5</color>
     <color name="button_disabled">#CBD5E1</color>
     <color name="button_text_disabled">#94A3B8</color>
@@ -89,7 +89,7 @@
     <color name="card_shadow">#1A000000</color>
 
     <!-- 开关和选择器 -->
-    <color name="switch_track_on">#6BA8FF</color>
+    <color name="switch_track_on">#38B6E3</color>
     <color name="switch_track_off">#E2E8F0</color>
 
     <!-- ===========================================

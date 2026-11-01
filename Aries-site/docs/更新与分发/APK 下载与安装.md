@@ -1,4 +1,4 @@
-﻿# APK 下载与安装
+# APK 下载与安装
 
 Aries AI 内置了完整的版本更新系统，支持从 GitHub Releases 自动检查新版本、下载 APK 并通过系统安装器完成安装。
 

@@ -51,13 +51,13 @@
     <dimen name="m3t_top_bar_title_gap">8dp</dimen>
     <dimen name="m3t_home_bottom_fade_height">136dp</dimen>
 
-    <color name="m3t_voice_wave_active">#8FC8FF</color>
+    <color name="m3t_voice_wave_active">#7DD8F0</color>
     <color name="m3t_voice_wave_cancel">#FF9FA8</color>
-    <!-- 语音录音状态胶囊：录音蓝 / 取消红 / 录音提示文字（浅色） -->
-    <!-- 语音录音状态胶囊：录音蓝 / 取消红 / 录音提示文字。本项目主题切换为 Compose 内部
+    <!-- 语音录音状态胶囊：录音青蓝 / 取消红 / 录音提示文字（浅色） -->
+    <!-- 语音录音状态胶囊：录音青蓝 / 取消红 / 录音提示文字。本项目主题切换为 Compose 内部
          标志（不改资源配置），dark 值由代码按 LocalAriesBackdrop.dark 分支选择，勿用 values-night -->
-    <color name="m3t_voice_record_pill_bg">#1F6BF1</color>
-    <color name="m3t_voice_record_pill_bg_dark">#2C7BF2</color>
+    <color name="m3t_voice_record_pill_bg">#0E8FB5</color>
+    <color name="m3t_voice_record_pill_bg_dark">#2FB3D6</color>
     <color name="m3t_voice_record_pill_bg_cancel">#FF5348</color>
     <color name="m3t_voice_record_pill_bg_cancel_dark">#FF6656</color>
     <color name="m3t_voice_record_hint">#5E6470</color>

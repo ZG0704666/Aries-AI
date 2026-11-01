@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, follow" />
+    <title>正在跳转到 Aries AI 文档…</title>
+    <link rel="canonical" href="https://docs.aries-agent.com/" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        margin: 0;
+        background: #05060a;
+        color: #c9d0e0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei", sans-serif;
+        text-align: center;
+      }
+      a { color: #7aa2ff; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p>正在跳转到新版文档…</p>
+      <p><a id="fallback" href="https://docs.aries-agent.com/">如果没有自动跳转，请点击这里</a></p>
+    </main>
+    <script>
+      (function () {
+        var ORIGIN = "https://docs.aries-agent.com";
+        var ROUTES = {"architecture-dataflow":"architecture/data-flow","architecture-di":"architecture/di","architecture-lifecycle":"architecture/lifecycle","architecture-modules":"architecture/modules","architecture-navigation":"architecture/navigation","architecture-overall":"architecture/overview","automation-accessibility":"quickstart/setup","automation-action-executor":"automation/action-executor","automation-action-parser":"automation/action-parser","automation-agent-config":"automation/configuration","automation-agent-loop":"automation/agent-loop","automation-capture":"automation/screen-capture","automation-optimization-plan-2026-10-31":"automation/voice-ui-plan-2026-10","automation-permissions":"quickstart/setup","automation-state-model":"automation/state-model","chat-history-sessions":"chat/history","chat-home-screen":"chat/home-screen","chat-input-waveform":"chat/input-waveform","chat-markdown-components":"chat/markdown-components","chat-offline-asr-research-2026-10-31":"chat/input-waveform","chat-offline-speech":"chat/input-waveform","chat-streaming-markdown":"chat/streaming-markdown","chat-transcript-cards":"chat/transcript-cards","chat-voice-glass-handoff-2026-10-31":"chat/input-waveform","chat-xasr-replacement-plan-2026-10-31":"chat/input-waveform","compat-ai-pr-review":"legacy/ai-pr-review","compat-building":"legacy/building","compat-coding":"legacy/coding-standards","compat-faq":"legacy/faq","compat-feishu":"legacy/feishu-collaboration","compat-technical":"legacy/technical-overview","compat-workflow":"legacy/git-workflow","data-preferences":"persistence/preferences","data-room":"persistence/room","data-screenshot":"persistence/screenshot-cache","data-session":"persistence/sessions","dev-build-toolchain":"dev/build-toolchain","dev-ci-testing":"dev/ci-testing","dev-coding-standards":"dev/coding-standards","dev-contribute":"dev/git-workflow","dev-feedback-debugging":"dev/feedback-debugging","dev-git-workflow":"dev/git-workflow","doc-building":"legacy/building","doc-feishu":"legacy/feishu-collaboration","doc-standards":"dev/coding-standards","doc-technical":"legacy/technical-overview","doc-workflow":"dev/git-workflow","faq":"support/faq","model-key":"quickstart/model-api","models-local-mnn":"models/local-mnn","models-overview":"models/overview","models-switching":"models/mode-switching","overview-glossary":"overview/glossary","overview-intro":"overview/introduction","overview-license":"overview/license","quick-5min":"legacy/building","quickstart-model-api":"quickstart/model-api","quickstart-permissions":"quickstart/setup","release-apk-download":"release/apk-install","release-github-release":"release/github-release","release-in-app-updates":"release/in-app-updates","release-telemetry":"release/telemetry","release-version-notes":"release/version-notes","support-faq":"support/faq","support-troubleshooting":"support/troubleshooting","support-vdiso-debugging":"support/virtual-display-debugging","system-accessibility":"system/accessibility","system-device-controller":"system/device-controller","tools-architecture":"tools/architecture","tools-file":"tools/file-executor","tools-network":"tools/network-executor","tools-packages":"tools/packages","tools-registration":"tools/registration","ui-attachments":"ui/attachments","ui-buttons":"chat/home-screen","ui-drawer":"ui/drawer","ui-feedback-export":"ui/feedback-logs","ui-icons":"ui/icons","ui-onboarding":"ui/onboarding","ui-settings":"ui/settings","ui-theme":"ui/material3-theme","vdiso-focus-input":"virtual-display/focus-input","vdiso-overview":"virtual-display/overview"};
+
+        function resolve() {
+          var raw = (location.hash || '').replace(/^#\/?/, '').trim();
+          if (!raw || raw === 'home' || raw === '/') return ORIGIN + '/';
+
+          var id = raw;
+          try {
+            id = decodeURIComponent(raw);
+          } catch (error) {
+            /* 保留原字符串 */
+          }
+
+          var slug = ROUTES[id] || ROUTES[raw] || '';
+          return ORIGIN + (slug ? '/' + slug : '/');
+        }
+
+        var target = resolve();
+        var fallback = document.getElementById('fallback');
+        if (fallback) fallback.href = target;
+        location.replace(target);
+      })();
+    </script>
+  </body>
+</html>

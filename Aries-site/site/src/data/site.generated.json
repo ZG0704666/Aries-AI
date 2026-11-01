@@ -1,0 +1,24 @@
+{
+  "domain": "https://aries-agent.com",
+  "docsUrl": "https://docs.aries-agent.com/",
+  "github": "https://github.com/ZG0704666/Aries-AI",
+  "githubReleases": "https://github.com/ZG0704666/Aries-AI/releases",
+  "qq": {
+    "id": "746439473",
+    "url": "https://qm.qq.com/q/ASVDJPrIxq"
+  },
+  "dev": {
+    "versionName": "2.0.0 Alpha",
+    "versionCode": 21
+  },
+  "release": {
+    "tag": "V1.5.0",
+    "name": "V1.5.0",
+    "publishedAt": "2026-05-18T09:48:59Z",
+    "apkSize": 224027357,
+    "apkUrl": "https://github.com/ZG0704666/Aries-AI/releases/download/V1.5.0/app-release.apk",
+    "htmlUrl": "https://github.com/ZG0704666/Aries-AI/releases/tag/V1.5.0",
+    "body": "与我们一起，遇见更好的Aries AI🌟🌟🌟\r\n\r\n经过我们62天的深度优化，V1.5.0版本正式发布，在这个版本中，我们为您带来了全局界面的焕新升级，并对核心执行框架进行了重点加强，让 AI 操作手机变得更丝滑、更稳定：\r\n🌟 灵动岛适配：适配了小米、OPPO 系列机型的“灵动岛”状态提醒，自动化操作状态咱们岛上见！\r\n🎨 UI / UX 全局焕新：重新调整了应用的整体视觉设计与深色模式，全场景更丝滑动画过渡。\r\n⚡ 虚拟屏后台自动化优化：大幅提升了虚拟屏幕在后台运行自动化的效率与稳定性，深度优化算法，执行过程更加无感顺畅。\r\n\r\n相关技术细节详见我们的文档中心：https://aries-agent.com/docs-center 或CSDN博客https://blog.csdn.net/ZG0704666/article/details/161195742\r\n限于开发团队技术水平，技术文档中难免有疏漏之处，诚邀各位开发者为我们提出宝贵的建议和意见。"
+  },
+  "generatedAt": "2026-11-01T13:08:56.381Z"
+}

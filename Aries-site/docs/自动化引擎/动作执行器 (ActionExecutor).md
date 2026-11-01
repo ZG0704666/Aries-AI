@@ -1,4 +1,4 @@
-﻿# 动作执行器 (ActionExecutor)
+# 动作执行器 (ActionExecutor)
 
 动作执行器是 Aries AI 自动化框架中的核心执行组件，负责将 AI 模型生成的解析动作（ParsedAgentAction）转换为实际的 Android UI 操作。
 

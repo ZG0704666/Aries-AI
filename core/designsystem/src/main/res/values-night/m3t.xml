@@ -2,18 +2,19 @@
 <resources>
 
     <!-- M3T Dark Palette -->
-    <color name="m3t_primary">#FF3EA5</color>
-    <color name="m3t_on_primary">#FFFFFF</color>
-    <color name="m3t_primary_container">#472C3A</color>
-    <color name="m3t_on_primary_container">#F5F5F7</color>
+    <!-- 主色：薄荷青系（参考 temp 渐变图 1/2/6），与官网 #6FDCEF 同源 -->
+    <color name="m3t_primary">#6FDCEF</color>
+    <color name="m3t_on_primary">#00323F</color>
+    <color name="m3t_primary_container">#0E4A5C</color>
+    <color name="m3t_on_primary_container">#C9F2FA</color>
 
-    <color name="m3t_secondary">#FF5548</color>
-    <color name="m3t_on_secondary">#FFFFFF</color>
-    <color name="m3t_secondary_container">#492F2D</color>
-    <color name="m3t_on_secondary_container">#F5F5F7</color>
+    <color name="m3t_secondary">#F2A6C4</color>
+    <color name="m3t_on_secondary">#4A1229</color>
+    <color name="m3t_secondary_container">#5C2239</color>
+    <color name="m3t_on_secondary_container">#FBDFE9</color>
 
-    <color name="m3t_tertiary">#8CB9FF</color>
-    <color name="m3t_on_tertiary">#17243A</color>
+    <color name="m3t_tertiary">#7BDFC2</color>
+    <color name="m3t_on_tertiary">#00382B</color>
 
     <color name="m3t_error">#FF777B</color>
     <color name="m3t_on_error">#3F1418</color>

@@ -1,0 +1,25 @@
+---
+// 页面收尾 slogan，单独成段
+---
+
+<section class="closing section--tight" aria-label="品牌口号">
+  <p class="closing__slogan">星光闪闪、生生不息，智启未来、天印星辰。</p>
+</section>
+
+<style>
+  .closing {
+    padding: clamp(28px, 5vw, 56px) 0;
+    text-align: center;
+  }
+
+  .closing__slogan {
+    color: var(--text);
+    font-size: clamp(17px, 2.4vw, 24px);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent-3));
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+</style>

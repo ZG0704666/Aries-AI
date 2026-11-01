@@ -1,0 +1,141 @@
+---
+import site from '../data/site.generated.json';
+
+const shipped = [
+  { title: '虚拟屏后台自动化', desc: '独立显示空间执行任务，前台使用不受影响。' },
+  { title: '胶囊悬浮窗', desc: '拖拽、进度与收缩动画，任务状态随手可见。' },
+  { title: '离线语音识别', desc: 'Sherpa-onnx + X-ASR-zh-en，中英混说、本地响应。' },
+  { title: '多模型接入', desc: '第三方 API、Aries API 与本地 MNN 三种模式。' },
+  { title: '工具框架', desc: '网络、文件、应用包名等工具统一注册与权限管理。' },
+];
+
+const upcoming = [
+  { title: '本地技能库', desc: '为 12306、美团等高频场景内置稳定技能。' },
+  { title: '任务编排与恢复', desc: '长任务断点续跑，失败步骤自动回退。' },
+  { title: '更多机型适配', desc: '扩大虚拟屏与悬浮窗的厂商兼容范围。' },
+  { title: '语音交互细节', desc: '尾音、噪声与打断体验继续打磨。' },
+];
+---
+
+<section class="section" id="roadmap">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">路线图</span>
+      <h2 class="h2">持续把自动化做得更稳</h2>
+      <p class="lede">公开版本 {site.release.tag}，开发版 {site.dev.versionName} 正在推进。</p>
+    </div>
+
+    <div class="roadmap">
+      <article class="roadmap__card">
+        <div class="roadmap__head">
+          <h3 class="h3">已经上线</h3>
+          <span class="tag">Shipped</span>
+        </div>
+        <ul>
+          {
+            shipped.map((item) => (
+              <li>
+                <span class="roadmap__dot roadmap__dot--done" aria-hidden="true"></span>
+                <div>
+                  <strong>{item.title}</strong>
+                  <p>{item.desc}</p>
+                </div>
+              </li>
+            ))
+          }
+        </ul>
+      </article>
+
+      <article class="roadmap__card roadmap__card--next">
+        <div class="roadmap__head">
+          <h3 class="h3">正在推进</h3>
+          <span class="tag">In progress</span>
+        </div>
+        <ul>
+          {
+            upcoming.map((item) => (
+              <li>
+                <span class="roadmap__dot" aria-hidden="true"></span>
+                <div>
+                  <strong>{item.title}</strong>
+                  <p>{item.desc}</p>
+                </div>
+              </li>
+            ))
+          }
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<style>
+  .roadmap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .roadmap__card {
+    padding: clamp(22px, 3vw, 32px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+  }
+
+  .roadmap__card--next {
+    border-color: rgba(240, 183, 208, 0.24);
+    background: linear-gradient(160deg, rgba(240, 183, 208, 0.07), var(--surface));
+  }
+
+  .roadmap__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+
+  .roadmap__card ul {
+    display: grid;
+    gap: 18px;
+  }
+
+  .roadmap__card li {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .roadmap__dot {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    margin-top: 8px;
+    border-radius: 50%;
+    background: var(--accent-2);
+    box-shadow: 0 0 12px rgba(240, 183, 208, 0.6);
+  }
+
+  .roadmap__dot--done {
+    background: var(--success);
+    box-shadow: 0 0 12px rgba(52, 211, 153, 0.6);
+  }
+
+  .roadmap__card strong {
+    font-size: 14.5px;
+  }
+
+  .roadmap__card p {
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  @media (max-width: 760px) {
+    .roadmap {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

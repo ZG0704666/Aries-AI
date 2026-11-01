@@ -1,4 +1,4 @@
-﻿# Aries AI 常见问题解答（FAQ）
+# Aries AI 常见问题解答（FAQ）
 
 > 当前实现说明：`FloatingChatService` 已不在当前源码中；本文涉及它的示例与悬浮聊天链路属于历史实现。当前主界面入口为 `MainActivity`，悬浮聊天偏好类仍保留，不能据此推断悬浮聊天服务仍可用。
 
@@ -55,7 +55,7 @@ flowchart TD
     subgraph ExternalLayer["☁️ 外部服务层"]
         AutoGlmClient[AutoGlmClient API 客户端]
         LLM[大语言模型 GPT-4V/GLM-4V 等]
-        SpeechEngine[Sherpa-ncnn 本地语音识别]
+        SpeechEngine[Sherpa-onnx 本地语音识别]
     end
 
     UserLayer --> AutomationCore
@@ -772,7 +772,7 @@ val fastInstance: OkHttpClient by lazy {
    - 撰写使用教程
    - 制作视频演示
 
-详见 [贡献指南](../../../README.md#-贡献指南)
+详见 [贡献指南](https://github.com/ZG0704666/Aries-AI/blob/main/README.md#-贡献指南)
 
 ### Q35: 如何构建 Aries AI？
 
@@ -938,13 +938,13 @@ val testConfig = AgentConfiguration.TEST
 
 ## 📚 相关文档
 
-- [README.md](../../../README.md) - 项目概览与快速开始
+- [README.md](https://github.com/ZG0704666/Aries-AI/blob/main/README.md) - 项目概览与快速开始
 - [TECHNICAL_OVERVIEW.md](../TECHNICAL_OVERVIEW.md) - 核心技术文档
 - [BUILDING.md](../BUILDING.md) - 编译与构建指南
 - [CODING_STANDARDS.md](../CODING_STANDARDS.md) - 代码规范
 - [GIT_WORKFLOW.md](../GIT_WORKFLOW.md) - Git 工作流
-- [CONTRIBUTING.md](../../../CONTRIBUTING.md) - 贡献指南
-- [Aries AI 开发文档](../../../Aries%20AI%20开发文档.md) - 主开发文档
+- [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md) - 贡献指南
+- [Aries AI 开发文档](https://docs.aries-agent.com/) - 主开发文档
 
 ---
 

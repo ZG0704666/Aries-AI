@@ -1,0 +1,127 @@
+---
+const stars = Array.from({ length: 54 }, (_, i) => {
+  const x = (i * 37 + 13) % 100;
+  const y = (i * 53 + 7) % 100;
+  const size = 1 + ((i * 7) % 3) * 0.5;
+  const delay = ((i * 13) % 40) / 10;
+  const duration = 3.2 + ((i * 3) % 40) / 10;
+  const opacity = 0.18 + ((i * 5) % 46) / 100;
+  return {
+    style: `--x:${x}%;--y:${y}%;--s:${size}px;--d:${duration}s;--delay:${delay}s;--o:${opacity};`,
+  };
+});
+---
+
+<div class="starfield" aria-hidden="true">
+  <span class="aurora aurora--one"></span>
+  <span class="aurora aurora--two"></span>
+  <span class="aurora aurora--three"></span>
+  {stars.map(({ style }) => <span class="star" style={style}></span>)}
+</div>
+
+<style>
+  .starfield {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .aurora {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.42;
+    will-change: transform;
+  }
+
+  .aurora--one {
+    top: -18%;
+    left: -8%;
+    width: 46vw;
+    height: 46vw;
+    min-width: 320px;
+    min-height: 320px;
+    background: radial-gradient(circle, rgba(56, 182, 227, 0.5), transparent 68%);
+    animation: drift-one 26s ease-in-out infinite alternate;
+  }
+
+  .aurora--two {
+    top: 2%;
+    right: -10%;
+    width: 42vw;
+    height: 42vw;
+    min-width: 280px;
+    min-height: 280px;
+    background: radial-gradient(circle, rgba(240, 183, 208, 0.42), transparent 68%);
+    animation: drift-two 32s ease-in-out infinite alternate;
+  }
+
+  .aurora--three {
+    bottom: -24%;
+    left: 24%;
+    width: 50vw;
+    height: 40vw;
+    min-width: 320px;
+    min-height: 260px;
+    background: radial-gradient(circle, rgba(43, 212, 190, 0.2), transparent 70%);
+    animation: drift-three 38s ease-in-out infinite alternate;
+  }
+
+  .star {
+    position: absolute;
+    top: var(--y);
+    left: var(--x);
+    width: var(--s);
+    height: var(--s);
+    border-radius: 50%;
+    background: #fff;
+    opacity: var(--o);
+    animation: twinkle var(--d) ease-in-out var(--delay) infinite alternate;
+  }
+
+  @keyframes twinkle {
+    from {
+      opacity: calc(var(--o) * 0.35);
+      transform: scale(0.7);
+    }
+    to {
+      opacity: var(--o);
+      transform: scale(1);
+    }
+  }
+
+  @keyframes drift-one {
+    to {
+      transform: translate3d(6%, 4%, 0) scale(1.08);
+    }
+  }
+
+  @keyframes drift-two {
+    to {
+      transform: translate3d(-5%, 6%, 0) scale(1.12);
+    }
+  }
+
+  @keyframes drift-three {
+    to {
+      transform: translate3d(4%, -5%, 0) scale(1.06);
+    }
+  }
+
+  @media (max-width: 720px) {
+    .aurora {
+      opacity: 0.28;
+      filter: blur(70px);
+    }
+  }
+
+  :global(html[data-theme='light']) .starfield {
+    opacity: 0.35;
+  }
+
+  :global(html[data-theme='light']) .star {
+    background: #7c8db3;
+  }
+</style>

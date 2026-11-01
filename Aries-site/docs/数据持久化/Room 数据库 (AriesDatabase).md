@@ -1,4 +1,4 @@
-﻿# Room 数据库 (AriesDatabase)
+# Room 数据库 (AriesDatabase)
 
 AriesDatabase 是 Aries AI Android 应用的本地持久化核心，基于 Room 数据库框架，专门管理对话（Conversation）记录的存储与检索。
 

@@ -1,0 +1,420 @@
+:root {
+  --vp-font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  --vp-font-family-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* 品牌色：参考图薄荷青/浅蓝系（图1 薄荷青、图2 天蓝、图6 青色光晕） */
+  --vp-c-brand-1: #0aa3c2;
+  --vp-c-brand-2: #2bb8d8;
+  --vp-c-brand-3: #5fc9e8;
+  --vp-c-brand-soft: rgba(95, 201, 232, 0.16);
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(
+    120deg,
+    #2bd4be 8%,
+    #38b6e3 52%,
+    #f5a8c8 100%
+  );
+  --vp-home-hero-image-background-image: linear-gradient(
+    135deg,
+    rgba(43, 212, 190, 0.26),
+    rgba(245, 168, 200, 0.22)
+  );
+  --vp-home-hero-image-filter: blur(56px);
+}
+
+.dark {
+  --vp-c-brand-1: #6fdcef;
+  --vp-c-brand-2: #4fc2e0;
+  --vp-c-brand-3: #f0b7d0;
+  --vp-c-brand-soft: rgba(111, 220, 239, 0.14);
+
+  --vp-c-bg: #05060a;
+  --vp-c-bg-alt: #070910;
+  --vp-c-bg-soft: #0b0e17;
+  --vp-c-bg-elv: #0d1120;
+  --vp-c-text-1: #f4f6fb;
+  --vp-c-text-2: #c9d0e0;
+  --vp-c-text-3: #98a1b6;
+  --vp-c-divider: rgba(255, 255, 255, 0.09);
+  --vp-c-border: rgba(255, 255, 255, 0.13);
+  --vp-c-gutter: #05060a;
+
+  --vp-code-block-bg: #090c16;
+  --vp-code-line-highlight-color: rgba(95, 201, 232, 0.1);
+
+  --vp-home-hero-name-background: linear-gradient(
+    120deg,
+    #ffffff 0%,
+    #a5ecdf 50%,
+    #8ee7f5 100%
+  );
+  --vp-home-hero-image-background-image: linear-gradient(
+    135deg,
+    rgba(43, 212, 190, 0.3),
+    rgba(95, 201, 232, 0.24)
+  );
+}
+
+::selection {
+  background: rgba(95, 201, 232, 0.35);
+  color: #fff;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* 浅色模式：参考图 5/6 的柔和青色光晕背景 */
+body:not(.dark) {
+  background-image:
+    radial-gradient(760px 440px at 10% -8%, rgba(43, 212, 190, 0.1), transparent 60%),
+    radial-gradient(640px 400px at 94% -4%, rgba(95, 201, 232, 0.09), transparent 58%),
+    radial-gradient(520px 360px at 50% 108%, rgba(245, 168, 200, 0.07), transparent 60%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.dark body {
+  background-image:
+    radial-gradient(800px 460px at 8% -10%, rgba(43, 212, 190, 0.12), transparent 62%),
+    radial-gradient(680px 420px at 96% -6%, rgba(245, 168, 200, 0.1), transparent 60%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.VPNavBarTitle .title {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.VPImage.logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+}
+
+.VPHero .name,
+.VPHero .text {
+  letter-spacing: -0.03em;
+}
+
+.VPHero .tagline {
+  max-width: 620px;
+  line-height: 1.7;
+}
+
+.VPHero .image-src {
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 48px;
+}
+
+.VPButton.brand {
+  border-color: transparent;
+  background: #f4f6fb;
+  color: #070912;
+}
+
+.VPButton.brand:hover {
+  background: #ffffff;
+  color: #070912;
+}
+
+.dark .VPButton.brand {
+  background: #f4f6fb;
+  color: #070912;
+}
+
+.VPButton.alt {
+  border-color: var(--vp-c-border);
+  background: var(--vp-c-bg-soft);
+}
+
+.vp-doc h1 {
+  letter-spacing: -0.025em;
+}
+
+.vp-doc h2 {
+  margin-top: 44px;
+  padding-top: 26px;
+  border-top: 1px solid var(--vp-c-divider);
+  letter-spacing: -0.02em;
+}
+
+.vp-doc h3 {
+  letter-spacing: -0.01em;
+}
+
+.vp-doc blockquote {
+  border-left: 3px solid var(--vp-c-brand-1);
+  background: var(--vp-c-bg-soft);
+  border-radius: 0 12px 12px 0;
+  padding: 12px 18px;
+}
+
+.vp-doc blockquote > p {
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+}
+
+.vp-doc table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.vp-doc tr:nth-child(2n) {
+  background: var(--vp-c-bg-soft);
+}
+
+.vp-doc div[class*='language-'] {
+  border-radius: 12px;
+}
+
+.vp-doc a {
+  text-underline-offset: 3px;
+}
+
+/* ---------- Mermaid ---------- */
+
+.mermaid-block {
+  position: relative;
+  margin: 24px 0;
+  padding: 20px 18px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 14px;
+  background: var(--vp-c-bg-soft);
+  overflow-x: auto;
+}
+
+.mermaid-block[data-state='done'] {
+  padding: 20px;
+}
+
+.mermaid-block > .copy,
+.mermaid-block > .lang {
+  display: none;
+}
+
+.mermaid-block pre {
+  margin: 0;
+  background: transparent !important;
+}
+
+.mermaid-block svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.mermaid-loading {
+  padding: 24px 0;
+  color: var(--vp-c-text-3);
+  font-size: 13px;
+  text-align: center;
+}
+
+.mermaid-error {
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+/* ---------- 文档首页导航 ---------- */
+
+.home-doc-index {
+  max-width: 1152px;
+  margin: 8px auto 96px;
+  padding: 0 24px;
+}
+
+.home-doc-index__title {
+  margin-bottom: 8px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.home-doc-index__desc {
+  margin-bottom: 28px;
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+}
+
+.home-doc-index__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.home-doc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 14px;
+  background: var(--vp-c-bg-soft);
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.home-doc-card:hover {
+  border-color: color-mix(in srgb, var(--vp-c-brand-1) 46%, transparent);
+  background: var(--vp-c-bg-elv);
+  transform: translateY(-2px);
+}
+
+.home-doc-card strong {
+  color: var(--vp-c-text-1);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.home-doc-card span {
+  color: var(--vp-c-text-3);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .home-doc-index__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .home-doc-index__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- 液态玻璃质感（参考 temp 渐变图 + GooseHyperGlass 风格） ---------- */
+
+/* 首页 features 卡片 */
+.VPFeature {
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(240, 252, 253, 0.5));
+  backdrop-filter: blur(14px) saturate(1.25);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+  box-shadow:
+    0 8px 28px rgba(95, 201, 232, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.VPFeature:hover {
+  border-color: color-mix(in srgb, var(--vp-c-brand-3) 55%, transparent);
+  transform: translateY(-2px);
+  box-shadow:
+    0 12px 34px rgba(95, 201, 232, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.VPFeature .title,
+.VPFeature .details {
+  color: var(--vp-c-text-1);
+}
+
+.dark .VPFeature {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(13, 17, 32, 0.72), rgba(9, 12, 22, 0.55));
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.dark .VPFeature:hover {
+  border-color: color-mix(in srgb, var(--vp-c-brand-1) 46%, transparent);
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* 首页主题导航卡片 */
+.home-doc-card {
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.7), rgba(240, 252, 253, 0.48));
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  box-shadow:
+    0 6px 22px rgba(95, 201, 232, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.home-doc-card:hover {
+  border-color: color-mix(in srgb, var(--vp-c-brand-3) 55%, transparent);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(232, 248, 251, 0.6));
+  box-shadow:
+    0 10px 28px rgba(95, 201, 232, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.dark .home-doc-card {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(11, 14, 23, 0.7), rgba(7, 9, 16, 0.55));
+  box-shadow:
+    0 6px 22px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.dark .home-doc-card:hover {
+  border-color: color-mix(in srgb, var(--vp-c-brand-1) 46%, transparent);
+  background: linear-gradient(135deg, rgba(13, 17, 32, 0.8), rgba(9, 12, 22, 0.62));
+}
+
+/* Hero 按钮：brand 改薄荷→青渐变玻璃 */
+.VPButton.brand {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: linear-gradient(120deg, #2bd4be, #38b6e3);
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(56, 182, 227, 0.28);
+}
+
+.VPButton.brand:hover {
+  border-color: rgba(255, 255, 255, 0.65);
+  background: linear-gradient(120deg, #33e0ca, #4cc4ec);
+  color: #ffffff;
+}
+
+.dark .VPButton.brand {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: linear-gradient(120deg, #1fb9a6, #2f9fd4);
+  color: #ffffff;
+}
+
+.dark .VPButton.brand:hover {
+  background: linear-gradient(120deg, #26cbb7, #3cb0e0);
+}
+
+.VPButton.alt {
+  border: 1px solid var(--vp-c-border);
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 82%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* 导航栏：毛玻璃 */
+.VPNavBar:not(.home) {
+  background: color-mix(in srgb, var(--vp-c-bg) 72%, transparent);
+  backdrop-filter: blur(12px) saturate(1.15);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+}
+
+@media (min-width: 960px) {
+  .VPNavBar .divider-line {
+    background: transparent;
+  }
+}

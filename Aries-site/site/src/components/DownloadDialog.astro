@@ -1,0 +1,237 @@
+---
+import site from '../data/site.generated.json';
+
+const release = site.release;
+const apk = release.apkUrl;
+const mirrors = [
+  {
+    label: '官方直连',
+    hint: 'GitHub Releases 原始链接',
+    url: apk,
+    badge: '官方',
+  },
+  {
+    label: '镜像加速 1',
+    hint: 'ghfast.top 加速',
+    url: `https://ghfast.top/${apk}`,
+    badge: '推荐',
+  },
+  {
+    label: '镜像加速 2',
+    hint: 'hub.gitmirror.com 加速',
+    url: apk.replace('https://github.com/', 'https://hub.gitmirror.com/'),
+    badge: '备用',
+  },
+];
+---
+
+<dialog class="download-dialog" id="download-dialog" aria-labelledby="download-dialog-title">
+  <div class="dialog-head">
+    <div>
+      <div class="dialog-eyebrow">Aries AI · {release.tag}</div>
+      <h2 class="dialog-title" id="download-dialog-title">获取安装包</h2>
+      <p class="dialog-sub">选择下载线路。国内网络优先使用镜像加速。</p>
+    </div>
+    <button class="icon-btn dialog-close" type="button" data-close-download aria-label="关闭下载面板">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <path d="m6 6 12 12M18 6 6 18"></path>
+      </svg>
+    </button>
+  </div>
+
+  <div class="dialog-options">
+    {
+      mirrors.map((mirror) => (
+        <a class="dialog-option" href={mirror.url} target="_blank" rel="noreferrer">
+          <span>
+            <strong>{mirror.label}</strong>
+            <small>{mirror.hint}</small>
+          </span>
+          <span class="dialog-badge">{mirror.badge}</span>
+        </a>
+      ))
+    }
+  </div>
+
+  <div class="dialog-foot">
+    <span>版本 {release.tag} · Android 11+ · arm64-v8a</span>
+    <a class="dialog-more" href="/download">查看完整更新日志与安装说明 →</a>
+  </div>
+</dialog>
+
+<script>
+  const dialog = document.getElementById('download-dialog') as HTMLDialogElement | null;
+
+  function openDialog() {
+    if (!dialog) return;
+    if (typeof dialog.showModal === 'function') {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute('open', '');
+    }
+    document.body.classList.add('dialog-open');
+  }
+
+  function closeDialog() {
+    if (!dialog) return;
+    dialog.close();
+    document.body.classList.remove('dialog-open');
+  }
+
+  document.querySelectorAll('[data-open-download]').forEach((trigger) => {
+    trigger.addEventListener('click', openDialog);
+  });
+
+  document.querySelectorAll('[data-close-download]').forEach((trigger) => {
+    trigger.addEventListener('click', closeDialog);
+  });
+
+  dialog?.addEventListener('click', (event) => {
+    if (event.target === dialog) closeDialog();
+  });
+
+  dialog?.addEventListener('close', () => {
+    document.body.classList.remove('dialog-open');
+  });
+</script>
+
+<style>
+  .download-dialog {
+    width: min(560px, calc(100% - 32px));
+    padding: 26px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl);
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    color: var(--text);
+    box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(24px);
+  }
+
+  .download-dialog::backdrop {
+    background: rgba(2, 4, 10, 0.7);
+    backdrop-filter: blur(8px);
+  }
+
+  .dialog-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .dialog-eyebrow {
+    color: var(--accent-3);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .dialog-title {
+    margin-top: 8px;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .dialog-sub {
+    margin-top: 6px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .dialog-close {
+    flex: 0 0 auto;
+  }
+
+  .dialog-options {
+    display: grid;
+    gap: 10px;
+    margin-top: 22px;
+  }
+
+  .dialog-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    transition:
+      background-color 0.2s var(--ease),
+      border-color 0.2s var(--ease),
+      transform 0.2s var(--ease);
+  }
+
+  .dialog-option:hover {
+    border-color: rgba(56, 182, 227, 0.5);
+    background: var(--surface-hover);
+    transform: translateY(-1px);
+  }
+
+  .dialog-option strong {
+    display: block;
+    font-size: 15px;
+  }
+
+  .dialog-option small {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  .dialog-badge {
+    flex: 0 0 auto;
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+    background: rgba(56, 182, 227, 0.14);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .dialog-option:nth-child(2) .dialog-badge {
+    background: rgba(251, 191, 36, 0.14);
+    color: var(--warning);
+  }
+
+  .dialog-option:nth-child(3) .dialog-badge {
+    background: rgba(43, 212, 190, 0.14);
+    color: var(--accent-3);
+  }
+
+  .dialog-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  .dialog-more {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  :global(body.dialog-open) {
+    overflow: hidden;
+  }
+
+  @media (max-width: 480px) {
+    .download-dialog {
+      padding: 20px;
+    }
+
+    .dialog-title {
+      font-size: 22px;
+    }
+  }
+</style>

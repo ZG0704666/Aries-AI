@@ -1,4 +1,4 @@
-﻿# 流式 Markdown 渲染
+# 流式 Markdown 渲染
 
 Aries-AI 对话系统中的流式 Markdown 渲染子系统，负责将 AI 模型实时输出的增量文本以格式化的 Markdown 形态渲染到 Compose UI 中，同时支持代码高亮、LaTeX 数学公式、Mermaid 图表和 HTML 预览等丰富内容类型。
 

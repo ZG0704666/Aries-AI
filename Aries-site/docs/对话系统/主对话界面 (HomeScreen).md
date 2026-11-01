@@ -1,4 +1,4 @@
-﻿# 主对话界面 (HomeScreen)
+# 主对话界面 (HomeScreen)
 
 `HomeScreen` 是主界面的 Compose 布局容器。当前使用三页 `HorizontalPager`，默认显示主页；业务状态与事件由 `MainActivity` 传入。
 
@@ -52,9 +52,9 @@
 
 ## 代码入口
 
-- [HomeScreen.kt](../../../app/src/main/java/com/ai/phoneagent/ui/home/HomeScreen.kt)
-- [MainActivity.kt](../../../app/src/main/java/com/ai/phoneagent/MainActivity.kt)
-- [AriesNavGraph.kt](../../../app/src/main/java/com/ai/phoneagent/navigation/AriesNavGraph.kt)
-- [SettingsRoute.kt](../../../app/src/main/java/com/ai/phoneagent/ui/settings/SettingsRoute.kt)
+- [HomeScreen.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/home/HomeScreen.kt)
+- [MainActivity.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/MainActivity.kt)
+- [AriesNavGraph.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/navigation/AriesNavGraph.kt)
+- [SettingsRoute.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/settings/SettingsRoute.kt)
 
 本页描述本地当前代码；远程 Wiki 索引及旧版本截图可能仍展示抽屉式布局。

@@ -1,0 +1,125 @@
+# Aries AI
+
+> Aries AI 是面向 Android 11+ 的开源 AI 手机助手：用多模态模型理解屏幕，跨应用自动完成订票、购物、社交等任务；
+> 支持离线语音识别与虚拟屏后台隔离。本文档覆盖架构设计、对话系统、自动化引擎、虚拟屏、多模型接入与开发规范。
+
+## 官方入口
+
+- [官网](https://aries-agent.com/)
+- [下载安装](https://aries-agent.com/download)
+- [GitHub 仓库](https://github.com/ZG0704666/Aries-AI)
+- [版本发布](https://github.com/ZG0704666/Aries-AI/releases)
+- [机器可读索引](https://docs.aries-agent.com/route-map.json)
+
+## 项目概览
+
+- [简介与核心特性](https://docs.aries-agent.com/overview/introduction)
+- [许可证与社区](https://docs.aries-agent.com/overview/license)
+- [术语表](https://docs.aries-agent.com/overview/glossary)
+
+## 快速开始
+
+- [环境与权限配置](https://docs.aries-agent.com/quickstart/setup)
+- [API Key 与模型配置](https://docs.aries-agent.com/quickstart/model-api)
+
+## 技术架构
+
+- [整体架构设计](https://docs.aries-agent.com/architecture/overview)
+- [模块组织结构](https://docs.aries-agent.com/architecture/modules)
+- [数据流与核心链路](https://docs.aries-agent.com/architecture/data-flow)
+- [DI 依赖注入 (Koin)](https://docs.aries-agent.com/architecture/di)
+- [导航与路由系统](https://docs.aries-agent.com/architecture/navigation)
+- [应用入口与生命周期](https://docs.aries-agent.com/architecture/lifecycle)
+
+## 对话系统
+
+- [主对话界面 (HomeScreen)](https://docs.aries-agent.com/chat/home-screen)
+- [流式 Markdown 渲染](https://docs.aries-agent.com/chat/streaming-markdown)
+- [消息转录与卡片系统](https://docs.aries-agent.com/chat/transcript-cards)
+- [Markdown 组件体系](https://docs.aries-agent.com/chat/markdown-components)
+- [输入栏与语音波形](https://docs.aries-agent.com/chat/input-waveform)
+- [对话历史与会话管理](https://docs.aries-agent.com/chat/history)
+
+## 自动化引擎
+
+- [自动化 Agent 主循环](https://docs.aries-agent.com/automation/agent-loop)
+- [语音与界面自动化优化方案（2026-10-31）](https://docs.aries-agent.com/automation/voice-ui-plan-2026-10)
+- [Agent 数据模型与状态](https://docs.aries-agent.com/automation/state-model)
+- [动作解析器 (ActionParser)](https://docs.aries-agent.com/automation/action-parser)
+- [动作执行器 (ActionExecutor)](https://docs.aries-agent.com/automation/action-executor)
+- [配置管理 (AgentConfiguration)](https://docs.aries-agent.com/automation/configuration)
+- [屏幕采集与 UI 树提取](https://docs.aries-agent.com/automation/screen-capture)
+
+## 系统服务与权限
+
+- [设备控制器 (DeviceController)](https://docs.aries-agent.com/system/device-controller)
+- [无障碍服务与悬浮层](https://docs.aries-agent.com/system/accessibility)
+
+## 多模型接入
+
+- [多模型接入总览](https://docs.aries-agent.com/models/overview)
+- [模型模式切换与配置链路](https://docs.aries-agent.com/models/mode-switching)
+- [本地推理 (MNN)](https://docs.aries-agent.com/models/local-mnn)
+
+## 虚拟屏隔离系统
+
+- [虚拟屏完全隔离总览](https://docs.aries-agent.com/virtual-display/overview)
+- [焦点管理与输入注入链路](https://docs.aries-agent.com/virtual-display/focus-input)
+
+## AI 工具框架
+
+- [工具系统架构](https://docs.aries-agent.com/tools/architecture)
+- [工具注册与权限管理](https://docs.aries-agent.com/tools/registration)
+- [网络工具执行器](https://docs.aries-agent.com/tools/network-executor)
+- [文件工具执行器](https://docs.aries-agent.com/tools/file-executor)
+- [应用包名管理](https://docs.aries-agent.com/tools/packages)
+
+## UI 组件与设计系统
+
+- [Material 3 主题系统](https://docs.aries-agent.com/ui/material3-theme)
+- [设置界面体系](https://docs.aries-agent.com/ui/settings)
+- [引导页 (Onboarding)](https://docs.aries-agent.com/ui/onboarding)
+- [侧边栏与抽屉导航](https://docs.aries-agent.com/ui/drawer)
+- [附件组件与文件展示](https://docs.aries-agent.com/ui/attachments)
+- [图标系统](https://docs.aries-agent.com/ui/icons)
+- [反馈日志与导出](https://docs.aries-agent.com/ui/feedback-logs)
+
+## 数据持久化
+
+- [Room 数据库 (AriesDatabase)](https://docs.aries-agent.com/persistence/room)
+- [会话存储与仓储](https://docs.aries-agent.com/persistence/sessions)
+- [偏好设置仓储 (Preferences)](https://docs.aries-agent.com/persistence/preferences)
+- [截图缓存与节流](https://docs.aries-agent.com/persistence/screenshot-cache)
+
+## 更新与分发
+
+- [应用内更新系统](https://docs.aries-agent.com/release/in-app-updates)
+- [GitHub Release 集成](https://docs.aries-agent.com/release/github-release)
+- [APK 下载与安装](https://docs.aries-agent.com/release/apk-install)
+- [版本发布说明](https://docs.aries-agent.com/release/version-notes)
+- [遥测心跳与 Cloudflare Worker](https://docs.aries-agent.com/release/telemetry)
+
+## 开发规范与工具
+
+- [代码规范 (CODING_STANDARDS)](https://docs.aries-agent.com/dev/coding-standards)
+- [Git 工作流](https://docs.aries-agent.com/dev/git-workflow)
+- [反馈日志与问题排查](https://docs.aries-agent.com/dev/feedback-debugging)
+- [构建脚本与工具链](https://docs.aries-agent.com/dev/build-toolchain)
+- [CI 流水线与测试](https://docs.aries-agent.com/dev/ci-testing)
+- [官网与文档站代码索引](https://docs.aries-agent.com/dev/site-code-index)
+
+## 常见问题与支持
+
+- [Aries AI 常见问题解答（FAQ）](https://docs.aries-agent.com/support/faq)
+- [故障排查指南](https://docs.aries-agent.com/support/troubleshooting)
+- [虚拟屏调试提示](https://docs.aries-agent.com/support/virtual-display-debugging)
+
+## 兼容入口
+
+- [BUILDING](https://docs.aries-agent.com/legacy/building)
+- [TECHNICAL_OVERVIEW](https://docs.aries-agent.com/legacy/technical-overview)
+- [代码规范 (CODING_STANDARDS)](https://docs.aries-agent.com/legacy/coding-standards)
+- [Git 工作流](https://docs.aries-agent.com/legacy/git-workflow)
+- [Aries AI 常见问题解答（FAQ）](https://docs.aries-agent.com/legacy/faq)
+- [AI PR Review 流程](https://docs.aries-agent.com/legacy/ai-pr-review)
+- [Aries AI 飞书协作文档模板](https://docs.aries-agent.com/legacy/feishu-collaboration)

@@ -1,0 +1,200 @@
+---
+const features = [
+  {
+    title: '多模态感知',
+    desc: '基于 VLM 看懂界面布局与语义，不依赖固定脚本，也能处理陌生页面。',
+    paths: [
+      'M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z',
+      'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z',
+    ],
+  },
+  {
+    title: '离线语音',
+    desc: 'Sherpa-onnx + X-ASR-zh-en，中英双语、自带标点，本地处理不上传。',
+    paths: [
+      'M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z',
+      'M5.5 10.5v.5a6.5 6.5 0 0 0 13 0v-.5M12 17.5V21M8.5 21h7',
+    ],
+  },
+  {
+    title: '虚拟屏隔离',
+    desc: '在独立显示空间后台执行任务，前台照常使用手机，互不打断。',
+    paths: [
+      'M3 5.5h13v9H3z',
+      'M16 9.5h5v9h-5z',
+      'M6 18.5h7',
+    ],
+  },
+  {
+    title: '胶囊悬浮窗',
+    desc: '拖拽、进度、收缩动画，任务状态随时可见，一键接管或暂停。',
+    paths: [
+      'M4 9h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2Z',
+      'M7 12h.01M11 12h4',
+    ],
+  },
+  {
+    title: '工具调用',
+    desc: '网络、文件、应用包名等工具统一注册与权限管理，能力可扩展。',
+    paths: [
+      'M14.5 6.5a4 4 0 0 0-5.6 4.6L3 17v4h4l5.9-5.9a4 4 0 0 0 4.6-5.6l-2.6 2.6-2.3-2.3 2.9-2.3Z',
+    ],
+  },
+  {
+    title: '多模型接入',
+    desc: '第三方 API、Aries API 与本地 MNN 三种模式，按场景自由切换。',
+    paths: [
+      'M7 7h10v10H7z',
+      'M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4',
+    ],
+  },
+  {
+    title: '隐私优先',
+    desc: '语音与截图本地处理，敏感数据不出设备；模型密钥仅保存在本机。',
+    paths: [
+      'M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6L12 3Z',
+      'm9 12 2 2 4-4',
+    ],
+  },
+  {
+    title: '安全可控',
+    desc: '支付等敏感操作自动暂停确认，失败步骤自动重试并记录可追溯日志。',
+    paths: [
+      'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z',
+      'm8.5 12 2.4 2.4 4.6-4.8',
+    ],
+  },
+];
+---
+
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">核心能力</span>
+      <h2 class="h2">不是脚本，是能看懂屏幕的助手</h2>
+      <p class="lede">从感知、决策到执行，Aries AI 把一整套自动化链路装进手机。</p>
+    </div>
+
+    <div class="feature-grid">
+      {
+        features.map((feature, index) => (
+          <article class="feature" style={`--i:${index}`}>
+            <span class="feature__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                {feature.paths.map((d) => <path d={d} />)}
+              </svg>
+            </span>
+            <h3 class="feature__title">{feature.title}</h3>
+            <p class="feature__desc">{feature.desc}</p>
+          </article>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .feature {
+    position: relative;
+    padding: 24px 22px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    overflow: hidden;
+    transition:
+      transform 0.25s var(--ease),
+      border-color 0.25s var(--ease),
+      background-color 0.25s var(--ease);
+  }
+
+  .feature::after {
+    content: '';
+    position: absolute;
+    inset: -40% 40% 60% -40%;
+    background: radial-gradient(circle, rgba(56, 182, 227, 0.22), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s var(--ease);
+  }
+
+  .feature:hover {
+    border-color: rgba(56, 182, 227, 0.36);
+    background: var(--surface-hover);
+    transform: translateY(-3px);
+  }
+
+  .feature:hover::after {
+    opacity: 1;
+  }
+
+  .feature__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(56, 182, 227, 0.24);
+    border-radius: 13px;
+    background: rgba(56, 182, 227, 0.1);
+    color: var(--accent);
+  }
+
+  .feature__icon svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .feature:nth-child(2) .feature__icon {
+    border-color: rgba(251, 191, 36, 0.24);
+    background: rgba(251, 191, 36, 0.1);
+    color: var(--warning);
+  }
+
+  .feature:nth-child(3) .feature__icon {
+    border-color: rgba(240, 183, 208, 0.24);
+    background: rgba(240, 183, 208, 0.1);
+    color: var(--accent-2);
+  }
+
+  .feature:nth-child(4) .feature__icon {
+    border-color: rgba(43, 212, 190, 0.24);
+    background: rgba(43, 212, 190, 0.1);
+    color: var(--accent-3);
+  }
+
+  .feature:nth-child(7) .feature__icon {
+    border-color: rgba(52, 211, 153, 0.24);
+    background: rgba(52, 211, 153, 0.1);
+    color: var(--success);
+  }
+
+  .feature__title {
+    margin-top: 18px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .feature__desc {
+    margin-top: 8px;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.72;
+  }
+
+  @media (max-width: 1024px) {
+    .feature-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 560px) {
+    .feature-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -74,7 +74,7 @@ Aries AI 将任务运行、画面采集和输入注入组织到虚拟屏执行�
 
 接口兼容不等于能力一致：屏幕理解需要模型支持图像输入，工具调用也取决于服务端实现。原生 Claude、Gemini 等接口不能仅凭修改模型名直接接入，需使用兼容端点或适配服务。本地模型首次下载需要网络，运行效果取决于设备内存和 native 运行环境。
 
-详见 [多模型接入总览](./Aries-site/docs/多模型接入/多模型接入总览.md)、[本地推理](./Aries-site/docs/多模型接入/本地推理%20(MNN).md) 和 [离线语音识别](./Aries-site/docs/对话系统/离线语音识别%20(Sherpa-ncnn).md)。
+详见 [多模型接入总览](./Aries-site/docs/多模型接入/多模型接入总览.md)、[本地推理](./Aries-site/docs/多模型接入/本地推理%20(MNN).md) 和 [语音输入](./Aries-site/docs/对话系统/输入栏与语音波形.md)。
 
 ---
 
@@ -217,13 +217,12 @@ Aries-AI/
 
 | 文档 | 说明 |
 |------|------|
-| [文档中心](./Aries-site/docs-center.html) | 中文分类导航、专题说明和兼容入口 |
+| [文档中心](https://docs.aries-agent.com/) | 在线技术文档（按主题分类，含全文搜索） |
 | [BUILDING.md](./Aries-site/docs/BUILDING.md) | 环境配置、依赖安装、编译运行 |
 | [CODING_STANDARDS.md](./Aries-site/docs/CODING_STANDARDS.md) | 代码规范、命名规则、注释要求 |
 | [GIT_WORKFLOW.md](./Aries-site/docs/GIT_WORKFLOW.md) | Git 使用规范、分支管理、提交规范 |
 | [TECHNICAL_OVERVIEW.md](./Aries-site/docs/TECHNICAL_OVERVIEW.md) | 核心技术实现与优势 ⭐ |
-| [语音输入与液态玻璃专项交接](./Aries-site/docs/对话系统/语音输入与液态玻璃专项交接%202026-10-31.md) | 语音 Bug 修复、ASR 风险与选型、液态玻璃对齐及后续验收 |
-| [离线 ASR 模型调研](./Aries-site/docs/对话系统/离线ASR模型调研%202026-10-31.md) | 2025–2026 移动端离线流式 ASR 全量对比、许可审计与 A/B 方案 |
+| [语音输入与波形](./Aries-site/docs/对话系统/输入栏与语音波形.md) | 语音输入流程、波形动画与离线识别链路 |
 
 ### 技术栈
 

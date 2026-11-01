@@ -1,0 +1,526 @@
+---
+interface Props {
+  id: string;
+  eyebrow: string;
+  title: string;
+  desc: string;
+  bullets: string[];
+  visual: 'virtual' | 'voice';
+  reverse?: boolean;
+}
+
+const { id, eyebrow, title, desc, bullets, visual, reverse = false } = Astro.props;
+
+const bars = [10, 18, 28, 16, 36, 46, 30, 54, 42, 62, 38, 50, 26, 44, 34, 58, 30, 46, 22, 36, 16, 26, 12, 20];
+---
+
+<section class:list={['spotlight', 'section', { 'spotlight--reverse': reverse }]} id={id}>
+  <div class="container spotlight__grid">
+    <div class="spotlight__copy">
+      <span class="eyebrow">{eyebrow}</span>
+      <h2 class="h2">{title}</h2>
+      <p class="spotlight__lede">{desc}</p>
+      <ul class="spotlight__bullets">
+        {
+          bullets.map((bullet) => (
+            <li>
+              <span class="bullet-check" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m5 12.5 4.2 4.2L19 7" />
+                </svg>
+              </span>
+              {bullet}
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+
+    <div class="spotlight__visual">
+      {
+        visual === 'virtual' ? (
+          <div class="panel">
+            <div class="panel__head">
+              <span class="panel__title">显示空间</span>
+              <span class="panel__badge">后台执行中</span>
+            </div>
+            <div class="vm">
+              <div class="vm__device">
+                <span class="vm__tag">前台</span>
+                <div class="vm__app vm__app--foreground">
+                  <span class="vm__app-dot"></span>
+                  <span>正在使用</span>
+                </div>
+                <div class="vm__line"></div>
+                <div class="vm__line vm__line--short"></div>
+              </div>
+              <div class="vm__flow" aria-hidden="true">
+                <svg viewBox="0 0 48 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="3 4">
+                  <path d="M2 12h42m-6-6 6 6-6 6" />
+                </svg>
+              </div>
+              <div class="vm__device vm__device--virtual">
+                <span class="vm__tag vm__tag--accent">虚拟屏</span>
+                <div class="vm__app vm__app--task">
+                  <span class="vm__app-dot"></span>
+                  <span>12306 订票</span>
+                </div>
+                <div class="vm__progress"><i></i></div>
+                <div class="vm__line"></div>
+              </div>
+            </div>
+            <div class="panel__foot">
+              <span class="status-dot"></span>
+              独立显示与输入链路，截图不干扰前台
+            </div>
+          </div>
+        ) : (
+          <div class="panel panel--voice">
+            <div class="voice__top">
+              <span class="panel__title">语音输入</span>
+              <span class="panel__badge panel__badge--green">本地处理 · 0 上传</span>
+            </div>
+            <div class="voice__wave" aria-hidden="true">
+              {bars.map((height, index) => (
+                <span style={`--h:${height}%;--d:${0.7 + (index % 7) * 0.11}s;--delay:${(index % 9) * 0.06}s`}></span>
+              ))}
+            </div>
+            <div class="voice__transcript">“帮我订一张明天去上海的高铁票”</div>
+            <div class="voice__meta">Sherpa-onnx · X-ASR-zh-en · 中英混说 · 自带标点</div>
+          </div>
+        )
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .spotlight {
+    overflow: hidden;
+  }
+
+  .spotlight__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    gap: clamp(32px, 6vw, 80px);
+    align-items: center;
+  }
+
+  .spotlight--reverse .spotlight__grid {
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  }
+
+  .spotlight--reverse .spotlight__copy {
+    order: 2;
+  }
+
+  .spotlight--reverse .spotlight__visual {
+    order: 1;
+  }
+
+  .spotlight__lede {
+    margin-top: 18px;
+    color: var(--text-muted);
+    font-size: 16px;
+    line-height: 1.85;
+  }
+
+  .spotlight__bullets {
+    display: grid;
+    gap: 12px;
+    margin-top: 28px;
+  }
+
+  .spotlight__bullets li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: var(--text-soft);
+    font-size: 14px;
+  }
+
+  .bullet-check {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+    border-radius: 50%;
+    background: rgba(52, 211, 153, 0.12);
+    color: var(--success);
+  }
+
+  .bullet-check svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .spotlight__visual {
+    position: relative;
+  }
+
+  .spotlight__visual::before {
+    content: '';
+    position: absolute;
+    inset: -12% -8%;
+    z-index: -1;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(56, 182, 227, 0.18), transparent 68%);
+    filter: blur(30px);
+  }
+
+  .panel {
+    position: relative;
+    padding: clamp(20px, 3vw, 30px);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl);
+    background:
+      linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)),
+      color-mix(in srgb, var(--bg) 72%, transparent);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(20px);
+    overflow: hidden;
+  }
+
+  /* 科技感：细网格底纹 */
+  .panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(rgba(56, 182, 227, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 182, 227, 0.05) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: radial-gradient(120% 100% at 50% 0%, #000 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(120% 100% at 50% 0%, #000 30%, transparent 75%);
+    pointer-events: none;
+  }
+
+  /* 科技感：周期性扫过的光束 */
+  .panel::after {
+    content: '';
+    position: absolute;
+    top: -60%;
+    left: -30%;
+    width: 40%;
+    height: 220%;
+    background: linear-gradient(100deg, transparent, rgba(56, 182, 227, 0.09), transparent);
+    transform: skewX(-18deg);
+    animation: panel-sweep 7s var(--ease, ease) infinite;
+    pointer-events: none;
+  }
+
+  @keyframes panel-sweep {
+    0% {
+      left: -40%;
+    }
+    55%,
+    100% {
+      left: 130%;
+    }
+  }
+
+  .panel__head,
+  .voice__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+
+  .panel__title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .panel__badge {
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+    background: rgba(56, 182, 227, 0.14);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .panel__badge--green {
+    background: rgba(52, 211, 153, 0.12);
+    color: var(--success);
+  }
+
+  .vm {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .vm__device {
+    flex: 1;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .vm__device--virtual {
+    border-color: rgba(56, 182, 227, 0.36);
+    background: rgba(56, 182, 227, 0.08);
+    box-shadow: 0 0 40px rgba(56, 182, 227, 0.12);
+    animation: vm-float 5s ease-in-out infinite;
+  }
+
+  @keyframes vm-float {
+    0%,
+    100% {
+      box-shadow: 0 0 32px rgba(56, 182, 227, 0.1);
+    }
+    50% {
+      box-shadow: 0 0 52px rgba(56, 182, 227, 0.22);
+    }
+  }
+
+  .vm__tag {
+    display: inline-block;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .vm__tag--accent {
+    color: var(--accent);
+  }
+
+  .vm__app {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-soft);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .vm__app--task {
+    border-color: rgba(56, 182, 227, 0.24);
+  }
+
+  .vm__app-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+  }
+
+  .vm__line {
+    height: 6px;
+    margin-top: 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .vm__line--short {
+    width: 64%;
+  }
+
+  .vm__progress {
+    height: 6px;
+    margin-top: 12px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .vm__progress i {
+    display: block;
+    width: 62%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* 科技感：进度条微光流动 */
+  .vm__progress i::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+    transform: translateX(-100%);
+    animation: progress-shine 2.4s linear infinite;
+  }
+
+  @keyframes progress-shine {
+    to {
+      transform: translateX(100%);
+    }
+  }
+
+  .vm__flow {
+    flex: 0 0 34px;
+    color: var(--accent);
+    opacity: 0.7;
+  }
+
+  .vm__flow svg {
+    width: 100%;
+    height: 24px;
+  }
+
+  /* 科技感：数据流虚线滚动 */
+  .vm__flow path {
+    animation: flow-dash 1.2s linear infinite;
+  }
+
+  @keyframes flow-dash {
+    to {
+      stroke-dashoffset: -7;
+    }
+  }
+
+  .panel__foot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-3);
+    box-shadow: 0 0 10px var(--accent-3);
+    animation: dot-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes dot-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      box-shadow: 0 0 6px var(--accent-3);
+    }
+    50% {
+      opacity: 0.55;
+      box-shadow: 0 0 14px var(--accent-3);
+    }
+  }
+
+  .panel--voice {
+    overflow: hidden;
+  }
+
+  .voice__wave {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 92px;
+    padding: 0 6px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(180deg, rgba(56, 182, 227, 0.08), transparent);
+    box-shadow: inset 0 0 24px rgba(56, 182, 227, 0.06);
+  }
+
+  /* 科技感：录音区呼吸微光 */
+  .panel--voice .voice__wave {
+    animation: wave-glow 3.2s ease-in-out infinite;
+  }
+
+  @keyframes wave-glow {
+    0%,
+    100% {
+      box-shadow: inset 0 0 18px rgba(56, 182, 227, 0.05);
+    }
+    50% {
+      box-shadow: inset 0 0 34px rgba(56, 182, 227, 0.16);
+    }
+  }
+
+  .voice__wave span {
+    display: block;
+    width: 4px;
+    height: var(--h);
+    min-height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--accent-3), var(--accent));
+    opacity: 0.85;
+    animation: wave var(--d) ease-in-out var(--delay) infinite alternate;
+  }
+
+  .voice__transcript {
+    margin-top: 20px;
+    color: var(--text);
+    font-size: clamp(16px, 2vw, 19px);
+    font-weight: 600;
+    line-height: 1.6;
+  }
+
+  .voice__meta {
+    margin-top: 10px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  @keyframes wave {
+    from {
+      transform: scaleY(0.55);
+      opacity: 0.5;
+    }
+    to {
+      transform: scaleY(1);
+      opacity: 0.95;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .spotlight__grid,
+    .spotlight--reverse .spotlight__grid {
+      grid-template-columns: 1fr;
+    }
+
+    .spotlight--reverse .spotlight__copy,
+    .spotlight--reverse .spotlight__visual {
+      order: initial;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .vm {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .vm__flow {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .panel::after,
+    .vm__device--virtual,
+    .vm__progress i::after,
+    .vm__flow path,
+    .status-dot,
+    .panel--voice .voice__wave {
+      animation: none;
+    }
+  }
+</style>

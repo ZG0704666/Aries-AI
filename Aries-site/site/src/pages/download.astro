@@ -1,0 +1,335 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import site from '../data/site.generated.json';
+
+const release = site.release;
+const sizeMB = Math.round(release.apkSize / 1024 / 1024);
+const published = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long' }).format(
+  new Date(release.publishedAt)
+);
+
+const mirrors = [
+  {
+    name: '官方直连',
+    url: release.apkUrl,
+    hint: 'GitHub Releases 原始链接',
+    badge: '官方',
+  },
+  {
+    name: '镜像加速 1',
+    url: `https://ghfast.top/${release.apkUrl}`,
+    hint: 'ghfast.top 加速',
+    badge: '推荐',
+  },
+  {
+    name: '镜像加速 2',
+    url: release.apkUrl.replace('https://github.com/', 'https://hub.gitmirror.com/'),
+    hint: 'hub.gitmirror.com 加速',
+    badge: '备用',
+  },
+];
+
+const changelog = release.body
+  .split('\n')
+  .map((line) => line.trim())
+  .filter(Boolean);
+
+const steps = [
+  ['下载安装包', '选择官方直连或镜像线路，下载 app-release.apk。'],
+  ['允许安装', '在系统设置中允许当前浏览器或文件管理器安装未知来源应用。'],
+  ['授予权限', '开启无障碍服务与悬浮窗权限，按引导完成初始化。'],
+  ['配置模型', '填入第三方 API Key，或切换到 Aries API / 本地模型。'],
+];
+---
+
+<BaseLayout
+  title="下载 Aries AI"
+  description={`下载 Aries AI ${release.tag}。Android 11+，arm64-v8a，安装包约 ${sizeMB} MB，提供官方与镜像下载线路。`}
+  path="/download"
+>
+  <section class="download-hero">
+    <div class="container">
+      <span class="eyebrow">下载</span>
+      <h1 class="h1">获取最新版本</h1>
+      <p class="lede">公开版本 {release.tag} · {published} 发布 · Android 11+ · arm64-v8a</p>
+    </div>
+  </section>
+
+  <section class="section section--tight">
+    <div class="container download-grid">
+      <article class="release-card">
+        <div class="release-card__top">
+          <div>
+            <div class="release-card__version">{release.tag}</div>
+            <div class="release-card__meta">{published} · {sizeMB} MB</div>
+          </div>
+          <span class="tag">Latest</span>
+        </div>
+
+        <ul class="release-card__facts">
+          <li><span>系统版本</span><strong>Android 11 及以上</strong></li>
+          <li><span>处理器架构</span><strong>arm64-v8a</strong></li>
+          <li><span>开发版</span><strong>{site.dev.versionName}（{site.dev.versionCode}）</strong></li>
+          <li><span>发布渠道</span><strong>GitHub Releases</strong></li>
+        </ul>
+
+        <div class="release-card__actions">
+          {
+            mirrors.map((mirror) => (
+              <a class:list={['btn', mirror.badge === '推荐' ? 'btn--primary' : 'btn--ghost', 'btn--block']} href={mirror.url} target="_blank" rel="noreferrer">
+                {mirror.name}
+                <span class="btn__meta">{mirror.badge}</span>
+              </a>
+            ))
+          }
+        </div>
+
+        <p class="release-card__note">
+          下载慢时优先尝试镜像；安装包校验信息见
+          <a href={release.htmlUrl} target="_blank" rel="noreferrer">GitHub Release</a>。
+        </p>
+      </article>
+
+      <article class="changelog">
+        <div class="changelog__head">
+          <h2 class="h3">更新日志</h2>
+          <a class="changelog__link" href={release.htmlUrl} target="_blank" rel="noreferrer">在 GitHub 查看 →</a>
+        </div>
+        <ul class="changelog__list">
+          {
+            changelog.map((line) => (
+              <li>{line}</li>
+            ))
+          }
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <section class="section section--tight" id="install">
+    <div class="container">
+      <div class="section-head">
+        <span class="eyebrow">安装步骤</span>
+        <h2 class="h2">四步开始使用</h2>
+      </div>
+      <ol class="steps">
+        {
+          steps.map(([title, desc], index) => (
+            <li>
+              <span class="steps__index">{String(index + 1).padStart(2, '0')}</span>
+              <h3>{title}</h3>
+              <p>{desc}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <section class="section section--tight">
+    <div class="container">
+      <div class="notice">
+        <h2 class="h3">关于版本</h2>
+        <p>
+          当前公开版本为 {release.tag}。开发分支正在推进 {site.dev.versionName}，包含虚拟屏隔离、胶囊悬浮窗与离线语音的后续优化；
+          开发版不通过本页分发，稳定后再发布。
+        </p>
+        <div class="notice__actions">
+          <a class="btn btn--ghost btn--sm" href={site.githubReleases} target="_blank" rel="noreferrer">全部版本</a>
+          <a class="btn btn--soft btn--sm" href={site.docsUrl}>查看文档</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .download-hero {
+    padding: calc(var(--header-h) + clamp(48px, 7vw, 88px)) 0 12px;
+  }
+
+  .download-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .release-card,
+  .changelog {
+    padding: clamp(22px, 3vw, 30px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+  }
+
+  .release-card {
+    border-color: rgba(56, 182, 227, 0.28);
+    background: linear-gradient(160deg, rgba(56, 182, 227, 0.1), var(--surface));
+  }
+
+  .release-card__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .release-card__version {
+    font-size: clamp(30px, 4vw, 40px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  .release-card__meta {
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  .release-card__facts {
+    display: grid;
+    gap: 0;
+    margin-top: 22px;
+    border-top: 1px solid var(--border);
+  }
+
+  .release-card__facts li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .release-card__facts span {
+    color: var(--text-muted);
+  }
+
+  .release-card__actions {
+    display: grid;
+    gap: 9px;
+    margin-top: 22px;
+  }
+
+  .release-card__note {
+    margin-top: 14px;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    line-height: 1.7;
+  }
+
+  .release-card__note a {
+    color: var(--accent);
+  }
+
+  .changelog__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .changelog__link {
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .changelog__list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .changelog__list li {
+    position: relative;
+    padding-left: 16px;
+    color: var(--text-soft);
+    font-size: 13.5px;
+    line-height: 1.75;
+  }
+
+  .changelog__list li::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 0;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent-2);
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .steps li {
+    padding: 22px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+  }
+
+  .steps__index {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .steps h3 {
+    margin-top: 14px;
+    font-size: 15px;
+  }
+
+  .steps p {
+    margin-top: 6px;
+    color: var(--text-muted);
+    font-size: 12.5px;
+    line-height: 1.7;
+  }
+
+  .notice {
+    padding: clamp(24px, 4vw, 36px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+  }
+
+  .notice p {
+    max-width: 800px;
+    margin-top: 10px;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.8;
+  }
+
+  .notice__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  @media (max-width: 900px) {
+    .download-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .steps {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 520px) {
+    .steps {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

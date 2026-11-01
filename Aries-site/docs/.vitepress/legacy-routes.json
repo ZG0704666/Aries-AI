@@ -1,0 +1,302 @@
+{
+  "items": [
+    {
+      "id": "overview-intro",
+      "file": "项目概览/简介与核心特性"
+    },
+    {
+      "id": "overview-license",
+      "file": "项目概览/许可证与社区"
+    },
+    {
+      "id": "overview-glossary",
+      "file": "项目概览/术语表"
+    },
+    {
+      "id": "quickstart-permissions",
+      "file": "快速开始/环境与权限配置"
+    },
+    {
+      "id": "quickstart-model-api",
+      "file": "快速开始/API Key 与模型配置"
+    },
+    {
+      "id": "architecture-overall",
+      "file": "技术架构/整体架构设计"
+    },
+    {
+      "id": "architecture-modules",
+      "file": "技术架构/模块组织结构"
+    },
+    {
+      "id": "architecture-dataflow",
+      "file": "技术架构/数据流与核心链路"
+    },
+    {
+      "id": "architecture-di",
+      "file": "技术架构/DI 依赖注入 (Koin)"
+    },
+    {
+      "id": "architecture-navigation",
+      "file": "技术架构/导航与路由系统"
+    },
+    {
+      "id": "architecture-lifecycle",
+      "file": "技术架构/应用入口与生命周期"
+    },
+    {
+      "id": "chat-home-screen",
+      "file": "对话系统/主对话界面 (HomeScreen)"
+    },
+    {
+      "id": "chat-streaming-markdown",
+      "file": "对话系统/流式 Markdown 渲染"
+    },
+    {
+      "id": "chat-transcript-cards",
+      "file": "对话系统/消息转录与卡片系统"
+    },
+    {
+      "id": "chat-markdown-components",
+      "file": "对话系统/Markdown 组件体系"
+    },
+    {
+      "id": "chat-input-waveform",
+      "file": "对话系统/输入栏与语音波形"
+    },
+    {
+      "id": "chat-offline-speech",
+      "file": "对话系统/离线语音识别 (Sherpa-ncnn)"
+    },
+    {
+      "id": "chat-voice-glass-handoff-2026-10-31",
+      "file": "对话系统/语音输入与液态玻璃专项交接 2026-10-31"
+    },
+    {
+      "id": "chat-offline-asr-research-2026-10-31",
+      "file": "对话系统/离线ASR模型调研 2026-10-31"
+    },
+    {
+      "id": "chat-xasr-replacement-plan-2026-10-31",
+      "file": "对话系统/X-ASR-zh-en 模型替换计划 2026-10-31"
+    },
+    {
+      "id": "chat-history-sessions",
+      "file": "对话系统/对话历史与会话管理"
+    },
+    {
+      "id": "automation-agent-loop",
+      "file": "自动化引擎/自动化 Agent 主循环"
+    },
+    {
+      "id": "automation-optimization-plan-2026-10-31",
+      "file": "自动化引擎/语音与界面自动化优化方案 2026-10-31"
+    },
+    {
+      "id": "automation-state-model",
+      "file": "自动化引擎/Agent 数据模型与状态"
+    },
+    {
+      "id": "automation-action-parser",
+      "file": "自动化引擎/动作解析器 (ActionParser)"
+    },
+    {
+      "id": "automation-action-executor",
+      "file": "自动化引擎/动作执行器 (ActionExecutor)"
+    },
+    {
+      "id": "automation-agent-config",
+      "file": "自动化引擎/配置管理 (AgentConfiguration)"
+    },
+    {
+      "id": "automation-capture",
+      "file": "自动化引擎/屏幕采集与 UI 树提取"
+    },
+    {
+      "id": "system-device-controller",
+      "file": "系统服务与权限/设备控制器 (DeviceController)"
+    },
+    {
+      "id": "system-accessibility",
+      "file": "系统服务与权限/无障碍服务与悬浮层"
+    },
+    {
+      "id": "models-overview",
+      "file": "多模型接入/多模型接入总览"
+    },
+    {
+      "id": "models-switching",
+      "file": "多模型接入/模型模式切换与配置链路"
+    },
+    {
+      "id": "models-local-mnn",
+      "file": "多模型接入/本地推理 (MNN)"
+    },
+    {
+      "id": "vdiso-overview",
+      "file": "虚拟屏隔离系统/虚拟屏完全隔离总览"
+    },
+    {
+      "id": "vdiso-focus-input",
+      "file": "虚拟屏隔离系统/焦点管理与输入注入链路"
+    },
+    {
+      "id": "tools-architecture",
+      "file": "AI 工具框架/工具系统架构"
+    },
+    {
+      "id": "tools-registration",
+      "file": "AI 工具框架/工具注册与权限管理"
+    },
+    {
+      "id": "tools-network",
+      "file": "AI 工具框架/网络工具执行器"
+    },
+    {
+      "id": "tools-file",
+      "file": "AI 工具框架/文件工具执行器"
+    },
+    {
+      "id": "tools-packages",
+      "file": "AI 工具框架/应用包名管理"
+    },
+    {
+      "id": "ui-theme",
+      "file": "UI 组件与设计系统/Material 3 主题系统"
+    },
+    {
+      "id": "ui-settings",
+      "file": "UI 组件与设计系统/设置界面体系"
+    },
+    {
+      "id": "ui-onboarding",
+      "file": "UI 组件与设计系统/引导页 (Onboarding)"
+    },
+    {
+      "id": "ui-drawer",
+      "file": "UI 组件与设计系统/侧边栏与抽屉导航"
+    },
+    {
+      "id": "ui-attachments",
+      "file": "UI 组件与设计系统/附件组件与文件展示"
+    },
+    {
+      "id": "ui-icons",
+      "file": "UI 组件与设计系统/图标系统"
+    },
+    {
+      "id": "ui-feedback-export",
+      "file": "UI 组件与设计系统/反馈日志与导出"
+    },
+    {
+      "id": "data-room",
+      "file": "数据持久化/Room 数据库 (AriesDatabase)"
+    },
+    {
+      "id": "data-session",
+      "file": "数据持久化/会话存储与仓储"
+    },
+    {
+      "id": "data-preferences",
+      "file": "数据持久化/偏好设置仓储 (Preferences)"
+    },
+    {
+      "id": "data-screenshot",
+      "file": "数据持久化/截图缓存与节流"
+    },
+    {
+      "id": "release-in-app-updates",
+      "file": "更新与分发/应用内更新系统"
+    },
+    {
+      "id": "release-github-release",
+      "file": "更新与分发/GitHub Release 集成"
+    },
+    {
+      "id": "release-apk-download",
+      "file": "更新与分发/APK 下载与安装"
+    },
+    {
+      "id": "release-version-notes",
+      "file": "更新与分发/版本发布说明"
+    },
+    {
+      "id": "release-telemetry",
+      "file": "更新与分发/遥测心跳与 Cloudflare Worker"
+    },
+    {
+      "id": "dev-coding-standards",
+      "file": "开发规范与工具/代码规范 (CODING_STANDARDS)"
+    },
+    {
+      "id": "dev-git-workflow",
+      "file": "开发规范与工具/Git 工作流"
+    },
+    {
+      "id": "dev-feedback-debugging",
+      "file": "开发规范与工具/反馈日志与问题排查"
+    },
+    {
+      "id": "dev-build-toolchain",
+      "file": "开发规范与工具/构建脚本与工具链"
+    },
+    {
+      "id": "dev-ci-testing",
+      "file": "开发规范与工具/CI 流水线与测试"
+    },
+    {
+      "id": "support-faq",
+      "file": "常见问题与支持/FAQ 常见问题"
+    },
+    {
+      "id": "support-troubleshooting",
+      "file": "常见问题与支持/故障排查指南"
+    },
+    {
+      "id": "support-vdiso-debugging",
+      "file": "常见问题与支持/虚拟屏调试提示"
+    },
+    {
+      "id": "compat-building",
+      "file": "BUILDING"
+    },
+    {
+      "id": "compat-technical",
+      "file": "TECHNICAL_OVERVIEW"
+    },
+    {
+      "id": "compat-coding",
+      "file": "CODING_STANDARDS"
+    },
+    {
+      "id": "compat-workflow",
+      "file": "GIT_WORKFLOW"
+    },
+    {
+      "id": "compat-faq",
+      "file": "FAQ"
+    },
+    {
+      "id": "compat-ai-pr-review",
+      "file": "AI_PR_REVIEW"
+    },
+    {
+      "id": "compat-feishu",
+      "file": "FEISHU_COLLABORATION"
+    }
+  ],
+  "aliases": {
+    "quick-5min": "compat-building",
+    "doc-building": "compat-building",
+    "doc-technical": "compat-technical",
+    "doc-workflow": "dev-git-workflow",
+    "doc-standards": "dev-coding-standards",
+    "doc-feishu": "compat-feishu",
+    "faq": "support-faq",
+    "model-key": "quickstart-model-api",
+    "automation-permissions": "quickstart-permissions",
+    "automation-accessibility": "quickstart-permissions",
+    "ui-buttons": "chat-home-screen",
+    "dev-contribute": "dev-git-workflow"
+  }
+}

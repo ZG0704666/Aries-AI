@@ -1,0 +1,946 @@
+{
+  "generatedAt": "2026-11-01T13:08:57.248Z",
+  "origins": {
+    "site": "https://aries-agent.com",
+    "docs": "https://docs.aries-agent.com"
+  },
+  "counts": {
+    "docs": 68,
+    "categories": 15,
+    "legacyRoutes": 83,
+    "removedDocs": 4
+  },
+  "categories": [
+    {
+      "id": "overview",
+      "title": "项目概览",
+      "items": [
+        {
+          "file": "项目概览/简介与核心特性",
+          "title": "简介与核心特性"
+        },
+        {
+          "file": "项目概览/许可证与社区",
+          "title": "许可证与社区"
+        },
+        {
+          "file": "项目概览/术语表",
+          "title": "术语表"
+        }
+      ]
+    },
+    {
+      "id": "quickstart",
+      "title": "快速开始",
+      "items": [
+        {
+          "file": "快速开始/环境与权限配置",
+          "title": "环境与权限配置"
+        },
+        {
+          "file": "快速开始/API Key 与模型配置",
+          "title": "API Key 与模型配置"
+        }
+      ]
+    },
+    {
+      "id": "architecture",
+      "title": "技术架构",
+      "items": [
+        {
+          "file": "技术架构/整体架构设计",
+          "title": "整体架构设计"
+        },
+        {
+          "file": "技术架构/模块组织结构",
+          "title": "模块组织结构"
+        },
+        {
+          "file": "技术架构/数据流与核心链路",
+          "title": "数据流与核心链路"
+        },
+        {
+          "file": "技术架构/DI 依赖注入 (Koin)",
+          "title": "DI 依赖注入 (Koin)"
+        },
+        {
+          "file": "技术架构/导航与路由系统",
+          "title": "导航与路由系统"
+        },
+        {
+          "file": "技术架构/应用入口与生命周期",
+          "title": "应用入口与生命周期"
+        }
+      ]
+    },
+    {
+      "id": "chat",
+      "title": "对话系统",
+      "items": [
+        {
+          "file": "对话系统/主对话界面 (HomeScreen)",
+          "title": "主对话界面 (HomeScreen)"
+        },
+        {
+          "file": "对话系统/流式 Markdown 渲染",
+          "title": "流式 Markdown 渲染"
+        },
+        {
+          "file": "对话系统/消息转录与卡片系统",
+          "title": "消息转录与卡片系统"
+        },
+        {
+          "file": "对话系统/Markdown 组件体系",
+          "title": "Markdown 组件体系"
+        },
+        {
+          "file": "对话系统/输入栏与语音波形",
+          "title": "输入栏与语音波形"
+        },
+        {
+          "file": "对话系统/对话历史与会话管理",
+          "title": "对话历史与会话管理"
+        }
+      ]
+    },
+    {
+      "id": "automation",
+      "title": "自动化引擎",
+      "items": [
+        {
+          "file": "自动化引擎/自动化 Agent 主循环",
+          "title": "自动化 Agent 主循环"
+        },
+        {
+          "file": "自动化引擎/语音与界面自动化优化方案 2026-10-31",
+          "title": "语音与界面自动化优化方案"
+        },
+        {
+          "file": "自动化引擎/Agent 数据模型与状态",
+          "title": "Agent 数据模型与状态"
+        },
+        {
+          "file": "自动化引擎/动作解析器 (ActionParser)",
+          "title": "动作解析器 (ActionParser)"
+        },
+        {
+          "file": "自动化引擎/动作执行器 (ActionExecutor)",
+          "title": "动作执行器 (ActionExecutor)"
+        },
+        {
+          "file": "自动化引擎/配置管理 (AgentConfiguration)",
+          "title": "配置管理 (AgentConfiguration)"
+        },
+        {
+          "file": "自动化引擎/屏幕采集与 UI 树提取",
+          "title": "屏幕采集与 UI 树提取"
+        }
+      ]
+    },
+    {
+      "id": "system",
+      "title": "系统服务与权限",
+      "items": [
+        {
+          "file": "系统服务与权限/设备控制器 (DeviceController)",
+          "title": "设备控制器 (DeviceController)"
+        },
+        {
+          "file": "系统服务与权限/无障碍服务与悬浮层",
+          "title": "无障碍服务与悬浮层"
+        }
+      ]
+    },
+    {
+      "id": "models",
+      "title": "多模型接入",
+      "items": [
+        {
+          "file": "多模型接入/多模型接入总览",
+          "title": "多模型接入总览"
+        },
+        {
+          "file": "多模型接入/模型模式切换与配置链路",
+          "title": "模型模式切换与配置链路"
+        },
+        {
+          "file": "多模型接入/本地推理 (MNN)",
+          "title": "本地推理 (MNN)"
+        }
+      ]
+    },
+    {
+      "id": "virtual-display",
+      "title": "虚拟屏隔离系统",
+      "items": [
+        {
+          "file": "虚拟屏隔离系统/虚拟屏完全隔离总览",
+          "title": "虚拟屏完全隔离总览"
+        },
+        {
+          "file": "虚拟屏隔离系统/焦点管理与输入注入链路",
+          "title": "焦点管理与输入注入链路"
+        }
+      ]
+    },
+    {
+      "id": "tools",
+      "title": "AI 工具框架",
+      "items": [
+        {
+          "file": "AI 工具框架/工具系统架构",
+          "title": "工具系统架构"
+        },
+        {
+          "file": "AI 工具框架/工具注册与权限管理",
+          "title": "工具注册与权限管理"
+        },
+        {
+          "file": "AI 工具框架/网络工具执行器",
+          "title": "网络工具执行器"
+        },
+        {
+          "file": "AI 工具框架/文件工具执行器",
+          "title": "文件工具执行器"
+        },
+        {
+          "file": "AI 工具框架/应用包名管理",
+          "title": "应用包名管理"
+        }
+      ]
+    },
+    {
+      "id": "ui",
+      "title": "UI 组件与设计系统",
+      "items": [
+        {
+          "file": "UI 组件与设计系统/Material 3 主题系统",
+          "title": "Material 3 主题系统"
+        },
+        {
+          "file": "UI 组件与设计系统/设置界面体系",
+          "title": "设置界面体系"
+        },
+        {
+          "file": "UI 组件与设计系统/引导页 (Onboarding)",
+          "title": "引导页 (Onboarding)"
+        },
+        {
+          "file": "UI 组件与设计系统/侧边栏与抽屉导航",
+          "title": "侧边栏与抽屉导航"
+        },
+        {
+          "file": "UI 组件与设计系统/附件组件与文件展示",
+          "title": "附件组件与文件展示"
+        },
+        {
+          "file": "UI 组件与设计系统/图标系统",
+          "title": "图标系统"
+        },
+        {
+          "file": "UI 组件与设计系统/反馈日志与导出",
+          "title": "反馈日志与导出"
+        }
+      ]
+    },
+    {
+      "id": "persistence",
+      "title": "数据持久化",
+      "items": [
+        {
+          "file": "数据持久化/Room 数据库 (AriesDatabase)",
+          "title": "Room 数据库 (AriesDatabase)"
+        },
+        {
+          "file": "数据持久化/会话存储与仓储",
+          "title": "会话存储与仓储"
+        },
+        {
+          "file": "数据持久化/偏好设置仓储 (Preferences)",
+          "title": "偏好设置仓储 (Preferences)"
+        },
+        {
+          "file": "数据持久化/截图缓存与节流",
+          "title": "截图缓存与节流"
+        }
+      ]
+    },
+    {
+      "id": "release",
+      "title": "更新与分发",
+      "items": [
+        {
+          "file": "更新与分发/应用内更新系统",
+          "title": "应用内更新系统"
+        },
+        {
+          "file": "更新与分发/GitHub Release 集成",
+          "title": "GitHub Release 集成"
+        },
+        {
+          "file": "更新与分发/APK 下载与安装",
+          "title": "APK 下载与安装"
+        },
+        {
+          "file": "更新与分发/版本发布说明",
+          "title": "版本发布说明"
+        },
+        {
+          "file": "更新与分发/遥测心跳与 Cloudflare Worker",
+          "title": "遥测心跳与 Cloudflare Worker"
+        }
+      ]
+    },
+    {
+      "id": "dev",
+      "title": "开发规范与工具",
+      "items": [
+        {
+          "file": "开发规范与工具/代码规范 (CODING_STANDARDS)",
+          "title": "代码规范 (CODING_STANDARDS)"
+        },
+        {
+          "file": "开发规范与工具/Git 工作流",
+          "title": "Git 工作流"
+        },
+        {
+          "file": "开发规范与工具/反馈日志与问题排查",
+          "title": "反馈日志与问题排查"
+        },
+        {
+          "file": "开发规范与工具/构建脚本与工具链",
+          "title": "构建脚本与工具链"
+        },
+        {
+          "file": "开发规范与工具/CI 流水线与测试",
+          "title": "CI 流水线与测试"
+        },
+        {
+          "file": "开发规范与工具/官网与文档站代码索引",
+          "title": "官网与文档站代码索引"
+        }
+      ]
+    },
+    {
+      "id": "support",
+      "title": "常见问题与支持",
+      "items": [
+        {
+          "file": "常见问题与支持/FAQ 常见问题",
+          "title": "FAQ 常见问题"
+        },
+        {
+          "file": "常见问题与支持/故障排查指南",
+          "title": "故障排查指南"
+        },
+        {
+          "file": "常见问题与支持/虚拟屏调试提示",
+          "title": "虚拟屏调试提示"
+        }
+      ]
+    },
+    {
+      "id": "legacy",
+      "title": "兼容入口",
+      "items": [
+        {
+          "file": "BUILDING",
+          "title": "构建总览（BUILDING）"
+        },
+        {
+          "file": "TECHNICAL_OVERVIEW",
+          "title": "技术总览（TECHNICAL_OVERVIEW）"
+        },
+        {
+          "file": "CODING_STANDARDS",
+          "title": "代码规范（兼容入口）"
+        },
+        {
+          "file": "GIT_WORKFLOW",
+          "title": "Git 工作流（兼容入口）"
+        },
+        {
+          "file": "FAQ",
+          "title": "FAQ（兼容入口）"
+        },
+        {
+          "file": "AI_PR_REVIEW",
+          "title": "AI PR Review（兼容入口）"
+        },
+        {
+          "file": "FEISHU_COLLABORATION",
+          "title": "飞书协作（兼容入口）"
+        }
+      ]
+    }
+  ],
+  "docs": [
+    {
+      "file": "技术架构/数据流与核心链路",
+      "title": "数据流与核心链路",
+      "slug": "architecture/data-flow",
+      "url": "https://docs.aries-agent.com/architecture/data-flow",
+      "source": "Aries-site/docs/技术架构/数据流与核心链路.md"
+    },
+    {
+      "file": "技术架构/DI 依赖注入 (Koin)",
+      "title": "DI 依赖注入 (Koin)",
+      "slug": "architecture/di",
+      "url": "https://docs.aries-agent.com/architecture/di",
+      "source": "Aries-site/docs/技术架构/DI 依赖注入 (Koin).md"
+    },
+    {
+      "file": "技术架构/应用入口与生命周期",
+      "title": "应用入口与生命周期",
+      "slug": "architecture/lifecycle",
+      "url": "https://docs.aries-agent.com/architecture/lifecycle",
+      "source": "Aries-site/docs/技术架构/应用入口与生命周期.md"
+    },
+    {
+      "file": "技术架构/模块组织结构",
+      "title": "模块组织结构",
+      "slug": "architecture/modules",
+      "url": "https://docs.aries-agent.com/architecture/modules",
+      "source": "Aries-site/docs/技术架构/模块组织结构.md"
+    },
+    {
+      "file": "技术架构/导航与路由系统",
+      "title": "导航与路由系统",
+      "slug": "architecture/navigation",
+      "url": "https://docs.aries-agent.com/architecture/navigation",
+      "source": "Aries-site/docs/技术架构/导航与路由系统.md"
+    },
+    {
+      "file": "技术架构/整体架构设计",
+      "title": "整体架构设计",
+      "slug": "architecture/overview",
+      "url": "https://docs.aries-agent.com/architecture/overview",
+      "source": "Aries-site/docs/技术架构/整体架构设计.md"
+    },
+    {
+      "file": "自动化引擎/动作执行器 (ActionExecutor)",
+      "title": "动作执行器 (ActionExecutor)",
+      "slug": "automation/action-executor",
+      "url": "https://docs.aries-agent.com/automation/action-executor",
+      "source": "Aries-site/docs/自动化引擎/动作执行器 (ActionExecutor).md"
+    },
+    {
+      "file": "自动化引擎/动作解析器 (ActionParser)",
+      "title": "动作解析器 (ActionParser)",
+      "slug": "automation/action-parser",
+      "url": "https://docs.aries-agent.com/automation/action-parser",
+      "source": "Aries-site/docs/自动化引擎/动作解析器 (ActionParser).md"
+    },
+    {
+      "file": "自动化引擎/自动化 Agent 主循环",
+      "title": "自动化 Agent 主循环",
+      "slug": "automation/agent-loop",
+      "url": "https://docs.aries-agent.com/automation/agent-loop",
+      "source": "Aries-site/docs/自动化引擎/自动化 Agent 主循环.md"
+    },
+    {
+      "file": "自动化引擎/配置管理 (AgentConfiguration)",
+      "title": "配置管理 (AgentConfiguration)",
+      "slug": "automation/configuration",
+      "url": "https://docs.aries-agent.com/automation/configuration",
+      "source": "Aries-site/docs/自动化引擎/配置管理 (AgentConfiguration).md"
+    },
+    {
+      "file": "自动化引擎/屏幕采集与 UI 树提取",
+      "title": "屏幕采集与 UI 树提取",
+      "slug": "automation/screen-capture",
+      "url": "https://docs.aries-agent.com/automation/screen-capture",
+      "source": "Aries-site/docs/自动化引擎/屏幕采集与 UI 树提取.md"
+    },
+    {
+      "file": "自动化引擎/Agent 数据模型与状态",
+      "title": "Agent 数据模型与状态",
+      "slug": "automation/state-model",
+      "url": "https://docs.aries-agent.com/automation/state-model",
+      "source": "Aries-site/docs/自动化引擎/Agent 数据模型与状态.md"
+    },
+    {
+      "file": "自动化引擎/语音与界面自动化优化方案 2026-10-31",
+      "title": "语音与界面自动化优化方案（2026-10-31）",
+      "slug": "automation/voice-ui-plan-2026-10",
+      "url": "https://docs.aries-agent.com/automation/voice-ui-plan-2026-10",
+      "source": "Aries-site/docs/自动化引擎/语音与界面自动化优化方案 2026-10-31.md"
+    },
+    {
+      "file": "对话系统/对话历史与会话管理",
+      "title": "对话历史与会话管理",
+      "slug": "chat/history",
+      "url": "https://docs.aries-agent.com/chat/history",
+      "source": "Aries-site/docs/对话系统/对话历史与会话管理.md"
+    },
+    {
+      "file": "对话系统/主对话界面 (HomeScreen)",
+      "title": "主对话界面 (HomeScreen)",
+      "slug": "chat/home-screen",
+      "url": "https://docs.aries-agent.com/chat/home-screen",
+      "source": "Aries-site/docs/对话系统/主对话界面 (HomeScreen).md"
+    },
+    {
+      "file": "对话系统/输入栏与语音波形",
+      "title": "输入栏与语音波形",
+      "slug": "chat/input-waveform",
+      "url": "https://docs.aries-agent.com/chat/input-waveform",
+      "source": "Aries-site/docs/对话系统/输入栏与语音波形.md"
+    },
+    {
+      "file": "对话系统/Markdown 组件体系",
+      "title": "Markdown 组件体系",
+      "slug": "chat/markdown-components",
+      "url": "https://docs.aries-agent.com/chat/markdown-components",
+      "source": "Aries-site/docs/对话系统/Markdown 组件体系.md"
+    },
+    {
+      "file": "对话系统/流式 Markdown 渲染",
+      "title": "流式 Markdown 渲染",
+      "slug": "chat/streaming-markdown",
+      "url": "https://docs.aries-agent.com/chat/streaming-markdown",
+      "source": "Aries-site/docs/对话系统/流式 Markdown 渲染.md"
+    },
+    {
+      "file": "对话系统/消息转录与卡片系统",
+      "title": "消息转录与卡片系统",
+      "slug": "chat/transcript-cards",
+      "url": "https://docs.aries-agent.com/chat/transcript-cards",
+      "source": "Aries-site/docs/对话系统/消息转录与卡片系统.md"
+    },
+    {
+      "file": "开发规范与工具/构建脚本与工具链",
+      "title": "构建脚本与工具链",
+      "slug": "dev/build-toolchain",
+      "url": "https://docs.aries-agent.com/dev/build-toolchain",
+      "source": "Aries-site/docs/开发规范与工具/构建脚本与工具链.md"
+    },
+    {
+      "file": "开发规范与工具/CI 流水线与测试",
+      "title": "CI 流水线与测试",
+      "slug": "dev/ci-testing",
+      "url": "https://docs.aries-agent.com/dev/ci-testing",
+      "source": "Aries-site/docs/开发规范与工具/CI 流水线与测试.md"
+    },
+    {
+      "file": "开发规范与工具/代码规范 (CODING_STANDARDS)",
+      "title": "代码规范 (CODING_STANDARDS)",
+      "slug": "dev/coding-standards",
+      "url": "https://docs.aries-agent.com/dev/coding-standards",
+      "source": "Aries-site/docs/开发规范与工具/代码规范 (CODING_STANDARDS).md"
+    },
+    {
+      "file": "开发规范与工具/反馈日志与问题排查",
+      "title": "反馈日志与问题排查",
+      "slug": "dev/feedback-debugging",
+      "url": "https://docs.aries-agent.com/dev/feedback-debugging",
+      "source": "Aries-site/docs/开发规范与工具/反馈日志与问题排查.md"
+    },
+    {
+      "file": "开发规范与工具/Git 工作流",
+      "title": "Git 工作流",
+      "slug": "dev/git-workflow",
+      "url": "https://docs.aries-agent.com/dev/git-workflow",
+      "source": "Aries-site/docs/开发规范与工具/Git 工作流.md"
+    },
+    {
+      "file": "开发规范与工具/官网与文档站代码索引",
+      "title": "官网与文档站代码索引",
+      "slug": "dev/site-code-index",
+      "url": "https://docs.aries-agent.com/dev/site-code-index",
+      "source": "Aries-site/docs/开发规范与工具/官网与文档站代码索引.md"
+    },
+    {
+      "file": "AI_PR_REVIEW",
+      "title": "AI PR Review 流程",
+      "slug": "legacy/ai-pr-review",
+      "url": "https://docs.aries-agent.com/legacy/ai-pr-review",
+      "source": "Aries-site/docs/AI_PR_REVIEW.md"
+    },
+    {
+      "file": "BUILDING",
+      "title": "BUILDING",
+      "slug": "legacy/building",
+      "url": "https://docs.aries-agent.com/legacy/building",
+      "source": "Aries-site/docs/BUILDING.md"
+    },
+    {
+      "file": "CODING_STANDARDS",
+      "title": "代码规范 (CODING_STANDARDS)",
+      "slug": "legacy/coding-standards",
+      "url": "https://docs.aries-agent.com/legacy/coding-standards",
+      "source": "Aries-site/docs/CODING_STANDARDS.md"
+    },
+    {
+      "file": "FAQ",
+      "title": "Aries AI 常见问题解答（FAQ）",
+      "slug": "legacy/faq",
+      "url": "https://docs.aries-agent.com/legacy/faq",
+      "source": "Aries-site/docs/FAQ.md"
+    },
+    {
+      "file": "FEISHU_COLLABORATION",
+      "title": "Aries AI 飞书协作文档模板",
+      "slug": "legacy/feishu-collaboration",
+      "url": "https://docs.aries-agent.com/legacy/feishu-collaboration",
+      "source": "Aries-site/docs/FEISHU_COLLABORATION.md"
+    },
+    {
+      "file": "GIT_WORKFLOW",
+      "title": "Git 工作流",
+      "slug": "legacy/git-workflow",
+      "url": "https://docs.aries-agent.com/legacy/git-workflow",
+      "source": "Aries-site/docs/GIT_WORKFLOW.md"
+    },
+    {
+      "file": "TECHNICAL_OVERVIEW",
+      "title": "TECHNICAL_OVERVIEW",
+      "slug": "legacy/technical-overview",
+      "url": "https://docs.aries-agent.com/legacy/technical-overview",
+      "source": "Aries-site/docs/TECHNICAL_OVERVIEW.md"
+    },
+    {
+      "file": "多模型接入/本地推理 (MNN)",
+      "title": "本地推理 (MNN)",
+      "slug": "models/local-mnn",
+      "url": "https://docs.aries-agent.com/models/local-mnn",
+      "source": "Aries-site/docs/多模型接入/本地推理 (MNN).md"
+    },
+    {
+      "file": "多模型接入/模型模式切换与配置链路",
+      "title": "模型模式切换与配置链路",
+      "slug": "models/mode-switching",
+      "url": "https://docs.aries-agent.com/models/mode-switching",
+      "source": "Aries-site/docs/多模型接入/模型模式切换与配置链路.md"
+    },
+    {
+      "file": "多模型接入/多模型接入总览",
+      "title": "多模型接入总览",
+      "slug": "models/overview",
+      "url": "https://docs.aries-agent.com/models/overview",
+      "source": "Aries-site/docs/多模型接入/多模型接入总览.md"
+    },
+    {
+      "file": "项目概览/术语表",
+      "title": "术语表",
+      "slug": "overview/glossary",
+      "url": "https://docs.aries-agent.com/overview/glossary",
+      "source": "Aries-site/docs/项目概览/术语表.md"
+    },
+    {
+      "file": "项目概览/简介与核心特性",
+      "title": "简介与核心特性",
+      "slug": "overview/introduction",
+      "url": "https://docs.aries-agent.com/overview/introduction",
+      "source": "Aries-site/docs/项目概览/简介与核心特性.md"
+    },
+    {
+      "file": "项目概览/许可证与社区",
+      "title": "许可证与社区",
+      "slug": "overview/license",
+      "url": "https://docs.aries-agent.com/overview/license",
+      "source": "Aries-site/docs/项目概览/许可证与社区.md"
+    },
+    {
+      "file": "数据持久化/偏好设置仓储 (Preferences)",
+      "title": "偏好设置仓储 (Preferences)",
+      "slug": "persistence/preferences",
+      "url": "https://docs.aries-agent.com/persistence/preferences",
+      "source": "Aries-site/docs/数据持久化/偏好设置仓储 (Preferences).md"
+    },
+    {
+      "file": "数据持久化/Room 数据库 (AriesDatabase)",
+      "title": "Room 数据库 (AriesDatabase)",
+      "slug": "persistence/room",
+      "url": "https://docs.aries-agent.com/persistence/room",
+      "source": "Aries-site/docs/数据持久化/Room 数据库 (AriesDatabase).md"
+    },
+    {
+      "file": "数据持久化/截图缓存与节流",
+      "title": "截图缓存与节流",
+      "slug": "persistence/screenshot-cache",
+      "url": "https://docs.aries-agent.com/persistence/screenshot-cache",
+      "source": "Aries-site/docs/数据持久化/截图缓存与节流.md"
+    },
+    {
+      "file": "数据持久化/会话存储与仓储",
+      "title": "会话存储与仓储",
+      "slug": "persistence/sessions",
+      "url": "https://docs.aries-agent.com/persistence/sessions",
+      "source": "Aries-site/docs/数据持久化/会话存储与仓储.md"
+    },
+    {
+      "file": "快速开始/API Key 与模型配置",
+      "title": "API Key 与模型配置",
+      "slug": "quickstart/model-api",
+      "url": "https://docs.aries-agent.com/quickstart/model-api",
+      "source": "Aries-site/docs/快速开始/API Key 与模型配置.md"
+    },
+    {
+      "file": "快速开始/环境与权限配置",
+      "title": "环境与权限配置",
+      "slug": "quickstart/setup",
+      "url": "https://docs.aries-agent.com/quickstart/setup",
+      "source": "Aries-site/docs/快速开始/环境与权限配置.md"
+    },
+    {
+      "file": "更新与分发/APK 下载与安装",
+      "title": "APK 下载与安装",
+      "slug": "release/apk-install",
+      "url": "https://docs.aries-agent.com/release/apk-install",
+      "source": "Aries-site/docs/更新与分发/APK 下载与安装.md"
+    },
+    {
+      "file": "更新与分发/GitHub Release 集成",
+      "title": "GitHub Release 集成",
+      "slug": "release/github-release",
+      "url": "https://docs.aries-agent.com/release/github-release",
+      "source": "Aries-site/docs/更新与分发/GitHub Release 集成.md"
+    },
+    {
+      "file": "更新与分发/应用内更新系统",
+      "title": "应用内更新系统",
+      "slug": "release/in-app-updates",
+      "url": "https://docs.aries-agent.com/release/in-app-updates",
+      "source": "Aries-site/docs/更新与分发/应用内更新系统.md"
+    },
+    {
+      "file": "更新与分发/遥测心跳与 Cloudflare Worker",
+      "title": "遥测心跳与 Cloudflare Worker",
+      "slug": "release/telemetry",
+      "url": "https://docs.aries-agent.com/release/telemetry",
+      "source": "Aries-site/docs/更新与分发/遥测心跳与 Cloudflare Worker.md"
+    },
+    {
+      "file": "更新与分发/版本发布说明",
+      "title": "版本发布说明",
+      "slug": "release/version-notes",
+      "url": "https://docs.aries-agent.com/release/version-notes",
+      "source": "Aries-site/docs/更新与分发/版本发布说明.md"
+    },
+    {
+      "file": "常见问题与支持/FAQ 常见问题",
+      "title": "Aries AI 常见问题解答（FAQ）",
+      "slug": "support/faq",
+      "url": "https://docs.aries-agent.com/support/faq",
+      "source": "Aries-site/docs/常见问题与支持/FAQ 常见问题.md"
+    },
+    {
+      "file": "常见问题与支持/故障排查指南",
+      "title": "故障排查指南",
+      "slug": "support/troubleshooting",
+      "url": "https://docs.aries-agent.com/support/troubleshooting",
+      "source": "Aries-site/docs/常见问题与支持/故障排查指南.md"
+    },
+    {
+      "file": "常见问题与支持/虚拟屏调试提示",
+      "title": "虚拟屏调试提示",
+      "slug": "support/virtual-display-debugging",
+      "url": "https://docs.aries-agent.com/support/virtual-display-debugging",
+      "source": "Aries-site/docs/常见问题与支持/虚拟屏调试提示.md"
+    },
+    {
+      "file": "系统服务与权限/无障碍服务与悬浮层",
+      "title": "无障碍服务与悬浮层",
+      "slug": "system/accessibility",
+      "url": "https://docs.aries-agent.com/system/accessibility",
+      "source": "Aries-site/docs/系统服务与权限/无障碍服务与悬浮层.md"
+    },
+    {
+      "file": "系统服务与权限/设备控制器 (DeviceController)",
+      "title": "设备控制器 (DeviceController)",
+      "slug": "system/device-controller",
+      "url": "https://docs.aries-agent.com/system/device-controller",
+      "source": "Aries-site/docs/系统服务与权限/设备控制器 (DeviceController).md"
+    },
+    {
+      "file": "AI 工具框架/工具系统架构",
+      "title": "工具系统架构",
+      "slug": "tools/architecture",
+      "url": "https://docs.aries-agent.com/tools/architecture",
+      "source": "Aries-site/docs/AI 工具框架/工具系统架构.md"
+    },
+    {
+      "file": "AI 工具框架/文件工具执行器",
+      "title": "文件工具执行器",
+      "slug": "tools/file-executor",
+      "url": "https://docs.aries-agent.com/tools/file-executor",
+      "source": "Aries-site/docs/AI 工具框架/文件工具执行器.md"
+    },
+    {
+      "file": "AI 工具框架/网络工具执行器",
+      "title": "网络工具执行器",
+      "slug": "tools/network-executor",
+      "url": "https://docs.aries-agent.com/tools/network-executor",
+      "source": "Aries-site/docs/AI 工具框架/网络工具执行器.md"
+    },
+    {
+      "file": "AI 工具框架/应用包名管理",
+      "title": "应用包名管理",
+      "slug": "tools/packages",
+      "url": "https://docs.aries-agent.com/tools/packages",
+      "source": "Aries-site/docs/AI 工具框架/应用包名管理.md"
+    },
+    {
+      "file": "AI 工具框架/工具注册与权限管理",
+      "title": "工具注册与权限管理",
+      "slug": "tools/registration",
+      "url": "https://docs.aries-agent.com/tools/registration",
+      "source": "Aries-site/docs/AI 工具框架/工具注册与权限管理.md"
+    },
+    {
+      "file": "UI 组件与设计系统/附件组件与文件展示",
+      "title": "附件组件与文件展示",
+      "slug": "ui/attachments",
+      "url": "https://docs.aries-agent.com/ui/attachments",
+      "source": "Aries-site/docs/UI 组件与设计系统/附件组件与文件展示.md"
+    },
+    {
+      "file": "UI 组件与设计系统/侧边栏与抽屉导航",
+      "title": "侧边栏与抽屉导航",
+      "slug": "ui/drawer",
+      "url": "https://docs.aries-agent.com/ui/drawer",
+      "source": "Aries-site/docs/UI 组件与设计系统/侧边栏与抽屉导航.md"
+    },
+    {
+      "file": "UI 组件与设计系统/反馈日志与导出",
+      "title": "反馈日志与导出",
+      "slug": "ui/feedback-logs",
+      "url": "https://docs.aries-agent.com/ui/feedback-logs",
+      "source": "Aries-site/docs/UI 组件与设计系统/反馈日志与导出.md"
+    },
+    {
+      "file": "UI 组件与设计系统/图标系统",
+      "title": "图标系统",
+      "slug": "ui/icons",
+      "url": "https://docs.aries-agent.com/ui/icons",
+      "source": "Aries-site/docs/UI 组件与设计系统/图标系统.md"
+    },
+    {
+      "file": "UI 组件与设计系统/Material 3 主题系统",
+      "title": "Material 3 主题系统",
+      "slug": "ui/material3-theme",
+      "url": "https://docs.aries-agent.com/ui/material3-theme",
+      "source": "Aries-site/docs/UI 组件与设计系统/Material 3 主题系统.md"
+    },
+    {
+      "file": "UI 组件与设计系统/引导页 (Onboarding)",
+      "title": "引导页 (Onboarding)",
+      "slug": "ui/onboarding",
+      "url": "https://docs.aries-agent.com/ui/onboarding",
+      "source": "Aries-site/docs/UI 组件与设计系统/引导页 (Onboarding).md"
+    },
+    {
+      "file": "UI 组件与设计系统/设置界面体系",
+      "title": "设置界面体系",
+      "slug": "ui/settings",
+      "url": "https://docs.aries-agent.com/ui/settings",
+      "source": "Aries-site/docs/UI 组件与设计系统/设置界面体系.md"
+    },
+    {
+      "file": "虚拟屏隔离系统/焦点管理与输入注入链路",
+      "title": "焦点管理与输入注入链路",
+      "slug": "virtual-display/focus-input",
+      "url": "https://docs.aries-agent.com/virtual-display/focus-input",
+      "source": "Aries-site/docs/虚拟屏隔离系统/焦点管理与输入注入链路.md"
+    },
+    {
+      "file": "虚拟屏隔离系统/虚拟屏完全隔离总览",
+      "title": "虚拟屏完全隔离总览",
+      "slug": "virtual-display/overview",
+      "url": "https://docs.aries-agent.com/virtual-display/overview",
+      "source": "Aries-site/docs/虚拟屏隔离系统/虚拟屏完全隔离总览.md"
+    }
+  ],
+  "legacyRoutes": {
+    "architecture-dataflow": "architecture/data-flow",
+    "architecture-di": "architecture/di",
+    "architecture-lifecycle": "architecture/lifecycle",
+    "architecture-modules": "architecture/modules",
+    "architecture-navigation": "architecture/navigation",
+    "architecture-overall": "architecture/overview",
+    "automation-accessibility": "quickstart/setup",
+    "automation-action-executor": "automation/action-executor",
+    "automation-action-parser": "automation/action-parser",
+    "automation-agent-config": "automation/configuration",
+    "automation-agent-loop": "automation/agent-loop",
+    "automation-capture": "automation/screen-capture",
+    "automation-optimization-plan-2026-10-31": "automation/voice-ui-plan-2026-10",
+    "automation-permissions": "quickstart/setup",
+    "automation-state-model": "automation/state-model",
+    "chat-history-sessions": "chat/history",
+    "chat-home-screen": "chat/home-screen",
+    "chat-input-waveform": "chat/input-waveform",
+    "chat-markdown-components": "chat/markdown-components",
+    "chat-offline-asr-research-2026-10-31": "chat/input-waveform",
+    "chat-offline-speech": "chat/input-waveform",
+    "chat-streaming-markdown": "chat/streaming-markdown",
+    "chat-transcript-cards": "chat/transcript-cards",
+    "chat-voice-glass-handoff-2026-10-31": "chat/input-waveform",
+    "chat-xasr-replacement-plan-2026-10-31": "chat/input-waveform",
+    "compat-ai-pr-review": "legacy/ai-pr-review",
+    "compat-building": "legacy/building",
+    "compat-coding": "legacy/coding-standards",
+    "compat-faq": "legacy/faq",
+    "compat-feishu": "legacy/feishu-collaboration",
+    "compat-technical": "legacy/technical-overview",
+    "compat-workflow": "legacy/git-workflow",
+    "data-preferences": "persistence/preferences",
+    "data-room": "persistence/room",
+    "data-screenshot": "persistence/screenshot-cache",
+    "data-session": "persistence/sessions",
+    "dev-build-toolchain": "dev/build-toolchain",
+    "dev-ci-testing": "dev/ci-testing",
+    "dev-coding-standards": "dev/coding-standards",
+    "dev-contribute": "dev/git-workflow",
+    "dev-feedback-debugging": "dev/feedback-debugging",
+    "dev-git-workflow": "dev/git-workflow",
+    "doc-building": "legacy/building",
+    "doc-feishu": "legacy/feishu-collaboration",
+    "doc-standards": "dev/coding-standards",
+    "doc-technical": "legacy/technical-overview",
+    "doc-workflow": "dev/git-workflow",
+    "faq": "support/faq",
+    "model-key": "quickstart/model-api",
+    "models-local-mnn": "models/local-mnn",
+    "models-overview": "models/overview",
+    "models-switching": "models/mode-switching",
+    "overview-glossary": "overview/glossary",
+    "overview-intro": "overview/introduction",
+    "overview-license": "overview/license",
+    "quick-5min": "legacy/building",
+    "quickstart-model-api": "quickstart/model-api",
+    "quickstart-permissions": "quickstart/setup",
+    "release-apk-download": "release/apk-install",
+    "release-github-release": "release/github-release",
+    "release-in-app-updates": "release/in-app-updates",
+    "release-telemetry": "release/telemetry",
+    "release-version-notes": "release/version-notes",
+    "support-faq": "support/faq",
+    "support-troubleshooting": "support/troubleshooting",
+    "support-vdiso-debugging": "support/virtual-display-debugging",
+    "system-accessibility": "system/accessibility",
+    "system-device-controller": "system/device-controller",
+    "tools-architecture": "tools/architecture",
+    "tools-file": "tools/file-executor",
+    "tools-network": "tools/network-executor",
+    "tools-packages": "tools/packages",
+    "tools-registration": "tools/registration",
+    "ui-attachments": "ui/attachments",
+    "ui-buttons": "chat/home-screen",
+    "ui-drawer": "ui/drawer",
+    "ui-feedback-export": "ui/feedback-logs",
+    "ui-icons": "ui/icons",
+    "ui-onboarding": "ui/onboarding",
+    "ui-settings": "ui/settings",
+    "ui-theme": "ui/material3-theme",
+    "vdiso-focus-input": "virtual-display/focus-input",
+    "vdiso-overview": "virtual-display/overview"
+  },
+  "removedDocs": [
+    "对话系统/离线语音识别 (Sherpa-ncnn)",
+    "对话系统/语音输入与液态玻璃专项交接 2026-10-31",
+    "对话系统/离线ASR模型调研 2026-10-31",
+    "对话系统/X-ASR-zh-en 模型替换计划 2026-10-31"
+  ]
+}

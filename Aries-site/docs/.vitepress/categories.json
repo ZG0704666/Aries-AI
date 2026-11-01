@@ -1,0 +1,364 @@
+[
+  {
+    "id": "overview",
+    "title": "项目概览",
+    "items": [
+      {
+        "file": "项目概览/简介与核心特性",
+        "title": "简介与核心特性"
+      },
+      {
+        "file": "项目概览/许可证与社区",
+        "title": "许可证与社区"
+      },
+      {
+        "file": "项目概览/术语表",
+        "title": "术语表"
+      }
+    ]
+  },
+  {
+    "id": "quickstart",
+    "title": "快速开始",
+    "items": [
+      {
+        "file": "快速开始/环境与权限配置",
+        "title": "环境与权限配置"
+      },
+      {
+        "file": "快速开始/API Key 与模型配置",
+        "title": "API Key 与模型配置"
+      }
+    ]
+  },
+  {
+    "id": "architecture",
+    "title": "技术架构",
+    "items": [
+      {
+        "file": "技术架构/整体架构设计",
+        "title": "整体架构设计"
+      },
+      {
+        "file": "技术架构/模块组织结构",
+        "title": "模块组织结构"
+      },
+      {
+        "file": "技术架构/数据流与核心链路",
+        "title": "数据流与核心链路"
+      },
+      {
+        "file": "技术架构/DI 依赖注入 (Koin)",
+        "title": "DI 依赖注入 (Koin)"
+      },
+      {
+        "file": "技术架构/导航与路由系统",
+        "title": "导航与路由系统"
+      },
+      {
+        "file": "技术架构/应用入口与生命周期",
+        "title": "应用入口与生命周期"
+      }
+    ]
+  },
+  {
+    "id": "chat",
+    "title": "对话系统",
+    "items": [
+      {
+        "file": "对话系统/主对话界面 (HomeScreen)",
+        "title": "主对话界面 (HomeScreen)"
+      },
+      {
+        "file": "对话系统/流式 Markdown 渲染",
+        "title": "流式 Markdown 渲染"
+      },
+      {
+        "file": "对话系统/消息转录与卡片系统",
+        "title": "消息转录与卡片系统"
+      },
+      {
+        "file": "对话系统/Markdown 组件体系",
+        "title": "Markdown 组件体系"
+      },
+      {
+        "file": "对话系统/输入栏与语音波形",
+        "title": "输入栏与语音波形"
+      },
+      {
+        "file": "对话系统/对话历史与会话管理",
+        "title": "对话历史与会话管理"
+      }
+    ]
+  },
+  {
+    "id": "automation",
+    "title": "自动化引擎",
+    "items": [
+      {
+        "file": "自动化引擎/自动化 Agent 主循环",
+        "title": "自动化 Agent 主循环"
+      },
+      {
+        "file": "自动化引擎/语音与界面自动化优化方案 2026-10-31",
+        "title": "语音与界面自动化优化方案"
+      },
+      {
+        "file": "自动化引擎/Agent 数据模型与状态",
+        "title": "Agent 数据模型与状态"
+      },
+      {
+        "file": "自动化引擎/动作解析器 (ActionParser)",
+        "title": "动作解析器 (ActionParser)"
+      },
+      {
+        "file": "自动化引擎/动作执行器 (ActionExecutor)",
+        "title": "动作执行器 (ActionExecutor)"
+      },
+      {
+        "file": "自动化引擎/配置管理 (AgentConfiguration)",
+        "title": "配置管理 (AgentConfiguration)"
+      },
+      {
+        "file": "自动化引擎/屏幕采集与 UI 树提取",
+        "title": "屏幕采集与 UI 树提取"
+      }
+    ]
+  },
+  {
+    "id": "system",
+    "title": "系统服务与权限",
+    "items": [
+      {
+        "file": "系统服务与权限/设备控制器 (DeviceController)",
+        "title": "设备控制器 (DeviceController)"
+      },
+      {
+        "file": "系统服务与权限/无障碍服务与悬浮层",
+        "title": "无障碍服务与悬浮层"
+      }
+    ]
+  },
+  {
+    "id": "models",
+    "title": "多模型接入",
+    "items": [
+      {
+        "file": "多模型接入/多模型接入总览",
+        "title": "多模型接入总览"
+      },
+      {
+        "file": "多模型接入/模型模式切换与配置链路",
+        "title": "模型模式切换与配置链路"
+      },
+      {
+        "file": "多模型接入/本地推理 (MNN)",
+        "title": "本地推理 (MNN)"
+      }
+    ]
+  },
+  {
+    "id": "virtual-display",
+    "title": "虚拟屏隔离系统",
+    "items": [
+      {
+        "file": "虚拟屏隔离系统/虚拟屏完全隔离总览",
+        "title": "虚拟屏完全隔离总览"
+      },
+      {
+        "file": "虚拟屏隔离系统/焦点管理与输入注入链路",
+        "title": "焦点管理与输入注入链路"
+      }
+    ]
+  },
+  {
+    "id": "tools",
+    "title": "AI 工具框架",
+    "items": [
+      {
+        "file": "AI 工具框架/工具系统架构",
+        "title": "工具系统架构"
+      },
+      {
+        "file": "AI 工具框架/工具注册与权限管理",
+        "title": "工具注册与权限管理"
+      },
+      {
+        "file": "AI 工具框架/网络工具执行器",
+        "title": "网络工具执行器"
+      },
+      {
+        "file": "AI 工具框架/文件工具执行器",
+        "title": "文件工具执行器"
+      },
+      {
+        "file": "AI 工具框架/应用包名管理",
+        "title": "应用包名管理"
+      }
+    ]
+  },
+  {
+    "id": "ui",
+    "title": "UI 组件与设计系统",
+    "items": [
+      {
+        "file": "UI 组件与设计系统/Material 3 主题系统",
+        "title": "Material 3 主题系统"
+      },
+      {
+        "file": "UI 组件与设计系统/设置界面体系",
+        "title": "设置界面体系"
+      },
+      {
+        "file": "UI 组件与设计系统/引导页 (Onboarding)",
+        "title": "引导页 (Onboarding)"
+      },
+      {
+        "file": "UI 组件与设计系统/侧边栏与抽屉导航",
+        "title": "侧边栏与抽屉导航"
+      },
+      {
+        "file": "UI 组件与设计系统/附件组件与文件展示",
+        "title": "附件组件与文件展示"
+      },
+      {
+        "file": "UI 组件与设计系统/图标系统",
+        "title": "图标系统"
+      },
+      {
+        "file": "UI 组件与设计系统/反馈日志与导出",
+        "title": "反馈日志与导出"
+      }
+    ]
+  },
+  {
+    "id": "persistence",
+    "title": "数据持久化",
+    "items": [
+      {
+        "file": "数据持久化/Room 数据库 (AriesDatabase)",
+        "title": "Room 数据库 (AriesDatabase)"
+      },
+      {
+        "file": "数据持久化/会话存储与仓储",
+        "title": "会话存储与仓储"
+      },
+      {
+        "file": "数据持久化/偏好设置仓储 (Preferences)",
+        "title": "偏好设置仓储 (Preferences)"
+      },
+      {
+        "file": "数据持久化/截图缓存与节流",
+        "title": "截图缓存与节流"
+      }
+    ]
+  },
+  {
+    "id": "release",
+    "title": "更新与分发",
+    "items": [
+      {
+        "file": "更新与分发/应用内更新系统",
+        "title": "应用内更新系统"
+      },
+      {
+        "file": "更新与分发/GitHub Release 集成",
+        "title": "GitHub Release 集成"
+      },
+      {
+        "file": "更新与分发/APK 下载与安装",
+        "title": "APK 下载与安装"
+      },
+      {
+        "file": "更新与分发/版本发布说明",
+        "title": "版本发布说明"
+      },
+      {
+        "file": "更新与分发/遥测心跳与 Cloudflare Worker",
+        "title": "遥测心跳与 Cloudflare Worker"
+      }
+    ]
+  },
+  {
+    "id": "dev",
+    "title": "开发规范与工具",
+    "items": [
+      {
+        "file": "开发规范与工具/代码规范 (CODING_STANDARDS)",
+        "title": "代码规范 (CODING_STANDARDS)"
+      },
+      {
+        "file": "开发规范与工具/Git 工作流",
+        "title": "Git 工作流"
+      },
+      {
+        "file": "开发规范与工具/反馈日志与问题排查",
+        "title": "反馈日志与问题排查"
+      },
+      {
+        "file": "开发规范与工具/构建脚本与工具链",
+        "title": "构建脚本与工具链"
+      },
+      {
+        "file": "开发规范与工具/CI 流水线与测试",
+        "title": "CI 流水线与测试"
+      },
+      {
+        "file": "开发规范与工具/官网与文档站代码索引",
+        "title": "官网与文档站代码索引"
+      }
+    ]
+  },
+  {
+    "id": "support",
+    "title": "常见问题与支持",
+    "items": [
+      {
+        "file": "常见问题与支持/FAQ 常见问题",
+        "title": "FAQ 常见问题"
+      },
+      {
+        "file": "常见问题与支持/故障排查指南",
+        "title": "故障排查指南"
+      },
+      {
+        "file": "常见问题与支持/虚拟屏调试提示",
+        "title": "虚拟屏调试提示"
+      }
+    ]
+  },
+  {
+    "id": "legacy",
+    "title": "兼容入口",
+    "items": [
+      {
+        "file": "BUILDING",
+        "title": "构建总览（BUILDING）"
+      },
+      {
+        "file": "TECHNICAL_OVERVIEW",
+        "title": "技术总览（TECHNICAL_OVERVIEW）"
+      },
+      {
+        "file": "CODING_STANDARDS",
+        "title": "代码规范（兼容入口）"
+      },
+      {
+        "file": "GIT_WORKFLOW",
+        "title": "Git 工作流（兼容入口）"
+      },
+      {
+        "file": "FAQ",
+        "title": "FAQ（兼容入口）"
+      },
+      {
+        "file": "AI_PR_REVIEW",
+        "title": "AI PR Review（兼容入口）"
+      },
+      {
+        "file": "FEISHU_COLLABORATION",
+        "title": "飞书协作（兼容入口）"
+      }
+    ]
+  }
+]

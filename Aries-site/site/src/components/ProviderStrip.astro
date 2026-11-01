@@ -1,0 +1,187 @@
+---
+// 模型提供商单行无限滚动，图标来自 public/icons/models（源自旧站 assets/icons/models）
+const providers = [
+  { name: 'OpenAI', icon: '/icons/models/openai.com.ico' },
+  { name: 'Anthropic', icon: '/icons/models/anthropic.com.ico' },
+  { name: 'Google Gemini', icon: '/icons/models/gemini.svg' },
+  { name: 'DeepSeek', icon: '/icons/models/DeepSeek.svg' },
+  { name: '通义千问', icon: '/icons/models/Qwen.svg' },
+  { name: '智谱 GLM', icon: '/icons/models/GLM.svg' },
+  { name: '豆包', icon: '/icons/models/doubao-color.svg' },
+  { name: 'Kimi', icon: '/icons/models/kimi-k2.png' },
+  { name: '文心一言', icon: '/icons/models/ERNIE.svg' },
+  { name: '腾讯混元', icon: '/icons/models/hunyuan-color.svg' },
+  { name: 'MiniMax', icon: '/icons/models/minimax.jpg' },
+  { name: 'Mistral', icon: '/icons/models/mistral.ai.ico' },
+  { name: 'Llama', icon: '/icons/models/meta.com.ico' },
+  { name: '即梦', icon: '/icons/models/jimeng-color.svg' },
+  { name: '可灵', icon: '/icons/models/kolors-color.svg' },
+  { name: '小米 MiMo', icon: '/icons/models/mimo.png' },
+  { name: 'BAAI', icon: '/icons/models/BAAI.svg' },
+];
+---
+
+<section class="providers section--tight" aria-labelledby="providers-title">
+  <div class="container">
+    <p class="providers__title" id="providers-title">支持 17 家主流大模型服务商</p>
+  </div>
+  <div class="providers__viewport">
+    <div class="providers__track">
+      {
+        [0, 1].map((copy) => (
+          <ul class="providers__list" aria-hidden={copy === 1 ? 'true' : undefined}>
+            {providers.map((provider) => (
+              <li class="providers__item">
+                <span class="providers__icon">
+                  <img
+                    src={provider.icon}
+                    alt=""
+                    width="40"
+                    height="40"
+                    loading="lazy"
+                    decoding="async"
+                    onerror="this.style.display='none'"
+                  />
+                </span>
+                <span class="providers__name">{provider.name}</span>
+              </li>
+            ))}
+          </ul>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .providers {
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+  }
+
+  .providers__title {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .providers__viewport {
+    margin-top: 20px;
+    overflow: hidden;
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
+
+  .providers__track {
+    display: flex;
+    width: max-content;
+    animation: provider-scroll 46s linear infinite;
+  }
+
+  .providers__viewport:hover .providers__track {
+    animation-play-state: paused;
+  }
+
+  .providers__list {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-right: 10px;
+  }
+
+  .providers__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 96px;
+    padding: 14px 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg, 14px);
+    background: var(--surface);
+    white-space: nowrap;
+    transition: border-color 0.2s var(--ease, ease), background-color 0.2s var(--ease, ease);
+  }
+
+  .providers__viewport:hover .providers__item {
+    border-color: rgba(56, 182, 227, 0.3);
+  }
+
+  .providers__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  }
+
+  .providers__icon img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+  }
+
+  .providers__name {
+    color: var(--text-soft);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  @keyframes provider-scroll {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .providers__item {
+      min-width: 80px;
+      padding: 10px 14px;
+      gap: 6px;
+    }
+
+    .providers__icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+    }
+
+    .providers__icon img {
+      width: 28px;
+      height: 28px;
+    }
+
+    .providers__name {
+      font-size: 12px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .providers__track {
+      width: auto;
+      animation: none;
+    }
+
+    .providers__list:nth-child(2) {
+      display: none;
+    }
+
+    .providers__list {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .providers__viewport {
+      mask-image: none;
+      -webkit-mask-image: none;
+    }
+  }
+</style>

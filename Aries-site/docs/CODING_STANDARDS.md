@@ -1,4 +1,4 @@
-﻿# 代码规范 (CODING_STANDARDS)
+# 代码规范 (CODING_STANDARDS)
 
 Aries AI (Phone Agent) 项目的代码编写规范，确保团队代码风格一致性和可维护性。
 

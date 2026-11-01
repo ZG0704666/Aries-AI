@@ -1,4 +1,4 @@
-﻿# 偏好设置仓储 (Preferences)
+# 偏好设置仓储 (Preferences)
 
 > 当前实现说明：`FloatingChatService` 已不在当前源码中；本文涉及它的示例与悬浮聊天链路属于历史实现。当前主界面入口为 `MainActivity`，悬浮聊天偏好类仍保留，不能据此推断悬浮聊天服务仍可用。
 
