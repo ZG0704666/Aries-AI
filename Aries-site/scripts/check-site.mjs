@@ -308,7 +308,7 @@ async function main() {
   }
   pass(`${legacyCount} 条旧 hash 路由全部有落点（已删除文档 ${legacy.removed.length} 篇）`);
 
-  for (const artifact of ['site/public/docs-center.html', 'site/public/_redirects']) {
+  for (const artifact of ['site/public/docs-center/index.html', 'site/public/_redirects']) {
     try {
       await access(path.join(siteRoot, artifact));
     } catch {

@@ -1,8 +1,5 @@
 # 由 Aries-site/scripts/build-legacy.mjs 生成，请勿手动编辑
 
-# 旧文档中心（hash 路由由跳转壳处理）
-/docs-center            /docs-center.html   200
-
 # 旧文档目录与首页
 /docs                   https://docs.aries-agent.com/   301
 /docs/                  https://docs.aries-agent.com/   301

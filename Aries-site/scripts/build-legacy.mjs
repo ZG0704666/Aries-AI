@@ -2,11 +2,11 @@
 /**
  * 生成旧链接兼容层。
  *
- * 1. site/public/docs-center.html：旧 hash 路由 `#/<id>` 的 JS 跳转壳
+ * 1. site/public/docs-center/index.html：旧 hash 路由 `#/<id>` 的 JS 跳转壳
  *    （hash 不会发往服务端，Cloudflare 无法做 301）。
  * 2. site/public/_redirects：旧 `/docs/*.md` 直链 → 新文档 URL 的 301。
  */
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { buildLegacyRouteMap, readJson, siteRoot, stripBom, VITEPRESS_DIR } from './lib/docs-data.mjs';
 
@@ -83,9 +83,6 @@ async function renderRedirects(legacyRoutes) {
   const rules = [
     '# 由 Aries-site/scripts/build-legacy.mjs 生成，请勿手动编辑',
     '',
-    '# 旧文档中心（hash 路由由跳转壳处理）',
-    '/docs-center            /docs-center.html   200',
-    '',
     '# 旧文档目录与首页',
     '/docs                   ' + DOCS_ORIGIN + '/   301',
     '/docs/                  ' + DOCS_ORIGIN + '/   301',
@@ -127,7 +124,10 @@ async function main() {
   const shell = renderShell(legacy.routes);
   const redirects = await renderRedirects(legacy);
 
-  await writeFile(path.join(siteRoot, 'site/public/docs-center.html'), stripBom(shell), 'utf8');
+  // 目录形式：/docs-center → docs-center/index.html 由 Pages 静态服务，
+  // 避免 .html 目标触发"去后缀归一化"形成 308 自循环。
+  await mkdir(path.join(siteRoot, 'site/public/docs-center'), { recursive: true });
+  await writeFile(path.join(siteRoot, 'site/public/docs-center/index.html'), stripBom(shell), 'utf8');
   await writeFile(path.join(siteRoot, 'site/public/_redirects'), stripBom(redirects), 'utf8');
 
   console.log(
