@@ -1,4 +1,4 @@
-﻿# GitHub Release 集成
+# GitHub Release 集成
 
 Aries AI 通过 GitHub REST API 与 Atom Feed 实现应用版本更新检测、通知和 APK 下载功能，涵盖 Android 客户端内建更新检查与官方网站的下载链接自动解析。
 

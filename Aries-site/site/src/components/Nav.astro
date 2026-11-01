@@ -1,0 +1,231 @@
+---
+import { Image } from 'astro:assets';
+import brand from '../assets/brand-mark.png';
+import ThemeToggle from './ThemeToggle.astro';
+import site from '../data/site.generated.json';
+
+const release = site.release;
+---
+
+<header class="site-header">
+  <nav class="nav-shell" aria-label="主导航">
+    <a class="brand" href="/" aria-label="Aries AI 首页">
+      <Image src={brand} alt="" width={36} height={36} loading="eager" class="brand__mark" />
+      <span class="brand__name">Aries AI</span>
+    </a>
+
+    <div class="nav-links">
+      <a href="/#features">能力</a>
+      <a href="/#scenarios">场景</a>
+      <a href="/#apps">应用</a>
+      <a href="/download">下载</a>
+      <a href={site.docsUrl}>文档</a>
+    </div>
+
+    <div class="nav-actions">
+      <a
+        class="icon-btn nav-github"
+        href={site.github}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="在 GitHub 上查看 Aries AI"
+        title="GitHub"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 .5a11.5 11.5 0 0 0-3.63 22.42c.57.1.78-.25.78-.55v-1.93c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.27-1.68-1.27-1.68-1.04-.72.08-.71.08-.71 1.15.08 1.75 1.18 1.75 1.18 1.02 1.74 2.67 1.24 3.32.95.1-.74.4-1.24.73-1.53-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .97-.31 3.18 1.18a10.9 10.9 0 0 1 5.8 0c2.2-1.49 3.18-1.18 3.18-1.18.62 1.59.23 2.76.11 3.05.73.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.41-5.28 5.7.41.36.78 1.06.78 2.14v3.17c0 .3.2.66.79.55A11.5 11.5 0 0 0 12 .5Z"></path>
+        </svg>
+      </a>
+      <ThemeToggle />
+      <button class="btn btn--primary btn--sm nav-download" type="button" data-open-download>
+        获取安装包
+        <span class="btn__meta">{release.tag}</span>
+      </button>
+      <button
+        class="icon-btn nav-toggle"
+        type="button"
+        data-nav-toggle
+        aria-expanded="false"
+        aria-controls="mobile-nav"
+        aria-label="打开导航菜单"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M4 7h16M4 12h16M4 17h16"></path>
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <div class="mobile-nav" id="mobile-nav" hidden>
+    <a href="/#features">能力</a>
+    <a href="/#scenarios">场景</a>
+    <a href="/#apps">应用</a>
+    <a href="/download">下载</a>
+    <a href={site.docsUrl}>文档</a>
+    <a href={site.github} target="_blank" rel="noreferrer">GitHub</a>
+    <button class="btn btn--primary btn--block" type="button" data-open-download>
+      获取安装包 · {release.tag}
+    </button>
+  </div>
+</header>
+
+<script>
+  const header = document.querySelector('.site-header');
+  const toggle = document.querySelector<HTMLButtonElement>('[data-nav-toggle]');
+  const panel = document.getElementById('mobile-nav');
+
+  function setMenu(open: boolean) {
+    if (!toggle || !panel) return;
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? '关闭导航菜单' : '打开导航菜单');
+    panel.hidden = !open;
+    header?.classList.toggle('is-open', open);
+  }
+
+  toggle?.addEventListener('click', () => {
+    setMenu(toggle.getAttribute('aria-expanded') !== 'true');
+  });
+
+  panel?.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => setMenu(false));
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') setMenu(false);
+  });
+</script>
+
+<style>
+  .site-header {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    z-index: 50;
+    width: min(calc(100% - 24px), var(--container));
+    transform: translateX(-50%);
+  }
+
+  .nav-shell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    min-height: 58px;
+    padding: 8px 10px 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--bg) 68%, transparent);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+  }
+
+  .brand__mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .brand__name {
+    font-size: 15px;
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+  }
+
+  .nav-links a {
+    padding: 8px 13px;
+    border-radius: var(--radius-pill);
+    color: var(--text-muted);
+    font-size: 13.5px;
+    font-weight: 600;
+    transition:
+      color 0.2s var(--ease),
+      background-color 0.2s var(--ease);
+  }
+
+  .nav-links a:hover {
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .nav-github {
+    display: none;
+  }
+
+  .nav-toggle {
+    display: none;
+  }
+
+  .mobile-nav {
+    margin-top: 10px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(22px);
+  }
+
+  .mobile-nav a {
+    display: block;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    color: var(--text-soft);
+    font-weight: 600;
+  }
+
+  .mobile-nav a:hover {
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .mobile-nav .btn {
+    margin-top: 8px;
+  }
+
+  @media (min-width: 900px) {
+    .nav-github {
+      display: inline-flex;
+    }
+  }
+
+  @media (max-width: 899px) {
+    .nav-links,
+    .nav-download {
+      display: none;
+    }
+
+    .nav-toggle {
+      display: inline-flex;
+    }
+
+    .nav-actions {
+      margin-left: auto;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .brand__name {
+      display: none;
+    }
+  }
+</style>

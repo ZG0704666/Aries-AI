@@ -1,0 +1,206 @@
+---
+import apps from '../data/apps.json';
+
+// 拆成两行，奇偶交替；每行复制一份实现无缝循环
+const rowA = apps.filter((_, i) => i % 2 === 0);
+const rowB = apps.filter((_, i) => i % 2 === 1);
+---
+
+<section class="section apps" id="apps">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">支持应用</span>
+      <h2 class="h2">覆盖 50+ 主流应用</h2>
+      <p class="lede">社交、购物、出行、娱乐、办公与本地生活，Aries AI 直接在你熟悉的 App 里完成任务。</p>
+    </div>
+
+    <div class="app-marquee" aria-label="已适配应用列表">
+      {
+        [rowA, rowB].map((row, rowIndex) => (
+          <div class="app-marquee__viewport">
+            <div class:list={['app-marquee__track', rowIndex === 1 && 'app-marquee__track--reverse']}>
+              {[0, 1].map((copy) => (
+                <ul class="app-marquee__list" aria-hidden={copy === 1 ? 'true' : undefined}>
+                  {row.map((app) => (
+                    <li class="app-chip" title={app.name}>
+                      <span class="app-chip__icon">
+                        <img src={app.icon} alt="" width="26" height="26" loading="lazy" decoding="async" />
+                      </span>
+                      <span class="app-chip__name">{app.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              ))}
+            </div>
+          </div>
+        ))
+      }
+    </div>
+
+    <p class="apps__note">图标仅用于说明已适配的应用场景，版权归各自所有者所有。</p>
+  </div>
+</section>
+
+<style>
+  .apps {
+    border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 62%, transparent);
+  }
+
+  .app-marquee {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .app-marquee__viewport {
+    overflow: hidden;
+    mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  }
+
+  .app-marquee__track {
+    display: flex;
+    width: max-content;
+    animation: app-marquee-left 42s linear infinite;
+  }
+
+  .app-marquee__track--reverse {
+    animation-name: app-marquee-right;
+    animation-duration: 46s;
+  }
+
+  .app-marquee__viewport:hover .app-marquee__track {
+    animation-play-state: paused;
+  }
+
+  .app-marquee__list {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-right: 10px;
+  }
+
+  .app-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    transition:
+      border-color 0.2s var(--ease),
+      background-color 0.2s var(--ease),
+      transform 0.2s var(--ease);
+  }
+
+  .app-chip:hover {
+    border-color: rgba(91, 140, 255, 0.3);
+    background: var(--surface-hover);
+    transform: translateY(-1px);
+  }
+
+  .app-chip__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  }
+
+  .app-chip__icon img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+  }
+
+  .app-chip__name {
+    overflow: hidden;
+    color: var(--text-soft);
+    font-size: 12.5px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .apps__note {
+    margin-top: 22px;
+    color: var(--text-muted);
+    font-size: 11px;
+    text-align: center;
+  }
+
+  @keyframes app-marquee-left {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes app-marquee-right {
+    from {
+      transform: translateX(-50%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .app-marquee {
+      gap: 10px;
+    }
+
+    .app-marquee__list {
+      gap: 8px;
+      padding-right: 8px;
+    }
+
+    .app-chip {
+      padding: 8px;
+      gap: 8px;
+    }
+
+    .app-chip__icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+    }
+
+    .app-chip__icon img {
+      width: 18px;
+      height: 18px;
+    }
+
+    .app-chip__name {
+      font-size: 11.5px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .app-marquee__track {
+      width: auto;
+      animation: none;
+    }
+
+    .app-marquee__viewport {
+      overflow-x: auto;
+      mask-image: none;
+      -webkit-mask-image: none;
+    }
+
+    .app-marquee__list[aria-hidden='true'] {
+      display: none;
+    }
+
+    .app-marquee__list {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+  }
+</style>

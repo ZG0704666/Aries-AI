@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /docs-center
+Disallow: /docs-center.html
+
+Sitemap: https://aries-agent.com/sitemap-index.xml

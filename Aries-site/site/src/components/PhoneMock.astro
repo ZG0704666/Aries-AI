@@ -1,0 +1,166 @@
+---
+import { Image } from 'astro:assets';
+import brand from '../assets/brand-mark.png';
+
+interface Props {
+  label: string;
+  caption: string;
+  src?: string;
+  alt?: string;
+  featured?: boolean;
+  tilt?: 'left' | 'right' | 'none';
+}
+
+const { label, caption, src, alt, featured = false, tilt = 'none' } = Astro.props;
+---
+
+<figure class:list={['phone', { 'phone--featured': featured, [`phone--${tilt}`]: tilt !== 'none' }]}>
+  <div class="phone__frame">
+    <span class="phone__notch" aria-hidden="true"></span>
+    <div class="phone__screen">
+      {
+        src ? (
+          <img
+            class="phone__shot"
+            src={src}
+            alt={alt ?? label}
+            width="420"
+            height="910"
+            loading={featured ? 'eager' : 'lazy'}
+            decoding="async"
+          />
+        ) : (
+          <div class="phone__placeholder">
+            <Image src={brand} alt="" width={56} height={56} class="phone__brand" />
+            <span class="phone__label">{label}</span>
+            <span class="phone__hint">截图待补</span>
+          </div>
+        )
+      }
+    </div>
+  </div>
+  <figcaption class="phone__caption">{caption}</figcaption>
+</figure>
+
+<style>
+  .phone {
+    position: relative;
+    margin: 0;
+    width: min(250px, 62vw);
+    transition: transform 0.4s var(--ease);
+  }
+
+  .phone--featured {
+    width: min(292px, 70vw);
+    z-index: 2;
+  }
+
+  .phone--left {
+    transform: translateX(16%) rotate(-6deg) scale(0.92);
+  }
+
+  .phone--right {
+    transform: translateX(-16%) rotate(6deg) scale(0.92);
+  }
+
+  .phone--left:hover {
+    transform: translateX(12%) rotate(-4deg) scale(0.94);
+  }
+
+  .phone--right:hover {
+    transform: translateX(-12%) rotate(4deg) scale(0.94);
+  }
+
+  .phone__frame {
+    position: relative;
+    padding: 9px;
+    border: 1px solid var(--border-strong);
+    border-radius: 42px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03));
+    box-shadow:
+      0 30px 80px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(18px);
+  }
+
+  .phone--featured .phone__frame {
+    box-shadow:
+      0 40px 110px rgba(0, 0, 0, 0.55),
+      0 0 70px rgba(91, 140, 255, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .phone__notch {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    z-index: 3;
+    width: 74px;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    transform: translateX(-50%);
+  }
+
+  .phone__screen {
+    position: relative;
+    aspect-ratio: 9 / 19.2;
+    overflow: hidden;
+    border-radius: 34px;
+    background:
+      radial-gradient(120% 80% at 20% 0%, rgba(91, 140, 255, 0.22), transparent 55%),
+      radial-gradient(100% 70% at 100% 100%, rgba(167, 139, 250, 0.2), transparent 60%),
+      #080a12;
+  }
+
+  .phone__shot {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .phone__placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 100%;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .phone__brand {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    opacity: 0.9;
+    filter: drop-shadow(0 10px 24px rgba(91, 140, 255, 0.35));
+  }
+
+  .phone__label {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .phone__hint {
+    color: var(--text-muted);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+
+  .phone__caption {
+    margin-top: 14px;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-align: center;
+  }
+
+  @media (max-width: 899px) {
+    .phone--left,
+    .phone--right {
+      display: none;
+    }
+  }
+</style>

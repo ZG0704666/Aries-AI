@@ -1,4 +1,4 @@
-﻿# 设备控制器 (DeviceController)
+# 设备控制器 (DeviceController)
 
 设备控制器的平台抽象层 —— 解耦 Android AccessibilityService 依赖，为 UI 自动化提供统一的设备交互接口，提高代码的可测试性和可替换性。
 

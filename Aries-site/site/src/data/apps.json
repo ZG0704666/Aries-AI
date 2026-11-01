@@ -1,0 +1,262 @@
+[
+  {
+    "name": "淘宝",
+    "domain": "taobao.com",
+    "icon": "/icons/apps/taobao.com.ico"
+  },
+  {
+    "name": "支付宝",
+    "domain": "alipay.com",
+    "icon": "/icons/apps/alipay.com.ico"
+  },
+  {
+    "name": "美团",
+    "domain": "meituan.com",
+    "icon": "/icons/apps/meituan.com.ico"
+  },
+  {
+    "name": "高德地图",
+    "domain": "amap.com",
+    "icon": "/icons/apps/amap.com.ico"
+  },
+  {
+    "name": "微信",
+    "domain": "weixin.qq.com",
+    "icon": "/icons/apps/weixin.qq.com.ico"
+  },
+  {
+    "name": "QQ",
+    "domain": "im.qq.com",
+    "icon": "/icons/apps/im.qq.com.ico"
+  },
+  {
+    "name": "京东",
+    "domain": "jd.com",
+    "icon": "/icons/apps/jd.com.ico"
+  },
+  {
+    "name": "知乎",
+    "domain": "zhihu.com",
+    "icon": "/icons/apps/zhihu.com.ico"
+  },
+  {
+    "name": "B站",
+    "domain": "bilibili.com",
+    "icon": "/icons/apps/bilibili.com.ico"
+  },
+  {
+    "name": "抖音",
+    "domain": "douyin.com",
+    "icon": "/icons/apps/douyin.com.ico"
+  },
+  {
+    "name": "小红书",
+    "domain": "xiaohongshu.com",
+    "icon": "/icons/apps/xiaohongshu.com.ico"
+  },
+  {
+    "name": "携程",
+    "domain": "ctrip.com",
+    "icon": "/icons/apps/ctrip.com.ico"
+  },
+  {
+    "name": "12306",
+    "domain": "12306.cn",
+    "icon": "/icons/apps/12306.cn.ico"
+  },
+  {
+    "name": "饿了么",
+    "domain": "ele.me",
+    "icon": "/icons/apps/ele.me.ico"
+  },
+  {
+    "name": "拼多多",
+    "domain": "pinduoduo.com",
+    "icon": "/icons/apps/pinduoduo.com.ico"
+  },
+  {
+    "name": "闲鱼",
+    "domain": "2.taobao.com",
+    "icon": "/icons/apps/2.taobao.com.ico"
+  },
+  {
+    "name": "快手",
+    "domain": "kuaishou.com",
+    "icon": "/icons/apps/kuaishou.com.ico"
+  },
+  {
+    "name": "网易云音乐",
+    "domain": "music.163.com",
+    "icon": "/icons/apps/music.163.com.ico"
+  },
+  {
+    "name": "微博",
+    "domain": "weibo.com",
+    "icon": "/icons/apps/weibo.com.ico"
+  },
+  {
+    "name": "Keep",
+    "domain": "gotokeep.com",
+    "icon": "/icons/apps/gotokeep.com.ico"
+  },
+  {
+    "name": "WPS",
+    "domain": "wps.cn",
+    "icon": "/icons/apps/wps.cn.ico"
+  },
+  {
+    "name": "大众点评",
+    "domain": "dianping.com",
+    "icon": "/icons/apps/dianping.com.ico"
+  },
+  {
+    "name": "滴滴出行",
+    "domain": "didiglobal.com",
+    "icon": "/icons/apps/didiglobal.com.ico"
+  },
+  {
+    "name": "百度地图",
+    "domain": "map.baidu.com",
+    "icon": "/icons/apps/map.baidu.com.ico"
+  },
+  {
+    "name": "QQ音乐",
+    "domain": "y.qq.com",
+    "icon": "/icons/apps/y.qq.com.ico"
+  },
+  {
+    "name": "腾讯视频",
+    "domain": "v.qq.com",
+    "icon": "/icons/apps/v.qq.com.ico"
+  },
+  {
+    "name": "爱奇艺",
+    "domain": "iqiyi.com",
+    "icon": "/icons/apps/iqiyi.com.ico"
+  },
+  {
+    "name": "优酷",
+    "domain": "youku.com",
+    "icon": "/icons/apps/youku.com.ico"
+  },
+  {
+    "name": "哔哩哔哩漫画",
+    "domain": "manga.bilibili.com",
+    "icon": "/icons/apps/manga.bilibili.com.ico"
+  },
+  {
+    "name": "淘宝特价版",
+    "domain": "taobao.com",
+    "icon": "/icons/apps/taobao.com.ico"
+  },
+  {
+    "name": "得物",
+    "domain": "dewu.com",
+    "icon": "/icons/apps/dewu.com.ico"
+  },
+  {
+    "name": "苏宁易购",
+    "domain": "suning.com",
+    "icon": "/icons/apps/suning.com.ico"
+  },
+  {
+    "name": "唯品会",
+    "domain": "vip.com",
+    "icon": "/icons/apps/vip.com.ico"
+  },
+  {
+    "name": "菜鸟",
+    "domain": "cainiao.com",
+    "icon": "/icons/apps/cainiao.com.ico"
+  },
+  {
+    "name": "豆瓣",
+    "domain": "douban.com",
+    "icon": "/icons/apps/douban.com.ico"
+  },
+  {
+    "name": "小宇宙",
+    "domain": "xiaoyuzhoufm.com",
+    "icon": "/icons/apps/xiaoyuzhoufm.com.ico"
+  },
+  {
+    "name": "喜马拉雅",
+    "domain": "ximalaya.com",
+    "icon": "/icons/apps/ximalaya.com.ico"
+  },
+  {
+    "name": "百度网盘",
+    "domain": "pan.baidu.com",
+    "icon": "/icons/apps/pan.baidu.com.ico"
+  },
+  {
+    "name": "夸克",
+    "domain": "quark.cn",
+    "icon": "/icons/apps/quark.cn.ico"
+  },
+  {
+    "name": "UC浏览器",
+    "domain": "uc.cn",
+    "icon": "/icons/apps/uc.cn.ico"
+  },
+  {
+    "name": "百度",
+    "domain": "baidu.com",
+    "icon": "/icons/apps/baidu.com.ico"
+  },
+  {
+    "name": "今日头条",
+    "domain": "toutiao.com",
+    "icon": "/icons/apps/toutiao.com.ico"
+  },
+  {
+    "name": "腾讯新闻",
+    "domain": "news.qq.com",
+    "icon": "/icons/apps/news.qq.com.ico"
+  },
+  {
+    "name": "网易新闻",
+    "domain": "news.163.com",
+    "icon": "/icons/apps/news.163.com.ico"
+  },
+  {
+    "name": "微信读书",
+    "domain": "weread.qq.com",
+    "icon": "/icons/apps/weread.qq.com.ico"
+  },
+  {
+    "name": "飞书",
+    "domain": "feishu.cn",
+    "icon": "/icons/apps/feishu.cn.ico"
+  },
+  {
+    "name": "钉钉",
+    "domain": "dingtalk.com",
+    "icon": "/icons/apps/dingtalk.com.ico"
+  },
+  {
+    "name": "企业微信",
+    "domain": "work.weixin.qq.com",
+    "icon": "/icons/apps/work.weixin.qq.com.ico"
+  },
+  {
+    "name": "携程旅行",
+    "domain": "ctrip.com",
+    "icon": "/icons/apps/ctrip.com.ico"
+  },
+  {
+    "name": "去哪儿",
+    "domain": "qunar.com",
+    "icon": "/icons/apps/qunar.com.ico"
+  },
+  {
+    "name": "同程旅行",
+    "domain": "ly.com",
+    "icon": "/icons/apps/ly.com.ico"
+  },
+  {
+    "name": "滴滴",
+    "domain": "didiglobal.com",
+    "icon": "/icons/apps/didiglobal.com.ico"
+  }
+]

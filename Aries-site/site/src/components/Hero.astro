@@ -1,0 +1,193 @@
+---
+import PhoneMock from './PhoneMock.astro';
+import site from '../data/site.generated.json';
+import { screenshots } from '../data/screenshots';
+---
+
+<section class="hero" id="top">
+  <div class="container hero__grid">
+    <div class="hero__copy">
+      <span class="eyebrow">Android 11+ · 本地语音 · 虚拟屏隔离</span>
+
+      <h1 class="h1">
+        <span class="hero__line">一句话，让手机</span>
+        <span class="hero__line gradient-text">自己完成任务</span>
+      </h1>
+
+      <p class="hero__lede">
+        Aries AI 用视觉理解屏幕，跨应用完成订票、购物、社交等复杂操作。离线语音本地响应，虚拟屏后台执行，不打断你正在做的事。
+      </p>
+
+      <div class="hero__actions">
+        <button class="btn btn--primary" type="button" data-open-download>
+          下载最新版
+          <span class="btn__meta">{site.release.tag}</span>
+        </button>
+        <a class="btn btn--ghost" href="/docs-center.html">阅读技术文档</a>
+      </div>
+
+      <dl class="hero__stats">
+        <div>
+          <dt>50+</dt>
+          <dd>应用场景</dd>
+        </div>
+        <div>
+          <dt>17 家</dt>
+          <dd>模型服务商</dd>
+        </div>
+        <div>
+          <dt>0 上传</dt>
+          <dd>离线语音</dd>
+        </div>
+      </dl>
+
+      <p class="hero__note">当前开发版 {site.dev.versionName} · 公开版本 {site.release.tag}</p>
+    </div>
+
+    <div class="hero__stage" aria-label="产品界面预览">
+      <div class="hero__glow" aria-hidden="true"></div>
+      <PhoneMock
+        label={screenshots[0].label}
+        caption={screenshots[0].caption}
+        src={screenshots[0].src}
+        alt={screenshots[0].alt}
+        tilt="left"
+      />
+      <PhoneMock
+        label={screenshots[1].label}
+        caption={screenshots[1].caption}
+        src={screenshots[1].src}
+        alt={screenshots[1].alt}
+        featured
+      />
+      <PhoneMock
+        label={screenshots[2].label}
+        caption={screenshots[2].caption}
+        src={screenshots[2].src}
+        alt={screenshots[2].alt}
+        tilt="right"
+      />
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    z-index: 1;
+    padding: calc(var(--header-h) + clamp(40px, 7vw, 88px)) 0 clamp(48px, 6vw, 80px);
+  }
+
+  .hero__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+    gap: clamp(28px, 5vw, 64px);
+    align-items: center;
+  }
+
+  .hero__copy {
+    max-width: 620px;
+    animation: rise 0.7s var(--ease) both;
+  }
+
+  .hero__line {
+    display: block;
+  }
+
+  .hero__lede {
+    max-width: 560px;
+    margin-top: 24px;
+    color: var(--text-muted);
+    font-size: clamp(16px, 1.7vw, 18px);
+    line-height: 1.85;
+  }
+
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 32px;
+  }
+
+  .hero__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: clamp(20px, 4vw, 44px);
+    margin: 40px 0 0;
+  }
+
+  .hero__stats dt {
+    color: var(--text);
+    font-size: clamp(22px, 2.4vw, 28px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .hero__stats dd {
+    margin: 2px 0 0;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  .hero__note {
+    margin-top: 18px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  .hero__stage {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 520px;
+    animation: rise 0.8s 0.08s var(--ease) both;
+  }
+
+  .hero__glow {
+    position: absolute;
+    inset: 6% 4%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(91, 140, 255, 0.24), transparent 65%);
+    filter: blur(30px);
+  }
+
+  @media (max-width: 1024px) {
+    .hero__grid {
+      grid-template-columns: 1fr;
+      text-align: center;
+    }
+
+    .hero__copy {
+      margin-inline: auto;
+    }
+
+    .hero__lede {
+      margin-inline: auto;
+    }
+
+    .hero__actions,
+    .hero__stats {
+      justify-content: center;
+    }
+
+    .hero__note {
+      text-align: center;
+    }
+
+    .hero__stage {
+      min-height: 420px;
+      margin-top: 8px;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .hero__stage {
+      min-height: 360px;
+    }
+
+    .hero__stats {
+      gap: 24px;
+    }
+  }
+</style>

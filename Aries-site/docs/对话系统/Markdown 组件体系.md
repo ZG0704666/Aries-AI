@@ -1,4 +1,4 @@
-﻿# Markdown 组件体系
+# Markdown 组件体系
 
 Aries AI 的 Markdown 渲染组件体系，用于将 AI 模型的 Markdown 格式响应实时渲染为 Compose UI，涵盖 AST 解析、代码高亮、LaTeX 数学公式、Mermaid 图表、HTML 片段、GFM 表格和图片等多种 Markdown 扩展特性。
 

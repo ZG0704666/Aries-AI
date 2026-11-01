@@ -1,4 +1,4 @@
-﻿# 配置管理 (AgentConfiguration)
+# 配置管理 (AgentConfiguration)
 
 Aries AI 框架的统一配置管理中心，将原本分散的配置参数整合为一个 Kotlin `data class`，提供完整、可解释、分层可调的自动化行为控制。
 

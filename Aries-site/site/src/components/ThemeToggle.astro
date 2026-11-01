@@ -1,0 +1,40 @@
+<button
+  class="icon-btn"
+  type="button"
+  data-theme-toggle
+  aria-label="切换到浅色模式"
+  title="切换深色 / 浅色模式"
+>
+  <svg class="theme-icon theme-icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="4.2"></circle>
+    <path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"></path>
+  </svg>
+  <svg class="theme-icon theme-icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M20.6 14.2A8.6 8.6 0 0 1 9.8 3.4a8.6 8.6 0 1 0 10.8 10.8Z"></path>
+  </svg>
+</button>
+
+<script>
+  const root = document.documentElement;
+  const button = document.querySelector<HTMLButtonElement>('[data-theme-toggle]');
+
+  function applyTheme(theme: 'dark' | 'light') {
+    root.dataset.theme = theme;
+    try {
+      localStorage.setItem('aries-theme', theme);
+    } catch {
+      /* 忽略隐私模式下的存储异常 */
+    }
+    if (button) {
+      button.setAttribute('aria-label', theme === 'dark' ? '切换到浅色模式' : '切换到深色模式');
+    }
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#05060a' : '#f6f7fb');
+  }
+
+  button?.addEventListener('click', () => {
+    applyTheme(root.dataset.theme === 'light' ? 'dark' : 'light');
+  });
+
+  applyTheme(root.dataset.theme === 'light' ? 'light' : 'dark');
+</script>

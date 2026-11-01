@@ -1,0 +1,54 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/Hero.astro';
+import ProviderStrip from '../components/ProviderStrip.astro';
+import FeatureGrid from '../components/FeatureGrid.astro';
+import Spotlight from '../components/Spotlight.astro';
+import AppWall from '../components/AppWall.astro';
+import Roadmap from '../components/Roadmap.astro';
+import CTA from '../components/CTA.astro';
+import ClosingSlogan from '../components/ClosingSlogan.astro';
+---
+
+<BaseLayout
+  title="Aries AI — 一句话，让手机自己完成任务"
+  description="Aries AI 是面向 Android 的 AI 手机助手：多模态理解屏幕，跨应用自动完成订票、购物、社交等任务；离线语音本地响应，虚拟屏后台执行。"
+>
+  <Hero />
+  <ProviderStrip />
+  <FeatureGrid />
+
+  <div id="scenarios">
+    <Spotlight
+      id="virtual-display"
+      eyebrow="虚拟屏隔离"
+      title="手机只有一个前台，任务可以有很多个后台"
+      desc="Aries 在独立显示空间中运行自动化：截图、点击、输入都在虚拟屏内完成，不抢占前台焦点，也不打断你正在回复的消息。"
+      bullets={[
+        '独立显示空间，任务与前台互不干扰',
+        '焦点管理与输入注入定向到虚拟屏',
+        '截图链路与缓存隔离，减少性能开销',
+      ]}
+      visual="virtual"
+    />
+
+    <Spotlight
+      id="offline-voice"
+      title="说完就懂，不经过云端"
+      desc="内置 Sherpa-onnx 与 X-ASR-zh-en 模型，中英混说、自带标点。语音在设备本地完成识别，弱网和飞行模式下也能用。"
+      eyebrow="离线语音"
+      bullets={[
+        '本地流式识别，语音数据不上传',
+        '中英混说与自动标点，贴近真实表达',
+        '松手尾音与噪声场景持续优化',
+      ]}
+      visual="voice"
+      reverse
+    />
+  </div>
+
+  <AppWall />
+  <Roadmap />
+  <CTA />
+  <ClosingSlogan />
+</BaseLayout>

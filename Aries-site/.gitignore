@@ -1,0 +1,12 @@
+node_modules/
+site/dist/
+site/.astro/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+docs/.vitepress/.temp/
+.astro/
+*.log
+
+# macOS 在 NTFS / exFAT 卷上生成的 AppleDouble 元数据
+._*
+.DS_Store

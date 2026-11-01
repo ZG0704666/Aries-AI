@@ -1,4 +1,4 @@
-﻿# 动作解析器 (ActionParser)
+# 动作解析器 (ActionParser)
 
 ActionParser 是 Aries-AI 中负责解析 AI 模型输出文本、提取自动化动作信息的核心组件。它将模型生成的原始文本（可能包含思考过程和动作指令）转换为结构化的 `ParsedAgentAction` 数据对象，供下游执行器使用。
 

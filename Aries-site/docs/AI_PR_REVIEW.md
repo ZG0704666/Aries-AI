@@ -1,4 +1,4 @@
-﻿# AI PR Review 流程
+# AI PR Review 流程
 
 > Qodo AI + OpenCode 组合工作流，实现高效、智能的自动化代码审查
 
@@ -567,7 +567,7 @@ OpenCode 工作流的触发条件是一个复合逻辑表达式，包含三个�
 
 - [AI Automated PR Review Guide](./AI_PR_REVIEW.md) — 原始 AI PR 审阅指南
 - [Git 工作流](./GIT_WORKFLOW.md) — 分支策略与 PR 流程
-- [贡献者指南](../../CONTRIBUTING.md) — 完整贡献流程
+- [贡献者指南](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md) — 完整贡献流程
 - [FAQ](./FAQ.md) — 常见问题解答
 
 **源代码配置参考：**

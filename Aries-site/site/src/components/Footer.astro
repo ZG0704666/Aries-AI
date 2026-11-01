@@ -1,0 +1,160 @@
+---
+import site from '../data/site.generated.json';
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div class="footer-brand">
+      <div class="footer-title">Aries AI</div>
+      <p class="footer-copy">
+        用视觉理解屏幕，用一句话完成跨应用任务。离线语音与虚拟屏隔离，让自动化真正可用。
+      </p>
+      <div class="footer-tags">
+        <span class="tag">Android 11+</span>
+        <span class="tag">本地语音</span>
+        <span class="tag">虚拟屏隔离</span>
+      </div>
+      <p class="footer-company">
+        天印星辰（北京）智能科技有限公司 · Aries 系列产品旗下品牌
+      </p>
+    </div>
+
+    <div class="footer-col">
+      <div class="footer-heading">产品</div>
+      <a href="/download">下载安装</a>
+      <a href="/#features">能力</a>
+      <a href="/#scenarios">使用场景</a>
+      <a href="/#apps">支持应用</a>
+    </div>
+
+    <div class="footer-col">
+      <div class="footer-heading">资源</div>
+      <a href="/docs-center.html">技术文档</a>
+      <a href={site.githubReleases} target="_blank" rel="noreferrer">版本发布</a>
+      <a href={site.github} target="_blank" rel="noreferrer">GitHub</a>
+      <a href={`${site.github}/issues`} target="_blank" rel="noreferrer">问题反馈</a>
+    </div>
+
+    <div class="footer-col">
+      <div class="footer-heading">联系</div>
+      <a href={site.qq.url} target="_blank" rel="noreferrer">QQ 群 {site.qq.id}</a>
+      <a href="mailto:zhangyongqi@njit.edu.cn">邮件</a>
+      <span class="footer-muted">开发版 {site.dev.versionName}</span>
+    </div>
+  </div>
+
+  <div class="container footer-bottom">
+    <span>© {year} 天印星辰（北京）智能科技有限公司</span>
+    <span>Powered by AutoGLM &amp; Sherpa-onnx</span>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    position: relative;
+    z-index: 1;
+    margin-top: 40px;
+    padding: 56px 0 28px;
+    border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: blur(16px);
+  }
+
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 1.6fr repeat(3, 1fr);
+    gap: 40px;
+  }
+
+  .footer-title {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .footer-copy {
+    max-width: 360px;
+    margin-top: 12px;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.75;
+  }
+
+  .footer-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 18px;
+  }
+
+  .footer-company {
+    margin-top: 14px;
+    color: var(--text-muted);
+    font-size: 12.5px;
+    letter-spacing: 0.02em;
+  }
+
+  .footer-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 14px;
+  }
+
+  .footer-col a {
+    color: var(--text-muted);
+    transition: color 0.2s var(--ease);
+  }
+
+  .footer-col a:hover {
+    color: var(--text);
+  }
+
+  .footer-heading {
+    margin-bottom: 4px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .footer-muted {
+    color: var(--text-muted);
+  }
+
+  .footer-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 48px;
+    padding-top: 22px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  @media (max-width: 900px) {
+    .footer-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+
+    .footer-brand {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .footer-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .footer-bottom {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>

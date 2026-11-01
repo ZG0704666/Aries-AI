@@ -1,0 +1,27 @@
+{
+  "name": "aries-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "site",
+    "docs"
+  ],
+  "scripts": {
+    "dev": "npm run dev:site",
+    "dev:site": "npm --workspace site run dev",
+    "dev:docs": "npm --workspace docs run dev",
+    "build": "npm run build:data && npm run build:legacy && npm run build:llms && npm run build:index && npm run build:site && npm run build:docs && npm run build:clean",
+    "build:data": "node scripts/build-site-data.mjs",
+    "build:legacy": "node scripts/build-legacy.mjs",
+    "build:llms": "node scripts/build-llms.mjs",
+    "build:index": "node scripts/build-route-map.mjs",
+    "build:clean": "node scripts/clean-output.mjs",
+    "index": "node scripts/build-route-map.mjs",
+    "build:site": "npm --workspace site run build",
+    "build:docs": "npm --workspace docs run build",
+    "preview:site": "npm --workspace site run preview",
+    "preview:docs": "npm --workspace docs run preview",
+    "check": "node scripts/check-site.mjs"
+  }
+}
