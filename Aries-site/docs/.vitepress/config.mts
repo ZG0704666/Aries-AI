@@ -81,6 +81,8 @@ export default defineConfig({
     ['meta', { property: 'og:site_name', content: 'Aries AI 文档' }],
     ['meta', { property: 'og:locale', content: 'zh_CN' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    // 液态玻璃组件库（Apache-2.0，源自 GooseHyperGlassCDN），仅首页 hero 使用
+    ['script', { src: '/liquid-glass.js', defer: '' }],
   ],
 
   sitemap: {
