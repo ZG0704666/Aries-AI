@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="Aries-site/assets/favicon_rounded.png" width="140" alt="Aries AI">
+<img src="logo.png" width="140" alt="Aries AI">
 
 # Aries AI
 
