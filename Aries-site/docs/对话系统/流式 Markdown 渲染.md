@@ -1,4 +1,6 @@
-# 流式 Markdown 渲染
+# Markdown 渲染体系
+
+Aries AI 的 Markdown 渲染体系同时服务于流式输出和最终消息：先解析模型增量文本，再对未闭合结构做安全补全，最后交给 Compose 组件渲染。
 
 Aries-AI 对话系统中的流式 Markdown 渲染子系统，负责将 AI 模型实时输出的增量文本以格式化的 Markdown 形态渲染到 Compose UI 中，同时支持代码高亮、LaTeX 数学公式、Mermaid 图表和 HTML 预览等丰富内容类型。
 
@@ -191,193 +193,6 @@ flowchart TD
 
 > 关键源码：
 > - [ConversationTranscript.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/messages/ConversationTranscript.kt#L1304-L1351)
-
-## Markdown 渲染组件
-
-### Markdown 主组件
-
-`Markdown` 是 Compose 端的 Markdown 渲染入口。它使用 JetBrains GFM（GitHub Flavored Markdown）解析器将 Markdown 文本解析为 AST，然后递归地将 AST 节点分发到对应的 Compose 渲染器。
-
-```kotlin
-@Composable
-fun Markdown(
-    text: String,
-    modifier: Modifier = Modifier,
-    settings: MarkdownSettings = LocalMarkdownSettings.current,
-)
-```
-
-> Source: [Markdown.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/Markdown.kt#L324-L333)
-
-**解析流程**：
-- 先调用 `preProcess()` 进行 LaTeX 定界符规范化（`\[…\]` → `$$…$$`，`\(…\)` → `$…$`）
-- 判断是否走 HTML 渲染管线（含 `<details>`、`<table>` 等 HTML 标签时）
-- 否则使用 `MarkdownParser(flavour=GFM)` 构建 AST
-- 在 `Dispatchers.Default` 上异步解析，解析期间显示原始文本作为 fallback
-
-**支持的 Markdown 元素**：
-
-| 元素类型 | AST 节点 | 渲染器 |
-|---------|---------|-------|
-| 标题 H1-H6 | ATX_1 ~ ATX_6, SETEXT_1 ~ SETEXT_2 | `HeadingNode` |
-| 代码块 | CODE_FENCE, CODE_BLOCK | `CodeBlock` |
-| GFM 表格 | TABLE | `DataTable` |
-| 无序列表 | UNORDERED_LIST | `ListNode` |
-| 有序列表 | ORDERED_LIST | `ListNode` |
-| 引用块 | BLOCK_QUOTE | Row + 竖线 + Column |
-| 行内格式 | EMPH, STRONG, STRIKETHROUGH | `buildInlineAnnotatedString` |
-| 行内代码 | CODE_SPAN | Monospace SpanStyle |
-| 链接 | INLINE_LINK, AUTOLINK | 可点击 + 下划线 |
-| 图片 | IMAGE | `ZoomableAsyncImage` |
-| 块数学 | PARAGRAPH (纯 $$…$$) | `MathBlock` |
-| 行内数学 | TEXT ($…$) | `MathInlineText` |
-| Mermaid | CODE_FENCE (lang=mermaid) | `Mermaid` (WebView) |
-| HTML 块 | HTML_BLOCK | `HtmlBlock` |
-
-### MarkdownSettings
-
-```kotlin
-@Immutable
-data class MarkdownSettings(
-    val autoWrap: Boolean     = true,
-    val lineNumbers: Boolean  = true,
-    val autoCollapse: Boolean = false,
-    val enableCodeHighlight: Boolean = true,
-    val enableLatex: Boolean  = true,
-)
-```
-
-> Source: [Markdown.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/Markdown.kt#L79-L91)
-
-**流式阶段的设置差异**：
-
-```kotlin
-// 流式阶段：禁用代码高亮，减少异步重算导致的重组和布局跳动
-LocalMarkdownSettings.current.copy(enableCodeHighlight = false)
-
-// 最终消息：完整功能
-MarkdownSettings()  // 使用默认值
-```
-
-> Source: [ConversationTranscript.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/messages/ConversationTranscript.kt#L932)
-
-### CodeBlock 组件
-
-`CodeBlock` 负责渲染围栏代码块，提供完整的代码展示体验：
-
-```kotlin
-@Composable
-fun CodeBlock(
-    language: String,
-    code: String,
-    blockKey: String = code.hashCode().toString(),
-    modifier: Modifier = Modifier,
-)
-```
-
-> Source: [CodeBlock.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/CodeBlock.kt#L77-L83)
-
-**功能特性**：
-- **语法高亮**：通过 QuickJS 运行时加载 Prism.js 进行异步 tokenization
-- **语言标签**：显示代码块的语言标识
-- **工具栏**：复制、保存到下载、行号切换、自动换行切换、折叠/展开
-- **HTML/SVG 预览**：对 HTML / SVG / XML 代码块提供 WebView 预览
-- **Mermaid 委托**：当 `language="mermaid"` 时，直接委托给 `Mermaid` 组件
-
-```kotlin
-// CodeBlock 核心渲染逻辑
-val settings     = LocalMarkdownSettings.current
-// ...
-LaunchedEffect(code, language, settings.enableCodeHighlight) {
-    tokens =
-        if (settings.enableCodeHighlight) {
-            Highlighter.highlight(code, language)
-        } else {
-            listOf(HighlightToken.Plain(code))
-        }
-}
-```
-
-> Source: [CodeBlock.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/CodeBlock.kt#L96-L106)
-
-### Highlighter - 代码高亮引擎
-
-`Highlighter` 基于 QuickJS 嵌入式 JS 运行时 + Prism.js 实现语法高亮：
-
-```kotlin
-object Highlighter {
-    fun init(context: Context)
-    suspend fun highlight(code: String, language: String): List<HighlightToken>
-}
-```
-
-> Source: [Highlighter.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/Highlighter.kt#L38-L81)
-
-**工作流程**：
-1. 应用启动时调用 `Highlighter.init(context)` 加载 `assets/highlight/prism.js`
-2. 每次需要高亮时，在 `Dispatchers.IO` 上通过 QuickJS 执行 `Prism.tokenize(code, lang)`
-3. 将返回的 JSON token 数组解析为 `List<HighlightToken>`
-4. 使用 `Mutex` 保证 QuickJS 调用的串行化，避免并发问题
-5. 如果 Prism.js 加载失败或不支持该语言，回退为纯文本
-
-### Mermaid 组件
-
-`Mermaid` 通过 WebView 加载 Mermaid.js CDN 来渲染图表：
-
-```kotlin
-@Composable
-fun Mermaid(code: String, modifier: Modifier = Modifier)
-```
-
-> Source: [Mermaid.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/Mermaid.kt#L73-L76)
-
-**功能特性**：
-- **自适应高度**：通过 JS bridge `updateHeight(px)` 回调动态调整 WebView 高度
-- **高度缓存**：`mermaidHeightCache` 避免重复渲染时的 WebView 跳动
-- **主题跟随**：根据系统暗色模式自动选择 Mermaid 主题（`dark` / `default`）
-- **SVG 导出**：通过 `exportImage(svgData)` 回调支持将图表导出为 SVG 文件
-- **全屏预览**：通过 `ModalBottomSheet` 提供图表预览
-
-### MathRenderers - LaTeX 数学渲染
-
-LaTeX 数学公式通过 JLatexMath 库渲染为位图：
-
-```kotlin
-@Composable
-fun MathBlock(formula: String, modifier: Modifier = Modifier)
-
-@Composable
-fun MathInlineText(text: String, modifier: Modifier = Modifier)
-```
-
-> Source: [MathRenderers.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/MathRenderers.kt#L233-L324)
-
-**核心流程**：
-1. `processLatex()` 对原始 LaTeX 进行多步骤规范化：剥离定界符 → 提取文档体 → 去掉文档级命令 → 提取数学环境
-2. `renderLatexToBitmap()` 使用 `TeXFormula` + `TeXIcon` 渲染为透明背景的 `Bitmap`
-3. 使用 `LruCache`（容量 96）缓存渲染结果
-4. 行内数学通过 `BasicText` 的 `InlineTextContent` 嵌入公式图片
-
-### SimpleMarkdownRenderer - 后备渲染器
-
-当 Compose Markdown 组件不可用时，`SimpleMarkdownRenderer` 提供基于 Android `SpannableStringBuilder` 的后备方案：
-
-```kotlin
-object SimpleMarkdownRenderer {
-    fun render(text: String): SpannableStringBuilder
-    fun renderCodeBlock(code: String, language: String): SpannableStringBuilder
-}
-```
-
-> Source: [MarkdownRenderer.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/helper/MarkdownRenderer.kt#L14-L283)
-
-支持的基本格式：
-- 标题（`#`、`##`、`###`）
-- 代码块（`` ``` ``）
-- 行内代码（`` ` ``）
-- 粗体（`**`）和斜体（`*`）
-- 无序列表（`-`、`*`）和有序列表（`1.`）
-- 引用块（`>`）
 
 ## 流式解析器
 
@@ -727,18 +542,155 @@ Compose 端的 Markdown 渲染入口。在 `Dispatchers.Default` 上解析文本
 | Mermaid.js | v11 (CDN) | 图表渲染 |
 | Coil 2 / Coil 3 | - | Markdown 图片异步加载 |
 
-## 相关链接
+---
 
-- [Markdown 主组件源码](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/Markdown.kt)
-- [CodeBlock 组件源码](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/CodeBlock.kt)
-- [Highlighter 语法高亮源码](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/Highlighter.kt)
-- [Mermaid 图表组件源码](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/Mermaid.kt)
-- [MathRenderers 数学渲染源码](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/MathRenderers.kt)
-- [ConversationTranscript 流式消息渲染](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/messages/ConversationTranscript.kt)
-- [AriesStreamParser 流式解析器](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/helper/AriesStreamParser.kt)
-- [ThinkingTags 标签常量](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/utils/ThinkingTags.kt)
-- [SimpleMarkdownRenderer 后备渲染](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/helper/MarkdownRenderer.kt)
-- [StreamingJsonXmlConverter 流式 JSON→XML](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/helper/StreamingJsonXmlConverter.kt)
-- [编码规范 - Compose 与 Markdown 渲染](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/CODING_STANDARDS.md)
-- [技术概览 - 流式 Markdown 渲染](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/TECHNICAL_OVERVIEW.md)
-- [开发文档](https://github.com/ZG0704666/Aries-AI/blob/main/Aries%20AI%20开发文档.md)
+## 组件与预处理
+
+### 预处理管线
+
+`preProcess()` 是渲染管道的第一步，在 GFM 解析前完成文本标准化：
+
+> Source: [Markdown.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/Markdown.kt#L146-L199)
+
+```kotlin
+fun preProcess(text: String): String {
+    val codeRanges = buildList {
+        addAll(FENCED_CODE_RE.findAll(text).map { it.range })
+        addAll(INLINE_CODE_RE.findAll(text).map { it.range })
+    }.sortedBy { it.first }
+
+    fun inCodeRange(index: Int): Boolean { /* ... */ }
+
+    val sb = StringBuilder(text.length)
+    var i  = 0
+    while (i < text.length) {
+        if (inCodeRange(i)) { sb.append(text[i++]); continue }
+        // \$...\$ → $...$ (转义美元符 → 行内公式)
+        if (text.startsWith("\\$", i)) { /* 检测 LaTeX 内容后转换 */ }
+        // \[...\] → $$...$$
+        if (text.startsWith("\\[", i)) { /* 转换并跳过 */ }
+        // \(...\) → $...$
+        if (text.startsWith("\\(", i)) { /* 转换并跳过 */ }
+        sb.append(text[i++])
+    }
+    return normalizeBareInlineMath(deindentMathBlocks(sb.toString()))
+}
+```
+
+预处理步骤依次为：
+
+1. **定位代码范围**：识别围栏代码块（` ``` `）和行内代码（`` ` ``），后续步骤跳过这些区域
+2. **转义美元符转换**：`\$...\$` → `$...$`（仅当内容看起来像 LaTeX 公式时）
+3. **方括号定界符转换**：`\[...\]` → `$$...$$`、`\(...\)` → `$...$`
+4. **裸数学公式识别**：检测 `y = mx + b` 等未包裹的表达式并自动添加 `$...$`
+5. **块公式去缩进**：防止缩进的 `$$` 块被 GFM 解析为 4 空格代码块
+
+
+### 组件详解
+
+#### Markdown — 主入口
+
+> Source: [Markdown.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/Markdown.kt#L324-L332)
+
+```kotlin
+@Composable
+fun Markdown(
+    text: String,
+    modifier: Modifier = Modifier,
+    settings: MarkdownSettings = LocalMarkdownSettings.current,
+) {
+    CompositionLocalProvider(LocalMarkdownSettings provides settings) {
+        MarkdownContent(text = text, modifier = modifier)
+    }
+}
+```
+
+内部通过 `snapshotFlow` + `mapLatest` 在 `Dispatchers.Default` 上异步解析，解析期间显示原文作为 fallback。结果分两路：AST 路径（标准 Markdown 元素分发）和 HTML 路径（含特定 HTML 标签时走 HtmlGenerator）。
+
+#### MarkdownNode — AST 递归分发器
+
+> Source: [Markdown.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/Markdown.kt#L558-L736)
+
+`MarkdownNode()` 是核心分发器，根据节点类型路由到对应渲染器：
+
+| AST 类型 | 渲染目标 | 说明 |
+|----------|----------|------|
+| `MARKDOWN_FILE` | 递归子节点 | 文档根节点 |
+| `PARAGRAPH` | MathBlock / ParagraphNode / MathMixedText | 根据内容判断纯公式/混合/普通段落 |
+| `ATX_1` ~ `ATX_6`, `SETEXT_1~2` | HeadingNode | 六级标题映射到 Material 3 排版 |
+| `CODE_FENCE` | CodeBlock / MathBlock / LatexDocBlock | 含 Mermaid 短路、LaTeX 检测 |
+| `CODE_BLOCK` | CodeBlock | 4 空格缩进代码块 |
+| `HTML_BLOCK` | HtmlBlock | 原始 HTML 块 |
+| `TABLE` (GFM) | DataTable | GFM 表解析 |
+| `UNORDERED_LIST` / `ORDERED_LIST` | ListNode | 有序/无序列表 |
+| `BLOCK_QUOTE` | 引用块 | 左侧色条 + 缩进 |
+| `HORIZONTAL_RULE` | HorizontalDivider | 水平分割线 |
+| 行内元素 | RenderInlineNodes | 粗体/斜体/删除线/行内代码/链接/图片 |
+
+#### CodeBlock — 代码块组件
+
+> Source: [CodeBlock.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/CodeBlock.kt#L77-L242)
+
+代码块渲染是整个体系中最复杂的组件之一，功能包括：
+
+- **Mermaid 短路**：当语言标记为 `mermaid` 时直接委托给 `Mermaid()`
+- **异步语法高亮**：通过 `Highlighter.highlight()` 调用 Prism.js via QuickJS
+- **工具栏**：语言标签、行号切换、软换行切换、保存到下载、一键复制
+- **折叠/展开**：超过 10 行的代码块自动折叠（由 `autoCollapse` 设置控制）
+- **HTML/SVG 预览**：HTML、SVG、XML 语言提供 WebView 预览对话框
+
+```kotlin
+// 高亮仅在 enableCodeHighlight=true 时执行
+LaunchedEffect(code, language, settings.enableCodeHighlight) {
+    tokens = if (settings.enableCodeHighlight) {
+        Highlighter.highlight(code, language)
+    } else {
+        listOf(HighlightToken.Plain(code))
+    }
+}
+```
+
+#### Highlighter — 代码高亮引擎
+
+> Source: [Highlighter.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/Highlighter.kt#L38-L107)
+
+基于 QuickJS 嵌入式 JS 引擎运行 Prism.js（全语言包），协程安全的单例设计：
+
+- **初始化**：`Highlighter.init(context)` 在 Application 启动时调用一次，加载 `assets/highlight/prism.js`
+- **异步高亮**：`Highlighter.highlight(code, lang)` 是 suspend 函数，在 QuickJS 中执行 `Prism.tokenize()`
+- **退避策略**：QuickJS 不可用时返回 `HighlightToken.Plain(code)` 纯文本
+- **互斥锁**：`Mutex` 确保 QuickJS evaluate 调用串行化
+
+#### Mermaid — 图表渲染
+
+> Source: [Mermaid.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/Mermaid.kt#L75-L168)
+
+利用 WebView 加载 CDN 上的 Mermaid.js 11，通过 `JavascriptInterface` 回调与 Compose 通信：
+
+- **高度自适应**：WebView 渲染完成后通过 `AndroidInterface.updateHeight(px)` 回传高度
+- **高度缓存**：`mermaidHeightCache` HashMap 缓存每个图的高度，避免 WebView 重用时跳变
+- **SVG 导出**：通过 `AndroidInterface.exportImage(svgData)` 获取渲染后的 SVG，支持保存到 Downloads
+- **预览底部面板**：`ModalBottomSheet` 提供全宽预览
+- **主题变量注入**：从 Material 3 ColorScheme 动态提取颜色注入 Mermaid 主题变量
+
+#### MathRenderers — LaTeX 数学渲染
+
+> Source: [MathRenderers.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/components/markdown/MathRenderers.kt)
+
+基于 JLatexMath-Android 的公式渲染系统，支持块级和行内两种模式：
+
+- **`MathBlock`**：居中展示的块级公式，带水平滚动，后台渲染为 Bitmap
+- **`MathInlineText`**：行内公式，通过 `InlineTextContent` 将 Bitmap 嵌入文本流
+- **`processLatex()`**：多步骤公式预处理：剥离定界符 → 提取文档体 → 移除文档级命令 → 提取数学环境
+- **LRU 缓存**：`latexBitmapCache`（96 条目）缓存渲染后的 Bitmap，避免重复渲染
+- **尺寸预估**：`assumeLatexSize()` 在 Bitmap 准备好前提供占位尺寸
+
+#### 其他组件
+
+| 组件 | 文件 | 职责 |
+|------|------|------|
+| `DataTable` | DataTable.kt | 解析 GFM TABLE AST 节点，渲染为 Material 3 风格表格（表头高亮、斑马条纹） |
+| `HtmlBlock` | HtmlBlock.kt | 使用 Jsoup 解析 HTML 片段，支持丰富的块级和行内标签子集 |
+| `HighlightText` | HighlightText.kt | 将 `List<HighlightToken>` 渲染为着色文本，支持行号和软换行 |
+| `ZoomableAsyncImage` | MarkdownImage.kt | 基于 Coil 3 的异步图片加载，支持 Shimmer 占位、手势缩放、全屏预览 |
+| `MarkdownSettings` | Markdown.kt | 不可变配置数据类，通过 CompositionLocal 传递 |

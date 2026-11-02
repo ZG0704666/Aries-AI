@@ -42,60 +42,36 @@ features:
   <p class="home-doc-index__desc">文档与代码同步维护，覆盖从安装配置到源码实现的完整链路。</p>
   <div class="home-doc-index__grid">
     <a class="home-doc-card" href="/overview/introduction">
-      <strong>项目概览</strong>
-      <span>核心特性、许可证与术语约定</span>
-    </a>
-    <a class="home-doc-card" href="/quickstart/setup">
-      <strong>快速开始</strong>
-      <span>环境与权限配置、API Key 与模型</span>
+      <strong>开始使用</strong>
+      <span>项目简介、许可证、环境权限、API Key 与模型配置</span>
     </a>
     <a class="home-doc-card" href="/architecture/overview">
-      <strong>技术架构</strong>
-      <span>分层设计、模块组织、数据流与依赖注入</span>
+      <strong>架构与数据</strong>
+      <span>整体架构、模块组织、数据流、DI、导航与持久化</span>
     </a>
-    <a class="home-doc-card" href="/chat/home-screen">
-      <strong>对话系统</strong>
-      <span>主界面、流式 Markdown、消息卡片与语音输入</span>
+    <a class="home-doc-card" href="/chat/history">
+      <strong>对话与模型</strong>
+      <span>会话历史、消息卡片、流式 Markdown、语音输入与多模型</span>
     </a>
     <a class="home-doc-card" href="/automation/agent-loop">
-      <strong>自动化引擎</strong>
-      <span>Agent 主循环、动作解析与执行、屏幕采集</span>
-    </a>
-    <a class="home-doc-card" href="/system/accessibility">
-      <strong>系统服务与权限</strong>
-      <span>设备控制、无障碍服务与悬浮层</span>
-    </a>
-    <a class="home-doc-card" href="/models/overview">
-      <strong>多模型接入</strong>
-      <span>模式切换、配置链路与本地 MNN 推理</span>
-    </a>
-    <a class="home-doc-card" href="/virtual-display/overview">
-      <strong>虚拟屏隔离系统</strong>
-      <span>完全隔离方案、焦点管理与输入注入</span>
-    </a>
-    <a class="home-doc-card" href="/tools/architecture">
-      <strong>AI 工具框架</strong>
-      <span>工具注册、权限管理与内置执行器</span>
+      <strong>自动化与工具</strong>
+      <span>Agent 主循环、动作执行、虚拟屏、设备控制与工具框架</span>
     </a>
     <a class="home-doc-card" href="/ui/material3-theme">
-      <strong>UI 组件与设计系统</strong>
+      <strong>界面与设计</strong>
       <span>Material 3 主题、设置界面与图标系统</span>
     </a>
-    <a class="home-doc-card" href="/persistence/room">
-      <strong>数据持久化</strong>
-      <span>Room 数据库、会话仓储与截图缓存</span>
-    </a>
-    <a class="home-doc-card" href="/release/in-app-updates">
+    <a class="home-doc-card" href="/release/github-release">
       <strong>更新与分发</strong>
-      <span>应用内更新、GitHub Release 与遥测</span>
+      <span>GitHub Release、应用内更新、APK 安装与遥测</span>
     </a>
     <a class="home-doc-card" href="/dev/coding-standards">
-      <strong>开发规范与工具</strong>
-      <span>代码规范、Git 工作流、构建与 CI</span>
+      <strong>工程实践</strong>
+      <span>代码规范、Git 工作流、AI PR 评审、构建与 CI</span>
     </a>
     <a class="home-doc-card" href="/support/faq">
-      <strong>常见问题与支持</strong>
-      <span>FAQ、故障排查与虚拟屏调试提示</span>
+      <strong>帮助与支持</strong>
+      <span>FAQ、故障排查与虚拟屏调试</span>
     </a>
   </div>
 </div>

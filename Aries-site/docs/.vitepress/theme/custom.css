@@ -406,15 +406,228 @@ body:not(.dark) {
   -webkit-backdrop-filter: blur(10px);
 }
 
-/* 导航栏：毛玻璃 */
-.VPNavBar:not(.home) {
-  background: color-mix(in srgb, var(--vp-c-bg) 72%, transparent);
-  backdrop-filter: blur(12px) saturate(1.15);
-  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+/* ---------- 顶部导航：整条统一玻璃层 ---------- */
+
+:root {
+  --vp-nav-glass-bg: color-mix(in srgb, var(--vp-c-bg) 74%, transparent);
+  --vp-nav-glass-line: color-mix(in srgb, var(--vp-c-divider) 72%, transparent);
 }
 
-@media (min-width: 960px) {
-  .VPNavBar .divider-line {
-    background: transparent;
+.dark {
+  --vp-nav-glass-bg: color-mix(in srgb, var(--vp-c-bg) 68%, transparent);
+  --vp-nav-glass-line: color-mix(in srgb, var(--vp-c-divider) 82%, transparent);
+}
+
+/*
+ * VitePress 默认把桌面端导航拆成「左侧 title 透明 + 右侧 content-body 实色」，
+ * 滚动后会形成明显的竖向断层。这里只在外层 .VPNavBar 铺一次玻璃，
+ * 内部所有分区统一透明，保证整条导航的模糊、底色和描边完全一致。
+ */
+header.VPNav > .VPNavBar {
+  background: var(--vp-nav-glass-bg);
+  border-bottom-color: transparent;
+  box-shadow: inset 0 -1px 0 var(--vp-nav-glass-line);
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+}
+
+header.VPNav > .VPNavBar .title,
+header.VPNav > .VPNavBar .content-body,
+header.VPNav > .VPNavBar .divider,
+header.VPNav > .VPNavBar .divider-line {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/*
+ * 侧边栏背景默认从 top:0 铺起，垫在导航玻璃条下方左侧，
+ * 与右侧的页面背景不同色，玻璃条会呈现「左亮右暗」的竖向断层。
+ * 把侧边栏整体下移到导航条下缘，让整条玻璃采样到同一层页面背景。
+ * 三连类名 + !important：组件 scoped 样式（.VPSidebar[data-v-x]{top:0}）
+ * 在运行时注入晚于本文件，同优先级会被其覆盖。
+ */
+.VPSidebar.VPSidebar.VPSidebar {
+  top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px)) !important;
+  padding-top: 0 !important;
+}
+
+/* 移动端/平板端的二级导航也使用同一层玻璃，避免上下两条颜色不一致 */
+.VPLocalNav.VPLocalNav.VPLocalNav {
+  background: var(--vp-nav-glass-bg);
+  border-bottom-color: var(--vp-nav-glass-line);
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+}
+
+/* 搜索框：撑满可用宽度，并限制一个舒适的最大宽度 */
+@media (min-width: 768px) {
+  .VPNavBarSearch {
+    flex: 1 1 220px;
+    max-width: 380px;
   }
+
+  .VPNavBarSearch > #local-search {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .VPNavBarSearch .DocSearch-Button {
+    justify-content: space-between;
+  }
+
+  .VPNavBarSearch .DocSearch-Button-Placeholder {
+    padding-right: 12px;
+  }
+}
+
+/* ---------- Markdown 内容：Mermaid / 表格缩放与滚动 ---------- */
+
+.md-zoom {
+  position: relative;
+}
+
+.md-zoom-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px 5px;
+  border-bottom: 1px solid var(--vp-c-divider);
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+}
+
+.md-zoom:hover .md-zoom-bar,
+.md-zoom:focus-within .md-zoom-bar {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .md-zoom-bar {
+    opacity: 1;
+  }
+}
+
+.md-zoom-btn,
+.md-zoom-level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--vp-c-text-2);
+  font-family: var(--vp-font-family-base);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.md-zoom-level {
+  min-width: 48px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.md-zoom-btn:hover,
+.md-zoom-level:hover {
+  border-color: var(--vp-c-divider);
+  background: var(--vp-c-default-soft);
+  color: var(--vp-c-text-1);
+}
+
+.md-zoom-btn:focus-visible,
+.md-zoom-level:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 1px;
+}
+
+.md-zoom-viewport {
+  max-height: 72vh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.md-zoom-viewport:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: -2px;
+}
+
+/*
+ * 缩放机制：canvas 用 transform: scale() 视觉缩放（布局尺寸不变），
+ * 由 JS 维护 .md-zoom-sizer = canvas 布局尺寸 × zoom，撑出真实的
+ * 双向滚动区域。不用 CSS `zoom`：对百分比宽度 + SVG 撑高的 auto
+ * 尺寸元素不参与布局（Chromium 156 实测），放大后无法滚动。
+ */
+.md-zoom-sizer {
+  position: relative;
+  overflow: visible;
+}
+
+.md-zoom-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  transform: scale(var(--md-zoom, 1));
+}
+
+/* Mermaid：渲染完成后由 mermaid.ts 套上工具栏和滚动视口 */
+.mermaid-block.mermaid-block--interactive {
+  padding: 0;
+  overflow: hidden;
+}
+
+.mermaid-block--interactive .md-zoom-viewport {
+  padding: 16px 20px 20px;
+}
+
+.mermaid-block--interactive .mermaid-canvas svg {
+  max-width: none !important;
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+/* 表格：固定表头，内容超出时在卡片内部纵向滚动 */
+.md-zoom--table {
+  margin: 24px 0;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 14px;
+  background: var(--vp-c-bg-soft);
+  overflow: hidden;
+}
+
+.md-zoom--table .md-zoom-viewport {
+  padding: 0;
+}
+
+/* 表格用 CSS zoom：布局真实参与滚动尺寸，且不破坏 sticky 表头。 */
+.md-zoom--table .md-zoom-viewport > table {
+  display: table;
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
+  margin: 0;
+  overflow: visible;
+  border-collapse: separate;
+  border-spacing: 0;
+  zoom: var(--md-zoom, 1);
+}
+
+.md-zoom--table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--vp-c-bg-soft);
+  box-shadow: inset 0 -1px 0 var(--vp-c-divider);
 }

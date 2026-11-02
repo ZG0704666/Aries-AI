@@ -328,7 +328,7 @@ val userContent: ChatContent =
 首步（step=1）消息中包含用户任务描述 + 屏幕信息 + UI 树；后续步骤仅含屏幕信息 + UI 树。截图以 base64 编码的 Data URL 形式附加。
 
 模型调用通过 `requestModelWithRetry` 方法，支持：
-- **远程 API**：`AutoGlmClient.sendChatResult()` 
+- **远程 API**：`AutoGlmClient.sendChatResult()`
 - **本地推理**：`LocalMnnInferenceEngine.sendChatResult()`
 - **指数退避重试**：失败时使用 `computeModelRetryDelayMs` 计算等待时间
 

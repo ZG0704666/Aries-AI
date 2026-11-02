@@ -1,4 +1,6 @@
-# 动作执行器 (ActionExecutor)
+# 动作执行与屏幕采集
+
+本页说明 ActionExecutor 如何把解析后的动作分发到无障碍、Shizuku 和虚拟屏输入通道，以及屏幕截图与 UI 树提取的采集策略。
 
 动作执行器是 Aries AI 自动化框架中的核心执行组件，负责将 AI 模型生成的解析动作（ParsedAgentAction）转换为实际的 Android UI 操作。
 
@@ -66,10 +68,10 @@ flowchart TD
 ```mermaid
 flowchart TD
     Entry(["execute(action, service, uiDump, screenW, screenH, onLog)"])
-    
+
     Entry --> Normalize["归一化动作名称<br/>(去空格、小写)"]
     Normalize --> Dispatch{动作名称匹配}
-    
+
     Dispatch -->|"launch / open_app / start_app"| Launch["executeLaunch()"]
     Dispatch -->|"back"| Back["executeBack()"]
     Dispatch -->|"home"| Home["executeHome()"]
@@ -91,16 +93,16 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start(["执行动作"]) --> CheckVD{"虚拟屏模式?"}
-    
+
     CheckVD -->|是| VDPath["使用虚拟屏通道<br/>VirtualDisplayController<br/>注入事件"]
     CheckVD -->|否| CheckShizuku{"启用 Shizuku?"}
-    
+
     CheckShizuku -->|是| ShizukuPath["使用 Shizuku 通道<br/>ShizukuBridge<br/>执行 shell 命令"]
     CheckShizuku -->|否| CheckA11y{"无障碍服务可用?"}
-    
+
     CheckA11y -->|是| A11yPath["使用无障碍服务通道<br/>PhoneAgentAccessibilityService<br/>执行可访问性操作"]
     CheckA11y -->|否| Fail["返回失败<br/>无可用执行通道"]
-    
+
     VDPath --> Done(["执行完成"])
     ShizukuPath --> Done
     A11yPath --> Done
@@ -108,7 +110,7 @@ flowchart TD
 
 > 执行通道选择遵循固定优先级：**虚拟屏 > Shizuku > 无障碍服务**。当高优先级通道不可用或执行失败时，会尝试回退到下一优先级的通道。
 
-补充一点底层细节：虚拟屏通道与 Shizuku 通道的触摸/按键注入最终都会落到系统 `IInputManager.injectInputEvent()` 的 binder 调用上，由 `input` 包中的两个注入器完成——虚拟屏模式使用 `VirtualAsyncInputInjector`（反射适配不同 ROM 的 `injectInputEvent` 签名，并通过 `InputEvent.setDisplayId()` 把事件定向到虚拟屏），Shizuku 模式下另有 `InputHelper`（`AriesInputInjectionThread` HandlerThread 串行处理 + MOVE 事件去抖）。详细链路见 [虚拟屏隔离系统 / 焦点管理与输入注入链路](../虚拟屏隔离系统/焦点管理与输入注入链路.md)。
+补充一点底层细节：虚拟屏通道与 Shizuku 通道的触摸/按键注入最终都会落到系统 `IInputManager.injectInputEvent()` 的 binder 调用上，由 `input` 包中的两个注入器完成——虚拟屏模式使用 `VirtualAsyncInputInjector`（反射适配不同 ROM 的 `injectInputEvent` 签名，并通过 `InputEvent.setDisplayId()` 把事件定向到虚拟屏），Shizuku 模式下另有 `InputHelper`（`AriesInputInjectionThread` HandlerThread 串行处理 + MOVE 事件去抖）。详细链路见 [虚拟屏隔离系统 / 焦点管理与输入注入链路](../虚拟屏隔离系统/虚拟屏完全隔离总览.md)。
 
 ## 核心设计
 
@@ -181,24 +183,24 @@ flowchart TD
         Start(["executeType() 开始"]) --> Sensitive{"敏感内容检测"}
         Sensitive -->|"检测到"| Reject["跳过执行，返回 false"]
         Sensitive -->|"安全"| CheckTarget{"有显式点击目标?"}
-        
+
         CheckTarget -->|"是"| PreTap["先点击目标输入框"]
         CheckTarget -->|"否"| PrepFocus["自动聚焦可编辑元素"]
-        
+
         PreTap --> VDCheck{"虚拟屏模式?"}
         PrepFocus --> VDCheck
-        
+
         VDCheck -->|"是"| VDInject["injectTextOnVirtualDisplay()"]
         VDCheck -->|"否"| A11yOrShizuku["无障碍/Shizuku 通道"]
-        
+
         VDInject --> VDResult{"注入成功?"}
         VDResult -->|"是"| Success(["返回 true"])
         VDResult -->|"否"| VDFallback["回退到无障碍输入兜底"]
-        
+
         A11yOrShizuku --> ShizukuResult{"Shizuku<br/>剪贴板粘贴?"}
         ShizukuResult -->|"成功"| Verify["校验输入结果"]
         ShizukuResult -->|"失败"| DirectInput["Shizuku 直输回退"]
-        
+
         DirectInput --> Verify
         Verify --> VerifyResult{"校验通过?"}
         VerifyResult -->|"是"| Success
@@ -248,7 +250,7 @@ sequenceDiagram
     activate Executor
     Note over Executor: 归一化动作名称
     Executor->>Executor: 分发到具体执行方法
-    
+
     alt 虚拟屏模式
         Executor->>Overlay: temporaryHide()
         Executor->>VD: injectTapBestEffort(displayId, x, y)
@@ -266,7 +268,7 @@ sequenceDiagram
         Executor->>A11y: awaitWindowEvent(beforeTime, timeoutMs)
         Executor->>Overlay: restoreVisibility()
     end
-    
+
     Note over Executor: 文本输入场景
     Executor->>Clipboard: run(temporaryText) { action }
     activate Clipboard
@@ -472,25 +474,47 @@ data class ParsedAgentAction(
 
 > Source: [ActionExecutor.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/executor/ActionExecutor.kt#L166-L168)
 
-## 相关链接
+---
 
-### 核心依赖
+## 屏幕采集与 UI 树提取
 
-- [ParsedAgentAction (数据模型)](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/agent/AgentModels.kt) — 被 ActionExecutor 消费的核心数据结构
-- [AgentConfiguration (配置管理)](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/config/AgentConfiguration.kt) — 所有执行参数和超时配置
-- [ActionUtils (工具类)](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/utils/ActionUtils.kt) — 坐标解析、敏感检测等辅助方法
-- [AppClipboardTransaction (剪贴板事务)](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/input/AppClipboardTransaction.kt) — 安全的剪贴板快照-写入-恢复事务
+根据 DeepWiki 的 Screen Capture & UI Tree Extraction 整理，并于 2026-10-14 对照 `ScreenshotManager` 和 `ShizukuUiTreeSummarizer` 核对。
 
-### 调用方
+### 截图通道优先级
 
-- [UiAutomationAgent (主调度器)](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/UiAutomationAgent.kt) — ActionExecutor 的主要调用者
+`ScreenshotManager.getOptimizedScreenshot()` 按配置选择截图来源。截图和输入必须对应同一显示屏，尤其不能把主屏 UI 树解释为虚拟屏的真实状态。
 
-### 执行通道
+```mermaid
+flowchart TD
+    Start["getOptimizedScreenshot"] --> Virtual{"虚拟屏模式？"}
+    Virtual -->|是| VD["VirtualDisplayController 截图"]
+    Virtual -->|否| Shizuku{"Shizuku 交互？"}
+    Shizuku -->|是| Shell["实时 screencap"]
+    Shizuku -->|否| Cache["节流与缓存检查"]
+    Cache --> Service["无障碍截图或缓存结果"]
+```
 
-- [VirtualDisplayController](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/VirtualDisplayController.kt) — 虚拟屏事件注入
-- [ShizukuBridge](https://github.com/ZG0704666/Aries-AI/blob/main/core/shizuku/src/main/java/com/ai/phoneagent/ShizukuBridge.kt) — Shizuku 系统级命令执行
-- [PhoneAgentAccessibilityService](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/PhoneAgentAccessibilityService.kt) — 无障碍服务
+| 通道 | 行为 | 失败处理要点 |
+| --- | --- | --- |
+| 虚拟屏 | 从虚拟显示帧链路获取画面 | 等待有效画面；不能静默改为主屏截图 |
+| Shizuku | 实时执行截图，绕过普通缓存和节流 | 检查 Binder、授权与命令结果 |
+| 无障碍 | 使用 `ScreenshotCache`、`ScreenshotThrottler` 和服务截图 | 节流且无可用缓存时可能返回 null |
 
-### 系统架构
+返回的 `ScreenshotData` 包含图像和尺寸信息。`ScreenshotOverlayGuard` 协调覆盖层隐藏，避免把自动化进度卡片误识别成目标应用内容。尺寸必须与动作坐标换算使用的坐标系一致。
 
-- [Aries AI 开发文档](https://github.com/ZG0704666/Aries-AI/blob/main/Aries%20AI%20%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3.md) — 项目整体架构说明
+### UI 树摘要
+
+Shizuku 的 uiautomator XML 经 `ShizukuUiTreeSummarizer.summarize(rawXml, maxNodes, maxChars, detail)` 精简。解析保留类名、文本、描述、资源 ID、包名、bounds 以及 clickable、editable、focused、scrollable 等状态。
+
+摘要流程为解析节点、按重要性选择节点、生成摘要 XML，并限制节点数量和字符长度。`extractPackageName()` 用于快速提取包名。它是结构化观测的补充，不是对所有页面都可靠的视觉替代：自绘控件、受保护内容和系统限制可能导致信息缺失。
+
+### 排查与关联
+
+截图为空时先确认所选通道，再检查权限、帧就绪、缓存及节流；画面存在但点击偏移时检查宽高、方向和目标 displayId；UI 树与画面不一致时检查采集时机和显示屏来源。
+
+- [截图缓存与节流](../数据持久化/截图缓存与节流.md)
+- [虚拟屏完全隔离总览](../虚拟屏隔离系统/虚拟屏完全隔离总览.md)
+- [ScreenshotManager.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/cache/ScreenshotManager.kt)
+- [ShizukuUiTreeSummarizer.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/utils/ShizukuUiTreeSummarizer.kt)
+
+来源：[DeepWiki](https://deepwiki.com/ZG0704666/Aries-AI)。

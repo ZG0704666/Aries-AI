@@ -12,10 +12,10 @@
 
 [![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android%2011+-green.svg)](#-快速开始)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.2.21-purple.svg)](./gradle/libs.versions.toml)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.4.10-purple.svg)](./gradle/libs.versions.toml)
 [![Stars](https://img.shields.io/github/stars/ZG0704666/Aries-AI?style=social)](https://github.com/ZG0704666/Aries-AI)
 
-[快速开始](#-快速开始) • [核心特性](#-核心特性) • [技术文档](./Aries-site/docs/TECHNICAL_OVERVIEW.md) • [FAQ](./Aries-site/docs/FAQ.md)
+[快速开始](#-快速开始) • [核心特性](#-核心特性) • [技术文档](./Aries-site/docs/TECHNICAL_OVERVIEW.md) • [FAQ](./Aries-site/docs/常见问题与支持/FAQ%20常见问题.md)
 
 </div>
 
@@ -74,7 +74,7 @@ Aries AI 将任务运行、画面采集和输入注入组织到虚拟屏执行�
 
 接口兼容不等于能力一致：屏幕理解需要模型支持图像输入，工具调用也取决于服务端实现。原生 Claude、Gemini 等接口不能仅凭修改模型名直接接入，需使用兼容端点或适配服务。本地模型首次下载需要网络，运行效果取决于设备内存和 native 运行环境。
 
-详见 [多模型接入总览](./Aries-site/docs/多模型接入/多模型接入总览.md)、[本地推理](./Aries-site/docs/多模型接入/本地推理%20(MNN).md) 和 [语音输入](./Aries-site/docs/对话系统/输入栏与语音波形.md)。
+详见 [多模型接入与本地推理](./Aries-site/docs/多模型接入/多模型接入总览.md) 和 [语音输入](./Aries-site/docs/对话系统/输入栏与语音波形.md)。
 
 ---
 
@@ -118,11 +118,11 @@ cd Aries-AI
 | 项目 | 当前配置 |
 |------|----------|
 | JDK | CI 使用 JDK 17 |
-| Android SDK | compileSdk / targetSdk 36，minSdk 30 |
-| Build Tools | CI 安装 36.0.0 |
+| Android SDK | compileSdk 37 / targetSdk 36，minSdk 30 |
+| Build Tools | CI 安装 37.0.0 |
 | Gradle / AGP | Wrapper 9.4.1 / AGP 9.2.1 |
-| Kotlin | 2.2.21；Java / Kotlin 字节码目标为 11 |
-| Native 工具链 | NDK 28.2.13676358、CMake 3.22.1 |
+| Kotlin | 2.4.10；Java / Kotlin 字节码目标为 11 |
+| 语音库 | sherpa-onnx 预编译 `.so` 随 APK 打包，无 CMake/NDK |
 | ABI / 应用 ID | `arm64-v8a` / `com.ai.phoneagent` |
 
 配置 Android SDK 路径后构建，Debug APK 输出为 `app/build/outputs/apk/debug/app-debug.apk`。上述版本来自 [应用构建配置](./app/build.gradle.kts)、[依赖版本目录](./gradle/libs.versions.toml) 和 [CI 工作流](./.github/workflows/ci.yml)。
@@ -158,7 +158,7 @@ cd Aries-AI
 自动化入口为 `UiAutomationAgent`，由应用提供上下文、偏好仓储、悬浮层、提示词和本地推理等依赖。它是应用内部组件，集成时应参考当前构造函数与依赖注入配置。
 
 - [Agent 主循环](./Aries-site/docs/自动化引擎/自动化%20Agent%20主循环.md)：任务调度、模型请求与动作执行。
-- [配置管理](./Aries-site/docs/自动化引擎/配置管理%20(AgentConfiguration).md)：执行步数、截图、重试和流式响应配置。
+- [Agent 数据模型与状态](./Aries-site/docs/自动化引擎/Agent%20数据模型与状态.md)：执行步数、截图、重试和流式响应配置。
 - [依赖注入](./Aries-site/docs/技术架构/DI%20依赖注入%20(Koin).md)：组件创建与依赖关系。
 
 ---
@@ -219,14 +219,14 @@ Aries-AI/
 |------|------|
 | [文档中心](https://docs.aries-agent.com/) | 在线技术文档（按主题分类，含全文搜索） |
 | [BUILDING.md](./Aries-site/docs/BUILDING.md) | 环境配置、依赖安装、编译运行 |
-| [CODING_STANDARDS.md](./Aries-site/docs/CODING_STANDARDS.md) | 代码规范、命名规则、注释要求 |
-| [GIT_WORKFLOW.md](./Aries-site/docs/GIT_WORKFLOW.md) | Git 使用规范、分支管理、提交规范 |
+| [代码规范](./Aries-site/docs/开发规范与工具/代码规范%20(CODING_STANDARDS).md) | 代码规范、命名规则、注释要求 |
+| [Git 工作流](./Aries-site/docs/开发规范与工具/Git%20工作流.md) | Git 使用规范、分支管理、提交规范 |
 | [TECHNICAL_OVERVIEW.md](./Aries-site/docs/TECHNICAL_OVERVIEW.md) | 核心技术实现与优势 ⭐ |
 | [语音输入与波形](./Aries-site/docs/对话系统/输入栏与语音波形.md) | 语音输入流程、波形动画与离线识别链路 |
 
 ### 技术栈
 
-- **语言**：Kotlin 2.2.21
+- **语言**：Kotlin 2.4.10
 - **构建**：Gradle Wrapper 9.4.1 + AGP 9.2.1
 - **异步**：Kotlin Coroutines
 - **权限管理**：Shizuku（系统级权限）
@@ -249,9 +249,9 @@ Aries-AI/
 
 ### 文档维护
 
-项目文档统一维护在 `Aries-site/docs/`，保留现有中文分类和英文兼容入口。新增专题时同步更新文档中心导航，核对源码、相对链接和 Mermaid 图表。
+项目文档统一维护在 `Aries-site/docs/`，按 8 个主题分类组织，并保留旧链接与英文兼容入口。新增专题时同步更新文档中心导航，核对源码、相对链接和 Mermaid 图表。
 
-- [CI 流水线与测试](./Aries-site/docs/开发规范与工具/CI%20流水线与测试.md)
+- [构建脚本与工具链](./Aries-site/docs/开发规范与工具/构建脚本与工具链.md)
 
 ---
 
@@ -275,7 +275,7 @@ Aries-AI/
 - ⚡ 性能优化
 - 🧪 测试用例
 
-详细规范请查看 [贡献指南](./CONTRIBUTING.md) 和 [Git 工作流](./Aries-site/docs/GIT_WORKFLOW.md)。
+详细规范请查看 [贡献指南](./CONTRIBUTING.md) 和 [Git 工作流](./Aries-site/docs/开发规范与工具/Git%20工作流.md)。
 
 ---
 
@@ -298,7 +298,7 @@ Aries-AI/
 
 ### 常见问题
 
-> 💡 更多问题请查看 [完整 FAQ 文档](./Aries-site/docs/FAQ.md)
+> 💡 更多问题请查看 [完整 FAQ 文档](./Aries-site/docs/常见问题与支持/FAQ%20常见问题.md)
 
 ---
 

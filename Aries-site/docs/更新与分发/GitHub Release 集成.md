@@ -1,4 +1,6 @@
-# GitHub Release 集成
+# 更新检查与 GitHub Release
+
+应用内更新以 GitHub Releases 为主要数据源，并通过 Atom Feed、镜像和网站端数据逐级回退。本页覆盖检查、比较、通知、下载和 UI 集成。
 
 Aries AI 通过 GitHub REST API 与 Atom Feed 实现应用版本更新检测、通知和 APK 下载功能，涵盖 Android 客户端内建更新检查与官方网站的下载链接自动解析。
 
@@ -802,28 +804,37 @@ val githubToken: String by lazy {
 
 > Source: [VersionComparator.kt](https://github.com/ZG0704666/Aries-AI/blob/main/core/common/src/main/java/com/ai/phoneagent/core/common/VersionComparator.kt#L36-L44)
 
-## 相关链接
+---
 
-### 源文件
-- [GitHubApiClient.kt](https://github.com/ZG0704666/Aries-AI/blob/main/feature/updates/src/main/java/com/ai/phoneagent/updates/GitHubApiClient.kt) — GitHub REST API 客户端
-- [GitHubModels.kt](https://github.com/ZG0704666/Aries-AI/blob/main/feature/updates/src/main/java/com/ai/phoneagent/updates/GitHubModels.kt) — 数据模型定义
-- [ReleaseRepository.kt](https://github.com/ZG0704666/Aries-AI/blob/main/feature/updates/src/main/java/com/ai/phoneagent/updates/ReleaseRepository.kt) — 版本仓库业务逻辑
-- [AtomReleaseFallback.kt](https://github.com/ZG0704666/Aries-AI/blob/main/feature/updates/src/main/java/com/ai/phoneagent/updates/AtomReleaseFallback.kt) — Atom Feed 回退机制
-- [UpdateConfig.kt](https://github.com/ZG0704666/Aries-AI/blob/main/feature/updates/src/main/java/com/ai/phoneagent/updates/UpdateConfig.kt) — 配置常量
-- [UpdateStore.kt](https://github.com/ZG0704666/Aries-AI/blob/main/feature/updates/src/main/java/com/ai/phoneagent/updates/UpdateStore.kt) — 状态持久化
-- [UpdateStartupCoordinator.kt](https://github.com/ZG0704666/Aries-AI/blob/main/feature/updates/src/main/java/com/ai/phoneagent/updates/UpdateStartupCoordinator.kt) — 启动协调器
-- [UpdateNotificationUtil.kt](https://github.com/ZG0704666/Aries-AI/blob/main/feature/updates/src/main/java/com/ai/phoneagent/updates/UpdateNotificationUtil.kt) — 通知工具
-- [ApkDownloadUtil.kt](https://github.com/ZG0704666/Aries-AI/blob/main/feature/updates/src/main/java/com/ai/phoneagent/updates/ApkDownloadUtil.kt) — APK 下载工具
-- [ReleaseUiUtil.kt](https://github.com/ZG0704666/Aries-AI/blob/main/feature/updates/src/main/java/com/ai/phoneagent/updates/ReleaseUiUtil.kt) — UI 工具与镜像探测
-- [ReleaseHistoryAdapter.kt](https://github.com/ZG0704666/Aries-AI/blob/main/feature/updates/src/main/java/com/ai/phoneagent/updates/ReleaseHistoryAdapter.kt) — 版本历史列表适配器
-- [AboutViewModel.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/viewmodel/AboutViewModel.kt) — 关于页面 ViewModel
-- [VersionComparator.kt](https://github.com/ZG0704666/Aries-AI/blob/main/core/common/src/main/java/com/ai/phoneagent/core/common/VersionComparator.kt) — 版本号比较器
-- [build.gradle.kts](https://github.com/ZG0704666/Aries-AI/blob/main/feature/updates/build.gradle.kts) — 模块构建配置
+## 更新通知
 
-### 网站端
-- [site.generated.json](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/site/src/data/site.generated.json) — 网站版本与下载数据
-- [DownloadDialog.astro](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/site/src/components/DownloadDialog.astro) — 下载弹窗逻辑
+### 通知机制
 
-### 外部链接
-- [GitHub Releases 页面](https://github.com/ZG0704666/Aries-AI/releases) — Aries AI 的 GitHub Release 发布页
-- [GitHub REST API - Releases](https://docs.github.com/en/rest/releases/releases) — GitHub Release API 官方文档
+```mermaid
+flowchart LR
+    subgraph Channel["通知渠道（一次性创建）"]
+        C1["CHANNEL_ID: update_channel"]
+        C2["IMPORTANCE_LOW"]
+        C3["无振动/无声音"]
+        C4["显示角标"]
+    end
+
+    subgraph Notification["通知构建"]
+        N1["标题: 发现新版本 {versionTag}"]
+        N2["内容: 查看发布详情"]
+        N3["图标: ic_update"]
+        N4["点击: 跳转 MainActivity<br/>携带 EXTRA_SHOW_UPDATE_DIALOG"]
+    end
+
+    subgraph Permission["权限处理"]
+        P1["Android 13+ 检查<br/>POST_NOTIFICATIONS 权限"]
+        P2["未授权 → Toast 提示"]
+    end
+
+    Channel --> Notification
+    Permission --> Notification
+```
+
+通知渠道在应用更新场景中使用 `IMPORTANCE_LOW` 级别——不发出声音、不振动，但显示角标，确保用户不会被频繁打扰。
+
+> Source: [UpdateNotificationUtil.kt](https://github.com/ZG0704666/Aries-AI/blob/main/feature/updates/src/main/java/com/ai/phoneagent/updates/UpdateNotificationUtil.kt)

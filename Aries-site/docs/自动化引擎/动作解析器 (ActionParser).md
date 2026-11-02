@@ -359,7 +359,7 @@ val (thinking, answer) = parser.parseWithThinking("""
     【思考开始】
     我需要点击这个按钮来完成操作
     【思考结束】
-    
+
     【回答开始】
     do(action="Tap", element=[300,400])
     【回答结束】
