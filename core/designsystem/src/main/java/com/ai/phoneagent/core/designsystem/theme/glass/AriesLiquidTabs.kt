@@ -26,6 +26,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -37,6 +38,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.semantics.Role
@@ -139,27 +141,24 @@ fun AriesLiquidTabs(
                 visibilityThreshold = 0.001f,
                 initialScale = 1f,
                 pressedScale = 78f / 56f,
-                onDragStopped = {
-                    // 与参考 DampedDragAnimation 一致：按最近提交的动画目标吸附，
-                    // 锚点即 TabSlot 的实际中心等分位置 0..tabCount-1。
-                    val target = targetValue.fastRoundToInt().fastCoerceIn(0, tabCount - 1)
+                onDragStopped = { settled ->
+                    // 松手吸附：目标已在抬起事件的同步点被捕获（手指此刻看到的档位），
+                    // 拖拽打断点选弹簧时从当前显示位置吸附并取消旧目标。
                     edgeHit = 0
                     // 整条页签带拖动时的 4dp 惯性偏移，松手必须回弹归零。
                     scope.launch { offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f)) }
-                    if (target != currentSettledIndex) currentOnSelect(target)
-                    // 松手后让滑块从手指位置平滑追到目标页中心：统一用参考实现的
-                    // 弹簧 spring(1f,1000f)（DampedDragAnimation.valueAnimationSpec），
-                    // 与拖拽跟手同源。catchUp 的解除不在这里立刻发生：弹簧通常比
-                    // pager 的 360ms tween 先到，若此刻交还 pager 进度，滑块会被
-                    // 半程进度拉回去再追一次，表现为松手后“回弹一下”。
-                    // 解除时机由下方 snapshotFlow 统一裁决。
+                    if (settled != currentSettledIndex) currentOnSelect(settled)
+                    // 松手后让滑块从手指位置平滑追到目标页中心：commitTo 同步记录目标并
+                    // 启动参考弹簧 spring(1f,1000f)（DampedDragAnimation.valueAnimationSpec），
+                    // 与拖拽跟手同源，含按压→到位→松开的形变编排。catchUp 的解除不在这里
+                    // 立刻发生：弹簧通常比 pager 的 360ms tween 先到，若此刻交还 pager 进度，
+                    // 滑块会被半程进度拉回去再追一次，表现为松手后“回弹一下”。
+                    // 解除时机由下方 snapshotFlow 统一裁决（以 committedTarget 为准）。
                     catchUp = true
-                    scope.launch { animateToValueAwait(target.toFloat()) }
+                    commitTo(settled)
                 },
                 onDrag = { _, dragAmount ->
-                    updateValue(
-                        (targetValue + dragAmount.x / tabWidthPx).fastCoerceIn(0f, (tabCount - 1).toFloat())
-                    )
+                    dragBy(dragAmount.x / tabWidthPx)
                     scope.launch { offsetAnimation.snapTo(offsetAnimation.value + dragAmount.x) }
                     val edge = when {
                         targetValue <= 0f -> -1
@@ -172,27 +171,55 @@ fun AriesLiquidTabs(
             )
         }
 
-        // 低频率同步 drag.value：pager 停稳后把本地拖拽值对齐到真实进度，
-        // 避免下一次按住胶囊时从上一次停留的旧位置起跳。
-        // 逐帧位置不经过这里，滑块在 graphicsLayer 内直接读取 pager 进度。
-        // catchUp 的解除也在这里统一裁决：本地弹簧已结束（isAnimating=false）
-        // 且 pager 已落定在同一目标页时，才把位置交还 pager 进度——
-        // 三个条件缺一不可，消除松手吸附后“先到目标再被拉回”的回弹。
+        // 仲裁收集器：决定滑块位置何时由本地弹簧驱动、何时交还 pager 进度。
+        // 优先级（高→低）：pager 用户滚动 > 手指按压/追赶弹簧 > pager 进度贴附。
+        // catchUp 与滑块位置都在监听键里：点击的同步状态写入会立刻触发裁决，
+        // 不必等弹簧协程被调度后 isAnimating/targetValue 才翻转。
         LaunchedEffect(drag) {
-            snapshotFlow { Triple(currentPagerScrolling(), drag.isAnimating, drag.isPressed) }
-                .collectLatest { (scrolling, animating, pressed) ->
-                    if (pressed || scrolling) return@collectLatest
-                    if (catchUp) {
-                        if (!animating && currentSettledIndex == drag.targetValue.fastRoundToInt()) {
+            val catchUpThreshold = (tabCount - 1).toFloat() * 0.025f
+            var pagerWasScrolling = false
+            snapshotFlow {
+                PagerDriveState(
+                    pagerScrolling = currentPagerScrolling(),
+                    catchUp = catchUp,
+                    animating = drag.isAnimating,
+                    pressed = drag.isPressed,
+                )
+            }
+                .collectLatest { state ->
+                    val progress = currentProgress().fastCoerceIn(0f, (tabCount - 1).toFloat())
+                    if (state.pagerScrolling) {
+                        // pager 正被用户拖动/惯性滚动：最高优先级。立即取消未完成的
+                        // 点选弹簧并贴附 pager 进度，否则松手吸附会把滑块从手指
+                        // 下的页面拉走——用户滑动永远拥有滑块。
+                        pagerWasScrolling = true
+                        if (catchUp || drag.value != progress) {
                             catchUp = false
-                            drag.snapToValue(
-                                currentProgress().fastCoerceIn(0f, (tabCount - 1).toFloat())
-                            )
+                            drag.snapToValue(progress)
+                        }
+                        return@collectLatest
+                    }
+                    if (pagerWasScrolling) {
+                        // pager 刚停：把本地值对齐到落定位置，避免下一次按住胶囊时
+                        // 从上一次停留的旧位置起跳。
+                        pagerWasScrolling = false
+                        catchUp = false
+                        drag.snapToValue(progress)
+                    }
+                    if (state.pressed) return@collectLatest
+                    if (state.catchUp) {
+                        // 追赶中：弹簧已结束、滑块已实际抵达最近提交的目标
+                        // （committedTarget——同步更新，不受弹簧协程排队延迟影响）、
+                        // 且 pager 已落定在同一目标页时，才把位置交还 pager 进度。
+                        // 三个条件缺一不可，消除快速连点/松手吸附后
+                        // “弹簧尚未起飞就被判空闲，先 snap 回旧页再重新起飞”的竞态。
+                        val arrived = abs(drag.value - drag.committedTargetIndex) < catchUpThreshold
+                        if (!state.animating && arrived && currentSettledIndex == drag.committedTargetIndex) {
+                            catchUp = false
+                            drag.snapToValue(progress)
                         }
                     } else {
-                        drag.snapToValue(
-                            currentProgress().fastCoerceIn(0f, (tabCount - 1).toFloat())
-                        )
+                        drag.snapToValue(progress)
                     }
                 }
         }
@@ -205,11 +232,27 @@ fun AriesLiquidTabs(
                 )
             }
         )
-        // 手指按住或松手追赶时由本地值驱动；其余时间直接贴 pager 分数，
-        // 不做 snapshotFlow/mutex 中转，保证左右滑动逐帧跟手。
+        // 滑块位置仲裁：pager 用户滚动时无条件贴 pager 进度；手指按住或松手追赶
+        // 弹簧时由本地值驱动；其余时间直接贴 pager 分数。位置在 graphicsLayer 内
+        // 逐帧读取，不经过 recompose，保证左右滑动逐帧跟手。
         val sliderPosition: () -> Float = {
-            if (drag.isPressed || catchUp) drag.value
-            else currentProgress().fastCoerceIn(0f, (tabCount - 1).toFloat())
+            when {
+                currentPagerScrolling() -> currentProgress().fastCoerceIn(0f, (tabCount - 1).toFloat())
+                drag.isPressed || catchUp -> drag.value
+                else -> currentProgress().fastCoerceIn(0f, (tabCount - 1).toFloat())
+            }
+        }
+
+        // UI 测试钩子：每帧把滑块状态写给读取器（仅测试提供 Local 时存在）。
+        val tabsStateReader = LocalAriesLiquidTabsStateReader.current
+        if (tabsStateReader != null) {
+            LaunchedEffect(drag, tabsStateReader) {
+                while (true) {
+                    withFrameNanos { }
+                    tabsStateReader.sliderPosition = sliderPosition()
+                    tabsStateReader.retargetVelocity = drag.lastRetargetVelocity
+                }
+            }
         }
 
         // 1) 胶囊容器 + 可见内容（对齐参考 LiquidBottomTabs:161-188 的单层结构）：
@@ -249,13 +292,13 @@ fun AriesLiquidTabs(
                     TabSlot(
                         onClick = {
                             // 对齐参考 LiquidBottomTabs:139-146 的点击动效：点按页签时
-                            // 滑块以参考弹簧 spring(1f,1000f) 直达目标页，领先于 pager
-                            // 的 360ms tween；catchUp 仍由上方 snapshotFlow 统一裁决交还，
-                            // 与拖拽松手共用同一套防回弹交接。
-                            if (index != currentSettledIndex) {
-                                catchUp = true
-                                scope.launch { drag.animateToValueAwait(index.toFloat()) }
-                            }
+                            // 滑块以参考弹簧 spring(1f,1000f) 直达目标页（commitTo 内含
+                            // 按压→到位→松开的形变编排），领先于 pager 的 360ms tween。
+                            // 每次点击都提交（同目标连点只延续进度不重启弹簧），
+                            // commitTo 同步记录目标，仲裁方读 committedTarget 不受
+                            // 弹簧协程排队延迟影响；最新点击总是获胜。
+                            catchUp = true
+                            drag.commitTo(index)
                             currentOnSelect(index)
                         },
                         modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -308,6 +351,7 @@ fun AriesLiquidTabs(
             Modifier
                 .padding(horizontal = inset)
                 .graphicsLayer { translationX = sliderPosition() * tabWidthPx + panelOffset }
+                .testTag(AriesLiquidTabSliderTestTag)
                 // 手势直接挂在滑块层上，与参考 LiquidBottomTabs:239-240 一致。
                 .then(press.gestureModifier)
                 .then(drag.modifier)
@@ -386,3 +430,33 @@ private fun TabSlot(
 
 /** 文字/图标的按压放大比例，由 [AriesLiquidTabs] 提供。 */
 val LocalAriesTabScale = staticCompositionLocalOf { { 1f } }
+
+/** UI 测试钩子：选中滑块节点的 testTag（供手势注入定位）。 */
+const val AriesLiquidTabSliderTestTag = "aries_liquid_tab_slider"
+
+/**
+ * UI 测试钩子：[AriesLiquidTabs] 的实时状态读取器。
+ * 通过 [LocalAriesLiquidTabsStateReader] 提供时，组件每帧写出滑块位置与改点
+ * 继承速度，供 Robolectric 合成测试在 mainClock 推帧后读取。语义属性无法保证
+ * 逐帧刷新，故测试数据走此通道；生产代码不提供该 Local，零开销。
+ */
+class AriesLiquidTabsStateReader internal constructor() {
+    /** 滑块当前绘制位置（页签单位，支持小数）。 */
+    var sliderPosition: Float = 0f
+        internal set
+
+    /** 最近一次改点（retarget）继承的飞行速度（页签/秒）。 */
+    var retargetVelocity: Float = 0f
+        internal set
+}
+
+/** UI 测试钩子：提供 [AriesLiquidTabsStateReader] 以逐帧收集滑块状态。 */
+val LocalAriesLiquidTabsStateReader = staticCompositionLocalOf<AriesLiquidTabsStateReader?> { null }
+
+/** 仲裁收集器的输入快照：pager 滚动、追赶窗口、弹簧与按压状态。 */
+private data class PagerDriveState(
+    val pagerScrolling: Boolean,
+    val catchUp: Boolean,
+    val animating: Boolean,
+    val pressed: Boolean,
+)

@@ -19,6 +19,7 @@ package com.ai.phoneagent.speech
 
 import android.content.Context
 import android.util.Log
+import android.annotation.SuppressLint
 
 /**
  * 进程级共享的按住说话识别器所有者（修复 R-07：双模型所有者双份 native 内存）。
@@ -43,6 +44,9 @@ object SherpaSpeechRegistry {
 
     private const val TAG = "SherpaSpeechRegistry"
 
+    // 持有的是 applicationContext（进程级生命周期），存于进程级单例不构成泄漏；
+    // lint 无法区分 context 字段类型，故在此显式豁免。
+    @SuppressLint("StaticFieldLeak")
     @Volatile
     private var recognizer: SherpaSpeechRecognizer? = null
 

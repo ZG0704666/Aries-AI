@@ -85,7 +85,7 @@ fun AriesGlassIconButton(
     enabled: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    val press = rememberAriesPressState()
+    val press = rememberAriesPressState(enabled = enabled)
     Box(
         modifier = modifier
             .size(dimensionResource(R.dimen.aries_touch_target))
@@ -93,6 +93,7 @@ fun AriesGlassIconButton(
                 shape = CircleShape,
                 press = press,
                 tier = AriesGlassTier.Bar,
+                enabled = enabled,
             )
             // 双保险：按压高光必须裁进圆形，避免直角矩形遮罩。
             .clip(CircleShape)

@@ -119,7 +119,7 @@ fun AriesMaterialTheme(
             baseColorScheme
                 .applyThemeAccent(
                     themeAccent = effectiveThemeColorStyle.accentOrDefault,
-                    isDarkTheme = darkTheme,
+                    context = themeResourceContext,
                 )
                 .applyTokenSurfaceLadder(themeResourceContext)
         }
@@ -149,6 +149,14 @@ fun AriesMaterialTheme(
             large = RoundedCornerShape(dimensionResource(R.dimen.m3t_radius_lg)),
             extraLarge = RoundedCornerShape(dimensionResource(R.dimen.m3t_radius_xl)),
         )
+
+    // 动作控件材质（渐变/玻璃表面/高光）：固定风格走资源，动态取色按角色色推导。
+    // 经 CompositionLocal 下发，避免每个控件各自解析资源。
+    val actionStyle = if (effectiveThemeColorStyle.isDynamic) {
+        createDynamicAriesActionStyle(context, colorScheme, darkTheme)
+    } else {
+        createStaticAriesActionStyle(themeResourceContext, effectiveThemeColorStyle, darkTheme)
+    }
 
     // 4. 字号缩放 + 字体族：更新全部 M3 字号文本样式
     val effectiveFontFamily = if (fontFamily == FontFamily.Default) AriesFontFamily else fontFamily
@@ -186,6 +194,7 @@ fun AriesMaterialTheme(
         content = {
             CompositionLocalProvider(
                 LocalAriesBackdrop provides AriesBackdropStyle(darkTheme, amoledDark, effectiveThemeColorStyle == ThemeColorStyle.DEFAULT),
+                LocalAriesActionStyle provides actionStyle,
                 androidx.compose.material3.LocalContentColor provides colorScheme.onSurface,
             ) {
                 AriesBackdrop { content() }

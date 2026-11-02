@@ -286,7 +286,11 @@ fun HomeScreen(
                     selectedIndex = pager.settledPage,
                     onSelect = { page -> hapticTick(hapticContext); navigate(page) },
                     progress = { pager.currentPage + pager.currentPageOffsetFraction },
-                    pagerScrolling = { pager.isScrollInProgress },
+                    // 仅用户拖动/惯性滚动才算“pager 正在滚动”：程序 tween（点选触发的
+                    // navigate）期间胶囊滑块必须由自己的弹簧驱动、领先于页面；
+                    // 若把程序 tween 也报给 pagerScrolling，仲裁收集器会立刻取消
+                    // 点选弹簧并把滑块贴回 pager 进度，胶囊就只能跟着页面慢慢挪。
+                    pagerScrolling = { pager.isScrollInProgress && navigationTarget < 0 },
                     backdrop = navBackdrop,
                     modifier = Modifier.width(effectiveNavWidth),
                     tabCount = 3,
