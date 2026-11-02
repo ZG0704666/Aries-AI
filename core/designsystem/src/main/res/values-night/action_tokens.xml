@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 暗色：渐变直接采用 temp 参考图的原色 pastel（深色文字压在其上），最忠实于图片 -->
+    <!-- 风格 ↔ 图：default=霓虹(16518) ocean=晴空(27570) forest=晨曦(45104) sunset=薄雾(5258) -->
+    <color name="aries_action_default_gradient_start">#8CDDEB</color>
+    <color name="aries_action_default_gradient_end">#FED3DD</color>
+    <color name="aries_action_ocean_gradient_start">#68C0FF</color>
+    <color name="aries_action_ocean_gradient_end">#A6F0FD</color>
+    <color name="aries_action_forest_gradient_start">#F6FBD3</color>
+    <color name="aries_action_forest_gradient_end">#AFE8F9</color>
+    <color name="aries_action_sunset_gradient_start">#B5EFFA</color>
+    <color name="aries_action_sunset_gradient_end">#FEFEFE</color>
+    <color name="aries_action_rose_gradient_start">#F2AECF</color>
+    <color name="aries_action_rose_gradient_end">#D4C5EC</color>
+
+    <color name="aries_action_on_gradient">#111216</color>
+    <color name="aries_action_contrast_dark">#111216</color>
+    <color name="aries_action_contrast_light">#FFFFFF</color>
+    <color name="aries_action_highlight_base">#FFFFFF</color>
+    <color name="aries_action_glass_surface">#99111216</color>
+    <color name="aries_action_glass_border">#3DFFFFFF</color>
+    <color name="aries_action_glass_highlight">#0FFFFFFF</color>
+    <color name="aries_action_default_selected_tint">#248CDDEB</color>
+    <color name="aries_action_ocean_selected_tint">#2468C0FF</color>
+    <color name="aries_action_forest_selected_tint">#24F6FBD3</color>
+    <color name="aries_action_sunset_selected_tint">#24B5EFFA</color>
+    <color name="aries_action_rose_selected_tint">#24F2AECF</color>
+    <color name="aries_action_default_home_glow_start">#4D8CDDEB</color>
+    <color name="aries_action_default_home_glow_end">#2EFED3DD</color>
+    <color name="aries_action_ocean_home_glow_start">#4D68C0FF</color>
+    <color name="aries_action_ocean_home_glow_end">#2EA6F0FD</color>
+    <color name="aries_action_forest_home_glow_start">#4DF6FBD3</color>
+    <color name="aries_action_forest_home_glow_end">#2EAFE8F9</color>
+    <color name="aries_action_sunset_home_glow_start">#4DB5EFFA</color>
+    <color name="aries_action_sunset_home_glow_end">#2EFEFEFE</color>
+    <color name="aries_action_rose_home_glow_start">#4DF2AECF</color>
+    <color name="aries_action_rose_home_glow_end">#2ED4C5EC</color>
+    <item name="aries_action_press_highlight_alpha" type="dimen" format="float">0.06</item>
+    <item name="aries_action_selected_alpha" type="dimen" format="float">0.14</item>
+    <item name="aries_action_glow_start_alpha" type="dimen" format="float">0.40</item>
+    <item name="aries_action_glow_end_alpha" type="dimen" format="float">0.24</item>
+
+    <color name="aries_ocean_primary">@color/aries_action_ocean_gradient_start</color>
+    <color name="aries_ocean_on_primary">#111216</color>
+    <color name="aries_ocean_primary_container">#004B72</color>
+    <color name="aries_ocean_on_primary_container">#D1E4FF</color>
+    <color name="aries_ocean_inverse_primary">#005EA6</color>
+    <color name="aries_ocean_surface_tint">#8CCFFF</color>
+    <color name="aries_ocean_secondary">@color/aries_action_ocean_gradient_end</color>
+    <color name="aries_ocean_on_secondary">#111216</color>
+    <color name="aries_ocean_secondary_container">#004F5A</color>
+    <color name="aries_ocean_on_secondary_container">#A6EDF5</color>
+    <color name="aries_ocean_tertiary">#87D8FE</color>
+    <color name="aries_ocean_on_tertiary">#111216</color>
+    <color name="aries_ocean_tertiary_container">#004C6C</color>
+    <color name="aries_ocean_on_tertiary_container">#CBE7F5</color>
+
+    <color name="aries_forest_primary">@color/aries_action_forest_gradient_start</color>
+    <color name="aries_forest_on_primary">#111216</color>
+    <color name="aries_forest_primary_container">#3A4510</color>
+    <color name="aries_forest_on_primary_container">#E9F6C8</color>
+    <color name="aries_forest_inverse_primary">#5E7420</color>
+    <color name="aries_forest_surface_tint">#D9E9B0</color>
+    <color name="aries_forest_secondary">@color/aries_action_forest_gradient_end</color>
+    <color name="aries_forest_on_secondary">#111216</color>
+    <color name="aries_forest_secondary_container">#1E4A52</color>
+    <color name="aries_forest_on_secondary_container">#C3E9EE</color>
+    <color name="aries_forest_tertiary">#D2F1E6</color>
+    <color name="aries_forest_on_tertiary">#111216</color>
+    <color name="aries_forest_tertiary_container">#2A4A44</color>
+    <color name="aries_forest_on_tertiary_container">#D2F1E6</color>
+
+    <color name="aries_sunset_primary">@color/aries_action_sunset_gradient_start</color>
+    <color name="aries_sunset_on_primary">#111216</color>
+    <color name="aries_sunset_primary_container">#00505E</color>
+    <color name="aries_sunset_on_primary_container">#C9F2F8</color>
+    <color name="aries_sunset_inverse_primary">#005A6A</color>
+    <color name="aries_sunset_surface_tint">#B5EFFA</color>
+    <color name="aries_sunset_secondary">@color/aries_action_sunset_gradient_end</color>
+    <color name="aries_sunset_on_secondary">#111216</color>
+    <color name="aries_sunset_secondary_container">#3E5458</color>
+    <color name="aries_sunset_on_secondary_container">#D9F4FA</color>
+    <color name="aries_sunset_tertiary">#D9F6FC</color>
+    <color name="aries_sunset_on_tertiary">#111216</color>
+    <color name="aries_sunset_tertiary_container">#0E4A56</color>
+    <color name="aries_sunset_on_tertiary_container">#D9F6FC</color>
+
+    <color name="aries_rose_primary">@color/aries_action_rose_gradient_start</color>
+    <color name="aries_rose_on_primary">#111216</color>
+    <color name="aries_rose_primary_container">#77294F</color>
+    <color name="aries_rose_on_primary_container">#FFD8E7</color>
+    <color name="aries_rose_inverse_primary">#963D69</color>
+    <color name="aries_rose_surface_tint">#FFB1C5</color>
+    <color name="aries_rose_secondary">@color/aries_action_rose_gradient_end</color>
+    <color name="aries_rose_on_secondary">#111216</color>
+    <color name="aries_rose_secondary_container">#5C4174</color>
+    <color name="aries_rose_on_secondary_container">#EDDDFD</color>
+    <color name="aries_rose_tertiary">#E3BADE</color>
+    <color name="aries_rose_on_tertiary">#111216</color>
+    <color name="aries_rose_tertiary_container">#6C385B</color>
+    <color name="aries_rose_on_tertiary_container">#FFD7ED</color>
+</resources>

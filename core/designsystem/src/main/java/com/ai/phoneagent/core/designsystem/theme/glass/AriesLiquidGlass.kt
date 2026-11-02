@@ -36,10 +36,15 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastCoerceAtMost
 import androidx.compose.ui.util.fastCoerceIn
 import com.ai.phoneagent.core.designsystem.R
 import com.ai.phoneagent.core.designsystem.theme.LocalAriesBackdrop
 import com.ai.phoneagent.core.designsystem.theme.ariesGlass
+import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.BackdropEffectScope
 import com.kyant.backdrop.RuntimeShader
@@ -205,6 +210,13 @@ internal fun DrawScope.ariesShapePath(shape: Shape): Path {
     return path
 }
 
+/** drawWithCache 内复用：Outline → Path（供 API 30 静态降级与实色表面一次性构建）。 */
+internal fun ariesOutlinePath(outline: Outline): Path = when (outline) {
+    is Outline.Rectangle -> Path().apply { addRect(outline.rect) }
+    is Outline.Rounded -> Path().apply { addRoundRect(outline.roundRect) }
+    is Outline.Generic -> Path().apply { addPath(outline.path) }
+}
+
 /**
  * 液态玻璃表面。
  *
@@ -282,9 +294,13 @@ fun Modifier.ariesLiquidGlass(
 /**
  * 按压交互状态：白色渐显 + 跟随手指的径向高光点 + 轻微缩放/挤压。
  * 与参考实现 `InteractiveHighlight` 一致（spring(0.5, 300)）。
+ *
+ * @param enabled 禁用的控件不响应按压（surface 像素级稳定），由调用方同时
+ *   不挂载 [gestureModifier]；两者共同保证 disabled 玻璃完全静止。
  */
 class AriesPressState internal constructor(
     private val scope: CoroutineScope,
+    private val enabled: Boolean,
     private val positionProvider: (size: Size, offset: Offset) -> Offset,
 ) {
 
@@ -320,19 +336,27 @@ half4 main(float2 coord) {
      * 依赖本实例的按压进度/着色器状态，无法改为 Modifier 扩展函数。
      */
     @SuppressLint("ModifierFactoryExtensionFunction")
-    fun highlightModifier(shape: Shape): Modifier = Modifier.drawWithContent {
+    fun highlightModifier(shape: Shape): Modifier = actionHighlightModifier(shape, Color.White)
+
+    /**
+     * 高光颜色可定制的版本：[highlight] 的 alpha 作为满按压强度的系数
+     * （白色 + alpha 1 时与参考实现完全一致）。
+     */
+    @SuppressLint("ModifierFactoryExtensionFunction")
+    fun actionHighlightModifier(shape: Shape, highlight: Color): Modifier = Modifier.drawWithContent {
         val progress = pressProgressAnimation.value
         // 高光自带 shape 裁剪：drawRect(BlendMode.Plus) 在透明角落会留下白色矩形，
         // 必须把高光约束进玻璃形状的 Path 内。
         val clipPath = ariesShapePath(shape)
-        if (progress > 0f) {
+        val baseAlpha = highlight.alpha
+        if (progress > 0f && baseAlpha > 0f) {
             val shader = shader
             if (shader != null) {
-                drawPath(clipPath, Color.White.copy(alpha = 0.08f * progress), blendMode = BlendMode.Plus)
+                drawPath(clipPath, highlight.copy(alpha = 0.08f * baseAlpha * progress), blendMode = BlendMode.Plus)
                 shader.apply {
                     val position = positionProvider(size, positionAnimation.value)
                     setFloatUniform("size", size.width, size.height)
-                    setColorUniform("color", Color.White.copy(alpha = 0.15f * progress))
+                    setColorUniform("color", highlight.copy(alpha = 0.15f * baseAlpha * progress))
                     setFloatUniform("radius", size.minDimension * 1.5f)
                     setFloatUniform(
                         "position",
@@ -343,14 +367,15 @@ half4 main(float2 coord) {
                 drawPath(clipPath, ShaderBrush(shader.asComposeShader()), blendMode = BlendMode.Plus)
             } else {
                 // API 31/32 没有 AGSL：退化为整体白色渐显。
-                drawPath(clipPath, Color.White.copy(alpha = 0.25f * progress), blendMode = BlendMode.Plus)
+                drawPath(clipPath, highlight.copy(alpha = 0.25f * baseAlpha * progress), blendMode = BlendMode.Plus)
             }
         }
         drawContent()
     }
 
     /** 手势层：不消费事件，因此不会影响原有的 clickable / draggable。 */
-    val gestureModifier: Modifier = Modifier.pointerInput(scope) {
+    val gestureModifier: Modifier = Modifier.pointerInput(scope, enabled) {
+        if (!enabled) return@pointerInput
         inspectDragGestures(
             onDragStart = { down ->
                 startPosition = down.position
@@ -379,15 +404,16 @@ half4 main(float2 coord) {
     }
 }
 
-/** 记录按压状态；[position] 用于让高光点跟随拖动/选中位置。 */
+/** 记录按压状态；[position] 用于让高光点跟随拖动/选中位置。[enabled] 为 false 时不响应按压。 */
 @Composable
 fun rememberAriesPressState(
+    enabled: Boolean = true,
     position: (size: Size, offset: Offset) -> Offset = { _, offset -> offset },
 ): AriesPressState {
     val scope = rememberCoroutineScope()
     val currentPosition = rememberUpdatedState(position)
-    return remember(scope) {
-        AriesPressState(scope) { size, offset -> currentPosition.value(size, offset) }
+    return remember(scope, enabled) {
+        AriesPressState(scope, enabled) { size, offset -> currentPosition.value(size, offset) }
     }
 }
 
@@ -399,6 +425,7 @@ fun Modifier.ariesLiquidInteractive(
     tier: AriesGlassTier = AriesGlassTier.Pill,
     backdrop: Backdrop = LocalAriesGlassBackdrop.current,
     surfaceColor: Color = ariesGlassSurfaceColor(tier),
+    enabled: Boolean = true,
     selected: Boolean = false,
     shadow: Shadow? = null,
 ): Modifier {
@@ -412,18 +439,26 @@ fun Modifier.ariesLiquidInteractive(
             selected = selected,
             shadow = shadow,
             layerBlock = {
-                val progress = press.pressProgress
+                val progress = if (enabled) press.pressProgress else 0f
                 val scale = 1f + grow.toPx() / size.height.coerceAtLeast(1f) * progress
                 val maxOffset = size.minDimension
-                val offset = press.offset
+                val offset = if (enabled) press.offset else Offset.Zero
                 translationX = maxOffset * kotlin.math.tanh(0.05f * offset.x / maxOffset)
                 translationY = maxOffset * kotlin.math.tanh(0.05f * offset.y / maxOffset)
-                scaleX = scale
-                scaleY = scale
+                // 对齐参考 LiquidButton：按拖拽角度的非对称挤压——沿拖拽方向拉伸、
+                // 垂直方向收窄，产生「液态拉扯」形变（角度由拖拽 offset 决定）。
+                val maxDragScale = grow.toPx() / size.height.coerceAtLeast(1f)
+                val offsetAngle = atan2(offset.y, offset.x)
+                scaleX = scale +
+                    maxDragScale * abs(cos(offsetAngle) * offset.x / size.maxDimension) *
+                    (size.width / size.height).fastCoerceAtMost(1f)
+                scaleY = scale +
+                    maxDragScale * abs(sin(offsetAngle) * offset.y / size.maxDimension) *
+                    (size.height / size.width).fastCoerceAtMost(1f)
             },
         )
         // 按压高光（press.highlightModifier）自带 shape 裁剪；此处 clip(shape) 再兜一层。
         .clip(shape)
-        .then(press.highlightModifier(shape))
-        .then(press.gestureModifier)
+        .then(if (enabled) press.highlightModifier(shape) else Modifier)
+        .then(if (enabled) press.gestureModifier else Modifier)
 }

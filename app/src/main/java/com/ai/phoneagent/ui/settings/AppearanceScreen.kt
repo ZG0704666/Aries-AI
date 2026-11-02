@@ -139,7 +139,9 @@ fun AppearanceScreenContent(
     val padding = dimensionResource(com.ai.phoneagent.core.designsystem.R.dimen.aries_page_padding)
     val modes = listOf(ThemeMode.SYSTEM to R.string.settings_appearance_theme_system, ThemeMode.LIGHT to R.string.settings_appearance_theme_light, ThemeMode.DARK to R.string.settings_appearance_theme_dark)
     val fonts = listOf("default" to R.string.settings_appearance_font_default, "sans_serif" to R.string.settings_appearance_font_sans_serif, "serif" to R.string.settings_appearance_font_serif, "monospace" to R.string.settings_appearance_font_monospace)
-    val palettes = listOf(ThemeColorStyle.DEFAULT to R.string.settings_appearance_theme_palette_default, ThemeColorStyle.OCEAN to R.string.settings_appearance_theme_palette_ocean, ThemeColorStyle.FOREST to R.string.settings_appearance_theme_palette_forest, ThemeColorStyle.SUNSET to R.string.settings_appearance_theme_palette_sunset, ThemeColorStyle.ROSE to R.string.settings_appearance_theme_palette_rose) + if (Build.VERSION.SDK_INT >= 31) listOf(ThemeColorStyle.DYNAMIC to R.string.settings_appearance_theme_palette_dynamic) else emptyList()
+    // 配色风格与 temp 参考图一一对应：霓虹(16518)/晴空(27570)/晨曦(45104)/薄雾(5258)。
+    // ROSE 仅保留枚举与存储兼容（旧持久化值可解析），不再出现在可选列表。
+    val palettes = listOf(ThemeColorStyle.DEFAULT to R.string.settings_appearance_theme_palette_default, ThemeColorStyle.OCEAN to R.string.settings_appearance_theme_palette_ocean, ThemeColorStyle.FOREST to R.string.settings_appearance_theme_palette_forest, ThemeColorStyle.SUNSET to R.string.settings_appearance_theme_palette_sunset) + if (Build.VERSION.SDK_INT >= 31) listOf(ThemeColorStyle.DYNAMIC to R.string.settings_appearance_theme_palette_dynamic) else emptyList()
     Scaffold(containerColor = Color.Transparent, topBar = {
         AriesPageTopBar(stringResource(R.string.settings_appearance_title), onNavigateBack)
     }) { inner ->

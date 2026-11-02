@@ -20,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
@@ -31,8 +30,8 @@ import com.kyant.shapes.Capsule
 /**
  * 液态玻璃胶囊按钮：与参考实现 `LiquidButton` 对齐。
  *
- * 效果：vibrancy + blur(2dp) + lens(12dp, 24dp) + 方向高光 + 投影，
- * 按压时叠加白色高光点并按 4dp/高度 放大。
+ * 一条背景效果链提供轻模糊；按压时增加边缘折射、局部高光和缩放。
+ * 使用独立的交互材质 token，禁用态不观察按压。
  */
 @Composable
 fun AriesLiquidButton(
@@ -41,7 +40,7 @@ fun AriesLiquidButton(
     enabled: Boolean = true,
     shape: Shape = remember { Capsule() },
     tier: AriesGlassTier = AriesGlassTier.Pill,
-    surfaceColor: Color = ariesGlassSurfaceColor(tier),
+    surfaceColor: Color = Color.Unspecified,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     contentPadding: PaddingValues = PaddingValues(
         horizontal = dimensionResource(R.dimen.aries_liquid_button_padding)
@@ -49,7 +48,7 @@ fun AriesLiquidButton(
     onClickLabel: String? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    val press = rememberAriesPressState()
+    val press = rememberAriesPressState(enabled = enabled)
     Row(
         modifier
             .ariesLiquidInteractive(
@@ -57,6 +56,7 @@ fun AriesLiquidButton(
                 press = press,
                 tier = tier,
                 surfaceColor = surfaceColor,
+                enabled = enabled,
             )
             .clip(shape)
             .clickable(
@@ -85,13 +85,12 @@ fun AriesLiquidCircleButton(
     touchSize: Dp = maxOf(size, dimensionResource(R.dimen.aries_touch_target)),
     enabled: Boolean = true,
     tier: AriesGlassTier = AriesGlassTier.Pill,
-    surfaceColor: Color = ariesGlassSurfaceColor(tier),
+    surfaceColor: Color = Color.Unspecified,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    val press = rememberAriesPressState()
+    val press = rememberAriesPressState(enabled = enabled)
     val shape = remember { Capsule() }
-    val buttonSizePx = with(LocalDensity.current) { size.toPx() }
     Box(
         modifier
             .size(touchSize)
@@ -102,26 +101,24 @@ fun AriesLiquidCircleButton(
                 role = Role.Button,
                 onClick = onClick,
             )
-            .then(press.gestureModifier),
+            .then(if (enabled) press.gestureModifier else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             Modifier
                 .size(size)
-                .ariesLiquidGlass(
+                .ariesActionGlass(
                     shape = shape,
-                    tier = tier,
+                    press = press,
+                    enabled = enabled,
+                    backdrop = LocalAriesGlassBackdrop.current,
                     surfaceColor = surfaceColor,
-                    layerBlock = {
-                        val progress = press.pressProgress
-                        val scale = 1f + 4.dp.toPx() / buttonSizePx.coerceAtLeast(1f) * progress
-                        scaleX = scale
-                        scaleY = scale
-                    },
+                    selected = false,
+                    observeGestures = false,
+                    tier = tier,
                 )
                 // 按压高光按圆形裁剪，避免直角矩形遮罩泄到玻璃外。
-                .clip(shape)
-                .then(press.highlightModifier(shape)),
+                .clip(shape),
             contentAlignment = Alignment.Center,
         ) {
             CompositionLocalProvider(LocalContentColor provides contentColor) { content() }

@@ -1,13 +1,22 @@
 package com.ai.phoneagent.core.designsystem.theme
 
+import android.content.Context
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import com.ai.phoneagent.core.designsystem.R
 
 /**
  * 主题强调色枚举。
+ *
+ * 色值统一由 `action_tokens.xml`（values / values-night）提供，经主题化
+ * Context 解析后自动跟随明暗限定符；[DEFAULT] 使用 m3t 默认色板资源。
+ * 强调色主色与 `AriesActionStyle` 的动作渐变起点同源，保证按钮渐变与
+ * 全局 Material 角色色一致。
  *
  * @property storageKey 持久化到本地配置时使用的键名。
  */
@@ -35,19 +44,25 @@ data class ThemeAccentPreview(
     val tertiary: Color,
 )
 
-/** 返回该强调色在当前明暗模式下的预览配色。 */
+/** 返回该强调色在指定明暗模式下的预览配色；不依赖系统当前明暗设置。 */
 @Composable
-fun ThemeAccent.previewColors(isDarkTheme: Boolean): ThemeAccentPreview =
-    when (this) {
+fun ThemeAccent.previewColors(isDarkTheme: Boolean): ThemeAccentPreview {
+    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val themedContext = remember(context, configuration, isDarkTheme) {
+        context.withNightMode(configuration, isDarkTheme)
+    }
+    return when (this) {
         ThemeAccent.DEFAULT ->
             ThemeAccentPreview(
-                primary = colorResource(R.color.m3t_primary),
-                secondary = colorResource(R.color.m3t_secondary),
-                tertiary = colorResource(R.color.m3t_tertiary),
+                primary = themedContext.requireThemeColor(R.color.m3t_primary),
+                secondary = themedContext.requireThemeColor(R.color.m3t_secondary),
+                tertiary = themedContext.requireThemeColor(R.color.m3t_tertiary),
             )
 
         else -> {
-            val palette = palette(isDarkTheme) ?: error("ThemeAccent palette missing for $this")
+            val palette =
+                requireNotNull(resourcePalette(themedContext)) { "ThemeAccent palette missing for $this" }
             ThemeAccentPreview(
                 primary = palette.primary,
                 secondary = palette.secondary,
@@ -55,13 +70,18 @@ fun ThemeAccent.previewColors(isDarkTheme: Boolean): ThemeAccentPreview =
             )
         }
     }
+}
 
-/** 将强调色配色叠加到基础 [ColorScheme]；默认强调色保持原样返回。 */
+/**
+ * 将强调色配色叠加到基础 [ColorScheme]；颜色取自主题化资源，
+ * 与 `AriesActionStyle` 的动作渐变同源（`aries_<accent>_primary` 即渐变起点色）。
+ * [ThemeAccent.DEFAULT] 强调色保持原样返回。
+ */
 internal fun ColorScheme.applyThemeAccent(
     themeAccent: ThemeAccent,
-    isDarkTheme: Boolean,
+    context: Context,
 ): ColorScheme {
-    val palette = themeAccent.palette(isDarkTheme) ?: return this
+    val palette = themeAccent.resourcePalette(context) ?: return this
     return copy(
         primary = palette.primary,
         onPrimary = palette.onPrimary,
@@ -76,12 +96,12 @@ internal fun ColorScheme.applyThemeAccent(
         onTertiary = palette.onTertiary,
         tertiaryContainer = palette.tertiaryContainer,
         onTertiaryContainer = palette.onTertiaryContainer,
-        surfaceTint = palette.primary,
+        surfaceTint = palette.surfaceTint,
     )
 }
 
-/** 单个强调色的完整 M3 色板。 */
-private data class ThemeAccentPalette(
+/** 资源驱动的完整强调色色板。 */
+internal data class ThemeAccentResourcePalette(
     val primary: Color,
     val onPrimary: Color,
     val primaryContainer: Color,
@@ -95,154 +115,119 @@ private data class ThemeAccentPalette(
     val onTertiary: Color,
     val tertiaryContainer: Color,
     val onTertiaryContainer: Color,
+    val surfaceTint: Color,
 )
 
-/** 按明暗模式返回对应色板；[ThemeAccent.DEFAULT] 使用资源默认色，返回 null。 */
-private fun ThemeAccent.palette(isDarkTheme: Boolean): ThemeAccentPalette? =
+/** 各强调色对应的资源 ID 组。 */
+private data class ThemeAccentResourceIds(
+    val primary: Int,
+    val onPrimary: Int,
+    val primaryContainer: Int,
+    val onPrimaryContainer: Int,
+    val inversePrimary: Int,
+    val secondary: Int,
+    val onSecondary: Int,
+    val secondaryContainer: Int,
+    val onSecondaryContainer: Int,
+    val tertiary: Int,
+    val onTertiary: Int,
+    val tertiaryContainer: Int,
+    val onTertiaryContainer: Int,
+    val surfaceTint: Int,
+)
+
+private fun ThemeAccent.resourceIds(): ThemeAccentResourceIds = when (this) {
+    ThemeAccent.DEFAULT -> throw IllegalStateException("DEFAULT accent uses m3t resources directly")
+    ThemeAccent.OCEAN -> ThemeAccentResourceIds(
+        primary = R.color.aries_ocean_primary,
+        onPrimary = R.color.aries_ocean_on_primary,
+        primaryContainer = R.color.aries_ocean_primary_container,
+        onPrimaryContainer = R.color.aries_ocean_on_primary_container,
+        inversePrimary = R.color.aries_ocean_inverse_primary,
+        secondary = R.color.aries_ocean_secondary,
+        onSecondary = R.color.aries_ocean_on_secondary,
+        secondaryContainer = R.color.aries_ocean_secondary_container,
+        onSecondaryContainer = R.color.aries_ocean_on_secondary_container,
+        tertiary = R.color.aries_ocean_tertiary,
+        onTertiary = R.color.aries_ocean_on_tertiary,
+        tertiaryContainer = R.color.aries_ocean_tertiary_container,
+        onTertiaryContainer = R.color.aries_ocean_on_tertiary_container,
+        surfaceTint = R.color.aries_ocean_surface_tint,
+    )
+
+    ThemeAccent.FOREST -> ThemeAccentResourceIds(
+        primary = R.color.aries_forest_primary,
+        onPrimary = R.color.aries_forest_on_primary,
+        primaryContainer = R.color.aries_forest_primary_container,
+        onPrimaryContainer = R.color.aries_forest_on_primary_container,
+        inversePrimary = R.color.aries_forest_inverse_primary,
+        secondary = R.color.aries_forest_secondary,
+        onSecondary = R.color.aries_forest_on_secondary,
+        secondaryContainer = R.color.aries_forest_secondary_container,
+        onSecondaryContainer = R.color.aries_forest_on_secondary_container,
+        tertiary = R.color.aries_forest_tertiary,
+        onTertiary = R.color.aries_forest_on_tertiary,
+        tertiaryContainer = R.color.aries_forest_tertiary_container,
+        onTertiaryContainer = R.color.aries_forest_on_tertiary_container,
+        surfaceTint = R.color.aries_forest_surface_tint,
+    )
+
+    ThemeAccent.SUNSET -> ThemeAccentResourceIds(
+        primary = R.color.aries_sunset_primary,
+        onPrimary = R.color.aries_sunset_on_primary,
+        primaryContainer = R.color.aries_sunset_primary_container,
+        onPrimaryContainer = R.color.aries_sunset_on_primary_container,
+        inversePrimary = R.color.aries_sunset_inverse_primary,
+        secondary = R.color.aries_sunset_secondary,
+        onSecondary = R.color.aries_sunset_on_secondary,
+        secondaryContainer = R.color.aries_sunset_secondary_container,
+        onSecondaryContainer = R.color.aries_sunset_on_secondary_container,
+        tertiary = R.color.aries_sunset_tertiary,
+        onTertiary = R.color.aries_sunset_on_tertiary,
+        tertiaryContainer = R.color.aries_sunset_tertiary_container,
+        onTertiaryContainer = R.color.aries_sunset_on_tertiary_container,
+        surfaceTint = R.color.aries_sunset_surface_tint,
+    )
+
+    ThemeAccent.ROSE -> ThemeAccentResourceIds(
+        primary = R.color.aries_rose_primary,
+        onPrimary = R.color.aries_rose_on_primary,
+        primaryContainer = R.color.aries_rose_primary_container,
+        onPrimaryContainer = R.color.aries_rose_on_primary_container,
+        inversePrimary = R.color.aries_rose_inverse_primary,
+        secondary = R.color.aries_rose_secondary,
+        onSecondary = R.color.aries_rose_on_secondary,
+        secondaryContainer = R.color.aries_rose_secondary_container,
+        onSecondaryContainer = R.color.aries_rose_on_secondary_container,
+        tertiary = R.color.aries_rose_tertiary,
+        onTertiary = R.color.aries_rose_on_tertiary,
+        tertiaryContainer = R.color.aries_rose_tertiary_container,
+        onTertiaryContainer = R.color.aries_rose_on_tertiary_container,
+        surfaceTint = R.color.aries_rose_surface_tint,
+    )
+}
+
+private fun ThemeAccent.resourcePalette(context: Context): ThemeAccentResourcePalette? =
     when (this) {
         ThemeAccent.DEFAULT -> null
-        ThemeAccent.OCEAN -> if (isDarkTheme) oceanDarkPalette else oceanLightPalette
-        ThemeAccent.FOREST -> if (isDarkTheme) forestDarkPalette else forestLightPalette
-        ThemeAccent.SUNSET -> if (isDarkTheme) sunsetDarkPalette else sunsetLightPalette
-        ThemeAccent.ROSE -> if (isDarkTheme) roseDarkPalette else roseLightPalette
+        else -> {
+            val ids = resourceIds()
+            fun color(id: Int) = Color(ContextCompat.getColor(context, id))
+            ThemeAccentResourcePalette(
+                primary = color(ids.primary),
+                onPrimary = color(ids.onPrimary),
+                primaryContainer = color(ids.primaryContainer),
+                onPrimaryContainer = color(ids.onPrimaryContainer),
+                inversePrimary = color(ids.inversePrimary),
+                secondary = color(ids.secondary),
+                onSecondary = color(ids.onSecondary),
+                secondaryContainer = color(ids.secondaryContainer),
+                onSecondaryContainer = color(ids.onSecondaryContainer),
+                tertiary = color(ids.tertiary),
+                onTertiary = color(ids.onTertiary),
+                tertiaryContainer = color(ids.tertiaryContainer),
+                onTertiaryContainer = color(ids.onTertiaryContainer),
+                surfaceTint = color(ids.surfaceTint),
+            )
+        }
     }
-
-// ---- 海洋 Ocean ----
-private val oceanLightPalette =
-    ThemeAccentPalette(
-        primary = Color(0xFF006495),
-        onPrimary = Color(0xFFFFFFFF),
-        primaryContainer = Color(0xFFCDE5FF),
-        onPrimaryContainer = Color(0xFF001D31),
-        inversePrimary = Color(0xFF8CCFFF),
-        secondary = Color(0xFF50606F),
-        onSecondary = Color(0xFFFFFFFF),
-        secondaryContainer = Color(0xFFD3E5F6),
-        onSecondaryContainer = Color(0xFF0C1D29),
-        tertiary = Color(0xFF65587B),
-        onTertiary = Color(0xFFFFFFFF),
-        tertiaryContainer = Color(0xFFEBDCFF),
-        onTertiaryContainer = Color(0xFF201534),
-    )
-
-private val oceanDarkPalette =
-    ThemeAccentPalette(
-        primary = Color(0xFF8CCFFF),
-        onPrimary = Color(0xFF00344F),
-        primaryContainer = Color(0xFF004B71),
-        onPrimaryContainer = Color(0xFFCDE5FF),
-        inversePrimary = Color(0xFF006495),
-        secondary = Color(0xFFB8C9DA),
-        onSecondary = Color(0xFF22323F),
-        secondaryContainer = Color(0xFF394856),
-        onSecondaryContainer = Color(0xFFD3E5F6),
-        tertiary = Color(0xFFD0BFE7),
-        onTertiary = Color(0xFF362B4A),
-        tertiaryContainer = Color(0xFF4D4162),
-        onTertiaryContainer = Color(0xFFEBDCFF),
-    )
-
-// ---- 森林 Forest ----
-private val forestLightPalette =
-    ThemeAccentPalette(
-        primary = Color(0xFF2F6B3F),
-        onPrimary = Color(0xFFFFFFFF),
-        primaryContainer = Color(0xFFB2F1BC),
-        onPrimaryContainer = Color(0xFF00210D),
-        inversePrimary = Color(0xFF97D5A1),
-        secondary = Color(0xFF516350),
-        onSecondary = Color(0xFFFFFFFF),
-        secondaryContainer = Color(0xFFD4E8CF),
-        onSecondaryContainer = Color(0xFF10200F),
-        tertiary = Color(0xFF3F6374),
-        onTertiary = Color(0xFFFFFFFF),
-        tertiaryContainer = Color(0xFFC2E8FC),
-        onTertiaryContainer = Color(0xFF001F2B),
-    )
-
-private val forestDarkPalette =
-    ThemeAccentPalette(
-        primary = Color(0xFF97D5A1),
-        onPrimary = Color(0xFF003919),
-        primaryContainer = Color(0xFF15522A),
-        onPrimaryContainer = Color(0xFFB2F1BC),
-        inversePrimary = Color(0xFF2F6B3F),
-        secondary = Color(0xFFB8CCB4),
-        onSecondary = Color(0xFF243423),
-        secondaryContainer = Color(0xFF394B38),
-        onSecondaryContainer = Color(0xFFD4E8CF),
-        tertiary = Color(0xFFA6CCDF),
-        onTertiary = Color(0xFF083544),
-        tertiaryContainer = Color(0xFF264B5B),
-        onTertiaryContainer = Color(0xFFC2E8FC),
-    )
-
-// ---- 日落 Sunset ----
-private val sunsetLightPalette =
-    ThemeAccentPalette(
-        primary = Color(0xFF9A4A17),
-        onPrimary = Color(0xFFFFFFFF),
-        primaryContainer = Color(0xFFFFDCC8),
-        onPrimaryContainer = Color(0xFF351000),
-        inversePrimary = Color(0xFFFFB68B),
-        secondary = Color(0xFF77574A),
-        onSecondary = Color(0xFFFFFFFF),
-        secondaryContainer = Color(0xFFFFDBCD),
-        onSecondaryContainer = Color(0xFF2C160C),
-        tertiary = Color(0xFF685E2F),
-        onTertiary = Color(0xFFFFFFFF),
-        tertiaryContainer = Color(0xFFF0E3A7),
-        onTertiaryContainer = Color(0xFF211B00),
-    )
-
-private val sunsetDarkPalette =
-    ThemeAccentPalette(
-        primary = Color(0xFFFFB68B),
-        onPrimary = Color(0xFF5A1F00),
-        primaryContainer = Color(0xFF7B3100),
-        onPrimaryContainer = Color(0xFFFFDCC8),
-        inversePrimary = Color(0xFF9A4A17),
-        secondary = Color(0xFFE7BEAB),
-        onSecondary = Color(0xFF442A1F),
-        secondaryContainer = Color(0xFF5D4033),
-        onSecondaryContainer = Color(0xFFFFDBCD),
-        tertiary = Color(0xFFD3C78D),
-        onTertiary = Color(0xFF393007),
-        tertiaryContainer = Color(0xFF50461B),
-        onTertiaryContainer = Color(0xFFF0E3A7),
-    )
-
-// ---- 玫瑰 Rose ----
-private val roseLightPalette =
-    ThemeAccentPalette(
-        primary = Color(0xFF9C415D),
-        onPrimary = Color(0xFFFFFFFF),
-        primaryContainer = Color(0xFFFFD9E2),
-        onPrimaryContainer = Color(0xFF3E001B),
-        inversePrimary = Color(0xFFFFB1C5),
-        secondary = Color(0xFF75565F),
-        onSecondary = Color(0xFFFFFFFF),
-        secondaryContainer = Color(0xFFFFD9E2),
-        onSecondaryContainer = Color(0xFF2C151C),
-        tertiary = Color(0xFF7B5B2E),
-        onTertiary = Color(0xFFFFFFFF),
-        tertiaryContainer = Color(0xFFFFDEA7),
-        onTertiaryContainer = Color(0xFF2A1700),
-    )
-
-private val roseDarkPalette =
-    ThemeAccentPalette(
-        primary = Color(0xFFFFB1C5),
-        onPrimary = Color(0xFF61112F),
-        primaryContainer = Color(0xFF7E2946),
-        onPrimaryContainer = Color(0xFFFFD9E2),
-        inversePrimary = Color(0xFF9C415D),
-        secondary = Color(0xFFE4BDC7),
-        onSecondary = Color(0xFF43292F),
-        secondaryContainer = Color(0xFF5B3F46),
-        onSecondaryContainer = Color(0xFFFFD9E2),
-        tertiary = Color(0xFFEDC48C),
-        onTertiary = Color(0xFF452B04),
-        tertiaryContainer = Color(0xFF604111),
-        onTertiaryContainer = Color(0xFFFFDEA7),
-    )

@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
@@ -25,7 +26,10 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.fastFirstOrNull
+import androidx.compose.ui.util.fastRoundToInt
+import androidx.compose.ui.util.fastCoerceIn
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -101,7 +105,7 @@ class AriesTabDragAnimation(
     private val visibilityThreshold: Float = 0.001f,
     private val initialScale: Float = 1f,
     private val pressedScale: Float,
-    private val onDragStopped: suspend AriesTabDragAnimation.() -> Unit,
+    private val onDragStopped: suspend AriesTabDragAnimation.(settledIndex: Int) -> Unit,
     private val onDrag: AriesTabDragAnimation.(size: IntSize, dragAmount: Offset) -> Unit,
 ) {
 
@@ -121,6 +125,21 @@ class AriesTabDragAnimation(
     private val velocityTracker = VelocityTracker()
     // 手指是否按在胶囊上（含拖动）；按住期间 pager 进度不得接管胶囊位置。
     private var _isPressed by mutableStateOf(false)
+    // 最近一次提交的目标页（点选/拖拽松手时同步更新）：仲裁方以它为准。
+    // Animatable 的 targetValue/isAnimating 要等弹簧协程真正被调度后才更新，
+    // 快速连点时协程排队会让它们滞后于点击意图，用它判断会提前交还 pager。
+    var committedTargetIndex: Int = initialValue.fastRoundToInt()
+        private set
+
+    // 拖拽锚点：按下瞬间的显示位置，拖拽帧在其上累积位移（见 [dragBy]）。
+    private var dragAnchorValue = initialValue
+
+    /** 最近一次改点（retarget）时继承的飞行速度（页签/秒），供测试与调参观察。 */
+    var lastRetargetVelocity: Float = 0f
+        private set
+
+    // 飞行期间的即时速度估计（页签/秒），由逐帧采样维护，提交时被捕获。
+    private var sampledFlightVelocity = 0f
 
     val value: Float get() = valueAnimation.value
     val targetValue: Float get() = valueAnimation.targetValue
@@ -137,8 +156,14 @@ class AriesTabDragAnimation(
         // awaitEachGesture 的受限协程不能直接调任意 suspend lambda，
         // 因此在启动的协程内顺序执行：先结算（吸附/请求切页），再恢复静息形变。
         fun stopGesture() {
+            // 在抬起事件的同步点捕获「手指此刻看到的档位」作为吸附目标：
+            // 拖拽打断点选弹簧时，从当前显示位置吸附并取消仍在飞行的旧目标，
+            // 而不是按滞后的 targetValue 继续飞向旧目标。
+            val settled = value
+                .fastRoundToInt()
+                .fastCoerceIn(valueRange.start.toInt(), valueRange.endInclusive.toInt())
             animationScope.launch {
-                onDragStopped()
+                onDragStopped(settled)
                 release()
             }
         }
@@ -153,6 +178,11 @@ class AriesTabDragAnimation(
 
     fun press() {
         velocityTracker.resetTracking()
+        // 按住即冻结：把滑块吸附到当前显示位置，取消任何仍在飞行的旧点选弹簧——
+        // 拖拽从「手指看到的当前位置」起步，避免按住期间滑块从指下滑走。
+        // 同时作为拖拽锚点：后续拖拽帧在该位置上累积位移。
+        dragAnchorValue = valueAnimation.value
+        animationScope.launch { snapToValue(dragAnchorValue) }
         _isPressed = true
         animationScope.launch {
             launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
@@ -163,21 +193,8 @@ class AriesTabDragAnimation(
 
     fun release() {
         // 位置立即交给 catchUp/pager，形变则像参考实现一样等滑块接近吸附点再恢复。
-        // 有界等待避免 pager 交接异常时再次出现永久按住或形变不释放。
         _isPressed = false
-        animationScope.launch {
-            if (value != targetValue) {
-                val threshold = (valueRange.endInclusive - valueRange.start) * 0.025f
-                withTimeoutOrNull(500L) {
-                    snapshotFlow { valueAnimation.value }
-                        .filter { abs(it - valueAnimation.targetValue) < threshold }
-                        .first()
-                }
-            }
-            launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
-            launch { scaleXAnimation.animateTo(initialScale, scaleXAnimationSpec) }
-            launch { scaleYAnimation.animateTo(initialScale, scaleYAnimationSpec) }
-        }
+        schedulePressRelease()
     }
 
     fun updateValue(value: Float) {
@@ -185,6 +202,28 @@ class AriesTabDragAnimation(
         animationScope.launch {
             launch { valueAnimation.animateTo(target, valueAnimationSpec) { updateVelocity() } }
         }
+    }
+
+    /**
+     * 拖拽帧：在拖拽锚点（按下瞬间的显示位置）上累积 [delta]（页签单位）并让
+     * 滑块弹簧追赶。用「按下位置 + 累积位移」而非滞后的 targetValue 计算目标，
+     * 拖拽打断点选弹簧时不会被旧目标拽走，连续拖动的目标也只由手指位移决定。
+     */
+    fun dragBy(delta: Float) {
+        dragAnchorValue = (dragAnchorValue + delta).coerceIn(valueRange)
+        updateValue(dragAnchorValue)
+    }
+
+    /**
+     * 点选/拖拽松手提交目标页：同步记录意图后再启动弹簧（对齐参考
+     * `DampedDragAnimation.animateToValue`，含按压→到位→松开的形变编排）。
+     * 同步记录是关键：仲裁方读 [committedTargetIndex] 不受协程排队延迟影响，
+     * 消除快速连点时「弹簧尚未起飞就被判空闲、滑块被 snap 回 pager 旧进度」的竞态。
+     */
+    fun commitTo(index: Int) {
+        val target = index.coerceIn(valueRange.start.toInt(), valueRange.endInclusive.toInt())
+        committedTargetIndex = target
+        animateToValue(target.toFloat())
     }
 
     fun animateToValue(value: Float) {
@@ -200,13 +239,68 @@ class AriesTabDragAnimation(
         animationSpec: AnimationSpec<Float> = valueAnimationSpec,
     ) {
         // 在 mutex 内 await 动画：提前释放会让后续 snapToValue 撞上还在飞行的弹簧。
+        // 被更新的提交抢占时本协程整体取消，形变恢复交给新的提交处理。
         mutatorMutex.mutate {
             val target = value.coerceIn(valueRange)
-            // 程序吸附不再制造新的速度挤压；与参考一致，只让拖动残留速度衰减到 0。
-            if (velocity != 0f) {
-                animationScope.launch { velocityAnimation.animateTo(0f, velocityAnimationSpec) }
+            // 改点（retarget）时记录被打断飞行的即时速度：Animatable 会把中断速度
+            // 继承进新动画，弹簧「换目标不停车」；测试用它断言速度被保留。
+            val inheritedVelocity = sampledFlightVelocity
+            if (inheritedVelocity != 0f) lastRetargetVelocity = inheritedVelocity
+            sampledFlightVelocity = 0f
+            // 逐帧采样飞行速度，供下一次改点继承。
+            val velocitySampler = animationScope.launch {
+                var lastValue = valueAnimation.value
+                var lastNanos = 0L
+                while (isActive) {
+                    withFrameNanos { now ->
+                        val current = valueAnimation.value
+                        if (lastNanos > 0L && now > lastNanos) {
+                            val dt = (now - lastNanos) / 1e9f
+                            sampledFlightVelocity = (current - lastValue) / dt
+                        }
+                        lastValue = current
+                        lastNanos = now
+                    }
+                }
             }
-            valueAnimation.animateTo(target, animationSpec)
+            try {
+                // 对齐参考 animateToValue：点选先进入按压形变（滑块放大、lens/高光亮起），
+                // 弹簧到位后再恢复——「按下去→弹过去→到位松开」的液态手感。
+                animationScope.launch {
+                    launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
+                    launch { scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec) }
+                    launch { scaleYAnimation.animateTo(pressedScale, scaleYAnimationSpec) }
+                }
+                // 程序吸附不再制造新的速度挤压；与参考一致，只让拖动残留速度衰减到 0。
+                if (velocity != 0f) {
+                    animationScope.launch { velocityAnimation.animateTo(0f, velocityAnimationSpec) }
+                }
+                valueAnimation.animateTo(target, animationSpec)
+            } finally {
+                velocitySampler.cancel()
+            }
+        }
+        // 到位后恢复形变；不占用 mutex——等待期间新的提交可以随时抢占。
+        schedulePressRelease()
+    }
+
+    /**
+     * 形变恢复：等滑块逼近目标（范围 2.5% 内）再回弹，与参考 release() 一致；
+     * 有界等待避免 pager 交接异常时出现永久按住或形变不释放。
+     */
+    private fun schedulePressRelease() {
+        animationScope.launch {
+            if (value != targetValue) {
+                val threshold = (valueRange.endInclusive - valueRange.start) * 0.025f
+                withTimeoutOrNull(500L) {
+                    snapshotFlow { valueAnimation.value }
+                        .filter { abs(it - valueAnimation.targetValue) < threshold }
+                        .first()
+                }
+            }
+            launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
+            launch { scaleXAnimation.animateTo(initialScale, scaleXAnimationSpec) }
+            launch { scaleYAnimation.animateTo(initialScale, scaleYAnimationSpec) }
         }
     }
 

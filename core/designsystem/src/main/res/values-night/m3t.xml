@@ -2,19 +2,21 @@
 <resources>
 
     <!-- M3T Dark Palette -->
-    <!-- 主色：薄荷青系（参考 temp 渐变图 1/2/6），与官网 #6FDCEF 同源 -->
-    <color name="m3t_primary">#6FDCEF</color>
-    <color name="m3t_on_primary">#00323F</color>
-    <color name="m3t_primary_container">#0E4A5C</color>
-    <color name="m3t_on_primary_container">#C9F2FA</color>
+    <!-- 霓虹风格（temp/16518.png）：primary=薄荷青，secondary=樱粉原色 -->
+    <color name="m3t_primary">#8CDDEB</color>
+    <color name="m3t_on_primary">#111216</color>
+    <color name="m3t_primary_container">#004E60</color>
+    <color name="m3t_on_primary_container">#BCEBF4</color>
 
-    <color name="m3t_secondary">#F2A6C4</color>
-    <color name="m3t_on_secondary">#4A1229</color>
+    <color name="m3t_secondary">#FED3DD</color>
+    <color name="m3t_on_secondary">#111216</color>
     <color name="m3t_secondary_container">#5C2239</color>
-    <color name="m3t_on_secondary_container">#FBDFE9</color>
+    <color name="m3t_on_secondary_container">#FFD9E2</color>
 
-    <color name="m3t_tertiary">#7BDFC2</color>
-    <color name="m3t_on_tertiary">#00382B</color>
+    <!-- tertiary = 渐变中点 lerp(primary, secondary, 0.5) -->
+    <color name="m3t_tertiary">#C5D8E4</color>
+    <color name="m3t_on_tertiary">#111216</color>
+    <color name="m3t_surface_tint">#6FDCEF</color>
 
     <color name="m3t_error">#FF777B</color>
     <color name="m3t_on_error">#3F1418</color>
