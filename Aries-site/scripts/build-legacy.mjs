@@ -8,9 +8,49 @@
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { buildLegacyRouteMap, readJson, siteRoot, stripBom, VITEPRESS_DIR } from './lib/docs-data.mjs';
+import {
+  buildLegacyRouteMap,
+  readJson,
+  REMOVED_DOC_FALLBACKS,
+  siteRoot,
+  stripBom,
+  VITEPRESS_DIR,
+} from './lib/docs-data.mjs';
 
 const DOCS_ORIGIN = 'https://docs.aries-agent.com';
+
+/** 旧英文 slug → 合并后的页面；用于保留已分享的 VitePress 直链。 */
+const SLUG_REDIRECTS = {
+  'overview/glossary': 'overview/introduction',
+  'architecture/lifecycle': 'architecture/overview',
+  'persistence/room': 'persistence/sessions',
+  'chat/home-screen': 'chat/history',
+  'chat/markdown-components': 'chat/streaming-markdown',
+  'models/mode-switching': 'models/overview',
+  'models/local-mnn': 'models/overview',
+  'automation/voice-ui-plan-2026-10': 'chat/input-waveform',
+  'automation/configuration': 'automation/state-model',
+  'automation/screen-capture': 'automation/action-executor',
+  'system/accessibility': 'system/device-controller',
+  'virtual-display/focus-input': 'virtual-display/overview',
+  'tools/registration': 'tools/architecture',
+  'tools/file-executor': 'tools/network-executor',
+  'ui/onboarding': 'ui/settings',
+  'ui/drawer': 'ui/settings',
+  'ui/attachments': 'ui/material3-theme',
+  'ui/icons': 'ui/material3-theme',
+  'ui/feedback-logs': 'ui/settings',
+  'release/in-app-updates': 'release/github-release',
+  'release/telemetry': 'release/version-notes',
+  'dev/feedback-debugging': 'support/troubleshooting',
+  'dev/ci-testing': 'dev/build-toolchain',
+  'support/virtual-display-debugging': 'support/troubleshooting',
+  'legacy/coding-standards': 'dev/coding-standards',
+  'legacy/git-workflow': 'dev/git-workflow',
+  'legacy/faq': 'support/faq',
+  'legacy/feishu-collaboration': 'dev/ai-pr-review',
+  'legacy/ai-pr-review': 'dev/ai-pr-review',
+};
 
 function renderShell(routes) {
   const payload = JSON.stringify(routes);
@@ -91,19 +131,26 @@ async function renderRedirects(legacyRoutes) {
     '',
   ];
 
-  if (legacyRoutes.removed.length) {
-    rules.push(
-      `# 已删除的文档（跳转到语音输入章节）：${legacyRoutes.removed.join('、')}`,
-      '',
-    );
-  }
-
   rules.push('# 旧 markdown 直链 → 新文档页');
 
   for (const [file, slug] of Object.entries(slugs).sort(([a], [b]) => a.localeCompare(b))) {
     const target = `${DOCS_ORIGIN}/${slug}`;
     // Cloudflare `_redirects` 以空白分隔列，中文路径必须百分号编码。
     rules.push(`${encodeURI(`/docs/${file}.md`)}  ${target}  301`);
+  }
+
+  rules.push('', '# 已合并/删除的文档 → 合并后的页面');
+
+  for (const [file, slug] of Object.entries(REMOVED_DOC_FALLBACKS).sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    rules.push(`${encodeURI(`/docs/${file}.md`)}  ${DOCS_ORIGIN}/${slug}  301`);
+  }
+
+  rules.push('', '# 旧英文 slug → 合并后的页面');
+
+  for (const [from, to] of Object.entries(SLUG_REDIRECTS)) {
+    rules.push(`/${from}  ${DOCS_ORIGIN}/${to}  301`);
   }
 
   rules.push(

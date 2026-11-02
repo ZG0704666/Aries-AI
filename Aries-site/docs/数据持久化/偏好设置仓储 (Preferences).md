@@ -116,24 +116,24 @@ private object Keys {
     val apiLastCheckOk = booleanPreferencesKey("api_last_check_ok")
     val apiLastCheckTime = longPreferencesKey("api_last_check_time")
     val apiLastCheckSig = stringPreferencesKey("api_last_check_sig")
-    
+
     // ─── 用户状态 ──────────────────────────────────────
     val userAgreementAccepted = booleanPreferencesKey("user_agreement_accepted")
     val permGuideShown = booleanPreferencesKey("perm_guide_shown")
-    
+
     // ─── Aries API ─────────────────────────────────────
     val useAriesApi = booleanPreferencesKey("use_aries_api")
     val ariesApiSectionUnlocked = booleanPreferencesKey("aries_api_section_unlocked")
     val ariesLoggedInUser = stringPreferencesKey("aries_logged_in_user")
     val ariesSelectedModel = stringPreferencesKey("aries_selected_model")
     val ariesApiKey = stringPreferencesKey("aries_api_key")
-    
+
     // ─── 会话数据 ──────────────────────────────────────
     val conversations = stringPreferencesKey("conversations")
     val legacyConversationsJson = stringPreferencesKey("conversations_json")
     val legacyActiveConversationId = longPreferencesKey("active_conversation_id")
     val qwenPendingDownloadIds = stringSetPreferencesKey("qwen_pending_download_ids")
-    
+
     // ─── 主题外观 ──────────────────────────────────────
     val themeMode = stringPreferencesKey("theme_mode")
     val themeColorStyle = stringPreferencesKey("theme_color_style")

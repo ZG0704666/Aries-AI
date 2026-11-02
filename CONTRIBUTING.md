@@ -371,12 +371,12 @@ A:
 ## 📚 相关文档
 
 - [构建指南](./Aries-site/docs/BUILDING.md)
-- [代码规范](./Aries-site/docs/CODING_STANDARDS.md)
-- [Git 工作流](./Aries-site/docs/GIT_WORKFLOW.md)
+- [代码规范](./Aries-site/docs/开发规范与工具/代码规范%20(CODING_STANDARDS).md)
+- [Git 工作流](./Aries-site/docs/开发规范与工具/Git%20工作流.md)
 - [技术文档](./Aries-site/docs/TECHNICAL_OVERVIEW.md)
 - [AI PR 审阅指南](./Aries-site/docs/AI_PR_REVIEW.md)
 - [语音输入与波形](./Aries-site/docs/对话系统/输入栏与语音波形.md)
-- [FAQ](./Aries-site/docs/FAQ.md)
+- [FAQ](./Aries-site/docs/常见问题与支持/FAQ%20常见问题.md)
 
 ---
 
@@ -393,6 +393,6 @@ A:
 
 ### 文档中心维护
 
-文档统一保存在 `Aries-site/docs/`；现有中文分类和英文兼容入口继续保留。
+文档统一保存在 `Aries-site/docs/`；按 8 个主题分类组织，并保留旧链接与英文兼容入口。
 
-- [CI 流水线与测试](./Aries-site/docs/开发规范与工具/CI%20流水线与测试.md)
+- [构建脚本与工具链](./Aries-site/docs/开发规范与工具/构建脚本与工具链.md)

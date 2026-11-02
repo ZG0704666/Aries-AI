@@ -157,7 +157,7 @@ sequenceDiagram
     UI->>VM: onApiInputChanged(key)
     VM->>VM: onApiConfigChanged(clearApiValue)
     VM->>Prefs: writeApiConfig(removeApiKey/apiKey)
-    
+
     User->>UI: 点击"检查连接"
     UI->>VM: checkApiConnection()
     VM->>Prefs: setApiKey(key) / getActiveAriesApiKey()

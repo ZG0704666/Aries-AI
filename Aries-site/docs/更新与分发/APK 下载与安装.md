@@ -111,7 +111,7 @@ sequenceDiagram
         USC->>US: markSilentChecked() 更新时间戳
         USC->>RR: fetchLatestReleaseResilient()
         RR->>GAC: listReleases(page, perPage)
-        
+
         alt GitHub API 成功
             GAC-->>RR: GitHubRelease 列表
         else API 失败
@@ -122,7 +122,7 @@ sequenceDiagram
         end
 
         RR-->>USC: ReleaseEntry 结果
-        
+
         alt 有新版本
             USC->>US: saveLatest()
             USC->>UNU: notifyNewVersion()
@@ -152,31 +152,31 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     Start([用户点击下载]) --> CheckToken{GITHUB_TOKEN<br/>是否配置?}
-    
+
     CheckToken -->|是| DirectDL[使用 GitHub API<br/>下载 Asset]
     CheckToken -->|否| CheckURL{apkUrl<br/>是否为空?}
-    
+
     CheckURL -->|是| OpenRelease1[跳转 GitHub Release 页面]
     CheckURL -->|否| MirrorOptions[ReleaseUiUtil<br/>构建镜像选项]
-    
+
     MirrorOptions --> OptionCount{选项数量?}
-    
+
     OptionCount -->|0| OpenRelease2[跳转 GitHub Release 页面]
     OptionCount -->|1| SingleURL[直接打开下载链接]
     OptionCount -->|>1| ShowDialog[显示下载源选择对话框]
-    
+
     DirectDL --> BuildReq[构建 DownloadManager.Request]
     BuildReq --> SetHeaders[设置请求头:<br/>User-Agent, Authorization,<br/>Accept: octet-stream]
     SetHeaders --> SetDest["设置目标路径:<br/>DIRECTORY_DOWNLOADS/<br/>Aries-AI-{version}.apk"]
     SetDest --> Enqueue["dm.enqueue() 入队下载"]
-    
+
     Enqueue --> RegisterReceiver[注册 BroadcastReceiver<br/>监听下载完成]
     RegisterReceiver --> ToastStart[Toast: 开始下载]
     ToastStart --> Done([下载进行中...])
-    
+
     ShowDialog --> UserChoice{用户选择镜像}
     UserChoice --> MirrorURL[打开选中的镜像链接]
-    
+
     SingleURL --> MirrorURL
     OpenRelease1 --> End1([结束])
     OpenRelease2 --> End1
@@ -459,8 +459,8 @@ suspend fun fetchLatest(owner: String, repo: String): Result<ReleaseEntry?> {
 ```kotlin
 private fun loadPage(resetError: Boolean) {
     if (_uiState.value.loading) return
-    _uiState.update { 
-        it.copy(loading = true, error = if (resetError) null else it.error) 
+    _uiState.update {
+        it.copy(loading = true, error = if (resetError) null else it.error)
     }
 
     viewModelScope.launch {

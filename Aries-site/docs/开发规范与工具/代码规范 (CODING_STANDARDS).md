@@ -663,7 +663,7 @@ data class AgentConfiguration(
 - 公共 API 变更 → 更新 API 文档注释
 - 重要功能新增/变更 → 更新 `Aries AI 开发文档.md`
 - 构建流程变更 → 更新 `Aries-site/docs/BUILDING.md`
-- 规范变更 → 更新 `Aries-site/docs/CODING_STANDARDS.md`
+- 规范变更 → 更新 `Aries-site/docs/开发规范与工具/代码规范%20(CODING_STANDARDS).md`
 
 ---
 
@@ -727,35 +727,35 @@ flowchart TD
     Build -->|testDebugUnitTest| Test[运行测试]
     Test -->|lint| LintCheck[Lint 检查]
     LintCheck --> Commit{提交代码}
-    
+
     Commit -->|规范提交信息| Push[推送分支]
     Push --> PR[创建 Pull Request]
-    
+
     PR --> CI["🔧 CI 自动检查"]
     CI --> CI_Build[编译检查]
     CI --> CI_Test[单元测试]
     CI --> CI_Lint[Lint 分析]
-    
+
     PR --> Qodo["🤖 Qodo AI 审查"]
     Qodo --> Qodo_Security[安全分析]
     Qodo --> Qodo_Perf[性能建议]
     Qodo --> Qodo_Quality[代码质量]
-    
+
     CI_Build --> Result{全部通过?}
     CI_Test --> Result
     CI_Lint --> Result
     Qodo_Security --> Result
     Qodo_Perf --> Result
     Qodo_Quality --> Result
-    
+
     Result -->|是| Review["👤 人工 Code Review"]
     Result -->|否| Fix[修复问题]
     Fix --> Commit
-    
+
     Review --> Approved{审查通过?}
     Approved -->|是| Merge[合并到主分支]
     Approved -->|否| Fix
-    
+
     Merge --> End([完成])
 ```
 
@@ -795,15 +795,15 @@ flowchart TD
 
 ## 相关链接
 
-- [CODING_STANDARDS.md (源文件)](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/CODING_STANDARDS.md) — 完整规范源文档
+- [代码规范（源文件）](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/开发规范与工具/代码规范%20(CODING_STANDARDS).md) — 完整规范源文档
 - [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md) — 贡献者指南
 - [BUILDING.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/BUILDING.md) — 构建指南
-- [GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/GIT_WORKFLOW.md) — Git 工作流规范
+- [GIT_WORKFLOW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/开发规范与工具/Git%20工作流.md) — Git 工作流规范
 - [TECHNICAL_OVERVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/TECHNICAL_OVERVIEW.md) — 技术架构文档
 - [AI_PR_REVIEW.md](https://github.com/ZG0704666/Aries-AI/blob/main/Aries-site/docs/AI_PR_REVIEW.md) — AI PR 审阅指南
 
 ---
 
-**文档版本**：v1.0  
-**最后更新**：基于仓库 main 分支  
+**文档版本**：v1.0
+**最后更新**：2026-11-02
 **维护人**：ZG0704666

@@ -941,15 +941,15 @@ val testConfig = AgentConfiguration.TEST
 - [README.md](https://github.com/ZG0704666/Aries-AI/blob/main/README.md) - 项目概览与快速开始
 - [TECHNICAL_OVERVIEW.md](../TECHNICAL_OVERVIEW.md) - 核心技术文档
 - [BUILDING.md](../BUILDING.md) - 编译与构建指南
-- [CODING_STANDARDS.md](../CODING_STANDARDS.md) - 代码规范
-- [GIT_WORKFLOW.md](../GIT_WORKFLOW.md) - Git 工作流
+- [CODING_STANDARDS.md](../开发规范与工具/代码规范%20(CODING_STANDARDS).md) - 代码规范
+- [GIT_WORKFLOW.md](../开发规范与工具/Git%20工作流.md) - Git 工作流
 - [CONTRIBUTING.md](https://github.com/ZG0704666/Aries-AI/blob/main/CONTRIBUTING.md) - 贡献指南
 - [Aries AI 开发文档](https://docs.aries-agent.com/) - 主开发文档
 
 ---
 
-**文档版本**：v2.0  
-**最后更新**：2026-05-18  
+**文档版本**：v2.0
+**最后更新**：2026-11-02
 **维护人**：ZG0704666
 
 ---

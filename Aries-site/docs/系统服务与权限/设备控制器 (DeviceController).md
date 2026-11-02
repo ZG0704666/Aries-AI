@@ -1,4 +1,6 @@
-# 设备控制器 (DeviceController)
+# 设备控制与无障碍服务
+
+本页说明设备控制器的统一接口、AccessibilityDeviceController 的实现，以及 PhoneAgentAccessibilityService 的能力、生命周期和悬浮层职责。
 
 设备控制器的平台抽象层 —— 解耦 Android AccessibilityService 依赖，为 UI 自动化提供统一的设备交互接口，提高代码的可测试性和可替换性。
 
@@ -65,29 +67,29 @@ flowchart TD
 
 ```kotlin
 interface DeviceController {
-    
+
     /** 获取当前应用包名 */
     fun getCurrentAppPackage(): String
-    
+
     /** 尝试截取截图 */
     suspend fun tryCaptureScreenshot(): PhoneAgentAccessibilityService.ScreenshotData?
-    
+
     /** 获取UI树 */
     fun dumpUiTree(maxNodes: Int = 30, detail: String = "summary"): String
-    
+
     /** 点击坐标 */
     suspend fun click(x: Float, y: Float, durationMs: Long = 60L): Boolean
-    
+
     /** 滑动 */
     suspend fun swipe(
         startX: Float, startY: Float,
         endX: Float, endY: Float,
         durationMs: Long = 300L
     ): Boolean
-    
+
     /** 设置输入框文本 */
     fun setTextOnFocused(text: String): Boolean
-    
+
     /** 在指定元素上设置文本 */
     suspend fun setTextOnElement(
         text: String,
@@ -97,7 +99,7 @@ interface DeviceController {
         className: String? = null,
         index: Int = 0
     ): Boolean
-    
+
     /** 点击元素 */
     suspend fun clickElement(
         resourceId: String? = null,
@@ -106,22 +108,22 @@ interface DeviceController {
         className: String? = null,
         index: Int = 0
     ): Boolean
-    
+
     /** 查找并点击第一个可编辑元素 */
     suspend fun clickFirstEditableElement(): Boolean
-    
+
     /** 执行全局返回 */
     fun performGlobalBack(): Boolean
-    
+
     /** 执行全局Home */
     fun performGlobalHome(): Boolean
-    
+
     /** 获取包管理器 */
     fun getPackageManager(): android.content.pm.PackageManager
-    
+
     /** 获取最后一次窗口事件时间 */
     fun getLastWindowEventTime(): Long
-    
+
     /** 等待窗口事件 */
     suspend fun awaitWindowEvent(afterTimeMs: Long, timeoutMs: Long = 1500L): Boolean
 }
@@ -181,27 +183,27 @@ flowchart LR
 class AccessibilityDeviceController(
     private val service: PhoneAgentAccessibilityService
 ) : DeviceController {
-    
+
     override fun getCurrentAppPackage(): String = service.currentAppPackage()
-    
-    override suspend fun tryCaptureScreenshot(): PhoneAgentAccessibilityService.ScreenshotData? = 
+
+    override suspend fun tryCaptureScreenshot(): PhoneAgentAccessibilityService.ScreenshotData? =
         service.tryCaptureScreenshotBase64()
-    
+
     override fun dumpUiTree(maxNodes: Int, detail: String): String =
         service.dumpUiTree(maxNodes)
-    
-    override suspend fun click(x: Float, y: Float, durationMs: Long): Boolean = 
+
+    override suspend fun click(x: Float, y: Float, durationMs: Long): Boolean =
         service.clickAwait(x, y, durationMs)
-    
+
     override suspend fun swipe(
         startX: Float, startY: Float,
         endX: Float, endY: Float,
         durationMs: Long
     ): Boolean = service.swipeAwait(startX, startY, endX, endY, durationMs)
-    
-    override fun setTextOnFocused(text: String): Boolean = 
+
+    override fun setTextOnFocused(text: String): Boolean =
         service.setTextOnFocused(text)
-    
+
     override suspend fun setTextOnElement(
         text: String, resourceId: String?, elementText: String?,
         contentDesc: String?, className: String?, index: Int
@@ -209,7 +211,7 @@ class AccessibilityDeviceController(
         text = text, resourceId = resourceId, elementText = elementText,
         contentDesc = contentDesc, className = className, index = index
     )
-    
+
     override suspend fun clickElement(
         resourceId: String?, text: String?, contentDesc: String?,
         className: String?, index: Int
@@ -217,20 +219,20 @@ class AccessibilityDeviceController(
         resourceId = resourceId, text = text, contentDesc = contentDesc,
         className = className, index = index
     )
-    
-    override suspend fun clickFirstEditableElement(): Boolean = 
+
+    override suspend fun clickFirstEditableElement(): Boolean =
         service.clickFirstEditableElement()
-    
+
     override fun performGlobalBack(): Boolean = service.performGlobalBack()
-    
+
     override fun performGlobalHome(): Boolean = service.performGlobalHome()
-    
-    override fun getPackageManager(): android.content.pm.PackageManager = 
+
+    override fun getPackageManager(): android.content.pm.PackageManager =
         service.packageManager
-    
+
     override fun getLastWindowEventTime(): Long = service.lastWindowEventTime()
-    
-    override suspend fun awaitWindowEvent(afterTimeMs: Long, timeoutMs: Long): Boolean = 
+
+    override suspend fun awaitWindowEvent(afterTimeMs: Long, timeoutMs: Long): Boolean =
         service.awaitWindowEvent(afterTimeMs, timeoutMs)
 }
 ```
@@ -258,18 +260,18 @@ sequenceDiagram
     participant Android as Android Framework
 
     Agent->>AE: execute(action, service, uiDump, ...)
-    
+
     Note over AE,PAS: 信息获取阶段
     AE->>PAS: currentAppPackage()
     PAS->>Android: rootInActiveWindow.packageName
     Android-->>PAS: 当前应用包名
     PAS-->>AE: 包名字符串
-    
+
     AE->>PAS: tryCaptureScreenshotBase64()
     PAS->>Android: takeScreenshot()
     Android-->>PAS: Bitmap
     PAS-->>AE: ScreenshotData
-    
+
     AE->>PAS: dumpUiTree(maxNodes=30)
     PAS->>Android: 遍历 AccessibilityNodeInfo 树
     Android-->>PAS: 节点层级结构
@@ -280,7 +282,7 @@ sequenceDiagram
     PAS->>Android: dispatchGesture(GestureDescription)
     Android-->>PAS: 手势执行完成
     PAS-->>AE: true
-    
+
     AE->>PAS: lastWindowEventTime()
     PAS-->>AE: 时间戳
 
@@ -558,18 +560,46 @@ app/src/main/java/com/ai/phoneagent/
 └── UiAutomationAgent.kt                  ← 主 Agent 协调器
 ```
 
-## 相关链接
-
-- [DeviceController.kt 源文件](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/platform/DeviceController.kt) — 接口定义与实现
-- [PhoneAgentAccessibilityService.kt 源文件](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/PhoneAgentAccessibilityService.kt) — 底层无障碍服务
-- [ActionExecutor.kt 源文件](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/executor/ActionExecutor.kt) — 动作执行器（设备操作的消费者）
-- [AgentConfiguration.kt 源文件](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/core/config/AgentConfiguration.kt) — 与设备操作相关的超时和延迟配置
-- [UiAutomationAgent.kt 源文件](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/UiAutomationAgent.kt) — 主 Agent 协调器
-
 ---
 
-*本文档基于 [ZG0704666/Aries-AI](https://github.com/ZG0704666/Aries-AI) 仓库 `main` 分支的实际源代码生成。*
+## 无障碍服务与悬浮层
 
-## 专题补充
+本页依据 DeepWiki 的 Accessibility Service & Overlays，并对照当前服务、配置和覆盖层代码核对（2026-10-14）。
 
-[无障碍服务与悬浮层](./无障碍服务与悬浮层.md)。
+### 服务能力与生命周期
+
+`PhoneAgentAccessibilityService` 是 Android 无障碍服务，负责节点观测、手势、截图等平台能力。配置文件 `phone_agent_accessibility_service.xml` 声明读取窗口、报告资源 ID、过滤按键、执行手势和截图的能力；声明能力不等于用户已启用服务。
+
+`onServiceConnected()` 设置服务实例，销毁时清理。执行器调用前需检查服务可用性，避免持有失效实例。节点快照支持不同详细程度，输出文本还经过规范化处理。
+
+虚拟屏模式下的按键和焦点处理用于尽力恢复主屏焦点；这不是 Android 系统对所有设备的绝对隔离保证，仍需在目标系统和应用上验证。
+
+### 不同覆盖层的职责
+
+| 组件 | 用途 |
+| --- | --- |
+| `AutomationOverlay` | 自动化悬浮提示与返回 MainActivity 的入口 |
+| `UIAutomationProgressOverlay` | 步数、状态、暂停和取消控件；支持截图时临时隐藏 |
+| `VirtualScreenPreviewOverlay` | 虚拟屏画面预览 |
+| `AutomationLiveNotification` | 自动化运行的通知展示 |
+
+这些组件不能等同于 `FloatingChatService`：后者已从当前源码移除。保留的浮窗偏好字段也不能证明悬浮聊天仍是可用功能。
+
+### 权限与工具链
+
+普通无障碍手势需要服务启用；系统悬浮窗需要对应授权；Shizuku 的 Binder 可用和授权状态独立判断。录音权限只在语音输入链路需要，不能混为自动化执行权限。
+
+UI 工具经过工具注册和权限系统后才调用平台能力；服务未启用时应返回失败结果，不能把工具已注册理解成设备已经能够执行。
+
+```mermaid
+flowchart LR
+    Tool["UI 工具请求"] --> Permission["工具权限检查"]
+    Permission --> Service["无障碍服务可用性"]
+    Service --> Gesture["手势或节点操作"]
+    Agent["自动化任务状态"] --> Overlay["进度覆盖层 / 通知"]
+    Overlay --> Return["返回 MainActivity"]
+```
+
+源码：[PhoneAgentAccessibilityService.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/PhoneAgentAccessibilityService.kt)、[UIAutomationProgressOverlay.kt](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/java/com/ai/phoneagent/ui/UIAutomationProgressOverlay.kt)、[服务配置](https://github.com/ZG0704666/Aries-AI/blob/main/app/src/main/res/xml/phone_agent_accessibility_service.xml)。
+
+相关阅读：[环境与权限配置](../快速开始/环境与权限配置.md)、[工具注册与权限管理](../AI%20工具框架/工具系统架构.md)。来源：[DeepWiki](https://deepwiki.com/ZG0704666/Aries-AI)。

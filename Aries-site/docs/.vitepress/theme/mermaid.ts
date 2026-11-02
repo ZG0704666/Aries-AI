@@ -6,6 +6,8 @@
  * 在浏览器端用 IntersectionObserver 只渲染进入视口附近的图表。
  */
 
+import { createZoomChrome } from './zoom';
+
 type MermaidApi = typeof import('mermaid').default;
 
 const MERMAID_SELECTOR = 'div.language-mermaid';
@@ -74,6 +76,19 @@ function ensureObserver(): IntersectionObserver {
   return intersectionObserver;
 }
 
+function ensureMermaidCanvas(block: HTMLElement): HTMLElement {
+  const existing = block.querySelector<HTMLElement>('.mermaid-canvas');
+  if (existing) return existing;
+
+  block.textContent = '';
+  block.classList.add('md-zoom', 'mermaid-block--interactive');
+
+  const canvas = document.createElement('div');
+  canvas.className = 'mermaid-canvas';
+  createZoomChrome(block, canvas, 'Mermaid 图表');
+  return canvas;
+}
+
 async function renderBlock(block: HTMLElement, code: string): Promise<void> {
   if (pending.has(block)) return;
   pending.add(block);
@@ -91,11 +106,16 @@ async function renderBlock(block: HTMLElement, code: string): Promise<void> {
     const id = `aries-mermaid-${renderCount}`;
     const { svg } = await mermaid.render(id, code);
 
-    block.innerHTML = svg;
+    const canvas = ensureMermaidCanvas(block);
+    canvas.innerHTML = svg;
     block.dataset.state = 'done';
   } catch (error) {
     block.dataset.state = 'error';
     block.classList.add('mermaid-error');
+    const canvas = block.querySelector<HTMLElement>('.mermaid-canvas');
+    if (canvas) {
+      canvas.innerHTML = '<div class="mermaid-loading">图表渲染失败，请查看控制台日志。</div>';
+    }
     console.warn('[aries] Mermaid 渲染失败，已保留原始代码块', error);
   } finally {
     pending.delete(block);
@@ -136,9 +156,10 @@ function rerenderAll(): void {
   const blocks = document.querySelectorAll<HTMLElement>(`.${RENDERED_CLASS}[data-state="done"]`);
   for (const block of blocks) {
     const code = codeStore.get(block);
-    if (!code) continue;
+    const canvas = block.querySelector<HTMLElement>('.mermaid-canvas');
+    if (!code || !canvas) continue;
     block.dataset.state = 'pending';
-    block.innerHTML = '<div class="mermaid-loading">图表重绘中…</div>';
+    canvas.innerHTML = '<div class="mermaid-loading">图表重绘中…</div>';
     void renderBlock(block, code);
   }
 }
